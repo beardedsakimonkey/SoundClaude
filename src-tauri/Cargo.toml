@@ -1,0 +1,32 @@
+[package]
+name = "soundclaude"
+version = "0.1.0"
+description = "A personal SoundCloud desktop client"
+authors = ["Tim"]
+edition = "2024"
+
+[lib]
+name = "soundclaude_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+base64 = "0.22"
+reqwest = { version = "0.13", default-features = false, features = ["form", "json", "query", "rustls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+tauri = { version = "2.11", features = [] }
+tauri-plugin-opener = "2.5"
+tiny_http = "0.12"
+tokio = { version = "1", features = ["rt", "sync", "time"] }
+url = "2.5"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+httpmock = { version = "0.8", default-features = false }
+tempfile = "3"

@@ -1,0 +1,7 @@
+credentials.json
+.DS_Store
+node_modules/
+dist/
+coverage/
+src-tauri/target/
+
