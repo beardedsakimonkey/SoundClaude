@@ -7,6 +7,7 @@ const api = vi.hoisted(() => ({
   signOut: vi.fn(),
   getLikedTracks: vi.fn(),
   resolvePlayback: vi.fn(),
+  getWaveform: vi.fn(),
   openSoundCloudUrl: vi.fn(),
 }));
 
@@ -29,6 +30,7 @@ const track = {
   title: "A liked track",
   uploader: "Artist",
   artworkUrl: "https://i1.sndcdn.com/artworks-test-large.jpg",
+  waveformUrl: null,
   permalinkUrl: "https://soundcloud.com/artist/track",
   uploaderPermalinkUrl: "https://soundcloud.com/artist",
   durationMs: 125_000,

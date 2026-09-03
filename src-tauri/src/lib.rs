@@ -10,7 +10,7 @@ use crate::{
     auth::{PendingAuth, bind_callback_server, wait_for_callback},
     credentials::{CLIENT_ID, CLIENT_SECRET},
     error::CommandError,
-    models::{PlaybackSource, SessionState, TrackSummary},
+    models::{PlaybackSource, SessionState, TrackSummary, WaveformData},
     soundcloud::SoundCloudClient,
     state::AppState,
     storage::SessionStore,
@@ -128,6 +128,18 @@ async fn resolve_playback(
 }
 
 #[tauri::command]
+async fn get_waveform(
+    waveform_url: String,
+    state: State<'_, AppState>,
+) -> Result<WaveformData, CommandError> {
+    state
+        .client
+        .waveform(&waveform_url)
+        .await
+        .map_err(|error| error.into_command())
+}
+
+#[tauri::command]
 async fn sign_out(state: State<'_, AppState>) -> Result<(), CommandError> {
     if let Some(record) = state.store.load()? {
         let _ = state.client.sign_out(&record.access_token).await;
@@ -177,6 +189,7 @@ pub fn run() {
             begin_login,
             get_liked_tracks,
             resolve_playback,
+            get_waveform,
             sign_out,
             open_soundcloud_url
         ])

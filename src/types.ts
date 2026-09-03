@@ -14,6 +14,7 @@ export interface TrackSummary {
   title: string;
   uploader: string;
   artworkUrl: string | null;
+  waveformUrl: string | null;
   permalinkUrl: string;
   uploaderPermalinkUrl: string;
   durationMs: number;
@@ -26,6 +27,11 @@ export interface PlaybackSource {
   codec: "aac" | "mp3";
   bitrateKbps: number;
   isPreview: boolean;
+}
+
+export interface WaveformData {
+  height: number;
+  samples: number[];
 }
 
 export interface CommandError {

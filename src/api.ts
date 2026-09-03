@@ -4,6 +4,7 @@ import type {
   PlaybackSource,
   SessionState,
   TrackSummary,
+  WaveformData,
 } from "./types";
 
 function isCommandError(value: unknown): value is CommandError {
@@ -32,6 +33,7 @@ export const getLikedTracks = () =>
   invoke<TrackSummary[]>("get_liked_tracks");
 export const resolvePlayback = (trackUrn: string) =>
   invoke<PlaybackSource>("resolve_playback", { trackUrn });
+export const getWaveform = (waveformUrl: string) =>
+  invoke<WaveformData>("get_waveform", { waveformUrl });
 export const openSoundCloudUrl = (url: string) =>
   invoke<void>("open_soundcloud_url", { url });
-

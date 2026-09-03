@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { ChangeEvent, RefObject } from "react";
 import * as stylex from "@stylexjs/stylex";
 import { POWERED_BY_SOUNDCLOUD } from "../assets";
+import { getWaveform } from "../api";
 import type { PlaybackSource, TrackSummary } from "../types";
 
 const styles = stylex.create({
@@ -159,11 +160,45 @@ const styles = stylex.create({
     display: "grid",
     gap: 6,
   },
-  seekInput: {
+  waveformControl: {
+    position: "relative",
     width: "100%",
-    height: 4,
+    height: 34,
+    borderRadius: 4,
+    outline: {
+      default: "none",
+      ":focus-within": "2px solid #f50",
+    },
+    outlineOffset: 2,
+  },
+  waveform: {
+    display: "block",
+    width: "100%",
+    height: "100%",
+    overflow: "visible",
+  },
+  waveformPending: {
+    color: {
+      default: "#d4d4d8",
+      "@media (prefers-color-scheme: dark)": "#52525a",
+    },
+  },
+  waveformReady: {
+    color: {
+      default: "#a8a8af",
+      "@media (prefers-color-scheme: dark)": "#686870",
+    },
+  },
+  waveformPlayed: {
+    color: "#f50",
+  },
+  seekInput: {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
     margin: 0,
-    accentColor: "#f50",
+    opacity: 0,
     cursor: "pointer",
   },
   timeRow: {
@@ -240,6 +275,47 @@ interface PlayerBarProps {
   onPlaybackError: () => void;
 }
 
+const MAX_WAVEFORM_BARS = 180;
+const EMPTY_WAVEFORM = Array.from({ length: 90 }, () => 0.04);
+
+function prepareWaveform(payload: { height: number; samples: number[] }): number[] {
+  if (!Array.isArray(payload.samples) || payload.samples.length === 0) return [];
+
+  const samples = payload.samples.map((sample) =>
+    typeof sample === "number" && Number.isFinite(sample) ? Math.max(sample, 0) : 0,
+  );
+  const payloadHeight = typeof payload.height === "number"
+    && Number.isFinite(payload.height)
+    && payload.height > 0
+    ? payload.height
+    : 0;
+  let largestSample = 1;
+  for (const sample of samples) largestSample = Math.max(largestSample, sample);
+  const scale = Math.max(payloadHeight, largestSample);
+  const barCount = Math.min(samples.length, MAX_WAVEFORM_BARS);
+  const bars: number[] = [];
+
+  for (let bar = 0; bar < barCount; bar += 1) {
+    const start = Math.floor((bar * samples.length) / barCount);
+    const end = Math.max(start + 1, Math.floor(((bar + 1) * samples.length) / barCount));
+    let peak = 0;
+    for (let index = start; index < end; index += 1) {
+      peak = Math.max(peak, samples[index] ?? 0);
+    }
+    bars.push(Math.min(peak / scale, 1));
+  }
+
+  return bars;
+}
+
+function waveformPath(samples: number[]): string {
+  return samples.map((sample, index) => {
+    const halfHeight = Math.max(1.25, sample * 14);
+    const x = index + 0.5;
+    return `M${x} ${16 - halfHeight}V${16 + halfHeight}`;
+  }).join(" ");
+}
+
 function timeLabel(timeSeconds: number): string {
   if (!Number.isFinite(timeSeconds) || timeSeconds < 0) return "0:00";
   const seconds = Math.floor(timeSeconds);
@@ -282,6 +358,8 @@ export function PlayerBar({ audioRef, nowPlaying, onEnded, onOpenSoundCloud, onP
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
   const [artworkFailed, setArtworkFailed] = useState(false);
+  const [waveformSamples, setWaveformSamples] = useState<number[]>([]);
+  const waveformClipId = useId().replaceAll(":", "");
 
   useEffect(() => {
     setIsPlaying(false);
@@ -289,6 +367,25 @@ export function PlayerBar({ audioRef, nowPlaying, onEnded, onOpenSoundCloud, onP
     setDuration((nowPlaying?.track.durationMs ?? 0) / 1000);
     setArtworkFailed(false);
   }, [nowPlaying?.track.urn]);
+
+  useEffect(() => {
+    const waveformUrl = nowPlaying?.track.waveformUrl;
+    setWaveformSamples([]);
+    if (!waveformUrl) return;
+
+    let active = true;
+    void getWaveform(waveformUrl)
+      .then((payload) => {
+        if (active) setWaveformSamples(prepareWaveform(payload));
+      })
+      .catch(() => {
+        if (active) setWaveformSamples([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [nowPlaying?.track.waveformUrl]);
 
   function updateDuration(audio: HTMLAudioElement) {
     if (Number.isFinite(audio.duration) && audio.duration > 0) {
@@ -340,6 +437,9 @@ export function PlayerBar({ audioRef, nowPlaying, onEnded, onOpenSoundCloud, onP
   const displayDuration = duration || (nowPlaying?.track.durationMs ?? 0) / 1000;
   const seekMaximum = Math.max(displayDuration, 1);
   const seekValue = Math.min(currentTime, seekMaximum);
+  const visibleWaveform = waveformSamples.length > 0 ? waveformSamples : EMPTY_WAVEFORM;
+  const waveformData = useMemo(() => waveformPath(visibleWaveform), [visibleWaveform]);
+  const waveformProgress = seekValue / seekMaximum;
 
   return (
     <footer {...stylex.props(styles.bar)}>
@@ -377,17 +477,44 @@ export function PlayerBar({ audioRef, nowPlaying, onEnded, onOpenSoundCloud, onP
           {isPlaying ? <PauseIcon /> : <PlayIcon />}
         </button>
         <div {...stylex.props(styles.timeline)}>
-          <input
-            {...stylex.props(styles.seekInput)}
-            aria-label="Playback position"
-            disabled={!nowPlaying}
-            max={seekMaximum}
-            min="0"
-            onChange={seek}
-            step="0.1"
-            type="range"
-            value={seekValue}
-          />
+          <div {...stylex.props(styles.waveformControl)}>
+            <svg
+              {...stylex.props(
+                styles.waveform,
+                waveformSamples.length > 0 ? styles.waveformReady : styles.waveformPending,
+              )}
+              aria-hidden="true"
+              preserveAspectRatio="none"
+              viewBox={`0 0 ${visibleWaveform.length} 32`}
+            >
+              <defs>
+                <clipPath id={waveformClipId}>
+                  <rect height="32" width={waveformProgress * visibleWaveform.length} />
+                </clipPath>
+              </defs>
+              <path d={waveformData} fill="none" stroke="currentColor" strokeWidth="0.65" />
+              <path
+                {...stylex.props(styles.waveformPlayed)}
+                clipPath={`url(#${waveformClipId})`}
+                d={waveformData}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="0.65"
+              />
+            </svg>
+            <input
+              {...stylex.props(styles.seekInput)}
+              aria-label="Playback position"
+              aria-valuetext={`${timeLabel(currentTime)} of ${timeLabel(displayDuration)}`}
+              disabled={!nowPlaying}
+              max={seekMaximum}
+              min="0"
+              onChange={seek}
+              step="0.1"
+              type="range"
+              value={seekValue}
+            />
+          </div>
           <div {...stylex.props(styles.timeRow)}>
             <span>{timeLabel(currentTime)}</span>
             <span>{timeLabel(displayDuration)}</span>

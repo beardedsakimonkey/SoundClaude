@@ -1,7 +1,7 @@
 use crate::{
     auth::REDIRECT_URI,
     error::CommandError,
-    models::{PlaybackSource, TrackSummary, UserSummary},
+    models::{PlaybackSource, TrackSummary, UserSummary, WaveformData},
 };
 use reqwest::{Client, RequestBuilder, Response, StatusCode, header, redirect::Policy};
 use serde::Deserialize;
@@ -416,6 +416,40 @@ impl SoundCloudClient {
         }
     }
 
+    pub async fn waveform(&self, waveform_url: &str) -> Result<WaveformData, ScError> {
+        let waveform_url = validate_waveform_url(waveform_url)?;
+        let response = self
+            .send(
+                self.http
+                    .get(waveform_url)
+                    .header(header::ACCEPT, "application/json; charset=utf-8"),
+            )
+            .await?;
+        if !response.status().is_success() {
+            return Err(ScError::from_response(response).await);
+        }
+        let waveform = response.json::<WaveformData>().await.map_err(|_| {
+            ScError::new(
+                ScErrorKind::Api,
+                "SoundCloud returned invalid waveform data.",
+            )
+        })?;
+        if !waveform.height.is_finite()
+            || waveform.height <= 0.0
+            || waveform.samples.is_empty()
+            || waveform
+                .samples
+                .iter()
+                .any(|sample| !sample.is_finite() || *sample < 0.0)
+        {
+            return Err(ScError::new(
+                ScErrorKind::Api,
+                "SoundCloud returned invalid waveform data.",
+            ));
+        }
+        Ok(waveform)
+    }
+
     fn api_url(&self, segments: &[&str]) -> Result<Url, ScError> {
         let mut url = self.api_base.clone();
         url.path_segments_mut()
@@ -484,6 +518,32 @@ fn validate_cdn_url(value: &str) -> Result<String, ScError> {
     Ok(url.into())
 }
 
+fn validate_waveform_url(value: &str) -> Result<Url, ScError> {
+    let mut url = Url::parse(value).map_err(|_| {
+        ScError::new(
+            ScErrorKind::Api,
+            "SoundCloud returned an invalid waveform URL.",
+        )
+    })?;
+    let allowed = url.scheme() == "https"
+        && url.host_str() == Some("wave.sndcdn.com")
+        && (url.path().ends_with(".json") || url.path().ends_with(".png"));
+    if !allowed {
+        return Err(ScError::new(
+            ScErrorKind::Api,
+            "SoundCloud returned an unexpected waveform URL.",
+        ));
+    }
+    if let Some(path) = url
+        .path()
+        .strip_suffix(".png")
+        .map(|path| format!("{path}.json"))
+    {
+        url.set_path(&path);
+    }
+    Ok(url)
+}
+
 #[derive(Debug, Deserialize)]
 struct ApiErrorBody {
     message: Option<String>,
@@ -531,6 +591,7 @@ struct RawTrack {
     urn: Option<String>,
     title: Option<String>,
     artwork_url: Option<String>,
+    waveform_url: Option<String>,
     permalink_url: Option<String>,
     duration: Option<u64>,
     access: Option<String>,
@@ -564,6 +625,7 @@ fn map_tracks(raw_tracks: Vec<RawTrack>) -> LikedTracks {
             title,
             uploader,
             artwork_url: raw.artwork_url,
+            waveform_url: raw.waveform_url,
             permalink_url,
             uploader_permalink_url,
             duration_ms: raw.duration.unwrap_or_default(),
@@ -636,6 +698,25 @@ mod tests {
     }
 
     #[test]
+    fn only_soundcloud_waveform_urls_are_accepted() {
+        assert_eq!(
+            validate_waveform_url("https://wave.sndcdn.com/4bpxiWndwaCM_m.json")
+                .unwrap()
+                .as_str(),
+            "https://wave.sndcdn.com/4bpxiWndwaCM_m.json"
+        );
+        assert_eq!(
+            validate_waveform_url("https://wave.sndcdn.com/4bpxiWndwaCM_m.png")
+                .unwrap()
+                .as_str(),
+            "https://wave.sndcdn.com/4bpxiWndwaCM_m.json"
+        );
+        assert!(validate_waveform_url("http://wave.sndcdn.com/4bpxiWndwaCM_m.json").is_err());
+        assert!(validate_waveform_url("https://wave.sndcdn.com.evil.example/test_m.json").is_err());
+        assert!(validate_waveform_url("https://other.sndcdn.com/test_m.json").is_err());
+    }
+
+    #[test]
     fn private_track_tokens_are_extracted() {
         assert_eq!(
             extract_secret_token("https://soundcloud.com/user/private-track/s-AbCd12"),
@@ -658,6 +739,7 @@ mod tests {
                     "urn": "soundcloud:tracks:1",
                     "title": "Track",
                     "artwork_url": null,
+                    "waveform_url": "https://wave.sndcdn.com/test_m.png",
                     "permalink_url": "https://soundcloud.com/u/t",
                     "duration": 1234,
                     "access": "playable",
@@ -675,6 +757,10 @@ mod tests {
         request.assert();
         assert_eq!(result.tracks.len(), 1);
         assert_eq!(result.tracks[0].uploader, "Uploader");
+        assert_eq!(
+            result.tracks[0].waveform_url.as_deref(),
+            Some("https://wave.sndcdn.com/test_m.png")
+        );
     }
 
     #[tokio::test]

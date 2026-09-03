@@ -38,6 +38,7 @@ pub struct TrackSummary {
     pub title: String,
     pub uploader: String,
     pub artwork_url: Option<String>,
+    pub waveform_url: Option<String>,
     pub permalink_url: String,
     pub uploader_permalink_url: String,
     pub duration_ms: u64,
@@ -52,6 +53,12 @@ pub struct PlaybackSource {
     pub codec: String,
     pub bitrate_kbps: u16,
     pub is_preview: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WaveformData {
+    pub height: f32,
+    pub samples: Vec<f32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
