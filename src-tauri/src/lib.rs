@@ -182,8 +182,6 @@ pub fn run() {
                 client.clone(),
                 SessionStore::new(session_path),
             ));
-            #[cfg(debug_assertions)]
-            app.get_webview_window("main").unwrap().open_devtools();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
