@@ -4,4 +4,4 @@ node_modules/
 dist/
 coverage/
 src-tauri/target/
-
+native/audio-probe/build/

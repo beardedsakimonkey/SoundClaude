@@ -550,6 +550,7 @@ export function PlayerBar({ audioRef, nowPlaying, onEnded, onPlaybackError }: Pl
       <audio
         {...stylex.props(styles.audioEngine)}
         aria-label="SoundCloud player"
+        crossOrigin="anonymous"
         onDurationChange={(event) => updateDuration(event.currentTarget)}
         onEnded={() => {
           setIsPlaying(false);

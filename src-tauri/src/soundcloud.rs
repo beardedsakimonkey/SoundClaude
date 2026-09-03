@@ -503,19 +503,22 @@ fn validate_cdn_url(value: &str) -> Result<String, ScError> {
             "SoundCloud returned an invalid playback URL.",
         )
     })?;
-    let allowed = url.scheme() == "https"
-        && url.host_str().is_some_and(|host| {
-            host == "sndcdn.com"
-                || host.ends_with(".sndcdn.com")
-                || host == "playback.media-streaming.soundcloud.cloud"
-        });
-    if !allowed {
+    if !is_playback_cdn_url(&url) {
         return Err(ScError::new(
             ScErrorKind::Api,
             "SoundCloud returned an unexpected playback host.",
         ));
     }
     Ok(url.into())
+}
+
+pub(crate) fn is_playback_cdn_url(url: &Url) -> bool {
+    url.scheme() == "https"
+        && url.host_str().is_some_and(|host| {
+            host == "sndcdn.com"
+                || host.ends_with(".sndcdn.com")
+                || host == "playback.media-streaming.soundcloud.cloud"
+        })
 }
 
 fn validate_waveform_url(value: &str) -> Result<Url, ScError> {

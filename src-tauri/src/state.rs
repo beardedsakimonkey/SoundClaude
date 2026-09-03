@@ -1,6 +1,7 @@
 use crate::{
     error::CommandError,
     models::{SessionState, TokenRecord, UserSummary},
+    native_probe::NativeProbe,
     soundcloud::{ScError, ScErrorKind, SoundCloudClient, TokenResponse},
     storage::SessionStore,
 };
@@ -20,6 +21,7 @@ pub struct AppState {
     pub login_lock: Mutex<()>,
     pub track_secret_tokens: RwLock<HashMap<String, String>>,
     pub known_tracks: RwLock<HashSet<String>>,
+    pub native_probe: NativeProbe,
 }
 
 impl AppState {
@@ -31,6 +33,7 @@ impl AppState {
             login_lock: Mutex::new(()),
             track_secret_tokens: RwLock::new(HashMap::new()),
             known_tracks: RwLock::new(HashSet::new()),
+            native_probe: NativeProbe::new(),
         }
     }
 

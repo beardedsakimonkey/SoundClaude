@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://127.0.0.1:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "pnpm build && ./native/audio-probe/build.sh",
     "frontendDist": "../dist"
   },
   "app": {
@@ -27,6 +27,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": {
+      "../native/audio-probe/build/SoundClaudeAudioProbe.app/": "SoundClaudeAudioProbe.app/"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

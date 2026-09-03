@@ -2,6 +2,7 @@ mod auth;
 mod credentials;
 mod error;
 mod models;
+mod native_probe;
 mod soundcloud;
 mod state;
 mod storage;
@@ -100,7 +101,14 @@ async fn resolve_playback(
     track_urn: String,
     state: State<'_, AppState>,
 ) -> Result<PlaybackSource, CommandError> {
-    if !state.known_tracks.read().await.contains(&track_urn) {
+    resolve_playback_for_track(&track_urn, &state).await
+}
+
+async fn resolve_playback_for_track(
+    track_urn: &str,
+    state: &AppState,
+) -> Result<PlaybackSource, CommandError> {
+    if !state.known_tracks.read().await.contains(track_urn) {
         return Err(CommandError::new(
             "invalid_track",
             "Select a track from the current liked-track list.",
@@ -110,13 +118,13 @@ async fn resolve_playback(
         .track_secret_tokens
         .read()
         .await
-        .get(&track_urn)
+        .get(track_urn)
         .cloned();
     let client = state.client.clone();
     state
         .authenticated(move |token| {
             let client = client.clone();
-            let track_urn = track_urn.clone();
+            let track_urn = track_urn.to_owned();
             let secret_token = secret_token.clone();
             async move {
                 client
@@ -125,6 +133,21 @@ async fn resolve_playback(
             }
         })
         .await
+}
+
+#[tauri::command]
+async fn start_native_audio_probe(
+    track_urn: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), CommandError> {
+    let source = resolve_playback_for_track(&track_urn, &state).await?;
+    state.native_probe.start(&app, &source.url)
+}
+
+#[tauri::command]
+fn stop_native_audio_probe(state: State<'_, AppState>) -> Result<(), CommandError> {
+    state.native_probe.stop()
 }
 
 #[tauri::command]
@@ -189,6 +212,8 @@ pub fn run() {
             begin_login,
             get_liked_tracks,
             resolve_playback,
+            start_native_audio_probe,
+            stop_native_audio_probe,
             get_waveform,
             sign_out,
             open_soundcloud_url

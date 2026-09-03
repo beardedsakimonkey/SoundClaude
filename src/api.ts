@@ -33,6 +33,10 @@ export const getLikedTracks = () =>
   invoke<TrackSummary[]>("get_liked_tracks");
 export const resolvePlayback = (trackUrn: string) =>
   invoke<PlaybackSource>("resolve_playback", { trackUrn });
+export const startNativeAudioProbe = (trackUrn: string) =>
+  invoke<void>("start_native_audio_probe", { trackUrn });
+export const stopNativeAudioProbe = () =>
+  invoke<void>("stop_native_audio_probe");
 export const getWaveform = (waveformUrl: string) =>
   invoke<WaveformData>("get_waveform", { waveformUrl });
 export const openSoundCloudUrl = (url: string) =>

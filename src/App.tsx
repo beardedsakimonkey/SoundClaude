@@ -10,9 +10,11 @@ import {
   toCommandError,
 } from "./api";
 import { AppHeader } from "./components/AppHeader";
+import { AudioVisualizer } from "./components/AudioVisualizer";
 import { ErrorNotice } from "./components/ErrorNotice";
 import { KeyboardShortcutsDialog } from "./components/KeyboardShortcutsDialog";
 import { LoginScreen } from "./components/LoginScreen";
+import { NativeAudioProbeControl } from "./components/NativeAudioProbeControl";
 import { PlayerBar } from "./components/PlayerBar";
 import { TrackList } from "./components/TrackList";
 import { usePlaybackHotkeys } from "./hooks/usePlaybackHotkeys";
@@ -221,6 +223,17 @@ export default function App() {
         onOpenProfile={() => openExternal(session.user!.permalinkUrl)}
         onSignOut={logOut}
         user={session.user}
+      />
+
+      <AudioVisualizer
+        active={nowPlaying !== null}
+        audioRef={audioRef}
+        durationMilliseconds={nowPlaying?.track.durationMs ?? 0}
+        waveformUrl={nowPlaying?.track.waveformUrl ?? null}
+      />
+      <NativeAudioProbeControl
+        audioRef={audioRef}
+        trackUrn={nowPlaying?.track.urn ?? null}
       />
 
       <main {...stylex.props(styles.content)}>
