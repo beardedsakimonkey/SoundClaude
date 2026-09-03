@@ -462,9 +462,11 @@ fn validate_cdn_url(value: &str) -> Result<String, ScError> {
         )
     })?;
     let allowed = url.scheme() == "https"
-        && url
-            .host_str()
-            .is_some_and(|host| host == "sndcdn.com" || host.ends_with(".sndcdn.com"));
+        && url.host_str().is_some_and(|host| {
+            host == "sndcdn.com"
+                || host.ends_with(".sndcdn.com")
+                || host == "playback.media-streaming.soundcloud.cloud"
+        });
     if !allowed {
         return Err(ScError::new(
             ScErrorKind::Api,
@@ -611,8 +613,18 @@ mod tests {
         assert!(
             validate_cdn_url("https://cf-hls-media.sndcdn.com/path/file.m3u8?Policy=x").is_ok()
         );
+        assert!(
+            validate_cdn_url(
+                "https://playback.media-streaming.soundcloud.cloud/track/aac_160k/id/playlist.m3u8"
+            )
+            .is_ok()
+        );
         assert!(validate_cdn_url("http://cf-hls-media.sndcdn.com/file").is_err());
         assert!(validate_cdn_url("https://sndcdn.com.evil.example/file").is_err());
+        assert!(
+            validate_cdn_url("https://playback.media-streaming.soundcloud.cloud.evil.example/file")
+                .is_err()
+        );
     }
 
     #[test]
