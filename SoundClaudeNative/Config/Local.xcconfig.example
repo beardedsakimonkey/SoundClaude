@@ -1,0 +1,3 @@
+// Keep the real Local.xcconfig file out of source control.
+SOUNDCLOUD_CLIENT_ID = your-client-id
+SOUNDCLOUD_CLIENT_SECRET = your-client-secret

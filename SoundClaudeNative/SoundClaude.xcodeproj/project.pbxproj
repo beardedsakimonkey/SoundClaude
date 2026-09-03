@@ -1,0 +1,530 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* SoundClaudeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* SoundClaudeApp.swift */; };
+		A10000000000000000000002 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* AppModel.swift */; };
+		A10000000000000000000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* ContentView.swift */; };
+		A10000000000000000000004 /* AuthController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* AuthController.swift */; };
+		A10000000000000000000005 /* KeychainTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* KeychainTokenStore.swift */; };
+		A10000000000000000000006 /* OAuthCallbackServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* OAuthCallbackServer.swift */; };
+		A10000000000000000000007 /* SoundCloudClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* SoundCloudClient.swift */; };
+		A10000000000000000000008 /* SoundCloudModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* SoundCloudModels.swift */; };
+		A10000000000000000000009 /* LibraryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* LibraryController.swift */; };
+		A1000000000000000000000A /* PlaybackController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* PlaybackController.swift */; };
+		A1000000000000000000000B /* AudioTapController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000B /* AudioTapController.swift */; };
+		A1000000000000000000000C /* ProcessTap.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* ProcessTap.swift */; };
+		A1000000000000000000000D /* SpectrumAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* SpectrumAnalyzer.swift */; };
+		A1000000000000000000000E /* PCMRingBuffer.c in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* PCMRingBuffer.c */; };
+		A1000000000000000000000F /* MetalVisualizerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* MetalVisualizerView.swift */; };
+		A10000000000000000000010 /* VisualizerRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* VisualizerRenderer.swift */; };
+		A10000000000000000000011 /* AudioVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* AudioVisualizer.metal */; };
+		A10000000000000000000020 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* SwiftUI.framework */; };
+		A10000000000000000000021 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* AppKit.framework */; };
+		A10000000000000000000022 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* AVFoundation.framework */; };
+		A10000000000000000000023 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* Accelerate.framework */; };
+		A10000000000000000000024 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* CoreAudio.framework */; };
+		A10000000000000000000025 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* MetalKit.framework */; };
+		A10000000000000000000026 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* Security.framework */; };
+		A10000000000000000000027 /* Network.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* Network.framework */; };
+		A10000000000000000000028 /* CryptoKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* CryptoKit.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* SoundClaudeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundClaudeApp.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* AuthController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthController.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* KeychainTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainTokenStore.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* OAuthCallbackServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthCallbackServer.swift; sourceTree = "<group>"; };
+		A20000000000000000000007 /* SoundCloudClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundCloudClient.swift; sourceTree = "<group>"; };
+		A20000000000000000000008 /* SoundCloudModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundCloudModels.swift; sourceTree = "<group>"; };
+		A20000000000000000000009 /* LibraryController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryController.swift; sourceTree = "<group>"; };
+		A2000000000000000000000A /* PlaybackController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackController.swift; sourceTree = "<group>"; };
+		A2000000000000000000000B /* AudioTapController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTapController.swift; sourceTree = "<group>"; };
+		A2000000000000000000000C /* ProcessTap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessTap.swift; sourceTree = "<group>"; };
+		A2000000000000000000000D /* SpectrumAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrumAnalyzer.swift; sourceTree = "<group>"; };
+		A2000000000000000000000E /* PCMRingBuffer.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = PCMRingBuffer.c; sourceTree = "<group>"; };
+		A2000000000000000000000F /* PCMRingBuffer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PCMRingBuffer.h; sourceTree = "<group>"; };
+		A20000000000000000000010 /* MetalVisualizerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalVisualizerView.swift; sourceTree = "<group>"; };
+		A20000000000000000000011 /* VisualizerRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerRenderer.swift; sourceTree = "<group>"; };
+		A20000000000000000000012 /* AudioVisualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = AudioVisualizer.metal; sourceTree = "<group>"; };
+		A20000000000000000000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000014 /* SoundClaude.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SoundClaude.entitlements; sourceTree = "<group>"; };
+		A20000000000000000000015 /* SoundClaude-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SoundClaude-Bridging-Header.h"; sourceTree = "<group>"; };
+		A20000000000000000000016 /* Configuration.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configuration.xcconfig; sourceTree = "<group>"; };
+		A20000000000000000000017 /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig.example; sourceTree = "<group>"; };
+		A20000000000000000000018 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		A20000000000000000000019 /* SoundClaude.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SoundClaude.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000020 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		A20000000000000000000021 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		A20000000000000000000022 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		A20000000000000000000023 /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = System/Library/Frameworks/Accelerate.framework; sourceTree = SDKROOT; };
+		A20000000000000000000024 /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = System/Library/Frameworks/CoreAudio.framework; sourceTree = SDKROOT; };
+		A20000000000000000000025 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		A20000000000000000000026 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		A20000000000000000000027 /* Network.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Network.framework; path = System/Library/Frameworks/Network.framework; sourceTree = SDKROOT; };
+		A20000000000000000000028 /* CryptoKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CryptoKit.framework; path = System/Library/Frameworks/CryptoKit.framework; sourceTree = SDKROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000020 /* SwiftUI.framework in Frameworks */,
+				A10000000000000000000021 /* AppKit.framework in Frameworks */,
+				A10000000000000000000022 /* AVFoundation.framework in Frameworks */,
+				A10000000000000000000023 /* Accelerate.framework in Frameworks */,
+				A10000000000000000000024 /* CoreAudio.framework in Frameworks */,
+				A10000000000000000000025 /* MetalKit.framework in Frameworks */,
+				A10000000000000000000026 /* Security.framework in Frameworks */,
+				A10000000000000000000027 /* Network.framework in Frameworks */,
+				A10000000000000000000028 /* CryptoKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A40000000000000000000002 /* SoundClaude */,
+				A4000000000000000000000C /* Config */,
+				A4000000000000000000000D /* Frameworks */,
+				A4000000000000000000000E /* Products */,
+				A20000000000000000000018 /* README.md */,
+			);
+			sourceTree = "<group>";
+		};
+		A40000000000000000000002 /* SoundClaude */ = {
+			isa = PBXGroup;
+			children = (
+				A40000000000000000000003 /* App */,
+				A40000000000000000000004 /* Auth */,
+				A40000000000000000000005 /* Networking */,
+				A40000000000000000000006 /* Models */,
+				A40000000000000000000007 /* Library */,
+				A40000000000000000000008 /* Playback */,
+				A40000000000000000000009 /* Audio */,
+				A4000000000000000000000A /* Visualizer */,
+				A4000000000000000000000B /* Shaders */,
+				A4000000000000000000000F /* Resources */,
+				A40000000000000000000010 /* Support */,
+				A20000000000000000000014 /* SoundClaude.entitlements */,
+			);
+			path = SoundClaude;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000003 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* SoundClaudeApp.swift */,
+				A20000000000000000000002 /* AppModel.swift */,
+				A20000000000000000000003 /* ContentView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000004 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000004 /* AuthController.swift */,
+				A20000000000000000000005 /* KeychainTokenStore.swift */,
+				A20000000000000000000006 /* OAuthCallbackServer.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000005 /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000007 /* SoundCloudClient.swift */,
+			);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000006 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000008 /* SoundCloudModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000007 /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000009 /* LibraryController.swift */,
+			);
+			path = Library;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000008 /* Playback */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000A /* PlaybackController.swift */,
+			);
+			path = Playback;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000009 /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000B /* AudioTapController.swift */,
+				A2000000000000000000000C /* ProcessTap.swift */,
+				A2000000000000000000000D /* SpectrumAnalyzer.swift */,
+				A2000000000000000000000E /* PCMRingBuffer.c */,
+				A2000000000000000000000F /* PCMRingBuffer.h */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+		A4000000000000000000000A /* Visualizer */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000010 /* MetalVisualizerView.swift */,
+				A20000000000000000000011 /* VisualizerRenderer.swift */,
+			);
+			path = Visualizer;
+			sourceTree = "<group>";
+		};
+		A4000000000000000000000B /* Shaders */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000012 /* AudioVisualizer.metal */,
+			);
+			path = Shaders;
+			sourceTree = "<group>";
+		};
+		A4000000000000000000000C /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000016 /* Configuration.xcconfig */,
+				A20000000000000000000017 /* Local.xcconfig.example */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		A4000000000000000000000D /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000020 /* SwiftUI.framework */,
+				A20000000000000000000021 /* AppKit.framework */,
+				A20000000000000000000022 /* AVFoundation.framework */,
+				A20000000000000000000023 /* Accelerate.framework */,
+				A20000000000000000000024 /* CoreAudio.framework */,
+				A20000000000000000000025 /* MetalKit.framework */,
+				A20000000000000000000026 /* Security.framework */,
+				A20000000000000000000027 /* Network.framework */,
+				A20000000000000000000028 /* CryptoKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A4000000000000000000000E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000019 /* SoundClaude.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A4000000000000000000000F /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000013 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		A40000000000000000000010 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000015 /* SoundClaude-Bridging-Header.h */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* SoundClaude */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A90000000000000000000002 /* Build configuration list for PBXNativeTarget "SoundClaude" */;
+			buildPhases = (
+				A30000000000000000000002 /* Sources */,
+				A30000000000000000000001 /* Frameworks */,
+				A30000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SoundClaude;
+			productName = SoundClaude;
+			productReference = A20000000000000000000019 /* SoundClaude.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A60000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					A50000000000000000000001 = {
+						CreatedOnToolsVersion = 26.0;
+					};
+				};
+			};
+			buildConfigurationList = A90000000000000000000001 /* Build configuration list for PBXProject "SoundClaude" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A40000000000000000000001;
+			productRefGroup = A4000000000000000000000E /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000000000000000000001 /* SoundClaude */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A30000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A30000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* SoundClaudeApp.swift in Sources */,
+				A10000000000000000000002 /* AppModel.swift in Sources */,
+				A10000000000000000000003 /* ContentView.swift in Sources */,
+				A10000000000000000000004 /* AuthController.swift in Sources */,
+				A10000000000000000000005 /* KeychainTokenStore.swift in Sources */,
+				A10000000000000000000006 /* OAuthCallbackServer.swift in Sources */,
+				A10000000000000000000007 /* SoundCloudClient.swift in Sources */,
+				A10000000000000000000008 /* SoundCloudModels.swift in Sources */,
+				A10000000000000000000009 /* LibraryController.swift in Sources */,
+				A1000000000000000000000A /* PlaybackController.swift in Sources */,
+				A1000000000000000000000B /* AudioTapController.swift in Sources */,
+				A1000000000000000000000C /* ProcessTap.swift in Sources */,
+				A1000000000000000000000D /* SpectrumAnalyzer.swift in Sources */,
+				A1000000000000000000000E /* PCMRingBuffer.c in Sources */,
+				A1000000000000000000000F /* MetalVisualizerView.swift in Sources */,
+				A10000000000000000000010 /* VisualizerRenderer.swift in Sources */,
+				A10000000000000000000011 /* AudioVisualizer.metal in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A70000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A20000000000000000000016 /* Configuration.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A70000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A20000000000000000000016 /* Configuration.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		A70000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A20000000000000000000016 /* Configuration.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SoundClaude/SoundClaude.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 889V2MJ7MP;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/SoundClaude/Audio";
+				INFOPLIST_FILE = SoundClaude/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tim.soundclaude.native;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "SoundClaude/Support/SoundClaude-Bridging-Header.h";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A70000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A20000000000000000000016 /* Configuration.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = SoundClaude/SoundClaude.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 889V2MJ7MP;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/SoundClaude/Audio";
+				INFOPLIST_FILE = SoundClaude/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.tim.soundclaude.native;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "SoundClaude/Support/SoundClaude-Bridging-Header.h";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A90000000000000000000001 /* Build configuration list for PBXProject "SoundClaude" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70000000000000000000001 /* Debug */,
+				A70000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A90000000000000000000002 /* Build configuration list for PBXNativeTarget "SoundClaude" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A70000000000000000000003 /* Debug */,
+				A70000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A60000000000000000000001 /* Project object */;
+}

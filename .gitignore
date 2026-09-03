@@ -5,3 +5,9 @@ dist/
 coverage/
 src-tauri/target/
 native/audio-probe/build/
+SoundClaudeNative/Config/Local.xcconfig
+SoundClaudeNative/DerivedData/
+SoundClaudeNative/*.xcworkspace/xcuserdata/
+SoundClaudeNative/SoundClaude.xcodeproj/xcuserdata/
+SoundClaudeNative/SoundClaude.xcodeproj/project.xcworkspace/xcuserdata/
+SoundClaudeNative/**/*.xcuserstate

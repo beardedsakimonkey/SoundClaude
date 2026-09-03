@@ -1,0 +1,393 @@
+import Foundation
+
+struct SoundCloudConfiguration: Sendable {
+    static let redirectURI = URL(
+        string: "http://127.0.0.1:32148/callback"
+    )!
+
+    let clientID: String
+    let clientSecret: String
+    let apiBaseURL = URL(string: "https://api.soundcloud.com/")!
+    let authorizationURL = URL(
+        string: "https://secure.soundcloud.com/authorize"
+    )!
+    let tokenURL = URL(
+        string: "https://secure.soundcloud.com/oauth/token"
+    )!
+    let signOutURL = URL(
+        string: "https://secure.soundcloud.com/sign-out"
+    )!
+
+    static func bundled() throws -> SoundCloudConfiguration {
+        let clientID = Bundle.main.object(
+            forInfoDictionaryKey: "SoundCloudClientID"
+        ) as? String ?? ""
+        let clientSecret = Bundle.main.object(
+            forInfoDictionaryKey: "SoundCloudClientSecret"
+        ) as? String ?? ""
+        guard !clientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !clientSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw SoundCloudError.configuration
+        }
+        return SoundCloudConfiguration(
+            clientID: clientID,
+            clientSecret: clientSecret
+        )
+    }
+}
+
+enum SoundCloudError: LocalizedError {
+    case configuration
+    case invalidResponse
+    case invalidData
+    case unauthorized
+    case rateLimited
+    case api(String)
+    case playbackUnavailable
+    case unexpectedURL
+    case network
+
+    var errorDescription: String? {
+        switch self {
+        case .configuration:
+            return "Add SoundCloud credentials to Config/Local.xcconfig."
+        case .invalidResponse, .invalidData:
+            return "SoundCloud returned invalid data."
+        case .unauthorized:
+            return "The SoundCloud session has expired."
+        case .rateLimited:
+            return "SoundCloud is rate limiting requests. Wait and try again."
+        case let .api(message):
+            return message
+        case .playbackUnavailable:
+            return "This track is not available for off-platform playback."
+        case .unexpectedURL:
+            return "SoundCloud returned an unexpected URL."
+        case .network:
+            return "SoundCloud could not be reached. Check the network connection."
+        }
+    }
+}
+
+private final class RedirectBlocker: NSObject, URLSessionTaskDelegate {
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        completionHandler(nil)
+    }
+}
+
+actor SoundCloudClient {
+    private let configuration: SoundCloudConfiguration
+    private let session: URLSession
+    private let noRedirectSession: URLSession
+    private let decoder = JSONDecoder()
+
+    init(configuration: SoundCloudConfiguration) {
+        self.configuration = configuration
+
+        let sessionConfiguration = URLSessionConfiguration.ephemeral
+        sessionConfiguration.timeoutIntervalForRequest = 30
+        sessionConfiguration.timeoutIntervalForResource = 60
+        session = URLSession(configuration: sessionConfiguration)
+
+        let redirectConfiguration = URLSessionConfiguration.ephemeral
+        redirectConfiguration.timeoutIntervalForRequest = 30
+        redirectConfiguration.timeoutIntervalForResource = 60
+        noRedirectSession = URLSession(
+            configuration: redirectConfiguration,
+            delegate: RedirectBlocker(),
+            delegateQueue: nil
+        )
+    }
+
+    func authorizationURL(state: String, challenge: String) throws -> URL {
+        var components = URLComponents(
+            url: configuration.authorizationURL,
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = [
+            URLQueryItem(name: "client_id", value: configuration.clientID),
+            URLQueryItem(
+                name: "redirect_uri",
+                value: SoundCloudConfiguration.redirectURI.absoluteString
+            ),
+            URLQueryItem(name: "response_type", value: "code"),
+            URLQueryItem(name: "code_challenge", value: challenge),
+            URLQueryItem(name: "code_challenge_method", value: "S256"),
+            URLQueryItem(name: "state", value: state),
+        ]
+        guard let url = components?.url else {
+            throw SoundCloudError.unexpectedURL
+        }
+        return url
+    }
+
+    func exchangeCode(_ code: String, verifier: String) async throws
+        -> OAuthTokenResponse {
+        try await tokenRequest([
+            "grant_type": "authorization_code",
+            "client_id": configuration.clientID,
+            "client_secret": configuration.clientSecret,
+            "redirect_uri": SoundCloudConfiguration.redirectURI.absoluteString,
+            "code_verifier": verifier,
+            "code": code,
+        ], isRefresh: false)
+    }
+
+    func refreshToken(_ refreshToken: String) async throws
+        -> OAuthTokenResponse {
+        try await tokenRequest([
+            "grant_type": "refresh_token",
+            "client_id": configuration.clientID,
+            "client_secret": configuration.clientSecret,
+            "refresh_token": refreshToken,
+        ], isRefresh: true)
+    }
+
+    func currentUser(accessToken: String) async throws -> SoundCloudUser {
+        let url = configuration.apiBaseURL.appending(path: "me")
+        let (data, response) = try await authenticatedRequest(
+            url: url,
+            accessToken: accessToken
+        )
+        try validate(response: response, data: data)
+        guard let user = try decoder.decode(RawUser.self, from: data).normalized() else {
+            throw SoundCloudError.invalidData
+        }
+        return user
+    }
+
+    func likedTracks(accessToken: String) async throws -> [SoundCloudTrack] {
+        var components = URLComponents(
+            url: configuration.apiBaseURL
+                .appending(path: "me")
+                .appending(path: "likes")
+                .appending(path: "tracks"),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = [
+            URLQueryItem(name: "limit", value: "100"),
+            URLQueryItem(name: "linked_partitioning", value: "true"),
+            URLQueryItem(name: "access", value: "playable,preview"),
+        ]
+        guard var nextURL = components?.url else {
+            throw SoundCloudError.unexpectedURL
+        }
+
+        var tracks: [SoundCloudTrack] = []
+        while true {
+            try validateAPIURL(nextURL)
+            let (data, response) = try await authenticatedRequest(
+                url: nextURL,
+                accessToken: accessToken
+            )
+            try validate(response: response, data: data)
+            let page = try decoder.decode(RawTrackPage.self, from: data)
+            tracks.append(contentsOf: page.collection.compactMap { $0.normalized() })
+            guard let followingURL = page.nextURL else { break }
+            nextURL = followingURL
+        }
+        return tracks
+    }
+
+    func resolvePlayback(
+        track: SoundCloudTrack,
+        accessToken: String
+    ) async throws -> PlaybackSource {
+        var components = URLComponents(
+            url: configuration.apiBaseURL
+                .appending(path: "tracks")
+                .appending(path: track.urn)
+                .appending(path: "streams"),
+            resolvingAgainstBaseURL: false
+        )
+        if let secretToken = track.secretToken {
+            components?.queryItems = [
+                URLQueryItem(name: "secret_token", value: secretToken),
+            ]
+        }
+        guard let url = components?.url else {
+            throw SoundCloudError.unexpectedURL
+        }
+        let (data, response) = try await authenticatedRequest(
+            url: url,
+            accessToken: accessToken
+        )
+        try validate(response: response, data: data)
+        let streams = try decoder.decode(StreamResponse.self, from: data)
+        let candidates: [(URL?, PlaybackSource.Kind, PlaybackSource.Codec, Int, Bool)] = [
+            (streams.hlsAAC160URL, .hls, .aac, 160, false),
+            (streams.hlsMP3128URL, .hls, .mp3, 128, false),
+            (streams.previewMP3128URL, .mp3, .mp3, 128, true),
+        ]
+
+        for (streamURL, kind, codec, bitrate, isPreview) in candidates {
+            guard let streamURL else { continue }
+            do {
+                let finalURL = try await streamRedirect(
+                    streamURL,
+                    accessToken: accessToken
+                )
+                return PlaybackSource(
+                    url: finalURL,
+                    kind: kind,
+                    codec: codec,
+                    bitrateKilobitsPerSecond: bitrate,
+                    isPreview: isPreview
+                )
+            } catch SoundCloudError.unauthorized {
+                throw SoundCloudError.unauthorized
+            } catch SoundCloudError.rateLimited {
+                throw SoundCloudError.rateLimited
+            } catch SoundCloudError.network {
+                throw SoundCloudError.network
+            } catch {
+                continue
+            }
+        }
+        throw SoundCloudError.playbackUnavailable
+    }
+
+    func signOut(accessToken: String) async throws {
+        var request = URLRequest(url: configuration.signOutURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(
+            withJSONObject: ["access_token": accessToken]
+        )
+        let (data, response) = try await send(request, using: session)
+        if response.statusCode == 401 { return }
+        try validate(response: response, data: data)
+    }
+
+    private func tokenRequest(
+        _ fields: [String: String],
+        isRefresh: Bool
+    ) async throws -> OAuthTokenResponse {
+        var form = URLComponents()
+        form.queryItems = fields.sorted(by: { $0.key < $1.key }).map {
+            URLQueryItem(name: $0.key, value: $0.value)
+        }
+        var request = URLRequest(url: configuration.tokenURL)
+        request.httpMethod = "POST"
+        request.setValue(
+            "application/x-www-form-urlencoded",
+            forHTTPHeaderField: "Content-Type"
+        )
+        request.setValue(
+            "application/json; charset=utf-8",
+            forHTTPHeaderField: "Accept"
+        )
+        request.httpBody = form.percentEncodedQuery?.data(using: .utf8)
+        let (data, response) = try await send(request, using: session)
+        if isRefresh,
+           [400, 401, 403].contains(response.statusCode) {
+            throw SoundCloudError.unauthorized
+        }
+        try validate(response: response, data: data)
+        return try decoder.decode(OAuthTokenResponse.self, from: data)
+    }
+
+    private func authenticatedRequest(
+        url: URL,
+        accessToken: String
+    ) async throws -> (Data, HTTPURLResponse) {
+        var request = URLRequest(url: url)
+        request.setValue(
+            "application/json; charset=utf-8",
+            forHTTPHeaderField: "Accept"
+        )
+        request.setValue(
+            "OAuth \(accessToken)",
+            forHTTPHeaderField: "Authorization"
+        )
+        return try await send(request, using: session)
+    }
+
+    private func streamRedirect(
+        _ streamURL: URL,
+        accessToken: String
+    ) async throws -> URL {
+        try validateAPIURL(streamURL)
+        var request = URLRequest(url: streamURL)
+        request.httpMethod = "HEAD"
+        request.setValue(
+            "OAuth \(accessToken)",
+            forHTTPHeaderField: "Authorization"
+        )
+        let (data, response) = try await send(
+            request,
+            using: noRedirectSession
+        )
+        if response.statusCode == 401 { throw SoundCloudError.unauthorized }
+        if response.statusCode == 429 { throw SoundCloudError.rateLimited }
+        guard (300..<400).contains(response.statusCode),
+              let location = response.value(forHTTPHeaderField: "Location"),
+              let redirectURL = URL(string: location, relativeTo: streamURL)?.absoluteURL else {
+            try validate(response: response, data: data)
+            throw SoundCloudError.playbackUnavailable
+        }
+        try validatePlaybackURL(redirectURL)
+        return redirectURL
+    }
+
+    private func send(
+        _ request: URLRequest,
+        using session: URLSession
+    ) async throws -> (Data, HTTPURLResponse) {
+        for attempt in 0..<3 {
+            do {
+                let (data, response) = try await session.data(for: request)
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw SoundCloudError.invalidResponse
+                }
+                if httpResponse.statusCode != 429 || attempt == 2 {
+                    return (data, httpResponse)
+                }
+            } catch let error as SoundCloudError {
+                throw error
+            } catch {
+                throw SoundCloudError.network
+            }
+            let delay = UInt64(250 * (1 << attempt))
+            try await Task.sleep(for: .milliseconds(delay))
+        }
+        throw SoundCloudError.rateLimited
+    }
+
+    private func validate(
+        response: HTTPURLResponse,
+        data: Data
+    ) throws {
+        guard !(200..<300).contains(response.statusCode) else { return }
+        if response.statusCode == 401 { throw SoundCloudError.unauthorized }
+        if response.statusCode == 429 { throw SoundCloudError.rateLimited }
+        let message = try? decoder.decode(APIErrorBody.self, from: data).message
+        throw SoundCloudError.api(
+            message?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                ? message!
+                : "SoundCloud returned HTTP \(response.statusCode)."
+        )
+    }
+
+    private func validateAPIURL(_ url: URL) throws {
+        guard url.scheme == "https", url.host == "api.soundcloud.com" else {
+            throw SoundCloudError.unexpectedURL
+        }
+    }
+
+    private func validatePlaybackURL(_ url: URL) throws {
+        guard url.scheme == "https", let host = url.host else {
+            throw SoundCloudError.unexpectedURL
+        }
+        let isAllowed = host == "sndcdn.com"
+            || host.hasSuffix(".sndcdn.com")
+            || host == "playback.media-streaming.soundcloud.cloud"
+        guard isAllowed else { throw SoundCloudError.unexpectedURL }
+    }
+}
