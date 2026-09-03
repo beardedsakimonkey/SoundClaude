@@ -466,6 +466,7 @@ export function PlayerBar({ audioRef, nowPlaying, onEnded, onPlaybackError }: Pl
       <div {...stylex.props(styles.transport)}>
         <button
           {...stylex.props(styles.playButton)}
+          aria-keyshortcuts="Space"
           aria-label={isPlaying ? "Pause" : "Play"}
           disabled={!nowPlaying}
           onClick={togglePlayback}
@@ -524,6 +525,7 @@ export function PlayerBar({ audioRef, nowPlaying, onEnded, onPlaybackError }: Pl
         <div {...stylex.props(styles.volume)}>
           <button
             {...stylex.props(styles.iconButton)}
+            aria-keyshortcuts="M"
             aria-label={muted ? "Unmute" : "Mute"}
             disabled={!nowPlaying}
             onClick={toggleMute}

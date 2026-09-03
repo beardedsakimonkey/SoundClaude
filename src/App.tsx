@@ -11,9 +11,11 @@ import {
 } from "./api";
 import { AppHeader } from "./components/AppHeader";
 import { ErrorNotice } from "./components/ErrorNotice";
+import { KeyboardShortcutsDialog } from "./components/KeyboardShortcutsDialog";
 import { LoginScreen } from "./components/LoginScreen";
 import { PlayerBar } from "./components/PlayerBar";
 import { TrackList } from "./components/TrackList";
+import { usePlaybackHotkeys } from "./hooks/usePlaybackHotkeys";
 import type {
   CommandError,
   PlaybackSource,
@@ -170,6 +172,31 @@ export default function App() {
     if (nextTrack) void playTrack(nextTrack);
   }
 
+  function playPreviousTrack() {
+    if (!nowPlaying) return;
+
+    const currentIndex = tracks.findIndex((track) => track.urn === nowPlaying.track.urn);
+    if (currentIndex <= 0) return;
+
+    void playTrack(tracks[currentIndex - 1]);
+  }
+
+  function handlePlaybackError() {
+    setPlaybackError({
+      code: "playback_failed",
+      message: "The audio stream could not be played. Select the track again to get a fresh stream.",
+    });
+  }
+
+  const { closeShortcuts, shortcutsOpen } = usePlaybackHotkeys({
+    audioRef,
+    enabled: session?.authenticated === true,
+    onNext: playNextTrack,
+    onPlaybackError: handlePlaybackError,
+    onPrevious: playPreviousTrack,
+    playbackEnabled: nowPlaying !== null,
+  });
+
   function openExternal(url: string) {
     void openSoundCloudUrl(url).catch((value) => setError(toCommandError(value)));
   }
@@ -215,14 +242,13 @@ export default function App() {
         {playbackError && <ErrorNotice error={playbackError} />}
       </main>
 
+      <KeyboardShortcutsDialog onClose={closeShortcuts} open={shortcutsOpen} />
+
       <PlayerBar
         audioRef={audioRef}
         nowPlaying={nowPlaying}
         onEnded={playNextTrack}
-        onPlaybackError={() => setPlaybackError({
-          code: "playback_failed",
-          message: "The audio stream could not be played. Select the track again to get a fresh stream.",
-        })}
+        onPlaybackError={handlePlaybackError}
       />
     </div>
   );
