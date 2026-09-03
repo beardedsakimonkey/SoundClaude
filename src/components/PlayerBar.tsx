@@ -1,7 +1,6 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import type { ChangeEvent, RefObject } from "react";
 import * as stylex from "@stylexjs/stylex";
-import { POWERED_BY_SOUNDCLOUD } from "../assets";
 import { getWaveform } from "../api";
 import type { PlaybackSource, TrackSummary } from "../types";
 
@@ -247,21 +246,6 @@ const styles = stylex.create({
     accentColor: "#f50",
     cursor: "pointer",
   },
-  logoButton: {
-    flexShrink: 0,
-    borderWidth: 0,
-    borderRadius: 4,
-    padding: "3px 4px",
-    backgroundColor: "white",
-  },
-  logo: {
-    display: "block",
-    width: {
-      default: 130,
-      "@media (max-width: 700px)": 110,
-    },
-    height: "auto",
-  },
   audioEngine: {
     display: "none",
   },
@@ -271,7 +255,6 @@ interface PlayerBarProps {
   audioRef: RefObject<HTMLAudioElement | null>;
   nowPlaying: { track: TrackSummary; source: PlaybackSource } | null;
   onEnded: () => void;
-  onOpenSoundCloud: () => void;
   onPlaybackError: () => void;
 }
 
@@ -351,7 +334,7 @@ function VolumeIcon({ muted }: { muted: boolean }) {
   );
 }
 
-export function PlayerBar({ audioRef, nowPlaying, onEnded, onOpenSoundCloud, onPlaybackError }: PlayerBarProps) {
+export function PlayerBar({ audioRef, nowPlaying, onEnded, onPlaybackError }: PlayerBarProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -545,9 +528,6 @@ export function PlayerBar({ audioRef, nowPlaying, onEnded, onOpenSoundCloud, onP
             value={volume}
           />
         </div>
-        <button {...stylex.props(styles.logoButton)} onClick={onOpenSoundCloud} type="button">
-          <img {...stylex.props(styles.logo)} src={POWERED_BY_SOUNDCLOUD} alt="Powered by SoundCloud" />
-        </button>
       </div>
 
       <audio

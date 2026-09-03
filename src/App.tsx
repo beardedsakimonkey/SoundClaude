@@ -219,7 +219,6 @@ export default function App() {
         audioRef={audioRef}
         nowPlaying={nowPlaying}
         onEnded={playNextTrack}
-        onOpenSoundCloud={() => openExternal("https://soundcloud.com")}
         onPlaybackError={() => setPlaybackError({
           code: "playback_failed",
           message: "The audio stream could not be played. Select the track again to get a fresh stream.",

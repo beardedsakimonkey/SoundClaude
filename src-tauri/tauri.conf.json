@@ -20,8 +20,8 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:1420 ws://127.0.0.1:1420; img-src 'self' data: https://*.sndcdn.com https://developers.soundcloud.com; media-src https://*.sndcdn.com",
-      "devCsp": "default-src 'self'; script-src 'self' http://localhost:8097; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:1420 ws://127.0.0.1:1420 ws://localhost:8097; img-src 'self' data: https://*.sndcdn.com https://developers.soundcloud.com; media-src https://*.sndcdn.com"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:1420 ws://127.0.0.1:1420; img-src 'self' data: https://*.sndcdn.com; media-src https://*.sndcdn.com",
+      "devCsp": "default-src 'self'; script-src 'self' http://localhost:8097; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:1420 ws://127.0.0.1:1420 ws://localhost:8097; img-src 'self' data: https://*.sndcdn.com; media-src https://*.sndcdn.com"
     }
   },
   "bundle": {

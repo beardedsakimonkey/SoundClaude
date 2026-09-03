@@ -37,7 +37,6 @@ describe("PlayerBar", () => {
         audioRef={createRef<HTMLAudioElement>()}
         nowPlaying={{ track, source }}
         onEnded={vi.fn()}
-        onOpenSoundCloud={vi.fn()}
         onPlaybackError={vi.fn()}
       />,
     );
