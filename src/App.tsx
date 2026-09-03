@@ -30,7 +30,10 @@ const styles = stylex.create({
   },
   appShell: {
     minHeight: "100vh",
-    paddingBottom: 112,
+    paddingBottom: {
+      default: 112,
+      "@media (max-width: 700px)": 172,
+    },
   },
   content: {
     maxWidth: 900,
@@ -106,7 +109,7 @@ export default function App() {
     if (!nowPlaying || !audioRef.current) return;
     audioRef.current.load();
     void audioRef.current.play().catch(() => {
-      // WebKit can require one more click on the visible native control.
+      // WebKit can require one more click on the player control.
     });
   }, [nowPlaying]);
 
@@ -157,6 +160,16 @@ export default function App() {
     }
   }
 
+  function playNextTrack() {
+    if (!nowPlaying) return;
+
+    const currentIndex = tracks.findIndex((track) => track.urn === nowPlaying.track.urn);
+    if (currentIndex < 0) return;
+
+    const nextTrack = tracks[currentIndex + 1];
+    if (nextTrack) void playTrack(nextTrack);
+  }
+
   function openExternal(url: string) {
     void openSoundCloudUrl(url).catch((value) => setError(toCommandError(value)));
   }
@@ -205,6 +218,7 @@ export default function App() {
       <PlayerBar
         audioRef={audioRef}
         nowPlaying={nowPlaying}
+        onEnded={playNextTrack}
         onOpenSoundCloud={() => openExternal("https://soundcloud.com")}
         onPlaybackError={() => setPlaybackError({
           code: "playback_failed",

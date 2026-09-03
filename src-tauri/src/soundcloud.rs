@@ -305,9 +305,15 @@ impl SoundCloudClient {
         })?;
 
         let candidates = [
-            streams.hls_aac_160_url.map(|url| (url, "hls", false)),
-            streams.hls_mp3_128_url.map(|url| (url, "hls", false)),
-            streams.preview_mp3_128_url.map(|url| (url, "mp3", true)),
+            streams
+                .hls_aac_160_url
+                .map(|url| (url, "hls", "aac", 160, false)),
+            streams
+                .hls_mp3_128_url
+                .map(|url| (url, "hls", "mp3", 128, false)),
+            streams
+                .preview_mp3_128_url
+                .map(|url| (url, "mp3", "mp3", 128, true)),
         ];
         for candidate in candidates.into_iter().flatten() {
             match self.stream_redirect(access_token, &candidate.0).await {
@@ -315,7 +321,9 @@ impl SoundCloudClient {
                     return Ok(PlaybackSource {
                         url,
                         kind: candidate.1.to_owned(),
-                        is_preview: candidate.2,
+                        codec: candidate.2.to_owned(),
+                        bitrate_kbps: candidate.3,
+                        is_preview: candidate.4,
                     });
                 }
                 Err(error)
@@ -700,7 +708,37 @@ mod tests {
         head_request.assert();
         let source = source.unwrap();
         assert_eq!(source.kind, "hls");
+        assert_eq!(source.codec, "aac");
+        assert_eq!(source.bitrate_kbps, 160);
         assert!(!source.is_preview);
         assert!(source.url.starts_with("https://cf-hls-media.sndcdn.com/"));
+    }
+
+    #[tokio::test]
+    async fn playback_accepts_the_soundcloud_aac_host() {
+        let server = MockServer::start();
+        let stream_endpoint = format!("{}/stream-endpoint", server.base_url());
+        server.mock(|when, then| {
+            when.method(GET).path("/tracks/soundcloud:tracks:1/streams");
+            then.status(200).json_body(serde_json::json!({
+                "hls_aac_160_url": stream_endpoint
+            }));
+        });
+        server.mock(|when, then| {
+            when.method(Method::HEAD).path("/stream-endpoint");
+            then.status(302).header(
+                "location",
+                "https://playback.media-streaming.soundcloud.cloud/track/aac_160k/id/playlist.m3u8",
+            );
+        });
+        let client = SoundCloudClient::test("id", "secret", &server.base_url());
+
+        let source = client
+            .resolve_playback("access", "soundcloud:tracks:1", None)
+            .await
+            .unwrap();
+
+        assert_eq!(source.codec, "aac");
+        assert_eq!(source.bitrate_kbps, 160);
     }
 }

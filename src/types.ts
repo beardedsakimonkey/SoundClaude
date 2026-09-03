@@ -23,6 +23,8 @@ export interface TrackSummary {
 export interface PlaybackSource {
   url: string;
   kind: "hls" | "mp3";
+  codec: "aac" | "mp3";
+  bitrateKbps: number;
   isPreview: boolean;
 }
 
@@ -30,4 +32,3 @@ export interface CommandError {
   code: string;
   message: string;
 }
-

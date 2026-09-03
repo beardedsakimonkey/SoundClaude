@@ -49,6 +49,8 @@ pub struct TrackSummary {
 pub struct PlaybackSource {
     pub url: String,
     pub kind: String,
+    pub codec: String,
+    pub bitrate_kbps: u16,
     pub is_preview: bool,
 }
 
