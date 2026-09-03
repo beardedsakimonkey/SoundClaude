@@ -7,6 +7,7 @@ final class AppModel: ObservableObject {
     let playback: PlaybackController
     let auth: AuthController
     let library: LibraryController
+    let artworkLoader: ArtworkLoader
 
     @Published private(set) var errorMessage: String?
 
@@ -41,6 +42,7 @@ final class AppModel: ObservableObject {
         self.playback = playback
         self.auth = auth
         self.library = library
+        artworkLoader = ArtworkLoader(client: client)
 
         playback.onReadyToPlay = { [weak audioTap] in
             Task { @MainActor in

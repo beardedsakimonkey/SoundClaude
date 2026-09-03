@@ -253,6 +253,20 @@ actor SoundCloudClient {
         throw SoundCloudError.playbackUnavailable
     }
 
+    func artworkData(from artworkURL: URL) async throws -> Data {
+        try validateArtworkURL(artworkURL)
+        var request = URLRequest(url: artworkURL)
+        request.setValue("image/jpeg", forHTTPHeaderField: "Accept")
+        let (data, response) = try await send(request, using: session)
+        try validate(response: response, data: data)
+        guard response.mimeType?.lowercased() == "image/jpeg",
+              !data.isEmpty,
+              data.count <= 10 * 1_024 * 1_024 else {
+            throw SoundCloudError.invalidData
+        }
+        return data
+    }
+
     func signOut(accessToken: String) async throws {
         var request = URLRequest(url: configuration.signOutURL)
         request.httpMethod = "POST"
@@ -388,6 +402,14 @@ actor SoundCloudClient {
         let isAllowed = host == "sndcdn.com"
             || host.hasSuffix(".sndcdn.com")
             || host == "playback.media-streaming.soundcloud.cloud"
+        guard isAllowed else { throw SoundCloudError.unexpectedURL }
+    }
+
+    private func validateArtworkURL(_ url: URL) throws {
+        guard url.scheme == "https", let host = url.host?.lowercased() else {
+            throw SoundCloudError.unexpectedURL
+        }
+        let isAllowed = host == "sndcdn.com" || host.hasSuffix(".sndcdn.com")
         guard isAllowed else { throw SoundCloudError.unexpectedURL }
     }
 }

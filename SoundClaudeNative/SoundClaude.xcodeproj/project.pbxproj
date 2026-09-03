@@ -24,6 +24,7 @@
 		A1000000000000000000000F /* MetalVisualizerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* MetalVisualizerView.swift */; };
 		A10000000000000000000010 /* VisualizerRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* VisualizerRenderer.swift */; };
 		A10000000000000000000011 /* AudioVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* AudioVisualizer.metal */; };
+		A10000000000000000000012 /* ArtworkLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* ArtworkLoader.swift */; };
 		A10000000000000000000020 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* SwiftUI.framework */; };
 		A10000000000000000000021 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* AppKit.framework */; };
 		A10000000000000000000022 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* AVFoundation.framework */; };
@@ -70,6 +71,7 @@
 		A20000000000000000000026 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		A20000000000000000000027 /* Network.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Network.framework; path = System/Library/Frameworks/Network.framework; sourceTree = SDKROOT; };
 		A20000000000000000000028 /* CryptoKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CryptoKit.framework; path = System/Library/Frameworks/CryptoKit.framework; sourceTree = SDKROOT; };
+		A20000000000000000000029 /* ArtworkLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkLoader.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -146,6 +148,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000007 /* SoundCloudClient.swift */,
+				A20000000000000000000029 /* ArtworkLoader.swift */,
 			);
 			path = Networking;
 			sourceTree = "<group>";
@@ -327,6 +330,7 @@
 				A10000000000000000000005 /* KeychainTokenStore.swift in Sources */,
 				A10000000000000000000006 /* OAuthCallbackServer.swift in Sources */,
 				A10000000000000000000007 /* SoundCloudClient.swift in Sources */,
+				A10000000000000000000012 /* ArtworkLoader.swift in Sources */,
 				A10000000000000000000008 /* SoundCloudModels.swift in Sources */,
 				A10000000000000000000009 /* LibraryController.swift in Sources */,
 				A1000000000000000000000A /* PlaybackController.swift in Sources */,
