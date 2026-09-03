@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState } from "react";
-import type { ChangeEvent, RefObject } from "react";
+import type { ChangeEvent, MouseEvent, RefObject } from "react";
 import * as stylex from "@stylexjs/stylex";
 import { getWaveform } from "../api";
 import type { PlaybackSource, TrackSummary } from "../types";
@@ -393,11 +393,25 @@ export function PlayerBar({ audioRef, nowPlaying, onEnded, onPlaybackError }: Pl
     });
   }
 
-  function seek(event: ChangeEvent<HTMLInputElement>) {
-    const nextTime = Number(event.currentTarget.value);
+  function setPlaybackTime(nextTime: number) {
     if (!audioRef.current) return;
     audioRef.current.currentTime = nextTime;
     setCurrentTime(nextTime);
+  }
+
+  function seek(event: ChangeEvent<HTMLInputElement>) {
+    setPlaybackTime(Number(event.currentTarget.value));
+  }
+
+  function seekFromClick(event: MouseEvent<HTMLInputElement>) {
+    if (event.detail === 0) return;
+
+    const input = event.currentTarget;
+    const bounds = input.getBoundingClientRect();
+    if (bounds.width <= 0) return;
+
+    const progress = Math.min(Math.max((event.clientX - bounds.left) / bounds.width, 0), 1);
+    setPlaybackTime(progress * Number(input.max));
   }
 
   function changeVolume(event: ChangeEvent<HTMLInputElement>) {
@@ -493,6 +507,7 @@ export function PlayerBar({ audioRef, nowPlaying, onEnded, onPlaybackError }: Pl
               max={seekMaximum}
               min="0"
               onChange={seek}
+              onClick={seekFromClick}
               step="0.1"
               type="range"
               value={seekValue}
