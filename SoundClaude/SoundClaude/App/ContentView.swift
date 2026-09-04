@@ -6,14 +6,12 @@ struct ContentView: View {
     @ObservedObject private var auth: AuthController
     @ObservedObject private var library: LibraryController
     @ObservedObject private var playback: PlaybackController
-    @ObservedObject private var audioTap: AudioTapController
 
     init(model: AppModel) {
         self.model = model
         _auth = ObservedObject(wrappedValue: model.auth)
         _library = ObservedObject(wrappedValue: model.library)
         _playback = ObservedObject(wrappedValue: model.playback)
-        _audioTap = ObservedObject(wrappedValue: model.audioTap)
     }
 
     var body: some View {
@@ -90,9 +88,6 @@ struct ContentView: View {
                 if library.isLoading {
                     ProgressView()
                         .controlSize(.small)
-                }
-                Button("Reload") {
-                    Task { await library.loadLikedTracks() }
                 }
                 Button("Sign out") {
                     Task { await model.signOut() }
@@ -177,9 +172,6 @@ struct ContentView: View {
                         .lineLimit(1)
                 }
                 Spacer()
-                Text(audioTap.state.label)
-                    .font(.caption)
-                    .foregroundStyle(audioTapStateColor)
             }
 
             Slider(
@@ -234,11 +226,6 @@ struct ContentView: View {
     private var authFailureMessage: String? {
         if case let .failed(message) = auth.state { return message }
         return nil
-    }
-
-    private var audioTapStateColor: Color {
-        if case .failed = audioTap.state { return .red }
-        return .secondary
     }
 
     private func format(milliseconds: Int) -> String {

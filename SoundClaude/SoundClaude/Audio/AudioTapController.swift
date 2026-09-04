@@ -7,19 +7,6 @@ final class AudioTapController: ObservableObject {
         case starting
         case running(ProcessTapFormat)
         case failed(String)
-
-        var label: String {
-            switch self {
-            case .idle:
-                return "Visualizer idle"
-            case .starting:
-                return "Starting audio capture"
-            case let .running(format):
-                return "Visualizer: \(Int(format.sampleRate)) Hz, \(format.channelCount) channels"
-            case let .failed(message):
-                return message
-            }
-        }
     }
 
     @Published private(set) var state: State = .idle
