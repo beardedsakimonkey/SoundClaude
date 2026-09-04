@@ -5,8 +5,21 @@ struct TrackArtworkView: View {
     let artworkURL: URL?
     let loader: ArtworkLoader
     let size: CGFloat
+    let rendition: ArtworkLoader.Rendition
 
     @State private var image: NSImage?
+
+    init(
+        artworkURL: URL?,
+        loader: ArtworkLoader,
+        size: CGFloat,
+        rendition: ArtworkLoader.Rendition = .source
+    ) {
+        self.artworkURL = artworkURL
+        self.loader = loader
+        self.size = size
+        self.rendition = rendition
+    }
 
     var body: some View {
         ZStack {
@@ -15,6 +28,7 @@ struct TrackArtworkView: View {
             if let image {
                 Image(nsImage: image)
                     .resizable()
+                    .interpolation(.high)
                     .scaledToFill()
             } else {
                 Image(systemName: "music.note")
@@ -28,7 +42,10 @@ struct TrackArtworkView: View {
         .task(id: artworkURL) {
             image = nil
             guard let artworkURL,
-                  let data = try? await loader.data(for: artworkURL),
+                  let data = try? await loader.data(
+                      for: artworkURL,
+                      rendition: rendition
+                  ),
                   !Task.isCancelled else {
                 return
             }

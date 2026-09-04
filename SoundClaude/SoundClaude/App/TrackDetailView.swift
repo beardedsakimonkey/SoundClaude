@@ -180,7 +180,8 @@ struct TrackDetailView: View {
         TrackArtworkView(
             artworkURL: track.artworkURL,
             loader: model.artworkLoader,
-            size: 180
+            size: 180,
+            rendition: .square500
         )
         .overlay {
             RoundedRectangle(cornerRadius: 6)

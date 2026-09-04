@@ -3,6 +3,7 @@ import Foundation
 actor ArtworkLoader {
     enum Rendition: Sendable {
         case source
+        case square500
         case original
     }
 
@@ -62,11 +63,20 @@ actor ArtworkLoader {
         for rendition: Rendition,
         sourceURL: URL
     ) -> URL {
-        guard rendition == .original,
-              var components = URLComponents(
-                  url: sourceURL,
-                  resolvingAgainstBaseURL: false
-              ) else {
+        let renditionSuffix: String
+        switch rendition {
+        case .source:
+            return sourceURL
+        case .square500:
+            renditionSuffix = "-t500x500"
+        case .original:
+            renditionSuffix = "-original"
+        }
+
+        guard var components = URLComponents(
+            url: sourceURL,
+            resolvingAgainstBaseURL: false
+        ) else {
             return sourceURL
         }
 
@@ -81,9 +91,10 @@ actor ArtworkLoader {
             return sourceURL
         }
 
-        let originalName = name.dropLast(thumbnailSuffix.count) + "-original"
+        let renditionName = name.dropLast(thumbnailSuffix.count)
+            + renditionSuffix
         components.path = (path.deletingLastPathComponent as NSString)
-            .appendingPathComponent(String(originalName))
+            .appendingPathComponent(String(renditionName))
             + ".\(extensionName)"
         return components.url ?? sourceURL
     }
