@@ -6,6 +6,7 @@ struct SignedInView: View {
     @ObservedObject private var model: AppModel
     @State private var selectedDestination: SidebarDestination? = .liked
     @State private var path: [Route] = []
+    @State private var forwardPath: [Route] = []
 
     init(user: SoundCloudUser, model: AppModel) {
         self.user = user
@@ -46,7 +47,10 @@ struct SignedInView: View {
             .fixedSize(horizontal: false, vertical: true)
         }
         .background {
-            NavigationBackEventView(onBack: navigateBack)
+            NavigationBackEventView(
+                onBack: navigateBack,
+                onForward: navigateForward
+            )
         }
     }
 
@@ -58,7 +62,7 @@ struct SignedInView: View {
                 HomeView()
             }
         case .liked, .none:
-            NavigationStack(path: $path) {
+            NavigationStack(path: navigationPath) {
                 LibraryView(
                     user: user,
                     library: model.library,
@@ -80,16 +84,48 @@ struct SignedInView: View {
     }
 
     private func showTrack(_ track: SoundCloudTrack) {
+        forwardPath.removeAll()
         path.append(.track(track))
     }
 
     private func navigateBack() -> Bool {
-        guard selectedDestination != .home, !path.isEmpty else {
+        guard selectedDestination != .home,
+              let route = path.popLast() else {
             return false
         }
 
-        path.removeLast()
+        forwardPath.append(route)
         return true
+    }
+
+    private func navigateForward() -> Bool {
+        guard selectedDestination != .home,
+              let route = forwardPath.popLast() else {
+            return false
+        }
+
+        path.append(route)
+        return true
+    }
+
+    private var navigationPath: Binding<[Route]> {
+        Binding(
+            get: { path },
+            set: { newPath in
+                let oldPath = path
+                guard newPath != oldPath else { return }
+
+                if newPath.count < oldPath.count,
+                   oldPath.starts(with: newPath) {
+                    forwardPath.append(
+                        contentsOf: oldPath.dropFirst(newPath.count).reversed()
+                    )
+                } else {
+                    forwardPath.removeAll()
+                }
+                path = newPath
+            }
+        )
     }
 }
 

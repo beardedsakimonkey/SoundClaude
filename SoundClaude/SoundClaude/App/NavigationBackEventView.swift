@@ -3,9 +3,10 @@ import SwiftUI
 
 struct NavigationBackEventView: NSViewRepresentable {
     let onBack: () -> Bool
+    let onForward: () -> Bool
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onBack: onBack)
+        Coordinator(onBack: onBack, onForward: onForward)
     }
 
     func makeNSView(context: Context) -> ResponderInstallerView {
@@ -14,6 +15,7 @@ struct NavigationBackEventView: NSViewRepresentable {
 
     func updateNSView(_ nsView: ResponderInstallerView, context: Context) {
         context.coordinator.onBack = onBack
+        context.coordinator.onForward = onForward
     }
 
     static func dismantleNSView(
@@ -25,16 +27,22 @@ struct NavigationBackEventView: NSViewRepresentable {
 
     final class Coordinator: NSResponder {
         var onBack: () -> Bool
+        var onForward: () -> Bool
 
         private weak var window: NSWindow?
 
-        init(onBack: @escaping () -> Bool) {
+        init(
+            onBack: @escaping () -> Bool,
+            onForward: @escaping () -> Bool
+        ) {
             self.onBack = onBack
+            self.onForward = onForward
             super.init()
         }
 
         required init?(coder: NSCoder) {
             onBack = { false }
+            onForward = { false }
             super.init(coder: coder)
         }
 
@@ -64,7 +72,16 @@ struct NavigationBackEventView: NSViewRepresentable {
         }
 
         override func swipe(with event: NSEvent) {
-            guard event.deltaX > 0, onBack() else {
+            let handled: Bool
+            if event.deltaX > 0 {
+                handled = onBack()
+            } else if event.deltaX < 0 {
+                handled = onForward()
+            } else {
+                handled = false
+            }
+
+            if !handled {
                 super.swipe(with: event)
                 return
             }
