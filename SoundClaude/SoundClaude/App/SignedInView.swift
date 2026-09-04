@@ -15,6 +15,11 @@ struct SignedInView: View {
     var body: some View {
         NavigationSplitView {
             SidebarView(selection: $selectedDestination)
+                .navigationSplitViewColumnWidth(
+                    min: 180,
+                    ideal: 220,
+                    max: 280
+                )
         } detail: {
             VStack(spacing: 0) {
                 MetalVisualizerView(
