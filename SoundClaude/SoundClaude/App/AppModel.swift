@@ -6,14 +6,14 @@ final class AppModel: ObservableObject {
     let audioTap: AudioTapController
     let playback: PlaybackController
     let auth: AuthController
-    let library: LibraryController
+    let likes: LikesController
     let artworkLoader: ArtworkLoader
 
     @Published private(set) var errorMessage: String?
 
     private let client: SoundCloudClient
     private let configurationError: Error?
-    // These limits leave room for the 10-track library and bound future growth.
+    // These limits leave room for the 10 liked tracks and bound future growth.
     private let trackDetailsCache = MemoryCache<
         TrackCacheKey,
         SoundCloudTrackDetails
@@ -43,14 +43,14 @@ final class AppModel: ObservableObject {
         let audioTap = AudioTapController(analyzer: analyzer)
         let playback = PlaybackController()
         let auth = AuthController(client: client)
-        let library = LibraryController(client: client, auth: auth)
+        let likes = LikesController(client: client, auth: auth)
 
         self.analyzer = analyzer
         self.client = client
         self.audioTap = audioTap
         self.playback = playback
         self.auth = auth
-        self.library = library
+        self.likes = likes
         artworkLoader = ArtworkLoader(client: client)
 
         playback.onReadyToPlay = { [weak audioTap] in
@@ -73,7 +73,7 @@ final class AppModel: ObservableObject {
         }
         await auth.restore()
         if case .signedIn = auth.state {
-            await library.loadLikedTracks()
+            await likes.loadLikedTracks()
         }
     }
 
@@ -85,14 +85,14 @@ final class AppModel: ObservableObject {
         errorMessage = nil
         await auth.signIn()
         if case .signedIn = auth.state {
-            await library.loadLikedTracks()
+            await likes.loadLikedTracks()
         }
     }
 
     func signOut() async {
         playback.pause()
         audioTap.stop()
-        library.clear()
+        likes.clear()
         trackDetailsCache.removeAll()
         waveformCache.removeAll()
         errorMessage = nil
@@ -162,13 +162,13 @@ final class AppModel: ObservableObject {
     }
 
     private func selectRelativeTrack(offset: Int) {
-        guard !library.tracks.isEmpty else { return }
+        guard !likes.tracks.isEmpty else { return }
         let currentIndex = playback.currentTrack.flatMap { current in
-            library.tracks.firstIndex(where: { $0.urn == current.urn })
+            likes.tracks.firstIndex(where: { $0.urn == current.urn })
         } ?? (offset > 0 ? -1 : 0)
-        let nextIndex = (currentIndex + offset + library.tracks.count)
-            % library.tracks.count
-        let track = library.tracks[nextIndex]
+        let nextIndex = (currentIndex + offset + likes.tracks.count)
+            % likes.tracks.count
+        let track = likes.tracks[nextIndex]
         Task { @MainActor [weak self] in
             await self?.play(track)
         }

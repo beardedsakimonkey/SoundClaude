@@ -1,7 +1,7 @@
 import Foundation
 
 @MainActor
-final class LibraryController: ObservableObject {
+final class LikesController: ObservableObject {
     @Published private(set) var tracks: [SoundCloudTrack] = []
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?

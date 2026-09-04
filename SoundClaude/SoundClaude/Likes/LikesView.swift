@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-struct LibraryView: View {
+struct LikesView: View {
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
     let appErrorMessage: String?
@@ -9,14 +9,14 @@ struct LibraryView: View {
     let onPlayTrack: (SoundCloudTrack) async -> Void
     let onSignOut: () async -> Void
 
-    @ObservedObject private var library: LibraryController
+    @ObservedObject private var likes: LikesController
     @ObservedObject private var playback: PlaybackController
     @State private var hoveredTrackURN: String?
     @State private var hoveredTitleURN: String?
 
     init(
         user: SoundCloudUser,
-        library: LibraryController,
+        likes: LikesController,
         playback: PlaybackController,
         artworkLoader: ArtworkLoader,
         appErrorMessage: String?,
@@ -30,7 +30,7 @@ struct LibraryView: View {
         self.onSelectTrack = onSelectTrack
         self.onPlayTrack = onPlayTrack
         self.onSignOut = onSignOut
-        _library = ObservedObject(wrappedValue: library)
+        _likes = ObservedObject(wrappedValue: likes)
         _playback = ObservedObject(wrappedValue: playback)
     }
 
@@ -51,7 +51,7 @@ struct LibraryView: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if library.isLoading {
+            if likes.isLoading {
                 ProgressView()
                     .controlSize(.small)
             }
@@ -64,7 +64,7 @@ struct LibraryView: View {
 
     @ViewBuilder
     private var errorBanner: some View {
-        if let message = appErrorMessage ?? library.errorMessage {
+        if let message = appErrorMessage ?? likes.errorMessage {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
                 Text(message)
@@ -77,7 +77,7 @@ struct LibraryView: View {
     }
 
     private var trackList: some View {
-        List(library.tracks) { track in
+        List(likes.tracks) { track in
             HStack(spacing: 12) {
                 artwork(for: track)
                 trackIdentity(for: track)
@@ -105,7 +105,7 @@ struct LibraryView: View {
             }
         }
         .overlay {
-            if library.tracks.isEmpty, !library.isLoading {
+            if likes.tracks.isEmpty, !likes.isLoading {
                 ContentUnavailableView(
                     "No liked tracks",
                     systemImage: "heart.slash"

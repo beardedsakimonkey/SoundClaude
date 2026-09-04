@@ -63,9 +63,9 @@ struct SignedInView: View {
             }
         case .liked, .none:
             NavigationStack(path: navigationPath) {
-                LibraryView(
+                LikesView(
                     user: user,
-                    library: model.library,
+                    likes: model.likes,
                     playback: model.playback,
                     artworkLoader: model.artworkLoader,
                     appErrorMessage: model.errorMessage,
