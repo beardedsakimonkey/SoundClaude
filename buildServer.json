@@ -12,7 +12,7 @@
 	"argv": [
 		"/opt/homebrew/bin/xcode-build-server"
 	],
-	"build_root": "/Users/tim/code/soundcloud",
+	"build_root": "/Users/tim/code/soundcloud/SoundClaude/DerivedData",
 	"scheme": "SoundClaude",
 	"kind": "xcode"
 }

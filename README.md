@@ -36,4 +36,10 @@ To build and run from the command line:
 make
 ```
 
+To configure SourceKit-LSP and refresh its build data:
+
+```sh
+make lsp
+```
+
 macOS asks for System Audio Recording access when the process tap starts.
