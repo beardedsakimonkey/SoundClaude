@@ -69,6 +69,21 @@ struct SignedInView: View {
     }
 }
 
+struct SidebarView: View {
+    @Binding var selection: SidebarDestination?
+
+    var body: some View {
+        List(selection: $selection) {
+            ForEach(SidebarDestination.allCases) { destination in
+                Label(destination.title, systemImage: destination.systemImage)
+                    .tag(destination)
+            }
+        }
+        .listStyle(.sidebar)
+        .navigationTitle("SoundClaude")
+    }
+}
+
 private enum Route: Hashable {
     case track(SoundCloudTrack)
 }
