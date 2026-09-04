@@ -50,6 +50,15 @@ Use local drag state and commit on release, or allow one seek at a time while
 retaining the latest target. Apple documents that rapid seeks cancel prior seeks
 and can cause lag.
 
+Status: addressed. `PlaybackController` now runs one seek at a time and retains
+only the latest target from the waveform, footer, keyboard, or remote controls.
+The displayed time follows that target while seeking, and repeated relative
+seeks accumulate from it. Requests wait for the item to become ready. Loading
+another track clears pending seeks, and callbacks from the old item are ignored.
+A Release build and a local audio playback probe passed. The probe checked rapid
+requests, duplicate targets, loading, time display, input bounds, relative seeks,
+interrupted seeks, track replacement, and play/pause behavior.
+
 Reference: [Apple's seeking guidance](https://developer.apple.com/library/archive/qa/qa1820/_index.html).
 
 ### 4. Simplify the Metal data upload

@@ -33,6 +33,8 @@ final class PlaybackController {
     @ObservationIgnored private var playerStatusObservation: NSKeyValueObservation?
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var endObserver: NSObjectProtocol?
+    @ObservationIgnored private var seekTarget: Double?
+    @ObservationIgnored private var isSeekInProgress = false
     private let remoteCommandCenter = MPRemoteCommandCenter.shared()
     @ObservationIgnored private var remoteCommandTargets: [RemoteCommandTarget] = []
 
@@ -52,10 +54,13 @@ final class PlaybackController {
         timeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 0.25, preferredTimescale: 600),
             queue: .main
-        ) { [weak self] time in
+        ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                currentTime = time.seconds.isFinite ? time.seconds : 0
+                if seekTarget == nil {
+                    let seconds = player.currentTime().seconds
+                    currentTime = seconds.isFinite ? seconds : 0
+                }
                 let itemDuration = player.currentItem?.duration.seconds ?? 0
                 let updatedDuration = itemDuration.isFinite ? itemDuration : 0
                 if duration != updatedDuration {
@@ -99,6 +104,8 @@ final class PlaybackController {
     func load(track: SoundCloudTrack, source: PlaybackSource) {
         pause()
         itemStatusObservation?.invalidate()
+        seekTarget = nil
+        isSeekInProgress = false
         errorMessage = nil
         currentTrack = track
         currentTime = 0
@@ -120,10 +127,12 @@ final class PlaybackController {
                 switch item.status {
                 case .readyToPlay:
                     isLoading = false
+                    seekIfNeeded()
                     player.play()
                     onReadyToPlay?()
                 case .failed:
                     isLoading = false
+                    seekTarget = nil
                     errorMessage = item.error?.localizedDescription
                         ?? "The track could not be played."
                 case .unknown:
@@ -148,15 +157,15 @@ final class PlaybackController {
     }
 
     func seek(to seconds: Double) {
-        guard seconds.isFinite else { return }
+        guard seconds.isFinite,
+              let item = player.currentItem,
+              item.status != .failed else { return }
         let upperBound = duration > 0 ? duration : seconds
         let target = min(max(seconds, 0), upperBound)
-        player.seek(
-            to: CMTime(seconds: target, preferredTimescale: 600),
-            toleranceBefore: .zero,
-            toleranceAfter: .zero
-        )
+        seekTarget = target
+        currentTime = target
         updateNowPlayingInfo(elapsedTime: target)
+        seekIfNeeded()
     }
 
     func seek(by offset: Double) {
@@ -173,6 +182,36 @@ final class PlaybackController {
 
     func previous() {
         onPrevious?()
+    }
+
+    private func seekIfNeeded() {
+        guard !isSeekInProgress,
+              let target = seekTarget,
+              let item = player.currentItem,
+              item.status == .readyToPlay else { return }
+
+        // Let this seek finish while newer requests replace only the target.
+        isSeekInProgress = true
+        player.seek(
+            to: CMTime(seconds: target, preferredTimescale: 600),
+            toleranceBefore: .zero,
+            toleranceAfter: .zero
+        ) { [weak self, weak item] _ in
+            Task { @MainActor [weak self, weak item] in
+                guard let self, let item, item === player.currentItem else {
+                    return
+                }
+                isSeekInProgress = false
+                if let latestTarget = seekTarget, latestTarget != target {
+                    seekIfNeeded()
+                } else {
+                    seekTarget = nil
+                    let seconds = player.currentTime().seconds
+                    currentTime = seconds.isFinite ? seconds : 0
+                    updateNowPlayingInfo()
+                }
+            }
+        }
     }
 
     private func configureRemoteCommands() {
@@ -267,7 +306,7 @@ final class PlaybackController {
             return
         }
 
-        let playbackTime = elapsedTime ?? player.currentTime().seconds
+        let playbackTime = elapsedTime ?? seekTarget ?? player.currentTime().seconds
         let safePlaybackTime = playbackTime.isFinite ? playbackTime : 0
         let isPlayerPlaying = player.timeControlStatus == .playing
         MPNowPlayingInfoCenter.default().nowPlayingInfo = [
