@@ -1,7 +1,7 @@
-PROJECT := SoundClaudeNative/SoundClaude.xcodeproj
+PROJECT := SoundClaude/SoundClaude.xcodeproj
 SCHEME := SoundClaude
 CONFIGURATION ?= Debug
-DERIVED_DATA_PATH := SoundClaudeNative/DerivedData
+DERIVED_DATA_PATH := SoundClaude/DerivedData
 APP := $(DERIVED_DATA_PATH)/Build/Products/$(CONFIGURATION)/SoundClaude.app
 
 .DEFAULT_GOAL := run

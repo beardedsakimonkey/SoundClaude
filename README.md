@@ -1,44 +1,39 @@
 # SoundClaude
 
-A small personal SoundCloud client built with Tauri 2, React, and TypeScript. It signs in to a SoundCloud account, shows ten recent liked tracks, and plays SoundCloud streams through the native macOS webview audio control.
+SoundClaude is a native macOS SoundCloud client built with SwiftUI, AVPlayer,
+Core Audio, Accelerate, and Metal. It feautres:
 
-## Setup
+- OAuth authorization-code authentication with PKCE and a loopback callback
+- Keychain token persistence and refresh
+- authenticated stream resolution with final CDN host validation
+- one `AVPlayer` for Apple HLS/AAC playback
+- a private Core Audio process tap for this app only
+- a fixed-capacity atomic PCM ring and fixed spectrum snapshot
+- an Accelerate FFT worker and an `MTKView` renderer
 
-1. In the SoundCloud application settings, register this exact redirect URI:
+## Requirements
 
-   ```text
-   http://127.0.0.1:32148/callback
-   ```
+- macOS 14.2 or later
+- Xcode with the macOS SDK
+- This SoundCloud application callback URL:
+  `http://127.0.0.1:32148/callback`
 
-2. Keep the existing `credentials.json` in the repository root. Its shape is:
+## Configure credentials
 
-   ```json
-   {
-     "client_id": "...",
-     "client_secret": "..."
-   }
-   ```
+Copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig`, then replace the
+placeholder values. The local file is ignored by Git.
 
-   The file is ignored by Git. The Rust build validates it and embeds the credentials in the personal application binary. Do not publish the binary or this file. For a distributed application, move the token exchange to a trusted server and rotate the client secret.
+The client secret is suitable only for this personal development build. A
+distributed desktop app cannot keep an embedded client secret confidential.
+Use a trusted token-exchange service or another approved credential plan before
+distribution.
 
-3. Install dependencies and start the app:
+## Run
 
-   ```sh
-   pnpm install
-   pnpm tauri dev
-   ```
-
-SoundCloud opens in the default browser. The application listens on `127.0.0.1:32148` for up to five minutes and validates the OAuth state and PKCE response. If another process uses that port, close it and try again.
-
-## Checks
+To build and run from the command line:
 
 ```sh
-pnpm test
-pnpm build
-cargo test --manifest-path src-tauri/Cargo.toml
-pnpm tauri build --debug
+make
 ```
 
-OAuth access and refresh tokens are kept in `~/Library/Application Support/com.tim.soundclaude/oauth-session.json`. The directory uses owner-only permissions (`0700`), and the file uses owner-only permissions (`0600`). The React webview never receives these tokens or the SoundCloud client secret.
-
-Playback uses the current SoundCloud flow: the Rust backend requests the track stream list, follows the selected stream endpoint with an authenticated `HEAD` request, validates the returned `sndcdn.com` host, and gives only that short-lived CDN URL to the audio element.
+macOS asks for System Audio Recording access when the process tap starts.
