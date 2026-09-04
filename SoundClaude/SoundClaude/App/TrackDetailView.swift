@@ -11,6 +11,7 @@ struct TrackDetailView: View {
     @State private var errorMessage: String?
     @State private var isShowingArtwork = false
     @State private var isHoveringArtwork = false
+    @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
     init(track: SoundCloudTrack, model: AppModel) {
         self.track = track
@@ -59,7 +60,8 @@ struct TrackDetailView: View {
             FullSizeArtworkView(
                 title: details?.track.title ?? track.title,
                 artworkURL: details?.track.artworkURL ?? track.artworkURL,
-                loader: model.artworkLoader
+                loader: model.artworkLoader,
+                cachedArtwork: $cachedFullSizeArtwork
             )
         }
     }
@@ -247,15 +249,39 @@ struct TrackDetailView: View {
     }
 }
 
+private struct CachedFullSizeArtwork {
+    let sourceURL: URL
+    let data: Data
+}
+
 private struct FullSizeArtworkView: View {
     let title: String
     let artworkURL: URL?
     let loader: ArtworkLoader
 
     @Environment(\.dismiss) private var dismiss
+    @Binding private var cachedArtwork: CachedFullSizeArtwork?
     @State private var image: NSImage?
-    @State private var isLoading = true
+    @State private var isLoading: Bool
     @State private var errorMessage: String?
+
+    init(
+        title: String,
+        artworkURL: URL?,
+        loader: ArtworkLoader,
+        cachedArtwork: Binding<CachedFullSizeArtwork?>
+    ) {
+        self.title = title
+        self.artworkURL = artworkURL
+        self.loader = loader
+        _cachedArtwork = cachedArtwork
+
+        let cachedImage = cachedArtwork.wrappedValue.flatMap { cached in
+            cached.sourceURL == artworkURL ? NSImage(data: cached.data) : nil
+        }
+        _image = State(initialValue: cachedImage)
+        _isLoading = State(initialValue: cachedImage == nil)
+    }
 
     var body: some View {
         let displaySize = artworkDisplaySize
@@ -309,6 +335,7 @@ private struct FullSizeArtworkView: View {
         }
         .frame(width: displaySize.width, height: displaySize.height)
         .task(id: artworkURL) {
+            guard image == nil else { return }
             await load()
         }
     }
@@ -348,6 +375,10 @@ private struct FullSizeArtworkView: View {
             guard let loadedImage = NSImage(data: data) else {
                 throw ArtworkLoadError.invalidImage
             }
+            cachedArtwork = CachedFullSizeArtwork(
+                sourceURL: artworkURL,
+                data: data
+            )
             image = loadedImage
         } catch {
             guard !Task.isCancelled else { return }
