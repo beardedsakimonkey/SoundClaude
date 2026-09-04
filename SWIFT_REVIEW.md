@@ -71,6 +71,12 @@ CPU/GPU race.
 
 The shader's unused `resolution` and `time` fields can go too.
 
+Status: addressed. The renderer now reads the 64 spectrum bands into a reusable
+Swift array and uploads them with `setFragmentBytes`, which copies the data for
+each draw. The shared Metal buffer and elapsed-time tracking are removed. The
+Swift and Metal uniform structs now contain only `energy`. A Release build
+passed, including Swift and Metal compilation. Runtime rendering was not checked.
+
 Reference: [Apple's `setFragmentBytes` guidance](https://developer.apple.com/documentation/metal/mtlrendercommandencoder/setfragmentbytes(_:length:index:)).
 
 ### 5. Keep the process tap across track changes

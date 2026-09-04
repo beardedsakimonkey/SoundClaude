@@ -2,8 +2,6 @@ import Foundation
 import MetalKit
 
 private struct VisualizerUniforms {
-    var resolution: SIMD2<Float>
-    var time: Float
     var energy: Float
 }
 
@@ -11,19 +9,14 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private let spectrumBuffer: OpaquePointer
     private let commandQueue: MTLCommandQueue
     private let pipelineState: MTLRenderPipelineState
-    private let metalBands: MTLBuffer
-    private let startTime = ProcessInfo.processInfo.systemUptime
+    private var bands = [Float](repeating: 0, count: Int(SCSpectrumBandCount))
 
     init?(view: MTKView, spectrumBuffer: OpaquePointer) {
         guard let device = view.device,
               let commandQueue = device.makeCommandQueue(),
               let library = device.makeDefaultLibrary(),
               let vertex = library.makeFunction(name: "visualizerVertex"),
-              let fragment = library.makeFunction(name: "visualizerFragment"),
-              let metalBands = device.makeBuffer(
-                length: Int(SCSpectrumBandCount) * MemoryLayout<Float>.stride,
-                options: .storageModeShared
-              ) else {
+              let fragment = library.makeFunction(name: "visualizerFragment") else {
             return nil
         }
 
@@ -42,7 +35,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 
         self.spectrumBuffer = spectrumBuffer
         self.commandQueue = commandQueue
-        self.metalBands = metalBands
         super.init()
     }
 
@@ -58,20 +50,20 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             return
         }
 
-        let output = metalBands.contents().assumingMemoryBound(to: Float.self)
+        encoder.setRenderPipelineState(pipelineState)
         var rms: Float = 0
-        _ = SCSpectrumBufferRead(spectrumBuffer, output, &rms)
+        bands.withUnsafeMutableBufferPointer { pointer in
+            _ = SCSpectrumBufferRead(spectrumBuffer, pointer.baseAddress, &rms)
+            encoder.setFragmentBytes(
+                pointer.baseAddress!,
+                length: pointer.count * MemoryLayout<Float>.stride,
+                index: 0
+            )
+        }
         var uniforms = VisualizerUniforms(
-            resolution: SIMD2(
-                Float(view.drawableSize.width),
-                Float(view.drawableSize.height)
-            ),
-            time: Float(ProcessInfo.processInfo.systemUptime - startTime),
             energy: min(1, max(0, rms * 5))
         )
 
-        encoder.setRenderPipelineState(pipelineState)
-        encoder.setFragmentBuffer(metalBands, offset: 0, index: 0)
         encoder.setFragmentBytes(
             &uniforms,
             length: MemoryLayout<VisualizerUniforms>.stride,

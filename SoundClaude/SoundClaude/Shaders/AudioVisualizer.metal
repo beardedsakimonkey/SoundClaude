@@ -7,8 +7,6 @@ struct RasterData {
 };
 
 struct VisualizerUniforms {
-    float2 resolution;
-    float time;
     float energy;
 };
 
