@@ -12,7 +12,7 @@ const API_BASE: &str = "https://api.soundcloud.com/";
 const AUTHORIZE_URL: &str = "https://secure.soundcloud.com/authorize";
 const TOKEN_URL: &str = "https://secure.soundcloud.com/oauth/token";
 const SIGN_OUT_URL: &str = "https://secure.soundcloud.com/sign-out";
-const LIKED_TRACK_LIMIT: &str = "100";
+const LIKED_TRACK_LIMIT: &str = "10";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScErrorKind {

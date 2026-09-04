@@ -82,6 +82,8 @@ private final class RedirectBlocker: NSObject, URLSessionTaskDelegate {
 }
 
 actor SoundCloudClient {
+    private static let likedTrackLimit = 10
+
     private let configuration: SoundCloudConfiguration
     private let session: URLSession
     private let noRedirectSession: URLSession
@@ -171,7 +173,10 @@ actor SoundCloudClient {
             resolvingAgainstBaseURL: false
         )
         components?.queryItems = [
-            URLQueryItem(name: "limit", value: "100"),
+            URLQueryItem(
+                name: "limit",
+                value: String(Self.likedTrackLimit)
+            ),
             URLQueryItem(name: "linked_partitioning", value: "true"),
             URLQueryItem(name: "access", value: "playable,preview"),
         ]
@@ -188,8 +193,12 @@ actor SoundCloudClient {
             )
             try validate(response: response, data: data)
             let page = try decoder.decode(RawTrackPage.self, from: data)
-            tracks.append(contentsOf: page.collection.compactMap { $0.normalized() })
-            guard let followingURL = page.nextURL else { break }
+            let remainingCount = Self.likedTrackLimit - tracks.count
+            tracks.append(contentsOf: page.collection
+                .compactMap { $0.normalized() }
+                .prefix(remainingCount))
+            guard tracks.count < Self.likedTrackLimit,
+                  let followingURL = page.nextURL else { break }
             nextURL = followingURL
         }
         return tracks
