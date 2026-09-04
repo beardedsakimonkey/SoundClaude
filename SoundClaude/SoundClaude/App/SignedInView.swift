@@ -13,30 +13,37 @@ struct SignedInView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
-            SidebarView(selection: $selectedDestination)
-                .navigationSplitViewColumnWidth(
-                    min: 180,
-                    ideal: 220,
-                    max: 280
-                )
-        } detail: {
-            VStack(spacing: 0) {
-                MetalVisualizerView(
-                    spectrumBuffer: model.analyzer.spectrumBuffer
-                )
-                .frame(minHeight: 180, idealHeight: 240, maxHeight: 300)
+        VStack(spacing: 0) {
+            NavigationSplitView {
+                SidebarView(selection: $selectedDestination)
+                    .navigationSplitViewColumnWidth(
+                        min: 180,
+                        ideal: 220,
+                        max: 280
+                    )
+            } detail: {
+                VStack(spacing: 0) {
+                    MetalVisualizerView(
+                        spectrumBuffer: model.analyzer.spectrumBuffer
+                    )
+                    .frame(
+                        minHeight: 180,
+                        idealHeight: 240,
+                        maxHeight: 300
+                    )
 
-                Divider()
-                selectedView
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                Divider()
-                PlayerFooterView(
-                    playback: model.playback,
-                    artworkLoader: model.artworkLoader
-                )
+                    Divider()
+                    selectedView
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
+
+            Divider()
+            PlayerFooterView(
+                playback: model.playback,
+                artworkLoader: model.artworkLoader
+            )
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
