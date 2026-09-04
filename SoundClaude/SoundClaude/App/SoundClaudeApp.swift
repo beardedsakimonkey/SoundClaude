@@ -14,7 +14,7 @@ struct SoundClaudeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            content
+            mainView
                 .frame(minWidth: 760, minHeight: 620)
                 .task {
                     await model.start()
@@ -30,7 +30,7 @@ struct SoundClaudeApp: App {
     }
 
     @ViewBuilder
-    private var content: some View {
+    private var mainView: some View {
         switch auth.state {
         case .signedOut:
             SignedOutView(message: model.errorMessage) {
