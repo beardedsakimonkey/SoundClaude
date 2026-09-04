@@ -204,6 +204,38 @@ actor SoundCloudClient {
         return tracks
     }
 
+    func track(
+        urn: String,
+        secretToken: String?,
+        accessToken: String
+    ) async throws -> SoundCloudTrackDetails {
+        var components = URLComponents(
+            url: configuration.apiBaseURL
+                .appending(path: "tracks")
+                .appending(path: urn),
+            resolvingAgainstBaseURL: false
+        )
+        if let secretToken {
+            components?.queryItems = [
+                URLQueryItem(name: "secret_token", value: secretToken),
+            ]
+        }
+        guard let url = components?.url else {
+            throw SoundCloudError.unexpectedURL
+        }
+        let (data, response) = try await authenticatedRequest(
+            url: url,
+            accessToken: accessToken
+        )
+        try validate(response: response, data: data)
+        guard let details = try decoder
+            .decode(RawTrack.self, from: data)
+            .normalizedDetails() else {
+            throw SoundCloudError.invalidData
+        }
+        return details
+    }
+
     func resolvePlayback(
         track: SoundCloudTrack,
         accessToken: String

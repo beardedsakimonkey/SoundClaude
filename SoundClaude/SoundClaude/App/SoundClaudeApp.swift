@@ -2,17 +2,28 @@ import SwiftUI
 
 @main
 struct SoundClaudeApp: App {
-    @StateObject private var model = AppModel()
+    @StateObject private var model: AppModel
+    @ObservedObject private var auth: AuthController
     @State private var isShowingKeyboardShortcuts = false
+
+    init() {
+        let model = AppModel()
+        _model = StateObject(wrappedValue: model)
+        _auth = ObservedObject(wrappedValue: model.auth)
+    }
 
     var body: some Scene {
         WindowGroup {
-            ContentView(model: model)
+            content
+                .frame(minWidth: 760, minHeight: 620)
+                .task {
+                    await model.start()
+                }
                 .sheet(isPresented: $isShowingKeyboardShortcuts) {
                     KeyboardShortcutsView()
                 }
         }
-        .windowStyle(.titleBar)
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandMenu("Playback") {
                 Button("Play or Pause") {
@@ -55,5 +66,34 @@ struct SoundClaudeApp: App {
                 .keyboardShortcut("?", modifiers: [])
             }
         }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch auth.state {
+        case .signedOut:
+            SignedOutView(message: model.errorMessage) {
+                Task { await model.signIn() }
+            }
+        case let .failed(message):
+            SignedOutView(message: message) {
+                Task { await model.signIn() }
+            }
+        case .restoring:
+            progressView(label: "Restoring SoundCloud session")
+        case .signingIn:
+            progressView(label: "Waiting for SoundCloud sign-in")
+        case let .signedIn(user):
+            SignedInView(user: user, model: model)
+        }
+    }
+
+    private func progressView(label: String) -> some View {
+        VStack(spacing: 12) {
+            ProgressView()
+            Text(label)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

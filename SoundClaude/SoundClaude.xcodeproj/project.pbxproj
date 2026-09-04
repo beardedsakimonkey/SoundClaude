@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		A10000000000000000000001 /* SoundClaudeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* SoundClaudeApp.swift */; };
 		A10000000000000000000002 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* AppModel.swift */; };
-		A10000000000000000000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* ContentView.swift */; };
 		A10000000000000000000004 /* AuthController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* AuthController.swift */; };
 		A10000000000000000000005 /* KeychainTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* KeychainTokenStore.swift */; };
 		A10000000000000000000006 /* OAuthCallbackServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* OAuthCallbackServer.swift */; };
@@ -26,6 +25,15 @@
 		A10000000000000000000011 /* AudioVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* AudioVisualizer.metal */; };
 		A10000000000000000000012 /* ArtworkLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* ArtworkLoader.swift */; };
 		A10000000000000000000013 /* KeyboardShortcutsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002B /* KeyboardShortcutsView.swift */; };
+		A10000000000000000000014 /* TrackDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002C /* TrackDetailView.swift */; };
+		A10000000000000000000015 /* TrackArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002D /* TrackArtworkView.swift */; };
+		A10000000000000000000016 /* SignedInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002E /* SignedInView.swift */; };
+		A10000000000000000000017 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002F /* LibraryView.swift */; };
+		A10000000000000000000018 /* SidebarDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000030 /* SidebarDestination.swift */; };
+		A10000000000000000000019 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000031 /* SidebarView.swift */; };
+		A1000000000000000000001A /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* HomeView.swift */; };
+		A1000000000000000000001B /* PlayerFooterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000033 /* PlayerFooterView.swift */; };
+		A1000000000000000000001C /* SignedOutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* SignedOutView.swift */; };
 		A10000000000000000000020 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* SwiftUI.framework */; };
 		A10000000000000000000021 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* AppKit.framework */; };
 		A10000000000000000000022 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* AVFoundation.framework */; };
@@ -41,7 +49,6 @@
 /* Begin PBXFileReference section */
 		A20000000000000000000001 /* SoundClaudeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundClaudeApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
-		A20000000000000000000003 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A20000000000000000000004 /* AuthController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthController.swift; sourceTree = "<group>"; };
 		A20000000000000000000005 /* KeychainTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainTokenStore.swift; sourceTree = "<group>"; };
 		A20000000000000000000006 /* OAuthCallbackServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthCallbackServer.swift; sourceTree = "<group>"; };
@@ -76,6 +83,15 @@
 		A20000000000000000000029 /* ArtworkLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkLoader.swift; sourceTree = "<group>"; };
 		A2000000000000000000002A /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
 		A2000000000000000000002B /* KeyboardShortcutsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsView.swift; sourceTree = "<group>"; };
+		A2000000000000000000002C /* TrackDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackDetailView.swift; sourceTree = "<group>"; };
+		A2000000000000000000002D /* TrackArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackArtworkView.swift; sourceTree = "<group>"; };
+		A2000000000000000000002E /* SignedInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedInView.swift; sourceTree = "<group>"; };
+		A2000000000000000000002F /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		A20000000000000000000030 /* SidebarDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarDestination.swift; sourceTree = "<group>"; };
+		A20000000000000000000031 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		A20000000000000000000032 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		A20000000000000000000033 /* PlayerFooterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerFooterView.swift; sourceTree = "<group>"; };
+		A20000000000000000000034 /* SignedOutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedOutView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -135,7 +151,14 @@
 				A20000000000000000000001 /* SoundClaudeApp.swift */,
 				A2000000000000000000002B /* KeyboardShortcutsView.swift */,
 				A20000000000000000000002 /* AppModel.swift */,
-				A20000000000000000000003 /* ContentView.swift */,
+				A2000000000000000000002C /* TrackDetailView.swift */,
+				A2000000000000000000002D /* TrackArtworkView.swift */,
+				A2000000000000000000002E /* SignedInView.swift */,
+				A20000000000000000000030 /* SidebarDestination.swift */,
+				A20000000000000000000031 /* SidebarView.swift */,
+				A20000000000000000000032 /* HomeView.swift */,
+				A20000000000000000000033 /* PlayerFooterView.swift */,
+				A20000000000000000000034 /* SignedOutView.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -171,6 +194,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000009 /* LibraryController.swift */,
+				A2000000000000000000002F /* LibraryView.swift */,
 			);
 			path = Library;
 			sourceTree = "<group>";
@@ -333,7 +357,14 @@
 				A10000000000000000000001 /* SoundClaudeApp.swift in Sources */,
 				A10000000000000000000013 /* KeyboardShortcutsView.swift in Sources */,
 				A10000000000000000000002 /* AppModel.swift in Sources */,
-				A10000000000000000000003 /* ContentView.swift in Sources */,
+				A10000000000000000000014 /* TrackDetailView.swift in Sources */,
+				A10000000000000000000015 /* TrackArtworkView.swift in Sources */,
+				A10000000000000000000016 /* SignedInView.swift in Sources */,
+				A10000000000000000000018 /* SidebarDestination.swift in Sources */,
+				A10000000000000000000019 /* SidebarView.swift in Sources */,
+				A1000000000000000000001A /* HomeView.swift in Sources */,
+				A1000000000000000000001B /* PlayerFooterView.swift in Sources */,
+				A1000000000000000000001C /* SignedOutView.swift in Sources */,
 				A10000000000000000000004 /* AuthController.swift in Sources */,
 				A10000000000000000000005 /* KeychainTokenStore.swift in Sources */,
 				A10000000000000000000006 /* OAuthCallbackServer.swift in Sources */,
@@ -341,6 +372,7 @@
 				A10000000000000000000012 /* ArtworkLoader.swift in Sources */,
 				A10000000000000000000008 /* SoundCloudModels.swift in Sources */,
 				A10000000000000000000009 /* LibraryController.swift in Sources */,
+				A10000000000000000000017 /* LibraryView.swift in Sources */,
 				A1000000000000000000000A /* PlaybackController.swift in Sources */,
 				A1000000000000000000000B /* AudioTapController.swift in Sources */,
 				A1000000000000000000000C /* ProcessTap.swift in Sources */,

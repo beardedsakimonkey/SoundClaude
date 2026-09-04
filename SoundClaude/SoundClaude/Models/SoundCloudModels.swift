@@ -33,6 +33,16 @@ struct SoundCloudTrack: Identifiable, Sendable, Hashable {
     }
 }
 
+struct SoundCloudTrackDetails: Sendable, Equatable {
+    let track: SoundCloudTrack
+    let description: String?
+    let genre: String?
+    let createdAt: String?
+    let playbackCount: Int?
+    let favoritingsCount: Int?
+    let commentCount: Int?
+}
+
 struct PlaybackSource: Sendable, Equatable {
     enum Kind: String, Sendable {
         case hls
@@ -94,6 +104,12 @@ struct RawTrack: Decodable {
     let access: SoundCloudTrack.Access?
     let secretURI: URL?
     let user: RawUser?
+    let description: String?
+    let genre: String?
+    let createdAt: String?
+    let playbackCount: Int?
+    let favoritingsCount: Int?
+    let commentCount: Int?
 
     enum CodingKeys: String, CodingKey {
         case urn
@@ -105,6 +121,12 @@ struct RawTrack: Decodable {
         case access
         case secretURI = "secret_uri"
         case user
+        case description
+        case genre
+        case createdAt = "created_at"
+        case playbackCount = "playback_count"
+        case favoritingsCount = "favoritings_count"
+        case commentCount = "comment_count"
     }
 
     func normalized() -> SoundCloudTrack? {
@@ -129,6 +151,19 @@ struct RawTrack: Decodable {
             durationMilliseconds: duration ?? 0,
             access: access,
             secretToken: Self.extractSecretToken(from: secretURI)
+        )
+    }
+
+    func normalizedDetails() -> SoundCloudTrackDetails? {
+        guard let track = normalized() else { return nil }
+        return SoundCloudTrackDetails(
+            track: track,
+            description: description,
+            genre: genre,
+            createdAt: createdAt,
+            playbackCount: playbackCount,
+            favoritingsCount: favoritingsCount,
+            commentCount: commentCount
         )
     }
 

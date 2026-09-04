@@ -103,6 +103,16 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func trackDetails(for track: SoundCloudTrack) async throws
+        -> SoundCloudTrackDetails {
+        let accessToken = try await auth.validAccessToken()
+        return try await client.track(
+            urn: track.urn,
+            secretToken: track.secretToken,
+            accessToken: accessToken
+        )
+    }
+
     func clearError() {
         errorMessage = nil
     }

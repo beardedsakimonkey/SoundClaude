@@ -12,8 +12,7 @@
 	"argv": [
 		"/opt/homebrew/bin/xcode-build-server"
 	],
-	"workspace": "/Users/tim/code/soundcloud/SoundClaude/SoundClaude.xcodeproj/project.xcworkspace",
-	"build_root": "/Users/tim/Library/Developer/Xcode/DerivedData/SoundClaude-dlekpfttbdibkwfnhcfadqdvtwva",
+	"build_root": "/Users/tim/code/soundcloud",
 	"scheme": "SoundClaude",
 	"kind": "xcode"
 }
