@@ -1,5 +1,11 @@
 import AVFoundation
 import Foundation
+@preconcurrency import MediaPlayer
+
+private struct RemoteCommandTarget: @unchecked Sendable {
+    let command: MPRemoteCommand
+    let target: Any
+}
 
 @MainActor
 final class PlaybackController: ObservableObject {
@@ -25,6 +31,8 @@ final class PlaybackController: ObservableObject {
     private var playerStatusObservation: NSKeyValueObservation?
     private var timeObserver: Any?
     private var endObserver: NSObjectProtocol?
+    private let remoteCommandCenter = MPRemoteCommandCenter.shared()
+    private var remoteCommandTargets: [RemoteCommandTarget] = []
 
     init() {
         player = AVPlayer()
@@ -34,7 +42,9 @@ final class PlaybackController: ObservableObject {
             options: [.initial, .new]
         ) { [weak self] player, _ in
             Task { @MainActor [weak self] in
-                self?.isPlaying = player.timeControlStatus == .playing
+                guard let self else { return }
+                isPlaying = player.timeControlStatus == .playing
+                updateNowPlayingInfo()
             }
         }
         timeObserver = player.addPeriodicTimeObserver(
@@ -61,6 +71,8 @@ final class PlaybackController: ObservableObject {
                 onNext?()
             }
         }
+        configureRemoteCommands()
+        updateRemoteCommandAvailability()
     }
 
     deinit {
@@ -72,6 +84,11 @@ final class PlaybackController: ObservableObject {
         if let endObserver {
             NotificationCenter.default.removeObserver(endObserver)
         }
+        for target in remoteCommandTargets {
+            target.command.removeTarget(target.target)
+        }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        MPNowPlayingInfoCenter.default().playbackState = .stopped
     }
 
     func load(track: SoundCloudTrack, source: PlaybackSource) {
@@ -82,9 +99,11 @@ final class PlaybackController: ObservableObject {
         currentTime = 0
         duration = Double(track.durationMilliseconds) / 1_000
         isLoading = true
+        updateNowPlayingInfo(elapsedTime: 0)
 
         let item = AVPlayerItem(url: source.url)
         player.replaceCurrentItem(with: item)
+        updateRemoteCommandAvailability()
         itemStatusObservation = item.observe(
             \.status,
             options: [.initial, .new]
@@ -132,6 +151,7 @@ final class PlaybackController: ObservableObject {
             toleranceBefore: .zero,
             toleranceAfter: .zero
         )
+        updateNowPlayingInfo(elapsedTime: target)
     }
 
     func seek(by offset: Double) {
@@ -148,5 +168,116 @@ final class PlaybackController: ObservableObject {
 
     func previous() {
         onPrevious?()
+    }
+
+    private func configureRemoteCommands() {
+        addRemoteTarget(to: remoteCommandCenter.playCommand) {
+            controller,
+            _ in
+            controller.player.play()
+        }
+        addRemoteTarget(to: remoteCommandCenter.pauseCommand) {
+            controller,
+            _ in
+            controller.pause()
+        }
+        addRemoteTarget(
+            to: remoteCommandCenter.togglePlayPauseCommand
+        ) { controller, _ in
+            controller.togglePlayPause()
+        }
+        addRemoteTarget(
+            to: remoteCommandCenter.previousTrackCommand
+        ) { controller, _ in
+            controller.previous()
+        }
+        addRemoteTarget(to: remoteCommandCenter.nextTrackCommand) {
+            controller,
+            _ in
+            controller.next()
+        }
+
+        remoteCommandCenter.skipBackwardCommand.preferredIntervals = [5]
+        addRemoteTarget(to: remoteCommandCenter.skipBackwardCommand) {
+            controller,
+            event in
+            let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 5
+            controller.seek(by: -interval)
+        }
+
+        remoteCommandCenter.skipForwardCommand.preferredIntervals = [5]
+        addRemoteTarget(to: remoteCommandCenter.skipForwardCommand) {
+            controller,
+            event in
+            let interval = (event as? MPSkipIntervalCommandEvent)?.interval ?? 5
+            controller.seek(by: interval)
+        }
+
+        addRemoteTarget(
+            to: remoteCommandCenter.changePlaybackPositionCommand
+        ) { controller, event in
+            guard let positionEvent = event
+                as? MPChangePlaybackPositionCommandEvent else {
+                return
+            }
+            controller.seek(to: positionEvent.positionTime)
+        }
+    }
+
+    private func addRemoteTarget(
+        to command: MPRemoteCommand,
+        handler: @escaping @MainActor (
+            PlaybackController,
+            MPRemoteCommandEvent
+        ) -> Void
+    ) {
+        let target = command.addTarget { [weak self] event in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                handler(self, event)
+            }
+            return .success
+        }
+        remoteCommandTargets.append(
+            RemoteCommandTarget(command: command, target: target)
+        )
+    }
+
+    private func updateRemoteCommandAvailability() {
+        let hasTrack = player.currentItem != nil
+        remoteCommandCenter.playCommand.isEnabled = hasTrack
+        remoteCommandCenter.pauseCommand.isEnabled = hasTrack
+        remoteCommandCenter.togglePlayPauseCommand.isEnabled = hasTrack
+        remoteCommandCenter.previousTrackCommand.isEnabled = hasTrack
+        remoteCommandCenter.nextTrackCommand.isEnabled = hasTrack
+        remoteCommandCenter.skipBackwardCommand.isEnabled = hasTrack
+        remoteCommandCenter.skipForwardCommand.isEnabled = hasTrack
+        remoteCommandCenter.changePlaybackPositionCommand.isEnabled = hasTrack
+    }
+
+    private func updateNowPlayingInfo(elapsedTime: Double? = nil) {
+        guard let track = currentTrack else {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            MPNowPlayingInfoCenter.default().playbackState = .stopped
+            return
+        }
+
+        let playbackTime = elapsedTime ?? player.currentTime().seconds
+        let safePlaybackTime = playbackTime.isFinite ? playbackTime : 0
+        let isPlayerPlaying = player.timeControlStatus == .playing
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
+            MPMediaItemPropertyTitle: track.title,
+            MPMediaItemPropertyArtist: track.uploader,
+            MPMediaItemPropertyPlaybackDuration: duration,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: safePlaybackTime,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlayerPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
+            MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
+            MPNowPlayingInfoPropertyExternalContentIdentifier: track.urn,
+            MPNowPlayingInfoPropertyServiceIdentifier: "SoundCloud",
+        ]
+        MPNowPlayingInfoCenter.default().playbackState = isPlayerPlaying
+            ? .playing
+            : .paused
     }
 }

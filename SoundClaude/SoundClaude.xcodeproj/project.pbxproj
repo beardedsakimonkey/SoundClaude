@@ -34,6 +34,7 @@
 		A10000000000000000000026 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* Security.framework */; };
 		A10000000000000000000027 /* Network.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* Network.framework */; };
 		A10000000000000000000028 /* CryptoKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* CryptoKit.framework */; };
+		A10000000000000000000029 /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002A /* MediaPlayer.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -72,6 +73,7 @@
 		A20000000000000000000027 /* Network.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Network.framework; path = System/Library/Frameworks/Network.framework; sourceTree = SDKROOT; };
 		A20000000000000000000028 /* CryptoKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CryptoKit.framework; path = System/Library/Frameworks/CryptoKit.framework; sourceTree = SDKROOT; };
 		A20000000000000000000029 /* ArtworkLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkLoader.swift; sourceTree = "<group>"; };
+		A2000000000000000000002A /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,6 +90,7 @@
 				A10000000000000000000026 /* Security.framework in Frameworks */,
 				A10000000000000000000027 /* Network.framework in Frameworks */,
 				A10000000000000000000028 /* CryptoKit.framework in Frameworks */,
+				A10000000000000000000029 /* MediaPlayer.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -227,6 +230,7 @@
 				A20000000000000000000026 /* Security.framework */,
 				A20000000000000000000027 /* Network.framework */,
 				A20000000000000000000028 /* CryptoKit.framework */,
+				A2000000000000000000002A /* MediaPlayer.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
