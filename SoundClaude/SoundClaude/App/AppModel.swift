@@ -13,7 +13,7 @@ final class AppModel: ObservableObject {
 
     private let client: SoundCloudClient
     private let configurationError: Error?
-    // These limits leave room for the 10 liked tracks and bound future growth.
+    // These limits bound cache growth as liked-track pages load.
     private let trackDetailsCache = MemoryCache<
         TrackCacheKey,
         SoundCloudTrackDetails

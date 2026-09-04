@@ -77,40 +77,67 @@ struct LikesView: View {
     }
 
     private var trackList: some View {
-        List(likes.tracks) { track in
-            HStack(spacing: 12) {
-                artwork(for: track)
-                trackIdentity(for: track)
-                Spacer()
-                Text(format(milliseconds: track.durationMilliseconds))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                guard hoveredTitleURN != track.urn else { return }
-                Task { await onPlayTrack(track) }
-            }
-            .listRowBackground(
-                hoveredTrackURN == track.urn
-                    ? Color.primary.opacity(0.06)
-                    : Color.clear
-            )
-            .onHover { isHovering in
-                if isHovering {
-                    hoveredTrackURN = track.urn
-                } else if hoveredTrackURN == track.urn {
-                    hoveredTrackURN = nil
+        List {
+            ForEach(likes.tracks) { track in
+                HStack(spacing: 12) {
+                    artwork(for: track)
+                    trackIdentity(for: track)
+                    Spacer()
+                    Text(format(milliseconds: track.durationMilliseconds))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
                 }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard hoveredTitleURN != track.urn else { return }
+                    Task { await onPlayTrack(track) }
+                }
+                .listRowBackground(
+                    hoveredTrackURN == track.urn
+                        ? Color.primary.opacity(0.06)
+                        : Color.clear
+                )
+                .onHover { isHovering in
+                    if isHovering {
+                        hoveredTrackURN = track.urn
+                    } else if hoveredTrackURN == track.urn {
+                        hoveredTrackURN = nil
+                    }
+                }
+            }
+
+            if likes.canLoadMore {
+                paginationRow
             }
         }
         .overlay {
-            if likes.tracks.isEmpty, !likes.isLoading {
+            if likes.tracks.isEmpty,
+               !likes.isLoading,
+               !likes.canLoadMore {
                 ContentUnavailableView(
                     "No liked tracks",
                     systemImage: "heart.slash"
                 )
             }
+        }
+    }
+
+    private var paginationRow: some View {
+        HStack {
+            Spacer()
+            if likes.isLoadingMore {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                Button(likes.errorMessage == nil ? "Load more" : "Try again") {
+                    Task { await likes.loadMore() }
+                }
+            }
+            Spacer()
+        }
+        .onAppear {
+            guard likes.errorMessage == nil else { return }
+            Task { await likes.loadMore() }
         }
     }
 

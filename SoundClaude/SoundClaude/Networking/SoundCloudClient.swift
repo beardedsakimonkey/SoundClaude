@@ -82,7 +82,7 @@ private final class RedirectBlocker: NSObject, URLSessionTaskDelegate {
 }
 
 actor SoundCloudClient {
-    private static let likedTrackLimit = 10
+    private static let likedTracksPageSize = 10
 
     private let configuration: SoundCloudConfiguration
     private let session: URLSession
@@ -164,44 +164,52 @@ actor SoundCloudClient {
         return user
     }
 
-    func likedTracks(accessToken: String) async throws -> [SoundCloudTrack] {
-        var components = URLComponents(
-            url: configuration.apiBaseURL
-                .appending(path: "me")
-                .appending(path: "likes")
-                .appending(path: "tracks"),
-            resolvingAgainstBaseURL: false
-        )
-        components?.queryItems = [
-            URLQueryItem(
-                name: "limit",
-                value: String(Self.likedTrackLimit)
-            ),
-            URLQueryItem(name: "linked_partitioning", value: "true"),
-            URLQueryItem(name: "access", value: "playable,preview"),
-        ]
-        guard var nextURL = components?.url else {
-            throw SoundCloudError.unexpectedURL
+    func likedTracks(
+        accessToken: String,
+        pageURL: URL? = nil
+    ) async throws -> SoundCloudTrackPage {
+        let url: URL
+        if let pageURL {
+            url = pageURL
+        } else {
+            var components = URLComponents(
+                url: configuration.apiBaseURL
+                    .appending(path: "me")
+                    .appending(path: "likes")
+                    .appending(path: "tracks"),
+                resolvingAgainstBaseURL: false
+            )
+            components?.queryItems = [
+                URLQueryItem(
+                    name: "limit",
+                    value: String(Self.likedTracksPageSize)
+                ),
+                URLQueryItem(name: "linked_partitioning", value: "true"),
+                URLQueryItem(name: "access", value: "playable,preview"),
+            ]
+            guard let initialURL = components?.url else {
+                throw SoundCloudError.unexpectedURL
+            }
+            url = initialURL
         }
 
-        var tracks: [SoundCloudTrack] = []
-        while true {
+        try validateAPIURL(url)
+        let (data, response) = try await authenticatedRequest(
+            url: url,
+            accessToken: accessToken
+        )
+        try validate(response: response, data: data)
+        let page = try decoder.decode(RawTrackPage.self, from: data)
+        if let nextURL = page.nextURL {
             try validateAPIURL(nextURL)
-            let (data, response) = try await authenticatedRequest(
-                url: nextURL,
-                accessToken: accessToken
-            )
-            try validate(response: response, data: data)
-            let page = try decoder.decode(RawTrackPage.self, from: data)
-            let remainingCount = Self.likedTrackLimit - tracks.count
-            tracks.append(contentsOf: page.collection
-                .compactMap { $0.normalized() }
-                .prefix(remainingCount))
-            guard tracks.count < Self.likedTrackLimit,
-                  let followingURL = page.nextURL else { break }
-            nextURL = followingURL
+            guard nextURL != url else {
+                throw SoundCloudError.invalidData
+            }
         }
-        return tracks
+        return SoundCloudTrackPage(
+            tracks: page.collection.compactMap { $0.normalized() },
+            nextURL: page.nextURL
+        )
     }
 
     func track(

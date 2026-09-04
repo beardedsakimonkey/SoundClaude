@@ -33,6 +33,11 @@ struct SoundCloudTrack: Identifiable, Sendable, Hashable {
     }
 }
 
+struct SoundCloudTrackPage: Sendable {
+    let tracks: [SoundCloudTrack]
+    let nextURL: URL?
+}
+
 struct SoundCloudTrackDetails: Sendable, Equatable {
     let track: SoundCloudTrack
     let description: String?
