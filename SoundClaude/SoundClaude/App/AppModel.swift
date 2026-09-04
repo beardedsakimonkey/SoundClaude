@@ -113,6 +113,14 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func waveform(for track: SoundCloudTrack) async throws
+        -> SoundCloudWaveform {
+        guard let waveformURL = track.waveformURL else {
+            throw SoundCloudError.invalidData
+        }
+        return try await client.waveform(from: waveformURL)
+    }
+
     func clearError() {
         errorMessage = nil
     }

@@ -308,6 +308,32 @@ actor SoundCloudClient {
         return data
     }
 
+    func waveform(from waveformURL: URL) async throws -> SoundCloudWaveform {
+        let jsonURL = try waveformJSONURL(from: waveformURL)
+        var request = URLRequest(url: jsonURL)
+        request.setValue(
+            "application/json; charset=utf-8",
+            forHTTPHeaderField: "Accept"
+        )
+        let (data, response) = try await send(request, using: session)
+        try validate(response: response, data: data)
+        guard response.mimeType?.lowercased() == "application/json",
+              !data.isEmpty,
+              data.count <= 1 * 1_024 * 1_024 else {
+            throw SoundCloudError.invalidData
+        }
+
+        let waveform = try decoder.decode(SoundCloudWaveform.self, from: data)
+        guard waveform.width > 0,
+              waveform.height > 0,
+              !waveform.samples.isEmpty,
+              waveform.samples.count <= 10_000,
+              waveform.samples.allSatisfy({ $0 >= 0 }) else {
+            throw SoundCloudError.invalidData
+        }
+        return waveform
+    }
+
     func signOut(accessToken: String) async throws {
         var request = URLRequest(url: configuration.signOutURL)
         request.httpMethod = "POST"
@@ -452,5 +478,27 @@ actor SoundCloudClient {
         }
         let isAllowed = host == "sndcdn.com" || host.hasSuffix(".sndcdn.com")
         guard isAllowed else { throw SoundCloudError.unexpectedURL }
+    }
+
+    private func waveformJSONURL(from url: URL) throws -> URL {
+        guard url.scheme == "https",
+              url.host?.lowercased() == "wave.sndcdn.com",
+              var components = URLComponents(
+                  url: url,
+                  resolvingAgainstBaseURL: false
+              ) else {
+            throw SoundCloudError.unexpectedURL
+        }
+
+        let path = components.path as NSString
+        let extensionName = path.pathExtension.lowercased()
+        guard extensionName == "png" || extensionName == "json" else {
+            throw SoundCloudError.unexpectedURL
+        }
+        components.path = path.deletingPathExtension + ".json"
+        guard let jsonURL = components.url else {
+            throw SoundCloudError.unexpectedURL
+        }
+        return jsonURL
     }
 }

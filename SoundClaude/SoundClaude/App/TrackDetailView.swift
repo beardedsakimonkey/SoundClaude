@@ -74,6 +74,10 @@ struct TrackDetailView: View {
                     statistic(details.commentCount, label: "comments")
                 }
 
+                if details.track.waveformURL != nil {
+                    TrackWaveformView(track: details.track, model: model)
+                }
+
                 Divider()
 
                 Grid(

@@ -43,6 +43,12 @@ struct SoundCloudTrackDetails: Sendable, Equatable {
     let commentCount: Int?
 }
 
+struct SoundCloudWaveform: Decodable, Sendable, Equatable {
+    let width: Int
+    let height: Int
+    let samples: [Int]
+}
+
 struct PlaybackSource: Sendable, Equatable {
     enum Kind: String, Sendable {
         case hls
