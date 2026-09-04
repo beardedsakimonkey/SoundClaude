@@ -12,6 +12,7 @@ struct TrackWaveformView: View {
         self.track = track
         self.model = model
         _playback = ObservedObject(wrappedValue: model.playback)
+        _waveform = State(initialValue: model.cachedWaveform(for: track))
     }
 
     var body: some View {
@@ -201,6 +202,12 @@ struct TrackWaveformView: View {
     }
 
     private func load() async {
+        if let cachedWaveform = model.cachedWaveform(for: track) {
+            waveform = cachedWaveform
+            errorMessage = nil
+            return
+        }
+
         waveform = nil
         errorMessage = nil
         do {

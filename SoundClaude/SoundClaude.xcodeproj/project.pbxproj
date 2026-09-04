@@ -35,6 +35,7 @@
 		A1000000000000000000001C /* SignedOutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* SignedOutView.swift */; };
 		A1000000000000000000001D /* NavigationBackEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000035 /* NavigationBackEventView.swift */; };
 		A1000000000000000000001E /* TrackWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000036 /* TrackWaveformView.swift */; };
+		A1000000000000000000001F /* MemoryCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000037 /* MemoryCache.swift */; };
 		A10000000000000000000020 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* SwiftUI.framework */; };
 		A10000000000000000000021 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* AppKit.framework */; };
 		A10000000000000000000022 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* AVFoundation.framework */; };
@@ -94,6 +95,7 @@
 		A20000000000000000000034 /* SignedOutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedOutView.swift; sourceTree = "<group>"; };
 		A20000000000000000000035 /* NavigationBackEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationBackEventView.swift; sourceTree = "<group>"; };
 		A20000000000000000000036 /* TrackWaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackWaveformView.swift; sourceTree = "<group>"; };
+		A20000000000000000000037 /* MemoryCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryCache.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -284,6 +286,7 @@
 		A40000000000000000000010 /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				A20000000000000000000037 /* MemoryCache.swift */,
 				A20000000000000000000015 /* SoundClaude-Bridging-Header.h */,
 			);
 			path = Support;
@@ -369,6 +372,7 @@
 				A1000000000000000000001B /* PlayerFooterView.swift in Sources */,
 				A1000000000000000000001C /* SignedOutView.swift in Sources */,
 				A1000000000000000000001D /* NavigationBackEventView.swift in Sources */,
+				A1000000000000000000001F /* MemoryCache.swift in Sources */,
 				A10000000000000000000004 /* AuthController.swift in Sources */,
 				A10000000000000000000005 /* KeychainTokenStore.swift in Sources */,
 				A10000000000000000000006 /* OAuthCallbackServer.swift in Sources */,

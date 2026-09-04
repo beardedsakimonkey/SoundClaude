@@ -13,6 +13,15 @@ final class AppModel: ObservableObject {
 
     private let client: SoundCloudClient
     private let configurationError: Error?
+    // These limits leave room for the 10-track library and bound future growth.
+    private let trackDetailsCache = MemoryCache<
+        TrackCacheKey,
+        SoundCloudTrackDetails
+    >(countLimit: 100)
+    private let waveformCache = MemoryCache<
+        NSURL,
+        SoundCloudWaveform
+    >(countLimit: 50, totalCostLimit: 8 * 1_024 * 1_024)
 
     init() {
         let configuration: SoundCloudConfiguration
@@ -84,6 +93,8 @@ final class AppModel: ObservableObject {
         playback.pause()
         audioTap.stop()
         library.clear()
+        trackDetailsCache.removeAll()
+        waveformCache.removeAll()
         errorMessage = nil
         await auth.signOut()
     }
@@ -105,12 +116,24 @@ final class AppModel: ObservableObject {
 
     func trackDetails(for track: SoundCloudTrack) async throws
         -> SoundCloudTrackDetails {
+        let cacheKey = TrackCacheKey(track: track)
+        if let cachedDetails = trackDetailsCache.value(forKey: cacheKey) {
+            return cachedDetails
+        }
+
         let accessToken = try await auth.validAccessToken()
-        return try await client.track(
+        let details = try await client.track(
             urn: track.urn,
             secretToken: track.secretToken,
             accessToken: accessToken
         )
+        trackDetailsCache.insert(details, forKey: cacheKey)
+        return details
+    }
+
+    func cachedTrackDetails(for track: SoundCloudTrack)
+        -> SoundCloudTrackDetails? {
+        trackDetailsCache.value(forKey: TrackCacheKey(track: track))
     }
 
     func waveform(for track: SoundCloudTrack) async throws
@@ -118,7 +141,20 @@ final class AppModel: ObservableObject {
         guard let waveformURL = track.waveformURL else {
             throw SoundCloudError.invalidData
         }
-        return try await client.waveform(from: waveformURL)
+        let cacheKey = waveformURL as NSURL
+        if let cachedWaveform = waveformCache.value(forKey: cacheKey) {
+            return cachedWaveform
+        }
+
+        let waveform = try await client.waveform(from: waveformURL)
+        let cost = waveform.samples.count * MemoryLayout<Int>.stride
+        waveformCache.insert(waveform, forKey: cacheKey, cost: cost)
+        return waveform
+    }
+
+    func cachedWaveform(for track: SoundCloudTrack) -> SoundCloudWaveform? {
+        guard let waveformURL = track.waveformURL else { return nil }
+        return waveformCache.value(forKey: waveformURL as NSURL)
     }
 
     func clearError() {
@@ -136,5 +172,27 @@ final class AppModel: ObservableObject {
         Task { @MainActor [weak self] in
             await self?.play(track)
         }
+    }
+}
+
+private final class TrackCacheKey: NSObject {
+    let urn: String
+    let secretToken: String?
+
+    init(track: SoundCloudTrack) {
+        urn = track.urn
+        secretToken = track.secretToken
+    }
+
+    override var hash: Int {
+        var hasher = Hasher()
+        hasher.combine(urn)
+        hasher.combine(secretToken)
+        return hasher.finalize()
+    }
+
+    override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? TrackCacheKey else { return false }
+        return urn == other.urn && secretToken == other.secretToken
     }
 }

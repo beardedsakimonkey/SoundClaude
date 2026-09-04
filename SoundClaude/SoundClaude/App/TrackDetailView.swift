@@ -9,6 +9,15 @@ struct TrackDetailView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
 
+    init(track: SoundCloudTrack, model: AppModel) {
+        self.track = track
+        self.model = model
+
+        let cachedDetails = model.cachedTrackDetails(for: track)
+        _details = State(initialValue: cachedDetails)
+        _isLoading = State(initialValue: cachedDetails == nil)
+    }
+
     var body: some View {
         Group {
             if let details {
@@ -149,6 +158,13 @@ struct TrackDetailView: View {
     }
 
     private func load() async {
+        if let cachedDetails = model.cachedTrackDetails(for: track) {
+            details = cachedDetails
+            isLoading = false
+            errorMessage = nil
+            return
+        }
+
         isLoading = true
         errorMessage = nil
         do {

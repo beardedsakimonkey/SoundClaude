@@ -2,18 +2,19 @@ import Foundation
 
 actor ArtworkLoader {
     private let client: SoundCloudClient
-    private let cache = NSCache<NSURL, NSData>()
+    private let cache = MemoryCache<NSURL, Data>(
+        countLimit: 300,
+        totalCostLimit: 32 * 1_024 * 1_024
+    )
     private var requests: [URL: Task<Data, Error>] = [:]
 
     init(client: SoundCloudClient) {
         self.client = client
-        cache.countLimit = 300
-        cache.totalCostLimit = 32 * 1_024 * 1_024
     }
 
     func data(for url: URL) async throws -> Data {
-        if let cached = cache.object(forKey: url as NSURL) {
-            return cached as Data
+        if let cached = cache.value(forKey: url as NSURL) {
+            return cached
         }
         if let request = requests[url] {
             return try await request.value
@@ -28,11 +29,7 @@ actor ArtworkLoader {
         do {
             let data = try await request.value
             requests[url] = nil
-            cache.setObject(
-                data as NSData,
-                forKey: url as NSURL,
-                cost: data.count
-            )
+            cache.insert(data, forKey: url as NSURL, cost: data.count)
             return data
         } catch {
             requests[url] = nil
