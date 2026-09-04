@@ -1,6 +1,11 @@
 import Foundation
 
 actor ArtworkLoader {
+    enum Rendition: Sendable {
+        case source
+        case original
+    }
+
     private let client: SoundCloudClient
     private let cache = MemoryCache<NSURL, Data>(
         countLimit: 300,
@@ -12,7 +17,23 @@ actor ArtworkLoader {
         self.client = client
     }
 
-    func data(for url: URL) async throws -> Data {
+    func data(
+        for url: URL,
+        rendition: Rendition = .source
+    ) async throws -> Data {
+        let renditionURL = resolvedURL(for: rendition, sourceURL: url)
+
+        do {
+            return try await data(forResolvedURL: renditionURL)
+        } catch {
+            guard !Task.isCancelled, renditionURL != url else {
+                throw error
+            }
+            return try await data(forResolvedURL: url)
+        }
+    }
+
+    private func data(forResolvedURL url: URL) async throws -> Data {
         if let cached = cache.value(forKey: url as NSURL) {
             return cached
         }
@@ -35,5 +56,35 @@ actor ArtworkLoader {
             requests[url] = nil
             throw error
         }
+    }
+
+    private func resolvedURL(
+        for rendition: Rendition,
+        sourceURL: URL
+    ) -> URL {
+        guard rendition == .original,
+              var components = URLComponents(
+                  url: sourceURL,
+                  resolvingAgainstBaseURL: false
+              ) else {
+            return sourceURL
+        }
+
+        let path = components.path as NSString
+        let filename = path.lastPathComponent as NSString
+        let extensionName = filename.pathExtension
+        let name = filename.deletingPathExtension
+        let thumbnailSuffix = "-large"
+
+        guard !extensionName.isEmpty,
+              name.hasSuffix(thumbnailSuffix) else {
+            return sourceURL
+        }
+
+        let originalName = name.dropLast(thumbnailSuffix.count) + "-original"
+        components.path = (path.deletingLastPathComponent as NSString)
+            .appendingPathComponent(String(originalName))
+            + ".\(extensionName)"
+        return components.url ?? sourceURL
     }
 }
