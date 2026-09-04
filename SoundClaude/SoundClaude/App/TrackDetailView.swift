@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 
@@ -19,23 +20,31 @@ struct TrackDetailView: View {
     }
 
     var body: some View {
-        Group {
-            if let details {
-                detailsView(details)
-            } else if isLoading {
-                ProgressView("Loading track")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ContentUnavailableView {
-                    Label(
-                        "Could not load track",
-                        systemImage: "exclamationmark.triangle"
-                    )
-                } description: {
-                    Text(errorMessage ?? "An unknown error occurred.")
-                } actions: {
-                    Button("Try Again") {
-                        Task { await load() }
+        ZStack(alignment: .top) {
+            TrackArtworkBackdropView(
+                artworkURL: details?.track.artworkURL ?? track.artworkURL,
+                loader: model.artworkLoader
+            )
+            .ignoresSafeArea(edges: .top)
+
+            Group {
+                if let details {
+                    detailsView(details)
+                } else if isLoading {
+                    ProgressView("Loading track")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ContentUnavailableView {
+                        Label(
+                            "Could not load track",
+                            systemImage: "exclamationmark.triangle"
+                        )
+                    } description: {
+                        Text(errorMessage ?? "An unknown error occurred.")
+                    } actions: {
+                        Button("Try Again") {
+                            Task { await load() }
+                        }
                     }
                 }
             }
@@ -55,6 +64,13 @@ struct TrackDetailView: View {
                         loader: model.artworkLoader,
                         size: 180
                     )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(
+                                .white.opacity(0.2),
+                                lineWidth: 1
+                            )
+                    }
 
                     VStack(alignment: .leading, spacing: 10) {
                         Text(details.track.title)
@@ -174,5 +190,54 @@ struct TrackDetailView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+}
+
+private struct TrackArtworkBackdropView: View {
+    let artworkURL: URL?
+    let loader: ArtworkLoader
+
+    @State private var image: NSImage?
+
+    var body: some View {
+        GeometryReader { geometry in
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(
+                        width: geometry.size.width,
+                        height: geometry.size.height
+                    )
+                    .scaleEffect(1.15)
+                    .blur(radius: 36)
+                    .saturation(1.15)
+                    .opacity(0.38)
+                    .mask {
+                        LinearGradient(
+                            stops: [
+                                .init(color: .black, location: 0),
+                                .init(color: .black.opacity(0.75), location: 0.6),
+                                .init(color: .clear, location: 1)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    }
+            }
+        }
+        .frame(height: 340)
+        .clipped()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .task(id: artworkURL) {
+            image = nil
+            guard let artworkURL,
+                  let data = try? await loader.data(for: artworkURL),
+                  !Task.isCancelled else {
+                return
+            }
+            image = NSImage(data: data)
+        }
     }
 }
