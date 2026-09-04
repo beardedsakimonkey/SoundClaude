@@ -10,7 +10,7 @@ struct LikesView: View {
     let onSignOut: () async -> Void
 
     @ObservedObject private var likes: LikesController
-    @ObservedObject private var playback: PlaybackController
+    private let playback: PlaybackController
     @State private var hoveredTrackURN: String?
     @State private var hoveredTitleURN: String?
 
@@ -31,7 +31,7 @@ struct LikesView: View {
         self.onPlayTrack = onPlayTrack
         self.onSignOut = onSignOut
         _likes = ObservedObject(wrappedValue: likes)
-        _playback = ObservedObject(wrappedValue: playback)
+        self.playback = playback
     }
 
     var body: some View {

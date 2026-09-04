@@ -3,11 +3,11 @@ import SwiftUI
 struct PlayerFooterView: View {
     let artworkLoader: ArtworkLoader
 
-    @ObservedObject private var playback: PlaybackController
+    @Bindable private var playback: PlaybackController
 
     init(playback: PlaybackController, artworkLoader: ArtworkLoader) {
         self.artworkLoader = artworkLoader
-        _playback = ObservedObject(wrappedValue: playback)
+        self.playback = playback
     }
 
     var body: some View {

@@ -4,14 +4,14 @@ struct TrackWaveformView: View {
     let track: SoundCloudTrack
     let model: AppModel
 
-    @ObservedObject private var playback: PlaybackController
+    private let playback: PlaybackController
     @State private var waveform: SoundCloudWaveform?
     @State private var errorMessage: String?
 
     init(track: SoundCloudTrack, model: AppModel) {
         self.track = track
         self.model = model
-        _playback = ObservedObject(wrappedValue: model.playback)
+        playback = model.playback
         _waveform = State(initialValue: model.cachedWaveform(for: track))
     }
 

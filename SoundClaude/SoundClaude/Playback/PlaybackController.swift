@@ -1,6 +1,7 @@
 import AVFoundation
 import Foundation
 @preconcurrency import MediaPlayer
+import Observation
 
 private struct RemoteCommandTarget: @unchecked Sendable {
     let command: MPRemoteCommand
@@ -8,31 +9,32 @@ private struct RemoteCommandTarget: @unchecked Sendable {
 }
 
 @MainActor
-final class PlaybackController: ObservableObject {
-    @Published private(set) var currentTrack: SoundCloudTrack?
-    @Published private(set) var isPlaying = false
-    @Published private(set) var isLoading = false
-    @Published private(set) var currentTime: Double = 0
-    @Published private(set) var duration: Double = 0
-    @Published private(set) var errorMessage: String?
-    @Published var volume: Float = 1 {
+@Observable
+final class PlaybackController {
+    private(set) var currentTrack: SoundCloudTrack?
+    private(set) var isPlaying = false
+    private(set) var isLoading = false
+    private(set) var currentTime: Double = 0
+    private(set) var duration: Double = 0
+    private(set) var errorMessage: String?
+    var volume: Float = 1 {
         didSet { player.volume = volume }
     }
-    @Published var isMuted = false {
+    var isMuted = false {
         didSet { player.isMuted = isMuted }
     }
 
     let player: AVPlayer
-    var onReadyToPlay: (() -> Void)?
-    var onNext: (() -> Void)?
-    var onPrevious: (() -> Void)?
+    @ObservationIgnored var onReadyToPlay: (() -> Void)?
+    @ObservationIgnored var onNext: (() -> Void)?
+    @ObservationIgnored var onPrevious: (() -> Void)?
 
-    private var itemStatusObservation: NSKeyValueObservation?
-    private var playerStatusObservation: NSKeyValueObservation?
-    private var timeObserver: Any?
-    private var endObserver: NSObjectProtocol?
+    @ObservationIgnored private var itemStatusObservation: NSKeyValueObservation?
+    @ObservationIgnored private var playerStatusObservation: NSKeyValueObservation?
+    @ObservationIgnored private var timeObserver: Any?
+    @ObservationIgnored private var endObserver: NSObjectProtocol?
     private let remoteCommandCenter = MPRemoteCommandCenter.shared()
-    private var remoteCommandTargets: [RemoteCommandTarget] = []
+    @ObservationIgnored private var remoteCommandTargets: [RemoteCommandTarget] = []
 
     init() {
         player = AVPlayer()
@@ -55,7 +57,10 @@ final class PlaybackController: ObservableObject {
                 guard let self else { return }
                 currentTime = time.seconds.isFinite ? time.seconds : 0
                 let itemDuration = player.currentItem?.duration.seconds ?? 0
-                duration = itemDuration.isFinite ? itemDuration : 0
+                let updatedDuration = itemDuration.isFinite ? itemDuration : 0
+                if duration != updatedDuration {
+                    duration = updatedDuration
+                }
             }
         }
         endObserver = NotificationCenter.default.addObserver(
