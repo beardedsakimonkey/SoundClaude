@@ -29,10 +29,15 @@ struct KeyboardShortcutsView: View {
                         HStack(spacing: 4) {
                             ForEach(shortcut.keys, id: \.self) { key in
                                 Text(key)
-                                    .font(.system(.body, design: .rounded).weight(.medium))
+                                    .font(.system(.callout, design: .monospaced).weight(.medium))
                                     .frame(minWidth: 24, minHeight: 22)
                                     .padding(.horizontal, 4)
-                                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 5))
+                                    .background(.background, in: RoundedRectangle(cornerRadius: 4))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .stroke(.tertiary, lineWidth: 1)
+                                    }
+                                    .shadow(color: .black.opacity(0.18), radius: 0, y: 1)
                             }
                         }
                     }
