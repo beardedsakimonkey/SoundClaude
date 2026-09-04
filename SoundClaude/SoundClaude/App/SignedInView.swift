@@ -45,6 +45,9 @@ struct SignedInView: View {
             )
             .fixedSize(horizontal: false, vertical: true)
         }
+        .background {
+            NavigationBackEventView(onBack: navigateBack)
+        }
     }
 
     @ViewBuilder
@@ -78,6 +81,15 @@ struct SignedInView: View {
 
     private func showTrack(_ track: SoundCloudTrack) {
         path.append(.track(track))
+    }
+
+    private func navigateBack() -> Bool {
+        guard selectedDestination != .home, !path.isEmpty else {
+            return false
+        }
+
+        path.removeLast()
+        return true
     }
 }
 

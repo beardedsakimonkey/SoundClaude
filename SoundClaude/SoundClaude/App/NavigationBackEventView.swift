@@ -1,0 +1,92 @@
+import AppKit
+import SwiftUI
+
+struct NavigationBackEventView: NSViewRepresentable {
+    let onBack: () -> Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onBack: onBack)
+    }
+
+    func makeNSView(context: Context) -> ResponderInstallerView {
+        ResponderInstallerView(coordinator: context.coordinator)
+    }
+
+    func updateNSView(_ nsView: ResponderInstallerView, context: Context) {
+        context.coordinator.onBack = onBack
+    }
+
+    static func dismantleNSView(
+        _ nsView: ResponderInstallerView,
+        coordinator: Coordinator
+    ) {
+        coordinator.uninstall()
+    }
+
+    final class Coordinator: NSResponder {
+        var onBack: () -> Bool
+
+        private weak var window: NSWindow?
+
+        init(onBack: @escaping () -> Bool) {
+            self.onBack = onBack
+            super.init()
+        }
+
+        required init?(coder: NSCoder) {
+            onBack = { false }
+            super.init(coder: coder)
+        }
+
+        func install(in window: NSWindow?) {
+            guard self.window !== window else {
+                return
+            }
+
+            uninstall()
+
+            guard let window else {
+                return
+            }
+
+            nextResponder = window.nextResponder
+            window.nextResponder = self
+            self.window = window
+        }
+
+        func uninstall() {
+            if window?.nextResponder === self {
+                window?.nextResponder = nextResponder
+            }
+
+            nextResponder = nil
+            window = nil
+        }
+
+        override func swipe(with event: NSEvent) {
+            guard event.deltaX > 0, onBack() else {
+                super.swipe(with: event)
+                return
+            }
+        }
+    }
+
+    final class ResponderInstallerView: NSView {
+        private weak var coordinator: Coordinator?
+
+        init(coordinator: Coordinator) {
+            self.coordinator = coordinator
+            super.init(frame: .zero)
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            coordinator?.install(in: window)
+        }
+    }
+}

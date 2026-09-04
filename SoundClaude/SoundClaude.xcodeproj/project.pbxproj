@@ -33,6 +33,7 @@
 		A1000000000000000000001A /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* HomeView.swift */; };
 		A1000000000000000000001B /* PlayerFooterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000033 /* PlayerFooterView.swift */; };
 		A1000000000000000000001C /* SignedOutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* SignedOutView.swift */; };
+		A1000000000000000000001D /* NavigationBackEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000035 /* NavigationBackEventView.swift */; };
 		A10000000000000000000020 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* SwiftUI.framework */; };
 		A10000000000000000000021 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* AppKit.framework */; };
 		A10000000000000000000022 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* AVFoundation.framework */; };
@@ -90,6 +91,7 @@
 		A20000000000000000000032 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		A20000000000000000000033 /* PlayerFooterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerFooterView.swift; sourceTree = "<group>"; };
 		A20000000000000000000034 /* SignedOutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedOutView.swift; sourceTree = "<group>"; };
+		A20000000000000000000035 /* NavigationBackEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationBackEventView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -156,6 +158,7 @@
 				A20000000000000000000032 /* HomeView.swift */,
 				A20000000000000000000033 /* PlayerFooterView.swift */,
 				A20000000000000000000034 /* SignedOutView.swift */,
+				A20000000000000000000035 /* NavigationBackEventView.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -361,6 +364,7 @@
 				A1000000000000000000001A /* HomeView.swift in Sources */,
 				A1000000000000000000001B /* PlayerFooterView.swift in Sources */,
 				A1000000000000000000001C /* SignedOutView.swift in Sources */,
+				A1000000000000000000001D /* NavigationBackEventView.swift in Sources */,
 				A10000000000000000000004 /* AuthController.swift in Sources */,
 				A10000000000000000000005 /* KeychainTokenStore.swift in Sources */,
 				A10000000000000000000006 /* OAuthCallbackServer.swift in Sources */,
