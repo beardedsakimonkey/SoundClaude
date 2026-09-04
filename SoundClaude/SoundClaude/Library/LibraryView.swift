@@ -11,6 +11,8 @@ struct LibraryView: View {
 
     @ObservedObject private var library: LibraryController
     @ObservedObject private var playback: PlaybackController
+    @State private var hoveredTrackURN: String?
+    @State private var hoveredTitleURN: String?
 
     init(
         user: SoundCloudUser,
@@ -83,13 +85,23 @@ struct LibraryView: View {
                 Text(format(milliseconds: track.durationMilliseconds))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
-                Button {
-                    Task { await onPlayTrack(track) }
-                } label: {
-                    Image(systemName: "play.fill")
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard hoveredTitleURN != track.urn else { return }
+                Task { await onPlayTrack(track) }
+            }
+            .listRowBackground(
+                hoveredTrackURN == track.urn
+                    ? Color.primary.opacity(0.06)
+                    : Color.clear
+            )
+            .onHover { isHovering in
+                if isHovering {
+                    hoveredTrackURN = track.urn
+                } else if hoveredTrackURN == track.urn {
+                    hoveredTrackURN = nil
                 }
-                .buttonStyle(.borderless)
-                .help("Play \(track.title)")
             }
         }
         .overlay {
@@ -122,11 +134,22 @@ struct LibraryView: View {
 
     private func trackIdentity(for track: SoundCloudTrack) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Button(track.title) {
+            Button {
                 onSelectTrack(track)
+            } label: {
+                Text(track.title)
+                    .underline(hoveredTitleURN == track.urn)
+                    .foregroundStyle(.primary)
             }
-            .buttonStyle(.link)
+            .buttonStyle(.plain)
             .lineLimit(1)
+            .onHover { isHovering in
+                if isHovering {
+                    hoveredTitleURN = track.urn
+                } else if hoveredTitleURN == track.urn {
+                    hoveredTitleURN = nil
+                }
+            }
             Text(track.uploader)
                 .font(.caption)
                 .foregroundStyle(.secondary)
