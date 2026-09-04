@@ -25,6 +25,7 @@
 		A10000000000000000000010 /* VisualizerRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* VisualizerRenderer.swift */; };
 		A10000000000000000000011 /* AudioVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* AudioVisualizer.metal */; };
 		A10000000000000000000012 /* ArtworkLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* ArtworkLoader.swift */; };
+		A10000000000000000000013 /* KeyboardShortcutsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002B /* KeyboardShortcutsView.swift */; };
 		A10000000000000000000020 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* SwiftUI.framework */; };
 		A10000000000000000000021 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* AppKit.framework */; };
 		A10000000000000000000022 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* AVFoundation.framework */; };
@@ -74,6 +75,7 @@
 		A20000000000000000000028 /* CryptoKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CryptoKit.framework; path = System/Library/Frameworks/CryptoKit.framework; sourceTree = SDKROOT; };
 		A20000000000000000000029 /* ArtworkLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkLoader.swift; sourceTree = "<group>"; };
 		A2000000000000000000002A /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
+		A2000000000000000000002B /* KeyboardShortcutsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -131,6 +133,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000001 /* SoundClaudeApp.swift */,
+				A2000000000000000000002B /* KeyboardShortcutsView.swift */,
 				A20000000000000000000002 /* AppModel.swift */,
 				A20000000000000000000003 /* ContentView.swift */,
 			);
@@ -328,6 +331,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000001 /* SoundClaudeApp.swift in Sources */,
+				A10000000000000000000013 /* KeyboardShortcutsView.swift in Sources */,
 				A10000000000000000000002 /* AppModel.swift in Sources */,
 				A10000000000000000000003 /* ContentView.swift in Sources */,
 				A10000000000000000000004 /* AuthController.swift in Sources */,

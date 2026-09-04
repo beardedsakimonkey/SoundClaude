@@ -3,10 +3,14 @@ import SwiftUI
 @main
 struct SoundClaudeApp: App {
     @StateObject private var model = AppModel()
+    @State private var isShowingKeyboardShortcuts = false
 
     var body: some Scene {
         WindowGroup {
             ContentView(model: model)
+                .sheet(isPresented: $isShowingKeyboardShortcuts) {
+                    KeyboardShortcutsView()
+                }
         }
         .windowStyle(.titleBar)
         .commands {
@@ -42,6 +46,13 @@ struct SoundClaudeApp: App {
                     model.playback.next()
                 }
                 .keyboardShortcut(.rightArrow, modifiers: [.shift])
+            }
+
+            CommandGroup(after: .help) {
+                Button("Keyboard Shortcuts") {
+                    isShowingKeyboardShortcuts = true
+                }
+                .keyboardShortcut("?", modifiers: [])
             }
         }
     }
