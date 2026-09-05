@@ -19,6 +19,11 @@ struct SoundClaudeApp: App {
                 .task {
                     await model.start()
                 }
+                .onReceive(NotificationCenter.default.publisher(
+                    for: NSApplication.willTerminateNotification
+                )) { _ in
+                    model.playback.saveSession()
+                }
                 .sheet(isPresented: $isShowingKeyboardShortcuts) {
                     KeyboardShortcutsView()
                 }

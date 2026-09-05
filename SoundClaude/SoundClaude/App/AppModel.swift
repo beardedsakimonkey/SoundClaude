@@ -15,6 +15,7 @@ final class AppModel: ObservableObject {
     private let configurationError: Error?
     private var playbackTask: Task<Void, Never>?
     private var playbackRequestID: UUID?
+    private var hasStarted = false
     // These limits bound cache growth as liked-track pages load.
     private let trackDetailsCache = MemoryCache<
         TrackCacheKey,
@@ -70,12 +71,15 @@ final class AppModel: ObservableObject {
     }
 
     func start() async {
+        guard !hasStarted else { return }
+        hasStarted = true
         if let configurationError {
             errorMessage = configurationError.localizedDescription
             return
         }
         await auth.restore()
         if case .signedIn = auth.state {
+            await restorePlayback()
             await likes.loadLikedTracks()
         }
     }
@@ -88,6 +92,7 @@ final class AppModel: ObservableObject {
         errorMessage = nil
         await auth.signIn()
         if case .signedIn = auth.state {
+            await restorePlayback()
             await likes.loadLikedTracks()
         }
     }
@@ -96,7 +101,7 @@ final class AppModel: ObservableObject {
         playbackTask?.cancel()
         playbackTask = nil
         playbackRequestID = nil
-        playback.pause()
+        playback.clearSession()
         audioTap.stop()
         likes.clear()
         trackDetailsCache.removeAll()
@@ -107,6 +112,20 @@ final class AppModel: ObservableObject {
     }
 
     func play(_ track: SoundCloudTrack) async {
+        await loadPlayback(track)
+    }
+
+    private func restorePlayback() async {
+        guard playback.currentTrack == nil, playbackTask == nil,
+              let session = playback.savedSession else { return }
+        await loadPlayback(session.track, position: session.position, autoplay: false)
+    }
+
+    private func loadPlayback(
+        _ track: SoundCloudTrack,
+        position: Double = 0,
+        autoplay: Bool = true
+    ) async {
         guard !Task.isCancelled else { return }
         playbackTask?.cancel()
         let requestID = UUID()
@@ -132,7 +151,12 @@ final class AppModel: ObservableObject {
                 )
                 guard !Task.isCancelled,
                       playbackRequestID == requestID else { return }
-                playback.load(track: track, source: source)
+                playback.load(
+                    track: track,
+                    source: source,
+                    position: position,
+                    autoplay: autoplay
+                )
             } catch is CancellationError {
                 return
             } catch {

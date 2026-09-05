@@ -24,7 +24,7 @@ struct SoundCloudArtistDetails: Sendable {
     let trackCount: Int?
 }
 
-struct SoundCloudTrack: Identifiable, Sendable, Hashable {
+struct SoundCloudTrack: Codable, Identifiable, Sendable, Hashable {
     let urn: String
     let title: String
     let artist: SoundCloudUser
@@ -38,7 +38,7 @@ struct SoundCloudTrack: Identifiable, Sendable, Hashable {
     var id: String { urn }
     var uploader: String { artist.username }
 
-    enum Access: String, Decodable, Sendable {
+    enum Access: String, Codable, Sendable {
         case playable
         case preview
         case blocked

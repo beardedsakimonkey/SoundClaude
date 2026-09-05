@@ -8,6 +8,11 @@ private struct RemoteCommandTarget: @unchecked Sendable {
     let target: Any
 }
 
+struct SavedPlayback: Codable {
+    let track: SoundCloudTrack
+    let position: Double
+}
+
 @MainActor
 @Observable
 final class PlaybackController {
@@ -33,6 +38,7 @@ final class PlaybackController {
     private enum SettingsKey {
         static let volume = "playback.volume"
         static let isMuted = "playback.isMuted"
+        static let session = "playback.session"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -47,6 +53,9 @@ final class PlaybackController {
     @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var seekTarget: Double?
     @ObservationIgnored private var isSeekInProgress = false
+    @ObservationIgnored private var shouldPlayWhenReady = false
+    @ObservationIgnored private var hasNotifiedReady = false
+    @ObservationIgnored private var lastSaveTime = Date.distantPast
     private let remoteCommandCenter = MPRemoteCommandCenter.shared()
     @ObservationIgnored private var remoteCommandTargets: [RemoteCommandTarget] = []
 
@@ -79,14 +88,18 @@ final class PlaybackController {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                if seekTarget == nil {
+                if seekTarget == nil, player.currentItem?.status != .failed {
                     let seconds = player.currentTime().seconds
                     currentTime = seconds.isFinite ? seconds : 0
                 }
                 let itemDuration = player.currentItem?.duration.seconds ?? 0
-                let updatedDuration = itemDuration.isFinite ? itemDuration : 0
+                let updatedDuration = itemDuration.isFinite && itemDuration > 0
+                    ? itemDuration : duration
                 if duration != updatedDuration {
                     duration = updatedDuration
+                }
+                if Date().timeIntervalSince(lastSaveTime) >= 5 {
+                    saveSession()
                 }
             }
         }
@@ -123,20 +136,66 @@ final class PlaybackController {
         MPNowPlayingInfoCenter.default().playbackState = .stopped
     }
 
-    func load(track: SoundCloudTrack, source: PlaybackSource) {
+    var savedSession: SavedPlayback? {
+        guard let data = defaults.data(forKey: SettingsKey.session),
+              let session = try? JSONDecoder().decode(SavedPlayback.self, from: data),
+              session.position.isFinite, session.position >= 0 else { return nil }
+        return session
+    }
+
+    func saveSession() {
+        guard let track = currentTrack,
+              player.currentItem?.status != .failed else { return }
+        let seconds = seekTarget ?? player.currentTime().seconds
+        let position = seconds.isFinite ? max(seconds, 0) : currentTime
+        let session = SavedPlayback(track: track, position: position)
+        guard let data = try? JSONEncoder().encode(session) else { return }
+        defaults.set(data, forKey: SettingsKey.session)
+        lastSaveTime = Date()
+    }
+
+    func clearSession() {
+        pause()
+        itemStatusObservation?.invalidate()
+        itemStatusObservation = nil
+        player.replaceCurrentItem(with: nil)
+        currentTrack = nil
+        currentTime = 0
+        duration = 0
+        seekTarget = nil
+        isSeekInProgress = false
+        isLoading = false
+        isPlaying = false
+        errorMessage = nil
+        defaults.removeObject(forKey: SettingsKey.session)
+        updateNowPlayingInfo()
+        updateRemoteCommandAvailability()
+    }
+
+    func load(
+        track: SoundCloudTrack,
+        source: PlaybackSource,
+        position: Double = 0,
+        autoplay: Bool = true
+    ) {
         pause()
         itemStatusObservation?.invalidate()
         seekTarget = nil
         isSeekInProgress = false
+        hasNotifiedReady = false
         errorMessage = nil
         currentTrack = track
-        currentTime = 0
         duration = Double(track.durationMilliseconds) / 1_000
+        let safePosition = position.isFinite ? max(position, 0) : 0
+        currentTime = duration > 0 ? min(safePosition, duration) : safePosition
+        seekTarget = currentTime
+        shouldPlayWhenReady = autoplay
         isLoading = true
-        updateNowPlayingInfo(elapsedTime: 0)
+        updateNowPlayingInfo(elapsedTime: currentTime)
 
         let item = AVPlayerItem(url: source.url)
         player.replaceCurrentItem(with: item)
+        saveSession()
         updateRemoteCommandAvailability()
         itemStatusObservation = item.observe(
             \.status,
@@ -150,11 +209,10 @@ final class PlaybackController {
                 case .readyToPlay:
                     isLoading = false
                     seekIfNeeded()
-                    player.play()
-                    onReadyToPlay?()
+                    playIfReady()
                 case .failed:
                     isLoading = false
-                    seekTarget = nil
+                    shouldPlayWhenReady = false
                     errorMessage = item.error?.localizedDescription
                         ?? "The track could not be played."
                 case .unknown:
@@ -167,15 +225,32 @@ final class PlaybackController {
     }
 
     func togglePlayPause() {
-        if isPlaying {
-            player.pause()
+        if isPlaying || shouldPlayWhenReady {
+            pause()
         } else if player.currentItem != nil {
-            player.play()
+            play()
+        }
+    }
+
+    private func play() {
+        shouldPlayWhenReady = true
+        playIfReady()
+    }
+
+    private func playIfReady() {
+        guard shouldPlayWhenReady, seekTarget == nil, !isSeekInProgress,
+              player.currentItem?.status == .readyToPlay else { return }
+        player.play()
+        if !hasNotifiedReady {
+            hasNotifiedReady = true
+            onReadyToPlay?()
         }
     }
 
     func pause() {
+        shouldPlayWhenReady = false
         player.pause()
+        saveSession()
     }
 
     func seek(to seconds: Double) {
@@ -187,6 +262,7 @@ final class PlaybackController {
         seekTarget = target
         currentTime = target
         updateNowPlayingInfo(elapsedTime: target)
+        saveSession()
         seekIfNeeded()
     }
 
@@ -208,9 +284,15 @@ final class PlaybackController {
 
     private func seekIfNeeded() {
         guard !isSeekInProgress,
-              let target = seekTarget,
+              let requestedTarget = seekTarget,
               let item = player.currentItem,
               item.status == .readyToPlay else { return }
+
+        let itemDuration = item.duration.seconds
+        let target = itemDuration.isFinite && itemDuration > 0
+            ? min(requestedTarget, itemDuration) : requestedTarget
+        seekTarget = target
+        currentTime = target
 
         // Let this seek finish while newer requests replace only the target.
         isSeekInProgress = true
@@ -231,6 +313,8 @@ final class PlaybackController {
                     let seconds = player.currentTime().seconds
                     currentTime = seconds.isFinite ? seconds : 0
                     updateNowPlayingInfo()
+                    saveSession()
+                    playIfReady()
                 }
             }
         }
@@ -240,7 +324,7 @@ final class PlaybackController {
         addRemoteTarget(to: remoteCommandCenter.playCommand) {
             controller,
             _ in
-            controller.player.play()
+            controller.play()
         }
         addRemoteTarget(to: remoteCommandCenter.pauseCommand) {
             controller,

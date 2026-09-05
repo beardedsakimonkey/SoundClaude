@@ -7,6 +7,7 @@ Core Audio, Accelerate, and Metal. It feautres:
 - Keychain token persistence and refresh
 - authenticated stream resolution with final CDN host validation
 - one `AVPlayer` for Apple HLS/AAC playback
+- saved track and playback position, restored paused at startup; cleared on sign-out
 - a private Core Audio process tap for this app only
 - a fixed-capacity atomic PCM ring and fixed spectrum snapshot
 - an Accelerate FFT worker and an `MTKView` renderer
