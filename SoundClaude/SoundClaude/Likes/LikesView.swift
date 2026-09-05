@@ -79,7 +79,7 @@ struct LikesView: View {
 
     private var trackList: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 12) {
+            LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(likes.tracks) { track in
                     TrackListRow(
                         track: track,

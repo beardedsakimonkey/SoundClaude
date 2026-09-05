@@ -158,7 +158,7 @@ struct ArtistDetailView: View {
     }
 
     private var trackList: some View {
-        LazyVStack(alignment: .leading, spacing: 12) {
+        LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(tracks) { track in
                 TrackListRow(
                     track: track,

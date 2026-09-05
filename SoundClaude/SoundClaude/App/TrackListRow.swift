@@ -58,12 +58,18 @@ struct TrackListRow: View {
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
         .contentShape(Rectangle())
         .onTapGesture {
             guard !isHoveringArtwork, !isHoveringTitle, !isHoveringArtist else { return }
             Task { await onPlayTrack(track) }
         }
-        .background(hoverBackground)
+        .background {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(hoverBackground)
+                .animation(.easeInOut(duration: 0.15), value: isHovering)
+        }
         .onHover { isHovering = $0 }
         .accessibilityAction(named: "Play") {
             Task { await onPlayTrack(track) }
