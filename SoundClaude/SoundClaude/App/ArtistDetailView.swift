@@ -147,7 +147,7 @@ struct ArtistDetailView: View {
                 thumbnail
                     .artworkExpandIndicator(isHovering: isHoveringArtwork)
             }
-            .buttonStyle(DetailArtworkButtonStyle(isHovering: isHoveringArtwork))
+            .buttonStyle(.plain)
             .contentShape(RoundedRectangle(cornerRadius: 6))
             .onHover { isHoveringArtwork = $0 }
             .help("View full-size artist picture")

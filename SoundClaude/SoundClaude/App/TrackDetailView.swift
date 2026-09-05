@@ -310,21 +310,3 @@ struct TrackDetailView: View {
         isLoading = false
     }
 }
-
-struct DetailArtworkButtonStyle: ButtonStyle {
-    let isHovering: Bool
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        let scale: CGFloat = reduceMotion ? 1
-            : configuration.isPressed ? 1 : isHovering ? 1.04 : 1
-
-        configuration.label
-            .scaleEffect(scale)
-            .animation(
-                reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.6),
-                value: scale
-            )
-    }
-}
