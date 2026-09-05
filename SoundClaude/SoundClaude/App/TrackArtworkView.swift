@@ -58,6 +58,34 @@ struct TrackArtworkView: View {
     }
 }
 
+extension View {
+    func artworkExpandIndicator(isHovering: Bool) -> some View {
+        modifier(ArtworkExpandIndicator(isHovering: isHovering))
+    }
+}
+
+private struct ArtworkExpandIndicator: ViewModifier {
+    let isHovering: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: .bottomTrailing) {
+                if isHovering {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(7)
+                        .background(.black.opacity(0.65), in: Circle())
+                        .padding(7)
+                        .transition(.opacity)
+                        .accessibilityHidden(true)
+                        .allowsHitTesting(false)
+                }
+            }
+            .animation(.easeInOut(duration: 0.12), value: isHovering)
+    }
+}
+
 struct CachedFullSizeArtwork {
     let sourceURL: URL
     let data: Data

@@ -8,6 +8,7 @@ struct PlayerFooterView: View {
 
     @State private var artworkTrack: SoundCloudTrack?
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
+    @State private var isHoveringArtwork = false
     @State private var isHoveringTitle = false
     @State private var artworkAccent: ArtworkAccent?
     @State private var accentArtworkURL: URL?
@@ -108,8 +109,11 @@ struct PlayerFooterView: View {
                 artworkTrack = track
             } label: {
                 artworkThumbnail
+                    .artworkExpandIndicator(isHovering: isHoveringArtwork)
             }
             .buttonStyle(.plain)
+            .contentShape(RoundedRectangle(cornerRadius: 6))
+            .onHover { isHoveringArtwork = $0 }
             .help("View full-size artwork")
             .accessibilityLabel("View full-size artwork for \(track.title)")
         } else {

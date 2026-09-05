@@ -128,30 +128,11 @@ struct TrackDetailView: View {
                 isShowingArtwork = true
             } label: {
                 artworkThumbnail(for: track)
-                    .overlay(alignment: .bottomTrailing) {
-                        if isHoveringArtwork {
-                            Image(
-                                systemName: "arrow.up.left.and.arrow.down.right"
-                            )
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(7)
-                                .background(
-                                    .black.opacity(0.65),
-                                    in: Circle()
-                                )
-                                .padding(7)
-                                .transition(.opacity)
-                        }
-                    }
+                    .artworkExpandIndicator(isHovering: isHoveringArtwork)
             }
             .buttonStyle(DetailArtworkButtonStyle(isHovering: isHoveringArtwork))
             .contentShape(RoundedRectangle(cornerRadius: 6))
             .onHover { isHoveringArtwork = $0 }
-            .animation(
-                .easeInOut(duration: 0.12),
-                value: isHoveringArtwork
-            )
             .help("View full-size artwork")
             .accessibilityLabel(
                 "View full-size artwork for \(track.title)"
