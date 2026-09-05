@@ -18,6 +18,7 @@ struct TrackWaveformView: View {
     @State private var errorMessage: String?
     @State private var artworkAccent: ArtworkAccent?
     @State private var accentArtworkURL: URL?
+    @State private var hoverFraction: Double?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
@@ -102,8 +103,32 @@ struct TrackWaveformView: View {
                         )
                     )
                     playedContext.fill(path, with: .color(progressColor))
+
+                    if let hoverFraction {
+                        var hoverContext = context
+                        hoverContext.clip(to: Path(CGRect(
+                            x: size.width * min(progress, hoverFraction),
+                            y: 0,
+                            width: size.width * abs(hoverFraction - progress),
+                            height: size.height
+                        )))
+                        hoverContext.fill(path, with: .color(progressColor))
+                        hoverContext.fill(path, with: .color(.white.opacity(0.6)))
+                    }
                 }
                 .contentShape(Rectangle())
+                .onContinuousHover { phase in
+                    switch phase {
+                    case .active(let location):
+                        hoverFraction = fraction(
+                            at: location.x,
+                            width: proxy.size.width
+                        )
+                    case .ended:
+                        hoverFraction = nil
+                    }
+                }
+                .onDisappear { hoverFraction = nil }
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
