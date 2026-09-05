@@ -135,6 +135,10 @@ more complex without affecting current behavior.
 [`Token refresh`](SoundClaude/SoundClaude/Auth/AuthController.swift#L116)
 needs a shared in-progress task. Concurrent calls can duplicate refresh requests.
 
+Status: addressed. Concurrent callers now share one refresh task, including token
+storage. The task clears after success or failure. Sign-out cancels it and prevents
+a late response from saving tokens again.
+
 [`Track selection`](SoundClaude/SoundClaude/App/AppModel.swift#L102)
 needs cancellation plus a latest-request check. An older track request can finish
 last and replace a newer selection.

@@ -18,6 +18,7 @@ final class AuthController: ObservableObject {
     private let client: SoundCloudClient
     private let tokenStore: KeychainTokenStore
     private var token: TokenRecord?
+    private var refreshTask: Task<String, Error>?
     private var callbackServer: OAuthCallbackServer?
 
     init(
@@ -102,6 +103,8 @@ final class AuthController: ObservableObject {
     }
 
     func signOut() async {
+        refreshTask?.cancel()
+        refreshTask = nil
         callbackServer?.cancel()
         callbackServer = nil
         let accessToken = token?.accessToken
@@ -114,25 +117,42 @@ final class AuthController: ObservableObject {
     }
 
     func validAccessToken() async throws -> String {
-        guard var record = token else {
+        if let refreshTask {
+            return try await refreshTask.value
+        }
+        guard let record = token else {
             throw SoundCloudError.unauthorized
         }
-        if record.expiresAt.timeIntervalSinceNow <= 60 {
+        guard record.expiresAt.timeIntervalSinceNow <= 60 else {
+            return record.accessToken
+        }
+
+        let task = Task { @MainActor in
+            defer {
+                // Sign-out clears cancelled tasks. They must not clear a newer task.
+                if !Task.isCancelled {
+                    refreshTask = nil
+                }
+            }
+            try Task.checkCancellation()
             let response = try await client.refreshToken(record.refreshToken)
+            try Task.checkCancellation()
             guard let refreshToken = response.refreshToken,
                   !refreshToken.isEmpty else {
                 throw SoundCloudError.invalidData
             }
-            record = TokenRecord(
+            let refreshedRecord = TokenRecord(
                 accessToken: response.accessToken,
                 refreshToken: refreshToken,
                 expiresAt: Date().addingTimeInterval(response.expiresIn),
                 user: record.user
             )
-            token = record
-            try tokenStore.save(record)
+            token = refreshedRecord
+            try tokenStore.save(refreshedRecord)
+            return refreshedRecord.accessToken
         }
-        return record.accessToken
+        refreshTask = task
+        return try await task.value
     }
 
     private func saveUser(_ user: SoundCloudUser) throws {
