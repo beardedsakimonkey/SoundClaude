@@ -82,6 +82,7 @@ struct SignedInView: View {
                         TrackDetailView(
                             track: track,
                             model: model,
+                            onSelectTrack: showTrack,
                             onSelectArtist: showArtist
                         )
                         .id(track.urn)

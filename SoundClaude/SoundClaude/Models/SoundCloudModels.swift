@@ -111,6 +111,21 @@ struct RawTrackPage: Decodable {
     let collection: [RawTrack]
     let nextURL: URL?
 
+    init(from decoder: Decoder) throws {
+        if var container = try? decoder.unkeyedContainer() {
+            var tracks: [RawTrack] = []
+            while !container.isAtEnd {
+                tracks.append(try container.decode(RawTrack.self))
+            }
+            collection = tracks
+            nextURL = nil
+        } else {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            collection = try container.decode([RawTrack].self, forKey: .collection)
+            nextURL = try container.decodeIfPresent(URL.self, forKey: .nextURL)
+        }
+    }
+
     enum CodingKeys: String, CodingKey {
         case collection
         case nextURL = "next_href"
@@ -121,7 +136,11 @@ struct RawTrack: Decodable {
     let urn: String?
     let title: String?
     let artworkURL: URL?
-    let waveformURL: URL?
+    private let rawWaveformURL: String?
+    var waveformURL: URL? {
+        guard let rawWaveformURL, !rawWaveformURL.isEmpty else { return nil }
+        return URL(string: rawWaveformURL)
+    }
     let permalinkURL: URL?
     let duration: Int?
     let access: SoundCloudTrack.Access?
@@ -138,7 +157,7 @@ struct RawTrack: Decodable {
         case urn
         case title
         case artworkURL = "artwork_url"
-        case waveformURL = "waveform_url"
+        case rawWaveformURL = "waveform_url"
         case permalinkURL = "permalink_url"
         case duration
         case access

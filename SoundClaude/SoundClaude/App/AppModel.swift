@@ -228,9 +228,25 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func relatedTracks(for track: SoundCloudTrack, pageURL: URL? = nil) async throws
+        -> SoundCloudTrackPage {
+        let accessToken = try await auth.validAccessToken()
+        return try await client.relatedTracks(
+            urn: track.urn,
+            accessToken: accessToken,
+            pageURL: pageURL
+        )
+    }
+
     func waveform(for track: SoundCloudTrack) async throws
         -> SoundCloudWaveform {
-        guard let waveformURL = track.waveformURL else {
+        var waveformURL = track.waveformURL
+        if waveformURL == nil {
+            let details = try await trackDetails(for: track)
+            try Task.checkCancellation()
+            waveformURL = details.track.waveformURL
+        }
+        guard let waveformURL else {
             throw SoundCloudError.invalidData
         }
         let cacheKey = waveformURL as NSURL
@@ -245,7 +261,8 @@ final class AppModel: ObservableObject {
     }
 
     func cachedWaveform(for track: SoundCloudTrack) -> SoundCloudWaveform? {
-        guard let waveformURL = track.waveformURL else { return nil }
+        guard let waveformURL = track.waveformURL
+            ?? cachedTrackDetails(for: track)?.track.waveformURL else { return nil }
         return waveformCache.value(forKey: waveformURL as NSURL)
     }
 
