@@ -80,17 +80,7 @@ struct TrackDetailView: View {
                         Text(details.track.uploader)
                             .font(.title3)
                             .foregroundStyle(.secondary)
-                        if let genre = nonempty(details.genre) {
-                            Label(genre, systemImage: "music.note.list")
-                                .foregroundStyle(.secondary)
-                        }
-                        Button {
-                            Task { await model.play(details.track) }
-                        } label: {
-                            Label("Play", systemImage: "play.fill")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.orange)
+                        playButton(for: details.track)
                     }
                 }
 
@@ -104,28 +94,9 @@ struct TrackDetailView: View {
                     TrackWaveformView(track: details.track, model: model)
                 }
 
-                Divider()
-
-                Grid(
-                    alignment: .leading,
-                    horizontalSpacing: 20,
-                    verticalSpacing: 10
-                ) {
-                    informationRow(
-                        "Duration",
-                        value: format(
-                            milliseconds: details.track.durationMilliseconds
-                        )
-                    )
-                    informationRow("Uploaded", value: details.createdAt)
-                    informationRow("Genre", value: details.genre)
-                    informationRow(
-                        "Access",
-                        value: details.track.access.rawValue.capitalized
-                    )
-                }
-
                 if let description = nonempty(details.description) {
+                    Divider()
+
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Description")
                             .font(.headline)
@@ -186,13 +157,6 @@ struct TrackDetailView: View {
             size: 180,
             rendition: .square500
         )
-        .overlay {
-            RoundedRectangle(cornerRadius: 6)
-                .strokeBorder(
-                    .white.opacity(0.2),
-                    lineWidth: 1
-                )
-        }
     }
 
     @ViewBuilder
@@ -204,30 +168,43 @@ struct TrackDetailView: View {
         }
     }
 
-    @ViewBuilder
-    private func informationRow(_ label: String, value: String?) -> some View {
-        if let value = nonempty(value) {
-            GridRow {
-                Text(label)
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .textSelection(.enabled)
+    private func playButton(for track: SoundCloudTrack) -> some View {
+        Group {
+            if #available(macOS 26.0, *) {
+                playButtonLabel(for: track)
+                    .buttonStyle(.glass(.clear))
+            } else {
+                playButtonLabel(for: track)
+                    .buttonStyle(.bordered)
             }
         }
+        .buttonBorderShape(.circle)
+        .controlSize(.large)
+    }
+
+    private func playButtonLabel(for track: SoundCloudTrack) -> some View {
+        let playback = model.playback
+        let isCurrentTrack = playback.currentTrack?.urn == track.urn
+        let isPlaying = isCurrentTrack && playback.isPlaying
+
+        return Button {
+            if playback.currentTrack?.urn == track.urn {
+                playback.togglePlayPause()
+            } else {
+                Task { await model.play(track) }
+            }
+        } label: {
+            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                .font(.system(size: 28, weight: .semibold))
+                .frame(width: 44, height: 44)
+        }
+        .help(isPlaying ? "Pause" : "Play")
+        .accessibilityLabel(isPlaying ? "Pause" : "Play")
     }
 
     private func nonempty(_ value: String?) -> String? {
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed?.isEmpty == false ? trimmed : nil
-    }
-
-    private func format(milliseconds: Int) -> String {
-        let totalSeconds = max(milliseconds, 0) / 1_000
-        return String(
-            format: "%d:%02d",
-            totalSeconds / 60,
-            totalSeconds % 60
-        )
     }
 
     private func load() async {

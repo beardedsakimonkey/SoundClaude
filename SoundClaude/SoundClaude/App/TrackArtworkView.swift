@@ -38,6 +38,10 @@ struct TrackArtworkView: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+        }
         .accessibilityHidden(true)
         .task(id: artworkURL) {
             image = nil

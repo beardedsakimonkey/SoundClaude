@@ -33,11 +33,6 @@ struct TrackWaveformView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if layout == .detail {
-                Text("Waveform")
-                    .font(.headline)
-            }
-
             Group {
                 if layout == .compact {
                     waveformView(waveform)
@@ -136,7 +131,8 @@ struct TrackWaveformView: View {
                 .foregroundStyle(.secondary)
             }
         }
-        .focusable(isCurrentTrack)
+        // Keep a visible focus ring for keyboard navigation without focusing on click.
+        .focusable(isCurrentTrack, interactions: .activate)
         .onKeyPress(.leftArrow) {
             guard isCurrentTrack else { return .ignored }
             playback.seek(by: -5)

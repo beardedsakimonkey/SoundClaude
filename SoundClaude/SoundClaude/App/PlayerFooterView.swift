@@ -45,8 +45,8 @@ struct PlayerFooterView: View {
             .mask {
                 LinearGradient(
                     colors: [.black, .clear],
-                    startPoint: .bottom,
-                    endPoint: .top
+                    startPoint: .top,
+                    endPoint: .center
                 )
             }
         }
@@ -72,7 +72,7 @@ struct PlayerFooterView: View {
     private var trackIdentity: some View {
         HStack(spacing: 12) {
             artwork
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 6) {
                 if let track = playback.currentTrack {
                     Button {
                         onSelectTrack(track)
@@ -89,10 +89,10 @@ struct PlayerFooterView: View {
                 }
                 Text(playback.currentTrack?.uploader
                     ?? "Choose a track to start listening")
-                    .font(.caption)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            .font(.headline)
+            .font(.title3.weight(.semibold))
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
