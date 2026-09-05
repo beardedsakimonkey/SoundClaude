@@ -18,12 +18,24 @@ final class PlaybackController {
     private(set) var duration: Double = 0
     private(set) var errorMessage: String?
     var volume: Float = 1 {
-        didSet { player.volume = volume }
+        didSet {
+            player.volume = volume
+            defaults.set(volume, forKey: SettingsKey.volume)
+        }
     }
     var isMuted = false {
-        didSet { player.isMuted = isMuted }
+        didSet {
+            player.isMuted = isMuted
+            defaults.set(isMuted, forKey: SettingsKey.isMuted)
+        }
     }
 
+    private enum SettingsKey {
+        static let volume = "playback.volume"
+        static let isMuted = "playback.isMuted"
+    }
+
+    @ObservationIgnored private let defaults: UserDefaults
     let player: AVPlayer
     @ObservationIgnored var onReadyToPlay: (() -> Void)?
     @ObservationIgnored var onNext: (() -> Void)?
@@ -38,8 +50,18 @@ final class PlaybackController {
     private let remoteCommandCenter = MPRemoteCommandCenter.shared()
     @ObservationIgnored private var remoteCommandTargets: [RemoteCommandTarget] = []
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        defaults.register(defaults: [
+            SettingsKey.volume: Float(1),
+            SettingsKey.isMuted: false,
+        ])
+        let savedVolume = defaults.float(forKey: SettingsKey.volume)
+        volume = savedVolume.isFinite ? min(max(savedVolume, 0), 1) : 1
+        isMuted = defaults.bool(forKey: SettingsKey.isMuted)
         player = AVPlayer()
+        player.volume = volume
+        player.isMuted = isMuted
         player.preventsDisplaySleepDuringVideoPlayback = false
         playerStatusObservation = player.observe(
             \.timeControlStatus,
