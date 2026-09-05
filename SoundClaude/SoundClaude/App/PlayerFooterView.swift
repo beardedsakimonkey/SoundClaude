@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct PlayerFooterView: View {
@@ -7,6 +8,10 @@ struct PlayerFooterView: View {
     @State private var artworkTrack: SoundCloudTrack?
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var isHoveringTitle = false
+    @State private var artworkAccent: ArtworkAccent?
+    @State private var accentArtworkURL: URL?
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     @Bindable private var playback: PlaybackController
 
@@ -50,6 +55,15 @@ struct PlayerFooterView: View {
                 loader: artworkLoader,
                 cachedArtwork: $cachedFullSizeArtwork
             )
+        }
+        .task(id: playback.currentTrack?.artworkURL) {
+            artworkAccent = nil
+            accentArtworkURL = nil
+            guard let url = playback.currentTrack?.artworkURL,
+                  let accent = try? await artworkLoader.accentColor(for: url),
+                  !Task.isCancelled else { return }
+            artworkAccent = accent
+            accentArtworkURL = url
         }
     }
 
@@ -129,7 +143,11 @@ struct PlayerFooterView: View {
                         ? "speaker.slash.fill"
                         : "speaker.wave.2.fill")
                 }
-                Slider(value: $playback.volume, in: 0...1)
+                ArtworkVolumeSlider(
+                    value: $playback.volume,
+                    accent: volumeAccent,
+                    trackColor: ArtworkAccent.trackBackground(isDark: colorScheme == .dark)
+                )
                     .frame(width: 110)
                 Text(format(seconds: playback.duration))
                     .font(.caption.monospacedDigit())
@@ -143,6 +161,19 @@ struct PlayerFooterView: View {
                     .foregroundStyle(.red)
             }
         }
+    }
+
+    private var volumeAccent: ArtworkAccent {
+        let blue = NSColor.systemBlue.usingColorSpace(.sRGB)!
+        let fallback = ArtworkAccent(
+            red: blue.redComponent, green: blue.greenComponent, blue: blue.blueComponent
+        )
+        let accent = accentArtworkURL == playback.currentTrack?.artworkURL
+            ? artworkAccent ?? fallback : fallback
+        return accent.contrasted(
+            isDark: colorScheme == .dark,
+            increasedContrast: colorSchemeContrast == .increased
+        )
     }
 
     private var transportControls: some View {
@@ -193,5 +224,69 @@ struct PlayerFooterView: View {
         guard seconds.isFinite, seconds >= 0 else { return "0:00" }
         let total = Int(seconds)
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+// Keep native keyboard, focus, and accessibility behavior while drawing the bar
+// explicitly: macOS slider tint behavior varies with the OS and accent settings.
+private struct ArtworkVolumeSlider: NSViewRepresentable {
+    @Binding var value: Float
+    let accent: ArtworkAccent
+    let trackColor: ArtworkAccent
+
+    func makeCoordinator() -> Coordinator { Coordinator(value: $value) }
+
+    func makeNSView(context: Context) -> NSSlider {
+        let slider = NSSlider(value: Double(value), minValue: 0, maxValue: 1,
+                              target: context.coordinator,
+                              action: #selector(Coordinator.changed(_:)))
+        slider.cell = ArtworkVolumeSliderCell()
+        slider.minValue = 0
+        slider.maxValue = 1
+        slider.isContinuous = true
+        slider.target = context.coordinator
+        slider.action = #selector(Coordinator.changed(_:))
+        slider.setAccessibilityLabel("Volume")
+        return slider
+    }
+
+    func updateNSView(_ slider: NSSlider, context: Context) {
+        context.coordinator.value = $value
+        slider.doubleValue = Double(value)
+        slider.setAccessibilityValueDescription("\(Int(value * 100)) percent")
+        if let cell = slider.cell as? ArtworkVolumeSliderCell {
+            cell.accent = NSColor(srgbRed: accent.red, green: accent.green,
+                                  blue: accent.blue, alpha: 1)
+            cell.trackColor = NSColor(srgbRed: trackColor.red, green: trackColor.green,
+                                      blue: trackColor.blue, alpha: 1)
+        }
+        slider.needsDisplay = true
+    }
+
+    final class Coordinator: NSObject {
+        var value: Binding<Float>
+        init(value: Binding<Float>) { self.value = value }
+
+        @objc func changed(_ sender: NSSlider) {
+            value.wrappedValue = sender.floatValue
+        }
+    }
+}
+
+private final class ArtworkVolumeSliderCell: NSSliderCell {
+    var accent = NSColor.systemBlue
+    var trackColor = NSColor.controlBackgroundColor
+
+    override func drawBar(inside rect: NSRect, flipped: Bool) {
+        let bar = NSRect(x: rect.minX, y: rect.midY - 3, width: rect.width, height: 6)
+        let path = NSBezierPath(roundedRect: bar, xRadius: 3, yRadius: 3)
+        trackColor.setFill()
+        path.fill()
+        NSGraphicsContext.saveGraphicsState()
+        path.addClip()
+        accent.setFill()
+        let fraction = CGFloat((doubleValue - minValue) / (maxValue - minValue))
+        NSRect(x: bar.minX, y: bar.minY, width: bar.width * fraction, height: bar.height).fill()
+        NSGraphicsContext.restoreGraphicsState()
     }
 }
