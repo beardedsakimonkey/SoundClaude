@@ -37,17 +37,6 @@ struct SignedInView: View {
                     selectedView
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .toolbar {
-                    ToolbarItem(placement: .navigation) {
-                        Button {
-                            _ = navigateForward()
-                        } label: {
-                            Label("Forward", systemImage: "chevron.right")
-                        }
-                        .disabled(selectedDestination == .home || forwardPath.isEmpty)
-                        .help("Go forward")
-                    }
-                }
             }
 
             PlayerFooterView(
@@ -71,6 +60,7 @@ struct SignedInView: View {
         case .home:
             NavigationStack {
                 HomeView()
+                    .toolbar { navigationToolbar }
             }
         case .liked, .none:
             NavigationStack(path: navigationPath) {
@@ -85,6 +75,7 @@ struct SignedInView: View {
                     onPlayTrack: model.play,
                     onSignOut: model.signOut
                 )
+                .toolbar { navigationToolbar }
                 .navigationDestination(for: Route.self) { route in
                     switch route {
                     case let .track(track):
@@ -94,6 +85,8 @@ struct SignedInView: View {
                             onSelectArtist: showArtist
                         )
                         .id(track.urn)
+                        .navigationBarBackButtonHidden(true)
+                        .toolbar { navigationToolbar }
                     case let .artist(artist):
                         ArtistDetailView(
                             artist: artist,
@@ -102,10 +95,56 @@ struct SignedInView: View {
                             onSelectArtist: showArtist
                         )
                         .id(artist.permalinkURL)
+                        .navigationBarBackButtonHidden(true)
+                        .toolbar { navigationToolbar }
                     }
                 }
             }
         }
+    }
+
+    // Each stack page owns its toolbar; pushed pages replace the parent toolbar.
+    @ToolbarContentBuilder
+    private var navigationToolbar: some ToolbarContent {
+        if #available(macOS 26.0, *) {
+            ToolbarItem(placement: .navigation) {
+                navigationButtons
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.circle)
+            }
+            .sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: .navigation) {
+                navigationButtons
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.circle)
+            }
+        }
+    }
+
+    private var navigationButtons: some View {
+        HStack(spacing: 8) {
+            if selectedDestination != .home, !path.isEmpty {
+                Button {
+                    _ = navigateBack()
+                } label: {
+                    Label("Back", systemImage: "chevron.left")
+                        .frame(width: 16, height: 16)
+                }
+                .help("Go back")
+            }
+
+            if selectedDestination != .home, !forwardPath.isEmpty {
+                Button {
+                    _ = navigateForward()
+                } label: {
+                    Label("Forward", systemImage: "chevron.right")
+                        .frame(width: 16, height: 16)
+                }
+                .help("Go forward")
+            }
+        }
+        .labelStyle(.iconOnly)
     }
 
     private func showTrack(_ track: SoundCloudTrack) {
