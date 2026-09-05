@@ -91,9 +91,14 @@ struct TrackDetailView: View {
                     artworkView(for: details.track)
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(details.track.title)
-                            .font(.largeTitle.weight(.semibold))
-                            .textSelection(.enabled)
+                        HStack(alignment: .center, spacing: 8) {
+                            Text(details.track.title)
+                                .font(.largeTitle.weight(.semibold))
+                                .textSelection(.enabled)
+                            if details.track.access == .preview {
+                                TrackPreviewBadge(font: .callout)
+                            }
+                        }
                         ArtistLink(artist: details.track.artist, onSelect: onSelectArtist)
                             .font(.title3)
                             .foregroundStyle(.secondary)

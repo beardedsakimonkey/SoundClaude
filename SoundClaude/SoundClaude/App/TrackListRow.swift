@@ -38,15 +38,20 @@ struct TrackListRow: View {
             .onHover { isHoveringArtwork = $0 }
             .accessibilityLabel("Open track: \(track.title)")
             VStack(alignment: .leading, spacing: 3) {
-                Button {
-                    onSelectTrack(track)
-                } label: {
-                    Text(track.title)
-                        .underline(isHoveringTitle)
-                        .foregroundStyle(.primary)
+                HStack(spacing: 6) {
+                    Button {
+                        onSelectTrack(track)
+                    } label: {
+                        Text(track.title)
+                            .underline(isHoveringTitle)
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { isHoveringTitle = $0 }
+                    if track.access == .preview {
+                        TrackPreviewBadge()
+                    }
                 }
-                .buttonStyle(.plain)
-                .onHover { isHoveringTitle = $0 }
                 ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -83,5 +88,21 @@ struct TrackListRow: View {
     private var duration: String {
         let seconds = max(track.durationMilliseconds, 0) / 1_000
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+struct TrackPreviewBadge: View {
+    var font: Font = .caption
+
+    var body: some View {
+        Text("Preview")
+            .font(font.weight(.medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(.quaternary, in: Capsule())
+            .fixedSize()
+            .help("Only a preview of this track is available.")
+            .accessibilityLabel("Preview only")
     }
 }
