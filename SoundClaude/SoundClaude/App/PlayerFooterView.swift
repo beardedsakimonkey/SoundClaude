@@ -6,9 +6,6 @@ struct PlayerFooterView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
 
-    @State private var artworkTrack: SoundCloudTrack?
-    @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
-    @State private var isHoveringArtwork = false
     @State private var isHoveringTitle = false
     @State private var likeErrorMessage: String?
 
@@ -58,14 +55,6 @@ struct PlayerFooterView: View {
                 .frame(height: 1)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
-        }
-        .sheet(item: $artworkTrack) { track in
-            FullSizeArtworkView(
-                title: track.title,
-                artworkURL: track.artworkURL,
-                loader: artworkLoader,
-                cachedArtwork: $cachedFullSizeArtwork
-            )
         }
         .alert("Could not update like", isPresented: Binding(
             get: { likeErrorMessage != nil },
@@ -148,18 +137,16 @@ struct PlayerFooterView: View {
 
     @ViewBuilder
     private var artwork: some View {
-        if let track = playback.currentTrack, track.artworkURL != nil {
+        if let track = playback.currentTrack {
             Button {
-                artworkTrack = track
+                onSelectTrack(track)
             } label: {
                 artworkThumbnail
-                    .artworkExpandIndicator(isHovering: isHoveringArtwork)
             }
             .buttonStyle(.plain)
             .contentShape(RoundedRectangle(cornerRadius: 6))
-            .onHover { isHoveringArtwork = $0 }
-            .help("View full-size artwork")
-            .accessibilityLabel("View full-size artwork for \(track.title)")
+            .help("View track")
+            .accessibilityLabel("View track: \(track.title)")
         } else {
             artworkThumbnail
         }
