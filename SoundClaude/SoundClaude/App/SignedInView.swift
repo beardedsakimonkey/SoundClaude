@@ -42,7 +42,8 @@ struct SignedInView: View {
             Divider()
             PlayerFooterView(
                 playback: model.playback,
-                artworkLoader: model.artworkLoader
+                artworkLoader: model.artworkLoader,
+                onSelectTrack: showTrack
             )
             .fixedSize(horizontal: false, vertical: true)
         }
@@ -84,6 +85,7 @@ struct SignedInView: View {
     }
 
     private func showTrack(_ track: SoundCloudTrack) {
+        selectedDestination = .liked
         forwardPath.removeAll()
         path.append(.track(track))
     }

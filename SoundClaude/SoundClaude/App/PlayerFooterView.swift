@@ -2,35 +2,99 @@ import SwiftUI
 
 struct PlayerFooterView: View {
     let artworkLoader: ArtworkLoader
+    let onSelectTrack: (SoundCloudTrack) -> Void
+
+    @State private var artworkTrack: SoundCloudTrack?
+    @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
+    @State private var isHoveringTitle = false
 
     @Bindable private var playback: PlaybackController
 
-    init(playback: PlaybackController, artworkLoader: ArtworkLoader) {
+    init(
+        playback: PlaybackController,
+        artworkLoader: ArtworkLoader,
+        onSelectTrack: @escaping (SoundCloudTrack) -> Void
+    ) {
         self.artworkLoader = artworkLoader
+        self.onSelectTrack = onSelectTrack
         self.playback = playback
     }
 
     var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 12) {
-                TrackArtworkView(
-                    artworkURL: playback.currentTrack?.artworkURL,
-                    loader: artworkLoader,
-                    size: 48
-                )
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(playback.currentTrack?.title ?? "Select a track")
-                        .font(.headline)
-                        .lineLimit(1)
-                    Text(playback.currentTrack?.uploader
-                        ?? "Choose a track to start listening")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                Spacer()
-            }
+        HStack(spacing: 20) {
+            trackIdentity
+                .frame(minWidth: 200, idealWidth: 260, maxWidth: 280)
+            playbackControls
+                .frame(maxWidth: .infinity)
+                .layoutPriority(1)
+        }
+        .padding(14)
+        .sheet(item: $artworkTrack) { track in
+            FullSizeArtworkView(
+                title: track.title,
+                artworkURL: track.artworkURL,
+                loader: artworkLoader,
+                cachedArtwork: $cachedFullSizeArtwork
+            )
+        }
+    }
 
+    private var trackIdentity: some View {
+        HStack(spacing: 12) {
+            artwork
+            VStack(alignment: .leading, spacing: 2) {
+                if let track = playback.currentTrack {
+                    Button {
+                        onSelectTrack(track)
+                    } label: {
+                        Text(track.title)
+                            .underline(isHoveringTitle)
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { isHoveringTitle = $0 }
+                    .help(track.title)
+                } else {
+                    Text("Select a track")
+                }
+                Text(playback.currentTrack?.uploader
+                    ?? "Choose a track to start listening")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .font(.headline)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private var artwork: some View {
+        if let track = playback.currentTrack, track.artworkURL != nil {
+            Button {
+                artworkTrack = track
+            } label: {
+                artworkThumbnail
+            }
+            .buttonStyle(.plain)
+            .help("View full-size artwork")
+            .accessibilityLabel("View full-size artwork for \(track.title)")
+        } else {
+            artworkThumbnail
+        }
+    }
+
+    private var artworkThumbnail: some View {
+        TrackArtworkView(
+            artworkURL: playback.currentTrack?.artworkURL,
+            loader: artworkLoader,
+            size: 80,
+            rendition: .square500
+        )
+    }
+
+    private var playbackControls: some View {
+        VStack(spacing: 10) {
             Slider(
                 value: Binding(
                     get: { playback.currentTime },
@@ -78,7 +142,6 @@ struct PlayerFooterView: View {
                     .foregroundStyle(.red)
             }
         }
-        .padding(14)
     }
 
     private func format(seconds: Double) -> String {
