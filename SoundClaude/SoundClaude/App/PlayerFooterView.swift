@@ -126,6 +126,7 @@ struct PlayerFooterView: View {
                 .foregroundStyle(.primary)
                 .opacity(0.7)
                 .frame(width: 32, height: 32)
+                .padding(.horizontal, 6)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -285,6 +286,7 @@ struct PlayerFooterView: View {
                     }
             }
             .buttonStyle(.plain)
+            .padding(.horizontal, 6)
             .help(playback.isShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
             .accessibilityLabel("Shuffle")
             .accessibilityValue(playback.isShuffleEnabled ? "On" : "Off")
