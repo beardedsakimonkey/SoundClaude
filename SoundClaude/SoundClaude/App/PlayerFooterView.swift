@@ -197,7 +197,7 @@ struct PlayerFooterView: View {
         Group {
             if #available(macOS 26.0, *) {
                 transportButtons
-                    .buttonStyle(.glass(.clear))
+                    .buttonStyle(SpringGlassButtonStyle())
             } else {
                 transportButtons
                     .buttonStyle(.bordered)

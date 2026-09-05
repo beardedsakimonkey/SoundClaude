@@ -134,7 +134,7 @@ struct TrackDetailView: View {
                         }
                     }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(DetailArtworkButtonStyle(isHovering: isHoveringArtwork))
             .contentShape(RoundedRectangle(cornerRadius: 6))
             .onHover { isHoveringArtwork = $0 }
             .animation(
@@ -172,7 +172,7 @@ struct TrackDetailView: View {
         Group {
             if #available(macOS 26.0, *) {
                 playButtonLabel(for: track)
-                    .buttonStyle(.glass(.clear))
+                    .buttonStyle(SpringGlassButtonStyle())
             } else {
                 playButtonLabel(for: track)
                     .buttonStyle(.bordered)
@@ -224,5 +224,23 @@ struct TrackDetailView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+}
+
+private struct DetailArtworkButtonStyle: ButtonStyle {
+    let isHovering: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        let scale: CGFloat = reduceMotion ? 1
+            : configuration.isPressed ? 1 : isHovering ? 1.04 : 1
+
+        configuration.label
+            .scaleEffect(scale)
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.6),
+                value: scale
+            )
     }
 }
