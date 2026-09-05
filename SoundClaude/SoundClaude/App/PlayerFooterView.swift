@@ -29,6 +29,20 @@ struct PlayerFooterView: View {
                 .layoutPriority(1)
         }
         .padding(14)
+        .background {
+            TrackArtworkBackdropView(
+                artworkURL: playback.currentTrack?.artworkURL,
+                loader: artworkLoader,
+                fadesToBottom: false
+            )
+            .mask {
+                LinearGradient(
+                    colors: [.black, .clear],
+                    startPoint: .bottom,
+                    endPoint: .top
+                )
+            }
+        }
         .sheet(item: $artworkTrack) { track in
             FullSizeArtworkView(
                 title: track.title,
@@ -108,20 +122,7 @@ struct PlayerFooterView: View {
                     .font(.caption.monospacedDigit())
                     .frame(width: 48, alignment: .leading)
                 Spacer()
-                Button(action: playback.previous) {
-                    Image(systemName: "backward.end.fill")
-                }
-                Button(action: playback.togglePlayPause) {
-                    Image(systemName: playback.isPlaying
-                        ? "pause.circle.fill"
-                        : "play.circle.fill")
-                        .font(.title)
-                }
-                .keyboardShortcut(.space, modifiers: [])
-                .disabled(playback.currentTrack == nil || playback.isLoading)
-                Button(action: playback.next) {
-                    Image(systemName: "forward.end.fill")
-                }
+                transportControls
                 Spacer()
                 Button(action: playback.toggleMute) {
                     Image(systemName: playback.isMuted
@@ -141,6 +142,50 @@ struct PlayerFooterView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             }
+        }
+    }
+
+    private var transportControls: some View {
+        Group {
+            if #available(macOS 26.0, *) {
+                transportButtons
+                    .buttonStyle(.glass(.clear))
+            } else {
+                transportButtons
+                    .buttonStyle(.bordered)
+            }
+        }
+        .buttonBorderShape(.circle)
+        .controlSize(.large)
+    }
+
+    private var transportButtons: some View {
+        HStack(spacing: 12) {
+            Button(action: playback.previous) {
+                Image(systemName: "backward.end.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 20, height: 20)
+            }
+            .help("Previous track")
+            .accessibilityLabel("Previous track")
+
+            Button(action: playback.togglePlayPause) {
+                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .frame(width: 28, height: 28)
+            }
+            .keyboardShortcut(.space, modifiers: [])
+            .disabled(playback.currentTrack == nil || playback.isLoading)
+            .help(playback.isPlaying ? "Pause" : "Play")
+            .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
+
+            Button(action: playback.next) {
+                Image(systemName: "forward.end.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .frame(width: 20, height: 20)
+            }
+            .help("Next track")
+            .accessibilityLabel("Next track")
         }
     }
 

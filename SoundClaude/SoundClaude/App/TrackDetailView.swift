@@ -28,6 +28,7 @@ struct TrackDetailView: View {
                 artworkURL: details?.track.artworkURL ?? track.artworkURL,
                 loader: model.artworkLoader
             )
+            .frame(height: 340)
             .ignoresSafeArea(edges: .top)
 
             Group {
@@ -246,54 +247,5 @@ struct TrackDetailView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
-    }
-}
-
-private struct TrackArtworkBackdropView: View {
-    let artworkURL: URL?
-    let loader: ArtworkLoader
-
-    @State private var image: NSImage?
-
-    var body: some View {
-        GeometryReader { geometry in
-            if let image {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(
-                        width: geometry.size.width,
-                        height: geometry.size.height
-                    )
-                    .scaleEffect(1.15)
-                    .blur(radius: 36)
-                    .saturation(1.15)
-                    .opacity(0.38)
-                    .mask {
-                        LinearGradient(
-                            stops: [
-                                .init(color: .black, location: 0),
-                                .init(color: .black.opacity(0.75), location: 0.6),
-                                .init(color: .clear, location: 1)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    }
-            }
-        }
-        .frame(height: 340)
-        .clipped()
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-        .task(id: artworkURL) {
-            image = nil
-            guard let artworkURL,
-                  let data = try? await loader.data(for: artworkURL),
-                  !Task.isCancelled else {
-                return
-            }
-            image = NSImage(data: data)
-        }
     }
 }
