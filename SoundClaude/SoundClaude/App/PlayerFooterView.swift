@@ -78,6 +78,8 @@ struct PlayerFooterView: View {
                         onSelectTrack(track)
                     } label: {
                         Text(track.title)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
                             .underline(isHoveringTitle)
                             .foregroundStyle(.primary)
                     }
@@ -93,6 +95,7 @@ struct PlayerFooterView: View {
                     .foregroundStyle(.secondary)
             }
             .font(.title2.weight(.semibold))
+            .opacity(0.85)
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
