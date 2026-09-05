@@ -190,9 +190,8 @@ struct PlayerFooterView: View {
                 .offset(y: 8)
 
                 Button(action: playback.toggleMute) {
-                    Image(systemName: playback.isMuted
-                        ? "speaker.slash.fill"
-                        : "speaker.wave.2.fill")
+                    Image(systemName: volumeIcon)
+                        .frame(width: 24)
                 }
                 Slider(value: $playback.volume, in: 0...1)
                     .frame(width: 110)
@@ -206,6 +205,18 @@ struct PlayerFooterView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             }
+        }
+    }
+
+    private var volumeIcon: String {
+        if playback.isMuted || playback.volume == 0 {
+            return "speaker.slash.fill"
+        } else if playback.volume < 1.0 / 3.0 {
+            return "speaker.wave.1.fill"
+        } else if playback.volume < 2.0 / 3.0 {
+            return "speaker.wave.2.fill"
+        } else {
+            return "speaker.wave.3.fill"
         }
     }
 
