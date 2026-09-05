@@ -28,9 +28,9 @@ struct SignedInView: View {
                         spectrumBuffer: model.analyzer.spectrumBuffer
                     )
                     .frame(
-                        minHeight: 180,
-                        idealHeight: 240,
-                        maxHeight: 300
+                        minHeight: 90,
+                        idealHeight: 120,
+                        maxHeight: 150
                     )
 
                     Divider()

@@ -6,10 +6,6 @@ struct RasterData {
     float2 uv;
 };
 
-struct VisualizerUniforms {
-    float energy;
-};
-
 vertex RasterData visualizerVertex(uint vertexID [[vertex_id]]) {
     const float2 positions[3] = {
         float2(-1.0, -1.0),
@@ -24,8 +20,7 @@ vertex RasterData visualizerVertex(uint vertexID [[vertex_id]]) {
 
 fragment float4 visualizerFragment(
     RasterData input [[stage_in]],
-    constant float *bands [[buffer(0)]],
-    constant VisualizerUniforms &uniforms [[buffer(1)]]
+    constant float *bands [[buffer(0)]]
 ) {
     float2 uv = input.uv;
     float bandPosition = saturate(uv.x) * 64.0;
@@ -38,18 +33,19 @@ fragment float4 visualizerFragment(
         abs(barPosition - 0.5)
     );
     float height = 0.035 + amplitude * 0.86;
+    float edgeWidth = fwidth(uv.y);
     float fill = barMask * (
-        1.0 - smoothstep(height, height + 0.012, uv.y)
+        1.0 - smoothstep(height - edgeWidth * 0.5, height + edgeWidth * 0.5, uv.y)
     );
-    float cap = barMask * exp(-70.0 * abs(uv.y - height));
+    float cap = barMask * exp(-140.0 * abs(uv.y - height));
 
     float3 low = float3(1.0, 0.20, 0.05);
     float3 high = float3(0.55, 0.18, 1.0);
     float3 accent = mix(low, high, uv.x);
-    float3 background = float3(0.018, 0.023, 0.05);
-    background += accent * uniforms.energy * 0.025 * (1.0 - uv.y);
-    float3 color = background;
-    color += accent * fill * (0.10 + amplitude * 0.58);
-    color += accent * cap * (0.20 + amplitude * 0.80);
-    return float4(color, 1.0);
+    float alpha = saturate(
+        fill * (0.10 + amplitude * 0.58)
+        + cap * (0.20 + amplitude * 0.80)
+    );
+    // Core Animation composites the drawable using premultiplied alpha.
+    return float4(accent * alpha, alpha);
 }

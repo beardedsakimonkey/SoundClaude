@@ -1,6 +1,10 @@
 import MetalKit
 import SwiftUI
 
+private final class TransparentMetalView: MTKView {
+    override var isOpaque: Bool { false }
+}
+
 struct MetalVisualizerView: NSViewRepresentable {
     let spectrumBuffer: OpaquePointer
 
@@ -13,15 +17,16 @@ struct MetalVisualizerView: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> MTKView {
-        let view = MTKView()
+        let view = TransparentMetalView()
         view.device = MTLCreateSystemDefaultDevice()
         view.colorPixelFormat = .bgra8Unorm
         view.clearColor = MTLClearColor(
-            red: 0.025,
-            green: 0.03,
-            blue: 0.055,
-            alpha: 1
+            red: 0,
+            green: 0,
+            blue: 0,
+            alpha: 0
         )
+        view.layer?.isOpaque = false
         view.framebufferOnly = true
         view.enableSetNeedsDisplay = false
         view.isPaused = false
