@@ -13,6 +13,8 @@ final class AppModel: ObservableObject {
 
     private let client: SoundCloudClient
     private let configurationError: Error?
+    private var playbackTask: Task<Void, Never>?
+    private var playbackRequestID: UUID?
     // These limits bound cache growth as liked-track pages load.
     private let trackDetailsCache = MemoryCache<
         TrackCacheKey,
@@ -90,6 +92,9 @@ final class AppModel: ObservableObject {
     }
 
     func signOut() async {
+        playbackTask?.cancel()
+        playbackTask = nil
+        playbackRequestID = nil
         playback.pause()
         audioTap.stop()
         likes.clear()
@@ -100,17 +105,45 @@ final class AppModel: ObservableObject {
     }
 
     func play(_ track: SoundCloudTrack) async {
+        guard !Task.isCancelled else { return }
+        playbackTask?.cancel()
+        let requestID = UUID()
+        playbackRequestID = requestID
         errorMessage = nil
         audioTap.stop()
-        do {
-            let accessToken = try await auth.validAccessToken()
-            let source = try await client.resolvePlayback(
-                track: track,
-                accessToken: accessToken
-            )
-            playback.load(track: track, source: source)
-        } catch {
-            errorMessage = error.localizedDescription
+
+        let task = Task { @MainActor in
+            defer {
+                // An older request must not clear the latest request's task.
+                if playbackRequestID == requestID {
+                    playbackTask = nil
+                    playbackRequestID = nil
+                }
+            }
+            do {
+                try Task.checkCancellation()
+                let accessToken = try await auth.validAccessToken()
+                try Task.checkCancellation()
+                let source = try await client.resolvePlayback(
+                    track: track,
+                    accessToken: accessToken
+                )
+                guard !Task.isCancelled,
+                      playbackRequestID == requestID else { return }
+                playback.load(track: track, source: source)
+            } catch is CancellationError {
+                return
+            } catch {
+                guard !Task.isCancelled,
+                      playbackRequestID == requestID else { return }
+                errorMessage = error.localizedDescription
+            }
+        }
+        playbackTask = task
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
         }
     }
 

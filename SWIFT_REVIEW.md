@@ -143,6 +143,10 @@ a late response from saving tokens again.
 needs cancellation plus a latest-request check. An older track request can finish
 last and replace a newer selection.
 
+Status: addressed. Each selection cancels the previous playback request. Only the
+latest request can load a track or show an error. Cancellation stays silent, and
+sign-out cancels and invalidates any pending selection.
+
 ## Suggested starting order
 
 1. Narrow view observation.
