@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 
 struct PlayerFooterView: View {
+    let model: AppModel
     let artworkLoader: ArtworkLoader
     let onSelectTrack: (SoundCloudTrack) -> Void
 
@@ -16,19 +17,19 @@ struct PlayerFooterView: View {
     @Bindable private var playback: PlaybackController
 
     init(
-        playback: PlaybackController,
-        artworkLoader: ArtworkLoader,
+        model: AppModel,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void
     ) {
-        self.artworkLoader = artworkLoader
+        self.model = model
+        self.artworkLoader = model.artworkLoader
         self.onSelectTrack = onSelectTrack
-        self.playback = playback
+        self.playback = model.playback
     }
 
     var body: some View {
         HStack(spacing: 20) {
             trackIdentity
-                .frame(minWidth: 200, idealWidth: 260, maxWidth: 280)
+                .frame(minWidth: 300, idealWidth: 340, maxWidth: 380)
             playbackControls
                 .frame(maxWidth: .infinity)
                 .layoutPriority(1)
@@ -38,7 +39,8 @@ struct PlayerFooterView: View {
             TrackArtworkBackdropView(
                 artworkURL: playback.currentTrack?.artworkURL,
                 loader: artworkLoader,
-                fadesToBottom: false
+                fadesToBottom: false,
+                animatesChanges: true
             )
             .mask {
                 LinearGradient(
@@ -122,22 +124,40 @@ struct PlayerFooterView: View {
     }
 
     private var playbackControls: some View {
-        VStack(spacing: 10) {
-            Slider(
-                value: Binding(
-                    get: { playback.currentTime },
-                    set: { playback.seek(to: $0) }
-                ),
-                in: 0...max(playback.duration, 1)
-            )
-
+        let accent = playbackAccent
+        return VStack(spacing: 10) {
             HStack(spacing: 16) {
-                Text(format(seconds: playback.currentTime))
-                    .font(.caption.monospacedDigit())
-                    .frame(width: 48, alignment: .leading)
-                Spacer()
                 transportControls
-                Spacer()
+                VStack(spacing: 4) {
+                    if let track = playback.currentTrack {
+                        TrackWaveformView(
+                            track: track,
+                            model: model,
+                            layout: .compact,
+                            progressColor: Color(
+                                .sRGB, red: accent.red,
+                                green: accent.green, blue: accent.blue
+                            )
+                        )
+                            .id(track.urn)
+                    } else {
+                        Color.clear
+                            .frame(height: TrackWaveformView.Layout.compact.height)
+                            .accessibilityHidden(true)
+                    }
+
+                    HStack {
+                        Text(format(seconds: playback.currentTime))
+                        Spacer()
+                        Text(format(seconds: playback.duration))
+                    }
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                // Compensate for the timestamps below the waveform.
+                .offset(y: 8)
+
                 Button(action: playback.toggleMute) {
                     Image(systemName: playback.isMuted
                         ? "speaker.slash.fill"
@@ -145,13 +165,10 @@ struct PlayerFooterView: View {
                 }
                 ArtworkVolumeSlider(
                     value: $playback.volume,
-                    accent: volumeAccent,
+                    accent: accent,
                     trackColor: ArtworkAccent.trackBackground(isDark: colorScheme == .dark)
                 )
                     .frame(width: 110)
-                Text(format(seconds: playback.duration))
-                    .font(.caption.monospacedDigit())
-                    .frame(width: 48, alignment: .trailing)
             }
             .buttonStyle(.borderless)
 
@@ -163,7 +180,7 @@ struct PlayerFooterView: View {
         }
     }
 
-    private var volumeAccent: ArtworkAccent {
+    private var playbackAccent: ArtworkAccent {
         let blue = NSColor.systemBlue.usingColorSpace(.sRGB)!
         let fallback = ArtworkAccent(
             red: blue.redComponent, green: blue.greenComponent, blue: blue.blueComponent
@@ -202,8 +219,8 @@ struct PlayerFooterView: View {
 
             Button(action: playback.togglePlayPause) {
                 Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .frame(width: 28, height: 28)
+                    .font(.system(size: 28, weight: .semibold))
+                    .frame(width: 44, height: 44)
             }
             .keyboardShortcut(.space, modifiers: [])
             .disabled(playback.currentTrack == nil || playback.isLoading)

@@ -1,27 +1,58 @@
 import SwiftUI
 
 struct TrackWaveformView: View {
+    enum Layout {
+        case detail
+        case compact
+
+        var height: CGFloat { self == .compact ? 60 : 96 }
+    }
+
     let track: SoundCloudTrack
     let model: AppModel
+    let layout: Layout
+    let progressColor: Color
 
     private let playback: PlaybackController
     @State private var waveform: SoundCloudWaveform?
     @State private var errorMessage: String?
 
-    init(track: SoundCloudTrack, model: AppModel) {
+    init(
+        track: SoundCloudTrack,
+        model: AppModel,
+        layout: Layout = .detail,
+        progressColor: Color = .orange
+    ) {
         self.track = track
         self.model = model
+        self.layout = layout
+        self.progressColor = progressColor
         playback = model.playback
         _waveform = State(initialValue: model.cachedWaveform(for: track))
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Waveform")
-                .font(.headline)
+            if layout == .detail {
+                Text("Waveform")
+                    .font(.headline)
+            }
 
             Group {
-                if let waveform {
+                if layout == .compact {
+                    waveformView(waveform)
+                        .overlay {
+                            if waveform == nil {
+                                Text(errorMessage ?? "Loading waveform…")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 4)
+                                    .background(.background)
+                                    .allowsHitTesting(false)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                } else if let waveform {
                     waveformView(waveform)
                 } else if let errorMessage {
                     Label(errorMessage, systemImage: "waveform.slash")
@@ -39,11 +70,15 @@ struct TrackWaveformView: View {
         }
     }
 
-    private func waveformView(_ waveform: SoundCloudWaveform) -> some View {
+    private func waveformView(_ waveform: SoundCloudWaveform?) -> some View {
         VStack(spacing: 4) {
             GeometryReader { proxy in
                 Canvas { context, size in
-                    let path = waveformPath(waveform, size: size)
+                    let path = waveform.map { waveformPath($0, size: size) }
+                        ?? Path(roundedRect: CGRect(
+                            x: 0, y: (size.height - 2) / 2,
+                            width: size.width, height: 2
+                        ), cornerRadius: 1)
                     context.fill(
                         path,
                         with: .color(.secondary.opacity(0.3))
@@ -60,7 +95,7 @@ struct TrackWaveformView: View {
                             )
                         )
                     )
-                    playedContext.fill(path, with: .color(.orange))
+                    playedContext.fill(path, with: .color(progressColor))
                 }
                 .contentShape(Rectangle())
                 .gesture(
@@ -89,15 +124,28 @@ struct TrackWaveformView: View {
                         : "Click to play from this position."
                 )
             }
-            .frame(height: 96)
+            .frame(height: layout.height)
 
-            HStack {
-                Text(format(seconds: displayedCurrentTime))
-                Spacer()
-                Text(format(seconds: displayedDuration))
+            if layout == .detail {
+                HStack {
+                    Text(format(seconds: displayedCurrentTime))
+                    Spacer()
+                    Text(format(seconds: displayedDuration))
+                }
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
             }
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.secondary)
+        }
+        .focusable(isCurrentTrack)
+        .onKeyPress(.leftArrow) {
+            guard isCurrentTrack else { return .ignored }
+            playback.seek(by: -5)
+            return .handled
+        }
+        .onKeyPress(.rightArrow) {
+            guard isCurrentTrack else { return .ignored }
+            playback.seek(by: 5)
+            return .handled
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Track waveform")

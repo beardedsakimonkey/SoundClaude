@@ -135,15 +135,22 @@ struct ArtworkAccent: Sendable {
         }
         guard drawn else { return nil }
 
-        // Group similar colors, favoring common saturated colors over gray borders.
+        // Group by hue so shades of a colorful detail compete together.
+        // Keep neutral pixels separate so a gray background cannot drown it out.
         var buckets: [Int: (count: Double, red: Double, green: Double, blue: Double)] = [:]
+        var pixelCount = 0.0
         for index in stride(from: 0, to: pixels.count, by: 4) {
             let alpha = Double(pixels[index + 3]) / 255
             guard alpha > 0.5 else { continue }
             let r = min(1, Double(pixels[index]) / 255 / alpha)
             let g = min(1, Double(pixels[index + 1]) / 255 / alpha)
             let b = min(1, Double(pixels[index + 2]) / 255 / alpha)
-            let key = (Int(r * 15) << 8) | (Int(g * 15) << 4) | Int(b * 15)
+            let color = ArtworkAccent(red: r, green: g, blue: b)
+            let hsv = color.hsv
+            let isColorful = hsv.saturation >= 0.2 && hsv.brightness >= 0.15
+                && max(r, g, b) - min(r, g, b) >= 0.06
+            let key = isColorful ? Int((hsv.hue * 24).rounded()) % 24 : -1
+            pixelCount += 1
             var bucket = buckets[key, default: (0, 0, 0, 0)]
             bucket.count += 1
             bucket.red += r
@@ -154,19 +161,66 @@ struct ArtworkAccent: Sendable {
         var winner: ArtworkAccent?
         var bestScore = -1.0
         for key in buckets.keys.sorted() {
-            guard let bucket = buckets[key] else { continue }
+            // Ignore isolated colored pixels, but allow small accents in mostly gray art.
+            guard key >= 0, let bucket = buckets[key],
+                  bucket.count >= max(3, pixelCount * 0.005) else { continue }
             let color = ArtworkAccent(red: bucket.red / bucket.count,
                                       green: bucket.green / bucket.count,
                                       blue: bucket.blue / bucket.count)
-            let saturation = max(color.red, color.green, color.blue)
-                - min(color.red, color.green, color.blue)
-            let score = bucket.count * (0.2 + saturation)
+            let hsv = color.hsv
+            let score = sqrt(bucket.count) * (0.3 + hsv.saturation)
+                * (0.4 + hsv.brightness)
             if score > bestScore {
                 bestScore = score
-                winner = color
+                winner = Self.fromHSV(
+                    hue: hsv.hue,
+                    saturation: max(0.75, hsv.saturation),
+                    brightness: max(0.85, hsv.brightness)
+                )
             }
         }
-        return winner
+        if let winner { return winner }
+        guard let neutral = buckets[-1] else { return nil }
+        return ArtworkAccent(red: neutral.red / neutral.count,
+                             green: neutral.green / neutral.count,
+                             blue: neutral.blue / neutral.count)
+    }
+
+    private var hsv: (hue: Double, saturation: Double, brightness: Double) {
+        let maximum = max(red, green, blue)
+        let delta = maximum - min(red, green, blue)
+        guard delta > 0 else { return (0, 0, maximum) }
+        let sector: Double
+        if maximum == red {
+            sector = (green - blue) / delta
+        } else if maximum == green {
+            sector = (blue - red) / delta + 2
+        } else {
+            sector = (red - green) / delta + 4
+        }
+        let hue = sector / 6
+        return (hue < 0 ? hue + 1 : hue, delta / maximum, maximum)
+    }
+
+    private static func fromHSV(
+        hue: Double, saturation: Double, brightness: Double
+    ) -> ArtworkAccent {
+        let sector = hue * 6
+        let chroma = brightness * saturation
+        let secondary = chroma * (1 - abs(sector.truncatingRemainder(dividingBy: 2) - 1))
+        let minimum = brightness - chroma
+        let components: (Double, Double, Double)
+        switch Int(sector) % 6 {
+        case 0: components = (chroma, secondary, 0)
+        case 1: components = (secondary, chroma, 0)
+        case 2: components = (0, chroma, secondary)
+        case 3: components = (0, secondary, chroma)
+        case 4: components = (secondary, 0, chroma)
+        default: components = (chroma, 0, secondary)
+        }
+        return ArtworkAccent(red: components.0 + minimum,
+                             green: components.1 + minimum,
+                             blue: components.2 + minimum)
     }
 
     static func trackBackground(isDark: Bool) -> ArtworkAccent {

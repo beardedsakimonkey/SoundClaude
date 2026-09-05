@@ -205,51 +205,64 @@ struct TrackArtworkBackdropView: View {
     let artworkURL: URL?
     let loader: ArtworkLoader
     var fadesToBottom = true
+    var animatesChanges = false
 
     @State private var image: NSImage?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geometry in
-            if let image {
-                Image(nsImage: image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(
-                        width: geometry.size.width,
-                        height: geometry.size.height
-                    )
-                    .scaleEffect(1.15)
-                    .blur(radius: 36)
-                    .saturation(1.15)
-                    .opacity(0.38)
-                    .mask {
-                        if fadesToBottom {
-                            LinearGradient(
-                                stops: [
-                                    .init(color: .black, location: 0),
-                                    .init(color: .black.opacity(0.75), location: 0.6),
-                                    .init(color: .clear, location: 1)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        } else {
-                            Rectangle()
+            ZStack {
+                if let image {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(
+                            width: geometry.size.width,
+                            height: geometry.size.height
+                        )
+                        .scaleEffect(1.15)
+                        .blur(radius: 36)
+                        .saturation(1.15)
+                        .opacity(0.38)
+                        .mask {
+                            if fadesToBottom {
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: .black, location: 0),
+                                        .init(color: .black.opacity(0.75), location: 0.6),
+                                        .init(color: .clear, location: 1)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            } else {
+                                Rectangle()
+                            }
                         }
-                    }
+                        .id(ObjectIdentifier(image))
+                        .transition(.opacity)
+                }
             }
         }
         .clipped()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .task(id: artworkURL) {
-            image = nil
-            guard let artworkURL,
-                  let data = try? await loader.data(for: artworkURL),
-                  !Task.isCancelled else {
-                return
+            if !animatesChanges {
+                image = nil
             }
-            image = NSImage(data: data)
+            let nextImage: NSImage?
+            if let artworkURL,
+               let data = try? await loader.data(for: artworkURL) {
+                nextImage = NSImage(data: data)
+            } else {
+                nextImage = nil
+            }
+            guard !Task.isCancelled else { return }
+            withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.6) : nil) {
+                image = nextImage
+            }
         }
     }
 }

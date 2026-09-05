@@ -41,8 +41,7 @@ struct SignedInView: View {
 
             Divider()
             PlayerFooterView(
-                playback: model.playback,
-                artworkLoader: model.artworkLoader,
+                model: model,
                 onSelectTrack: showTrack
             )
             .fixedSize(horizontal: false, vertical: true)
