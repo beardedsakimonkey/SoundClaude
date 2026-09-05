@@ -110,7 +110,11 @@ struct TrackDetailView: View {
                                 TrackPreviewBadge(font: .callout)
                             }
                         }
-                        ArtistLink(artist: details.track.artist, onSelect: onSelectArtist)
+                        ArtistLink(
+                            artist: details.track.artist,
+                            artworkLoader: model.artworkLoader,
+                            onSelect: onSelectArtist
+                        )
                             .font(.title3)
                             .foregroundStyle(.secondary)
                         HStack(spacing: 16) {

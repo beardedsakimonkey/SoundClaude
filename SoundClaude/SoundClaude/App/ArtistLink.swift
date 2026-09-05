@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ArtistLink: View {
     let artist: SoundCloudUser
+    var artworkLoader: ArtworkLoader? = nil
     let onSelect: (SoundCloudUser) -> Void
 
     @State private var isHovering = false
@@ -10,9 +11,24 @@ struct ArtistLink: View {
         Button {
             onSelect(artist)
         } label: {
-            Text(artist.username)
-                .underline(isHovering)
-                .multilineTextAlignment(.leading)
+            HStack(spacing: 8) {
+                if let artworkLoader {
+                    TrackArtworkView(
+                        artworkURL: artist.avatarURL,
+                        loader: artworkLoader,
+                        size: 24
+                    )
+                    .clipShape(Circle())
+                    .overlay {
+                        Circle()
+                            .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                    }
+                }
+                Text(artist.username)
+                    .underline(isHovering)
+                    .multilineTextAlignment(.leading)
+            }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
