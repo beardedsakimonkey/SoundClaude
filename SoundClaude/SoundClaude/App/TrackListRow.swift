@@ -55,11 +55,15 @@ struct TrackListRow: View {
             guard !isHoveringTitle, !isHoveringArtist else { return }
             Task { await onPlayTrack(track) }
         }
-        .listRowBackground(isHovering ? Color.primary.opacity(0.06) : Color.clear)
+        .background(hoverBackground)
         .onHover { isHovering = $0 }
         .accessibilityAction(named: "Play") {
             Task { await onPlayTrack(track) }
         }
+    }
+
+    private var hoverBackground: Color {
+        isHovering ? Color.primary.opacity(0.06) : Color.clear
     }
 
     private var duration: String {

@@ -78,22 +78,27 @@ struct LikesView: View {
     }
 
     private var trackList: some View {
-        List {
-            ForEach(likes.tracks) { track in
-                TrackListRow(
-                    track: track,
-                    playback: playback,
-                    artworkLoader: artworkLoader,
-                    onSelectTrack: onSelectTrack,
-                    onSelectArtist: onSelectArtist,
-                    onPlayTrack: onPlayTrack
-                )
-            }
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                ForEach(likes.tracks) { track in
+                    TrackListRow(
+                        track: track,
+                        playback: playback,
+                        artworkLoader: artworkLoader,
+                        onSelectTrack: onSelectTrack,
+                        onSelectArtist: onSelectArtist,
+                        onPlayTrack: onPlayTrack
+                    )
+                }
 
-            if likes.canLoadMore {
-                paginationRow
+                if likes.canLoadMore {
+                    paginationRow
+                }
             }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .overlay {
             if likes.tracks.isEmpty,
                !likes.isLoading,
