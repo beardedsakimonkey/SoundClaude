@@ -87,7 +87,7 @@ struct ArtistDetailView: View {
                     artistPicture(for: details.user)
                     VStack(alignment: .leading, spacing: 10) {
                         Text(details.user.username)
-                            .font(.largeTitle.weight(.semibold))
+                            .font(.system(size: 36, weight: .semibold))
                             .textSelection(.enabled)
                         let location = [details.city, details.country]
                             .compactMap(nonempty).joined(separator: ", ")

@@ -104,7 +104,7 @@ struct TrackDetailView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(alignment: .center, spacing: 8) {
                             Text(details.track.title)
-                                .font(.largeTitle.weight(.semibold))
+                                .font(.system(size: 36, weight: .semibold))
                                 .textSelection(.enabled)
                             if details.track.access == .preview {
                                 TrackPreviewBadge(font: .callout)
@@ -117,13 +117,10 @@ struct TrackDetailView: View {
                         )
                             .font(.title3)
                             .foregroundStyle(.secondary)
-                        HStack(spacing: 16) {
-                            playButton(for: details.track)
-                            Link(destination: details.track.permalinkURL) {
-                                Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
-                            }
-                            .help("Open this track in your web browser")
+                        Link(destination: details.track.permalinkURL) {
+                            Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
                         }
+                        .help("Open this track in your web browser")
                     }
                 }
 
@@ -133,8 +130,13 @@ struct TrackDetailView: View {
                     statistic(details.commentCount, label: "comments")
                 }
 
-                if details.track.waveformURL != nil {
-                    TrackWaveformView(track: details.track, model: model)
+                HStack(alignment: .top, spacing: 16) {
+                    playButton(for: details.track)
+                        .frame(height: TrackWaveformView.Layout.detail.height)
+
+                    if details.track.waveformURL != nil {
+                        TrackWaveformView(track: details.track, model: model)
+                    }
                 }
 
                 if let description = nonempty(details.description) {
