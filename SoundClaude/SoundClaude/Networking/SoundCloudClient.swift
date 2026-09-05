@@ -82,7 +82,7 @@ private final class RedirectBlocker: NSObject, URLSessionTaskDelegate {
 }
 
 actor SoundCloudClient {
-    private static let likedTracksPageSize = 10
+    private static let likedTracksPageSize = 25
 
     private let configuration: SoundCloudConfiguration
     private let session: URLSession

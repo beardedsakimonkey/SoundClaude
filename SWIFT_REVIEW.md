@@ -108,6 +108,10 @@ requests only 10 tracks. The local
 Using 50 means roughly five times fewer page requests when browsing a large
 library, with a larger initial response as the tradeoff.
 
+Status: addressed. Likes requests now use a page size of 25. This reduces the
+response size after pages of 50 felt slower to load, while still requesting more
+tracks than the original 10. Subsequent pages use the API's `next_href` URL.
+
 ## Other simplifications
 
 ### Consolidate artwork image creation
