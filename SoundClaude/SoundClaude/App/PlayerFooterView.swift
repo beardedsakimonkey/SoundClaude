@@ -89,10 +89,10 @@ struct PlayerFooterView: View {
                 }
                 Text(playback.currentTrack?.uploader
                     ?? "Choose a track to start listening")
-                    .font(.callout)
+                    .font(.headline.weight(.medium))
                     .foregroundStyle(.secondary)
             }
-            .font(.title3.weight(.semibold))
+            .font(.title2.weight(.semibold))
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
