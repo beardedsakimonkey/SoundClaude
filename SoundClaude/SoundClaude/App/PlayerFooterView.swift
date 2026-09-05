@@ -1,4 +1,3 @@
-import AppKit
 import SwiftUI
 
 struct PlayerFooterView: View {
@@ -10,10 +9,6 @@ struct PlayerFooterView: View {
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var isHoveringArtwork = false
     @State private var isHoveringTitle = false
-    @State private var artworkAccent: ArtworkAccent?
-    @State private var accentArtworkURL: URL?
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     @Bindable private var playback: PlaybackController
 
@@ -58,15 +53,6 @@ struct PlayerFooterView: View {
                 loader: artworkLoader,
                 cachedArtwork: $cachedFullSizeArtwork
             )
-        }
-        .task(id: playback.currentTrack?.artworkURL) {
-            artworkAccent = nil
-            accentArtworkURL = nil
-            guard let url = playback.currentTrack?.artworkURL,
-                  let accent = try? await artworkLoader.accentColor(for: url),
-                  !Task.isCancelled else { return }
-            artworkAccent = accent
-            accentArtworkURL = url
         }
     }
 
@@ -131,8 +117,7 @@ struct PlayerFooterView: View {
     }
 
     private var playbackControls: some View {
-        let accent = playbackAccent
-        return VStack(spacing: 10) {
+        VStack(spacing: 10) {
             HStack(spacing: 16) {
                 transportControls
                 VStack(spacing: 4) {
@@ -140,11 +125,7 @@ struct PlayerFooterView: View {
                         TrackWaveformView(
                             track: track,
                             model: model,
-                            layout: .compact,
-                            progressColor: Color(
-                                .sRGB, red: accent.red,
-                                green: accent.green, blue: accent.blue
-                            )
+                            layout: .compact
                         )
                             .id(track.urn)
                     } else {
@@ -183,19 +164,6 @@ struct PlayerFooterView: View {
                     .foregroundStyle(.red)
             }
         }
-    }
-
-    private var playbackAccent: ArtworkAccent {
-        let blue = NSColor.systemBlue.usingColorSpace(.sRGB)!
-        let fallback = ArtworkAccent(
-            red: blue.redComponent, green: blue.greenComponent, blue: blue.blueComponent
-        )
-        let accent = accentArtworkURL == playback.currentTrack?.artworkURL
-            ? artworkAccent ?? fallback : fallback
-        return accent.contrasted(
-            isDark: colorScheme == .dark,
-            increasedContrast: colorSchemeContrast == .increased
-        )
     }
 
     private var transportControls: some View {

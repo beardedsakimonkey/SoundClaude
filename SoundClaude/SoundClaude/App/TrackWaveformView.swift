@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct TrackWaveformView: View {
@@ -11,22 +12,23 @@ struct TrackWaveformView: View {
     let track: SoundCloudTrack
     let model: AppModel
     let layout: Layout
-    let progressColor: Color
 
     private let playback: PlaybackController
     @State private var waveform: SoundCloudWaveform?
     @State private var errorMessage: String?
+    @State private var artworkAccent: ArtworkAccent?
+    @State private var accentArtworkURL: URL?
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     init(
         track: SoundCloudTrack,
         model: AppModel,
-        layout: Layout = .detail,
-        progressColor: Color = .orange
+        layout: Layout = .detail
     ) {
         self.track = track
         self.model = model
         self.layout = layout
-        self.progressColor = progressColor
         playback = model.playback
         _waveform = State(initialValue: model.cachedWaveform(for: track))
     }
@@ -62,6 +64,15 @@ struct TrackWaveformView: View {
         }
         .task(id: track.waveformURL) {
             await load()
+        }
+        .task(id: track.artworkURL) {
+            artworkAccent = nil
+            accentArtworkURL = nil
+            guard let url = track.artworkURL,
+                  let accent = try? await model.artworkLoader.accentColor(for: url),
+                  !Task.isCancelled else { return }
+            artworkAccent = accent
+            accentArtworkURL = url
         }
     }
 
@@ -160,6 +171,23 @@ struct TrackWaveformView: View {
                 break
             }
         }
+    }
+
+    private var progressColor: Color {
+        let blue = NSColor.systemBlue.usingColorSpace(.sRGB)!
+        let fallback = ArtworkAccent(
+            red: blue.redComponent, green: blue.greenComponent, blue: blue.blueComponent
+        )
+        let accent = accentArtworkURL == track.artworkURL
+            ? artworkAccent ?? fallback : fallback
+        let contrastedAccent = accent.contrasted(
+            isDark: colorScheme == .dark,
+            increasedContrast: colorSchemeContrast == .increased
+        )
+        return Color(
+            .sRGB, red: contrastedAccent.red,
+            green: contrastedAccent.green, blue: contrastedAccent.blue
+        )
     }
 
     private var isCurrentTrack: Bool {
