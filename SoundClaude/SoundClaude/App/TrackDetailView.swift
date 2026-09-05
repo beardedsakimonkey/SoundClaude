@@ -24,12 +24,8 @@ struct TrackDetailView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            TrackArtworkBackdropView(
-                artworkURL: details?.track.artworkURL ?? track.artworkURL,
-                loader: model.artworkLoader
-            )
-            .frame(height: 340)
-            .ignoresSafeArea(edges: .top)
+            artworkBackdrop
+                .ignoresSafeArea(edges: .top)
 
             Group {
                 if let details {
@@ -64,6 +60,21 @@ struct TrackDetailView: View {
                 loader: model.artworkLoader,
                 cachedArtwork: $cachedFullSizeArtwork
             )
+        }
+    }
+
+    @ViewBuilder
+    private var artworkBackdrop: some View {
+        let backdrop = TrackArtworkBackdropView(
+            artworkURL: details?.track.artworkURL ?? track.artworkURL,
+            loader: model.artworkLoader
+        )
+        .frame(height: 340)
+
+        if #available(macOS 26.0, *) {
+            backdrop.backgroundExtensionEffect()
+        } else {
+            backdrop
         }
     }
 
