@@ -212,6 +212,23 @@ actor SoundCloudClient {
         )
     }
 
+    func setTrackLiked(
+        urn: String,
+        isLiked: Bool,
+        accessToken: String
+    ) async throws {
+        let url = configuration.apiBaseURL
+            .appending(path: "likes")
+            .appending(path: "tracks")
+            .appending(path: urn)
+        let (data, response) = try await authenticatedRequest(
+            url: url,
+            accessToken: accessToken,
+            method: isLiked ? "POST" : "DELETE"
+        )
+        try validate(response: response, data: data)
+    }
+
     func track(
         urn: String,
         secretToken: String?,
@@ -384,9 +401,11 @@ actor SoundCloudClient {
 
     private func authenticatedRequest(
         url: URL,
-        accessToken: String
+        accessToken: String,
+        method: String = "GET"
     ) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
+        request.httpMethod = method
         request.setValue(
             "application/json; charset=utf-8",
             forHTTPHeaderField: "Accept"

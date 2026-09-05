@@ -9,8 +9,10 @@ struct PlayerFooterView: View {
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var isHoveringArtwork = false
     @State private var isHoveringTitle = false
+    @State private var likeErrorMessage: String?
 
     @Bindable private var playback: PlaybackController
+    @ObservedObject private var likes: LikesController
 
     init(
         model: AppModel,
@@ -20,12 +22,13 @@ struct PlayerFooterView: View {
         self.artworkLoader = model.artworkLoader
         self.onSelectTrack = onSelectTrack
         self.playback = model.playback
+        _likes = ObservedObject(wrappedValue: model.likes)
     }
 
     var body: some View {
         HStack(spacing: 20) {
             trackIdentity
-                .frame(minWidth: 300, idealWidth: 340, maxWidth: 380)
+                .frame(width: 340)
             playbackControls
                 .frame(maxWidth: .infinity)
                 .layoutPriority(1)
@@ -53,6 +56,14 @@ struct PlayerFooterView: View {
                 loader: artworkLoader,
                 cachedArtwork: $cachedFullSizeArtwork
             )
+        }
+        .alert("Could not update like", isPresented: Binding(
+            get: { likeErrorMessage != nil },
+            set: { if !$0 { likeErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { likeErrorMessage = nil }
+        } message: {
+            Text(likeErrorMessage ?? "Please try again.")
         }
     }
 
@@ -85,7 +96,39 @@ struct PlayerFooterView: View {
             .opacity(0.85)
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
+            likeButton
         }
+    }
+
+    private var likeButton: some View {
+        let track = playback.currentTrack
+        let isLiked = track.map { likes.isLiked($0) } ?? false
+        let isUpdating = track.map {
+            likes.updatingTrackURNs.contains($0.urn)
+        } ?? false
+
+        return Button {
+            guard let track else { return }
+            Task {
+                do {
+                    try await likes.toggleLike(track)
+                } catch {
+                    likeErrorMessage = error.localizedDescription
+                }
+            }
+        } label: {
+            Image(systemName: isLiked ? "heart.fill" : "heart")
+                .font(.system(size: 20, weight: .regular))
+                .foregroundStyle(.primary)
+                .opacity(0.7)
+                .frame(width: 32, height: 32)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(track == nil || isUpdating || likes.isLoading)
+        .help(isLiked ? "Unlike track" : "Like track")
+        .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
+        .accessibilityValue(isLiked ? "Liked" : "Not liked")
     }
 
     @ViewBuilder
