@@ -37,6 +37,17 @@ struct SignedInView: View {
                     selectedView
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .toolbar {
+                    ToolbarItem(placement: .navigation) {
+                        Button {
+                            _ = navigateForward()
+                        } label: {
+                            Label("Forward", systemImage: "chevron.right")
+                        }
+                        .disabled(selectedDestination == .home || forwardPath.isEmpty)
+                        .help("Go forward")
+                    }
+                }
             }
 
             PlayerFooterView(
