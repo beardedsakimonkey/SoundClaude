@@ -1,30 +1,42 @@
 import Foundation
 
-struct SoundCloudUser: Codable, Sendable, Equatable {
+struct SoundCloudUser: Codable, Sendable, Hashable {
+    let urn: String?
     let username: String
     let avatarURL: URL?
     let permalinkURL: URL
 
     enum CodingKeys: String, CodingKey {
+        case urn
         case username
         case avatarURL = "avatar_url"
         case permalinkURL = "permalink_url"
     }
 }
 
+struct SoundCloudArtistDetails: Sendable {
+    let user: SoundCloudUser
+    let description: String?
+    let city: String?
+    let country: String?
+    let followersCount: Int?
+    let followingsCount: Int?
+    let trackCount: Int?
+}
+
 struct SoundCloudTrack: Identifiable, Sendable, Hashable {
     let urn: String
     let title: String
-    let uploader: String
+    let artist: SoundCloudUser
     let artworkURL: URL?
     let waveformURL: URL?
     let permalinkURL: URL
-    let uploaderPermalinkURL: URL
     let durationMilliseconds: Int
     let access: Access
     let secretToken: String?
 
     var id: String { urn }
+    var uploader: String { artist.username }
 
     enum Access: String, Decodable, Sendable {
         case playable
@@ -146,19 +158,16 @@ struct RawTrack: Decodable {
               let permalinkURL,
               let access,
               access == .playable || access == .preview,
-              let user,
-              let uploader = user.username,
-              let uploaderPermalinkURL = user.permalinkURL else {
+              let artist = user?.normalized() else {
             return nil
         }
         return SoundCloudTrack(
             urn: urn,
             title: title,
-            uploader: uploader,
+            artist: artist,
             artworkURL: artworkURL,
             waveformURL: waveformURL,
             permalinkURL: permalinkURL,
-            uploaderPermalinkURL: uploaderPermalinkURL,
             durationMilliseconds: duration ?? 0,
             access: access,
             secretToken: Self.extractSecretToken(from: secretURI)
@@ -193,11 +202,22 @@ struct RawTrack: Decodable {
 }
 
 struct RawUser: Decodable {
+    let urn: String?
     let username: String?
     let avatarURL: URL?
     let permalinkURL: URL?
+    let description: String?
+    let city: String?
+    let country: String?
+    let followersCount: Int?
+    let followingsCount: Int?
+    let trackCount: Int?
 
     enum CodingKeys: String, CodingKey {
+        case urn, description, city, country
+        case followersCount = "followers_count"
+        case followingsCount = "followings_count"
+        case trackCount = "track_count"
         case username
         case avatarURL = "avatar_url"
         case permalinkURL = "permalink_url"
@@ -206,9 +226,23 @@ struct RawUser: Decodable {
     func normalized() -> SoundCloudUser? {
         guard let username, let permalinkURL else { return nil }
         return SoundCloudUser(
+            urn: urn,
             username: username,
             avatarURL: avatarURL,
             permalinkURL: permalinkURL
+        )
+    }
+
+    func normalizedArtistDetails() -> SoundCloudArtistDetails? {
+        guard let user = normalized() else { return nil }
+        return SoundCloudArtistDetails(
+            user: user,
+            description: description,
+            city: city,
+            country: country,
+            followersCount: followersCount,
+            followingsCount: followingsCount,
+            trackCount: trackCount
         )
     }
 }

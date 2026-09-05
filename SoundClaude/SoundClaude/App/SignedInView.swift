@@ -41,7 +41,8 @@ struct SignedInView: View {
 
             PlayerFooterView(
                 model: model,
-                onSelectTrack: showTrack
+                onSelectTrack: showTrack,
+                onSelectArtist: showArtist
             )
             .fixedSize(horizontal: false, vertical: true)
         }
@@ -68,6 +69,7 @@ struct SignedInView: View {
                     playback: model.playback,
                     artworkLoader: model.artworkLoader,
                     appErrorMessage: model.errorMessage,
+                    onSelectArtist: showArtist,
                     onSelectTrack: showTrack,
                     onPlayTrack: model.play,
                     onSignOut: model.signOut
@@ -75,7 +77,20 @@ struct SignedInView: View {
                 .navigationDestination(for: Route.self) { route in
                     switch route {
                     case let .track(track):
-                        TrackDetailView(track: track, model: model)
+                        TrackDetailView(
+                            track: track,
+                            model: model,
+                            onSelectArtist: showArtist
+                        )
+                        .id(track.urn)
+                    case let .artist(artist):
+                        ArtistDetailView(
+                            artist: artist,
+                            model: model,
+                            onSelectTrack: showTrack,
+                            onSelectArtist: showArtist
+                        )
+                        .id(artist.permalinkURL)
                     }
                 }
             }
@@ -86,6 +101,14 @@ struct SignedInView: View {
         selectedDestination = .liked
         forwardPath.removeAll()
         path.append(.track(track))
+    }
+
+    private func showArtist(_ artist: SoundCloudUser) {
+        selectedDestination = .liked
+        if case let .artist(current) = path.last,
+           current.permalinkURL == artist.permalinkURL { return }
+        forwardPath.removeAll()
+        path.append(.artist(artist))
     }
 
     private func navigateBack() -> Bool {
@@ -146,4 +169,5 @@ struct SidebarView: View {
 
 private enum Route: Hashable {
     case track(SoundCloudTrack)
+    case artist(SoundCloudUser)
 }

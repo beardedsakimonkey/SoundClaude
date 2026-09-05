@@ -3,6 +3,7 @@ import SwiftUI
 struct PlayerFooterView: View {
     let model: AppModel
     let artworkLoader: ArtworkLoader
+    let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
 
     @State private var artworkTrack: SoundCloudTrack?
@@ -16,11 +17,13 @@ struct PlayerFooterView: View {
 
     init(
         model: AppModel,
-        onSelectTrack: @escaping (SoundCloudTrack) -> Void
+        onSelectTrack: @escaping (SoundCloudTrack) -> Void,
+        onSelectArtist: @escaping (SoundCloudUser) -> Void
     ) {
         self.model = model
         self.artworkLoader = model.artworkLoader
         self.onSelectTrack = onSelectTrack
+        self.onSelectArtist = onSelectArtist
         self.playback = model.playback
         _likes = ObservedObject(wrappedValue: model.likes)
     }
@@ -94,10 +97,15 @@ struct PlayerFooterView: View {
                 } else {
                     Text("Select a track")
                 }
-                Text(playback.currentTrack?.uploader
-                    ?? "Choose a track to start listening")
-                    .font(.headline.weight(.medium))
-                    .foregroundStyle(.secondary)
+                Group {
+                    if let track = playback.currentTrack {
+                        ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                    } else {
+                        Text("Choose a track to start listening")
+                    }
+                }
+                .font(.headline.weight(.medium))
+                .foregroundStyle(.secondary)
             }
             .font(.title2.weight(.semibold))
             .opacity(0.85)

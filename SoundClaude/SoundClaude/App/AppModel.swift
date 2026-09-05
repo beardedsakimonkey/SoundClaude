@@ -24,6 +24,7 @@ final class AppModel: ObservableObject {
         NSURL,
         SoundCloudWaveform
     >(countLimit: 50, totalCostLimit: 8 * 1_024 * 1_024)
+    private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(countLimit: 100)
 
     init() {
         let configuration: SoundCloudConfiguration
@@ -99,6 +100,7 @@ final class AppModel: ObservableObject {
         audioTap.stop()
         likes.clear()
         trackDetailsCache.removeAll()
+        artistDetailsCache.removeAll()
         waveformCache.removeAll()
         errorMessage = nil
         await auth.signOut()
@@ -167,6 +169,30 @@ final class AppModel: ObservableObject {
     func cachedTrackDetails(for track: SoundCloudTrack)
         -> SoundCloudTrackDetails? {
         trackDetailsCache.value(forKey: TrackCacheKey(track: track))
+    }
+
+    func cachedArtistDetails(for artist: SoundCloudUser) -> SoundCloudArtistDetails? {
+        artistDetailsCache.value(forKey: artist.permalinkURL as NSURL)
+    }
+
+    func artistDetails(for artist: SoundCloudUser) async throws -> SoundCloudArtistDetails {
+        if let cached = cachedArtistDetails(for: artist) { return cached }
+        let accessToken = try await auth.validAccessToken()
+        let details = try await client.artist(artist, accessToken: accessToken)
+        try Task.checkCancellation()
+        artistDetailsCache.insert(details, forKey: artist.permalinkURL as NSURL)
+        return details
+    }
+
+    func artistTracks(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
+        -> SoundCloudTrackPage {
+        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
+        let accessToken = try await auth.validAccessToken()
+        return try await client.artistTracks(
+            urn: urn,
+            accessToken: accessToken,
+            pageURL: pageURL
+        )
     }
 
     func waveform(for track: SoundCloudTrack) async throws

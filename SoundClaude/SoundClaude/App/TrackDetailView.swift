@@ -5,6 +5,7 @@ import SwiftUI
 struct TrackDetailView: View {
     let track: SoundCloudTrack
     let model: AppModel
+    let onSelectArtist: (SoundCloudUser) -> Void
 
     @State private var details: SoundCloudTrackDetails?
     @State private var isLoading = true
@@ -13,9 +14,14 @@ struct TrackDetailView: View {
     @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
-    init(track: SoundCloudTrack, model: AppModel) {
+    init(
+        track: SoundCloudTrack,
+        model: AppModel,
+        onSelectArtist: @escaping (SoundCloudUser) -> Void
+    ) {
         self.track = track
         self.model = model
+        self.onSelectArtist = onSelectArtist
 
         let cachedDetails = model.cachedTrackDetails(for: track)
         _details = State(initialValue: cachedDetails)
@@ -88,7 +94,7 @@ struct TrackDetailView: View {
                         Text(details.track.title)
                             .font(.largeTitle.weight(.semibold))
                             .textSelection(.enabled)
-                        Text(details.track.uploader)
+                        ArtistLink(artist: details.track.artist, onSelect: onSelectArtist)
                             .font(.title3)
                             .foregroundStyle(.secondary)
                         playButton(for: details.track)
@@ -219,7 +225,7 @@ struct TrackDetailView: View {
     }
 }
 
-private struct DetailArtworkButtonStyle: ButtonStyle {
+struct DetailArtworkButtonStyle: ButtonStyle {
     let isHovering: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

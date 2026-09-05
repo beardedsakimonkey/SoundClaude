@@ -212,6 +212,82 @@ actor SoundCloudClient {
         )
     }
 
+    func artist(
+        _ artist: SoundCloudUser,
+        accessToken: String
+    ) async throws -> SoundCloudArtistDetails {
+        let url: URL
+        if let urn = artist.urn {
+            url = configuration.apiBaseURL.appending(path: "users")
+                .appending(path: urn)
+        } else {
+            // Older or partial user objects can still be opened by permalink.
+            var components = URLComponents(
+                url: configuration.apiBaseURL.appending(path: "resolve"),
+                resolvingAgainstBaseURL: false
+            )!
+            components.queryItems = [
+                URLQueryItem(name: "url", value: artist.permalinkURL.absoluteString),
+            ]
+            guard let resolveURL = components.url else {
+                throw SoundCloudError.unexpectedURL
+            }
+            var request = URLRequest(url: resolveURL)
+            request.setValue("OAuth \(accessToken)", forHTTPHeaderField: "Authorization")
+            let (data, response) = try await send(request, using: noRedirectSession)
+            guard response.statusCode == 302,
+                  let location = response.value(forHTTPHeaderField: "Location"),
+                  let resolvedURL = URL(string: location, relativeTo: resolveURL)?.absoluteURL else {
+                try validate(response: response, data: data)
+                throw SoundCloudError.invalidData
+            }
+            try validateAPIURL(resolvedURL)
+            url = resolvedURL
+        }
+        let (data, response) = try await authenticatedRequest(
+            url: url,
+            accessToken: accessToken
+        )
+        try validate(response: response, data: data)
+        guard let details = try decoder.decode(RawUser.self, from: data)
+            .normalizedArtistDetails() else {
+            throw SoundCloudError.invalidData
+        }
+        return details
+    }
+
+    func artistTracks(
+        urn: String,
+        accessToken: String,
+        pageURL: URL? = nil
+    ) async throws -> SoundCloudTrackPage {
+        var components = URLComponents(
+            url: configuration.apiBaseURL.appending(path: "users")
+                .appending(path: urn).appending(path: "tracks"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [
+            URLQueryItem(name: "limit", value: "25"),
+            URLQueryItem(name: "linked_partitioning", value: "true"),
+            URLQueryItem(name: "access", value: "playable,preview"),
+        ]
+        guard let url = pageURL ?? components.url else {
+            throw SoundCloudError.unexpectedURL
+        }
+        try validateAPIURL(url)
+        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+        try validate(response: response, data: data)
+        let page = try decoder.decode(RawTrackPage.self, from: data)
+        if let nextURL = page.nextURL {
+            try validateAPIURL(nextURL)
+            guard nextURL != url else { throw SoundCloudError.invalidData }
+        }
+        return SoundCloudTrackPage(
+            tracks: page.collection.compactMap { $0.normalized() },
+            nextURL: page.nextURL
+        )
+    }
+
     func setTrackLiked(
         urn: String,
         isLiked: Bool,

@@ -47,6 +47,9 @@
 		A10000000000000000000027 /* Network.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* Network.framework */; };
 		A10000000000000000000028 /* CryptoKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* CryptoKit.framework */; };
 		A10000000000000000000029 /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002A /* MediaPlayer.framework */; };
+		A10000000000000000000039 /* ArtistDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000039 /* ArtistDetailView.swift */; };
+		A1000000000000000000003A /* ArtistLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003A /* ArtistLink.swift */; };
+		A1000000000000000000003B /* TrackListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003B /* TrackListRow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -98,6 +101,9 @@
 		A20000000000000000000035 /* NavigationBackEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationBackEventView.swift; sourceTree = "<group>"; };
 		A20000000000000000000036 /* TrackWaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackWaveformView.swift; sourceTree = "<group>"; };
 		A20000000000000000000037 /* MemoryCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryCache.swift; sourceTree = "<group>"; };
+		A20000000000000000000039 /* ArtistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistDetailView.swift; sourceTree = "<group>"; };
+		A2000000000000000000003A /* ArtistLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistLink.swift; sourceTree = "<group>"; };
+		A2000000000000000000003B /* TrackListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackListRow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -157,6 +163,9 @@
 				A20000000000000000000001 /* SoundClaudeApp.swift */,
 				A2000000000000000000002B /* KeyboardShortcutsView.swift */,
 				A20000000000000000000002 /* AppModel.swift */,
+				A20000000000000000000039 /* ArtistDetailView.swift */,
+				A2000000000000000000003A /* ArtistLink.swift */,
+				A2000000000000000000003B /* TrackListRow.swift */,
 				A2000000000000000000002C /* TrackDetailView.swift */,
 				A20000000000000000000036 /* TrackWaveformView.swift */,
 				A2000000000000000000002D /* TrackArtworkView.swift */,
@@ -366,6 +375,9 @@
 				A10000000000000000000001 /* SoundClaudeApp.swift in Sources */,
 				A10000000000000000000013 /* KeyboardShortcutsView.swift in Sources */,
 				A10000000000000000000002 /* AppModel.swift in Sources */,
+				A10000000000000000000039 /* ArtistDetailView.swift in Sources */,
+				A1000000000000000000003A /* ArtistLink.swift in Sources */,
+				A1000000000000000000003B /* TrackListRow.swift in Sources */,
 				A10000000000000000000014 /* TrackDetailView.swift in Sources */,
 				A1000000000000000000001E /* TrackWaveformView.swift in Sources */,
 				A10000000000000000000015 /* TrackArtworkView.swift in Sources */,
