@@ -49,6 +49,13 @@ struct PlayerFooterView: View {
                 )
             }
         }
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(.primary.opacity(0.2))
+                .frame(height: 1)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
         .sheet(item: $artworkTrack) { track in
             FullSizeArtworkView(
                 title: track.title,

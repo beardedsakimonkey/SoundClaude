@@ -39,7 +39,6 @@ struct SignedInView: View {
                 }
             }
 
-            Divider()
             PlayerFooterView(
                 model: model,
                 onSelectTrack: showTrack
