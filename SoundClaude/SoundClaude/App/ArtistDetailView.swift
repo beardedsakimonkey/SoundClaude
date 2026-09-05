@@ -96,6 +96,10 @@ struct ArtistDetailView: View {
                                 .font(.title3)
                                 .foregroundStyle(.secondary)
                         }
+                        Link(destination: details.user.permalinkURL) {
+                            Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
+                        }
+                        .help("Open this artist in your web browser")
                     }
                 }
 

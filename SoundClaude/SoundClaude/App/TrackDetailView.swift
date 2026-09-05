@@ -97,7 +97,13 @@ struct TrackDetailView: View {
                         ArtistLink(artist: details.track.artist, onSelect: onSelectArtist)
                             .font(.title3)
                             .foregroundStyle(.secondary)
-                        playButton(for: details.track)
+                        HStack(spacing: 16) {
+                            playButton(for: details.track)
+                            Link(destination: details.track.permalinkURL) {
+                                Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
+                            }
+                            .help("Open this track in your web browser")
+                        }
                     }
                 }
 
