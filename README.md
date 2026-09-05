@@ -44,3 +44,11 @@ make lsp
 ```
 
 macOS asks for System Audio Recording access when the process tap starts.
+
+## App icon
+
+The source image is `icon.png`. After you replace it with a square PNG, run
+`make icon` to regenerate the macOS icon sizes, rebuild the app, and refresh
+its registration with macOS. Quit and reopen the app to use the updated icon.
+If the Dock or app switcher still shows the old icon, run `killall Dock` to
+restart the Dock and refresh its display.

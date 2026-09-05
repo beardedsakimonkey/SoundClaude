@@ -7,7 +7,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := run
 
-.PHONY: build run lsp
+.PHONY: build run lsp icon
 
 build:
 	xcodebuild \
@@ -39,3 +39,9 @@ lsp:
 		-derivedDataPath $(DERIVED_DATA_PATH) \
 		-resultBundlePath $(LSP_RESULT_BUNDLE) \
 		build
+
+icon:
+	sh scripts/generate-app-icon.sh
+	$(MAKE) build
+	touch "$(APP)"
+	/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$(abspath $(APP))"

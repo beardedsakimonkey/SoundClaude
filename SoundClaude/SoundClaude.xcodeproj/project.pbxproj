@@ -50,6 +50,7 @@
 		A10000000000000000000039 /* ArtistDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000039 /* ArtistDetailView.swift */; };
 		A1000000000000000000003A /* ArtistLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003A /* ArtistLink.swift */; };
 		A1000000000000000000003B /* TrackListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003B /* TrackListRow.swift */; };
+		A1000000000000000000003C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003C /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -104,6 +105,7 @@
 		A20000000000000000000039 /* ArtistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistDetailView.swift; sourceTree = "<group>"; };
 		A2000000000000000000003A /* ArtistLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistLink.swift; sourceTree = "<group>"; };
 		A2000000000000000000003B /* TrackListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackListRow.swift; sourceTree = "<group>"; };
+		A2000000000000000000003C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -291,6 +293,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000013 /* Info.plist */,
+				A2000000000000000000003C /* Assets.xcassets */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -362,6 +365,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1000000000000000000003C /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -521,6 +525,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A20000000000000000000016 /* Configuration.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SoundClaude/SoundClaude.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -548,6 +553,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = A20000000000000000000016 /* Configuration.xcconfig */;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SoundClaude/SoundClaude.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
