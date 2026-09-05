@@ -9,26 +9,34 @@ struct TrackListRow: View {
     let onPlayTrack: (SoundCloudTrack) async -> Void
 
     @State private var isHovering = false
+    @State private var isHoveringArtwork = false
     @State private var isHoveringTitle = false
     @State private var isHoveringArtist = false
 
     var body: some View {
         HStack(spacing: 12) {
-            TrackArtworkView(
-                artworkURL: track.artworkURL,
-                loader: artworkLoader,
-                size: 44
-            )
-            .overlay(alignment: .bottomTrailing) {
-                if playback.currentTrack?.urn == track.urn {
-                    Image(systemName: "speaker.wave.2.fill")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(4)
-                        .background(.orange, in: Circle())
-                        .padding(2)
+            Button {
+                onSelectTrack(track)
+            } label: {
+                TrackArtworkView(
+                    artworkURL: track.artworkURL,
+                    loader: artworkLoader,
+                    size: 44
+                )
+                .overlay(alignment: .bottomTrailing) {
+                    if playback.currentTrack?.urn == track.urn {
+                        Image(systemName: "speaker.wave.2.fill")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(4)
+                            .background(.orange, in: Circle())
+                            .padding(2)
+                    }
                 }
             }
+            .buttonStyle(.plain)
+            .onHover { isHoveringArtwork = $0 }
+            .accessibilityLabel("Open track: \(track.title)")
             VStack(alignment: .leading, spacing: 3) {
                 Button {
                     onSelectTrack(track)
@@ -52,7 +60,7 @@ struct TrackListRow: View {
         }
         .contentShape(Rectangle())
         .onTapGesture {
-            guard !isHoveringTitle, !isHoveringArtist else { return }
+            guard !isHoveringArtwork, !isHoveringTitle, !isHoveringArtist else { return }
             Task { await onPlayTrack(track) }
         }
         .background(hoverBackground)
