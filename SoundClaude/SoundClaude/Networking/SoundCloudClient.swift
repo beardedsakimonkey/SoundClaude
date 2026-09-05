@@ -166,11 +166,25 @@ actor SoundCloudClient {
 
     func likedTracks(
         accessToken: String,
-        pageURL: URL? = nil
+        pageURL: URL? = nil,
+        pageSize: Int? = nil
     ) async throws -> SoundCloudTrackPage {
         let url: URL
         if let pageURL {
-            url = pageURL
+            try validateAPIURL(pageURL)
+            if let pageSize {
+                var components = URLComponents(url: pageURL, resolvingAgainstBaseURL: false)
+                var queryItems = components?.queryItems ?? []
+                queryItems.removeAll { $0.name == "limit" }
+                queryItems.append(URLQueryItem(name: "limit", value: String(pageSize)))
+                components?.queryItems = queryItems
+                guard let nextURL = components?.url else {
+                    throw SoundCloudError.unexpectedURL
+                }
+                url = nextURL
+            } else {
+                url = pageURL
+            }
         } else {
             var components = URLComponents(
                 url: configuration.apiBaseURL
@@ -182,7 +196,7 @@ actor SoundCloudClient {
             components?.queryItems = [
                 URLQueryItem(
                     name: "limit",
-                    value: String(Self.likedTracksPageSize)
+                    value: String(pageSize ?? Self.likedTracksPageSize)
                 ),
                 URLQueryItem(name: "linked_partitioning", value: "true"),
                 URLQueryItem(name: "access", value: "playable,preview"),

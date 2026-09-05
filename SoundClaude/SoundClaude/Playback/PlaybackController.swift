@@ -22,6 +22,11 @@ final class PlaybackController {
     private(set) var currentTime: Double = 0
     private(set) var duration: Double = 0
     private(set) var errorMessage: String?
+    private(set) var isShuffleEnabled = false {
+        didSet {
+            defaults.set(isShuffleEnabled, forKey: SettingsKey.isShuffleEnabled)
+        }
+    }
     var volume: Float = 1 {
         didSet {
             player.volume = volume
@@ -38,6 +43,7 @@ final class PlaybackController {
     private enum SettingsKey {
         static let volume = "playback.volume"
         static let isMuted = "playback.isMuted"
+        static let isShuffleEnabled = "playback.isShuffleEnabled"
         static let session = "playback.session"
     }
 
@@ -64,10 +70,12 @@ final class PlaybackController {
         defaults.register(defaults: [
             SettingsKey.volume: Float(1),
             SettingsKey.isMuted: false,
+            SettingsKey.isShuffleEnabled: false,
         ])
         let savedVolume = defaults.float(forKey: SettingsKey.volume)
         volume = savedVolume.isFinite ? min(max(savedVolume, 0), 1) : 1
         isMuted = defaults.bool(forKey: SettingsKey.isMuted)
+        isShuffleEnabled = defaults.bool(forKey: SettingsKey.isShuffleEnabled)
         player = AVPlayer()
         player.volume = volume
         player.isMuted = isMuted
@@ -272,6 +280,10 @@ final class PlaybackController {
 
     func toggleMute() {
         isMuted.toggle()
+    }
+
+    func toggleShuffle() {
+        isShuffleEnabled.toggle()
     }
 
     func next() {

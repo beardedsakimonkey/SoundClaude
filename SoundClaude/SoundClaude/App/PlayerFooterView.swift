@@ -207,6 +207,12 @@ struct PlayerFooterView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             }
+            if playback.isShuffleEnabled, !likes.isLoadingAll,
+               let message = likes.errorMessage {
+                Text("Could not load all likes: \(message) Select Next to retry.")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
         }
     }
 
@@ -263,6 +269,25 @@ struct PlayerFooterView: View {
             }
             .help("Next track")
             .accessibilityLabel("Next track")
+
+            Button(action: model.toggleShuffle) {
+                Image(systemName: "shuffle")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(playback.isShuffleEnabled ? Color.accentColor : Color.primary)
+                    .frame(width: 20, height: 20)
+                    .overlay(alignment: .bottom) {
+                        if playback.isShuffleEnabled {
+                            Circle()
+                                .fill(Color.accentColor)
+                                .frame(width: 4, height: 4)
+                                .offset(y: 5)
+                        }
+                    }
+            }
+            .buttonStyle(.plain)
+            .help(playback.isShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
+            .accessibilityLabel("Shuffle")
+            .accessibilityValue(playback.isShuffleEnabled ? "On" : "Off")
         }
     }
 

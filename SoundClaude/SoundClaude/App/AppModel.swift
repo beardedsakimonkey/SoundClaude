@@ -15,7 +15,10 @@ final class AppModel: ObservableObject {
     private let configurationError: Error?
     private var playbackTask: Task<Void, Never>?
     private var playbackRequestID: UUID?
+    private var shufflePreparationTask: Task<Void, Never>?
+    private var trackSelectionTask: Task<Void, Never>?
     private var hasStarted = false
+    private var shuffledTrackURNs: [String] = []
     // These limits bound cache growth as liked-track pages load.
     private let trackDetailsCache = MemoryCache<
         TrackCacheKey,
@@ -81,6 +84,7 @@ final class AppModel: ObservableObject {
         if case .signedIn = auth.state {
             await restorePlayback()
             await likes.loadLikedTracks()
+            prepareShuffle()
         }
     }
 
@@ -94,14 +98,18 @@ final class AppModel: ObservableObject {
         if case .signedIn = auth.state {
             await restorePlayback()
             await likes.loadLikedTracks()
+            prepareShuffle()
         }
     }
 
     func signOut() async {
+        shufflePreparationTask?.cancel()
+        trackSelectionTask?.cancel()
         playbackTask?.cancel()
         playbackTask = nil
         playbackRequestID = nil
         playback.clearSession()
+        shuffledTrackURNs.removeAll()
         audioTap.stop()
         likes.clear()
         trackDetailsCache.removeAll()
@@ -112,6 +120,7 @@ final class AppModel: ObservableObject {
     }
 
     func play(_ track: SoundCloudTrack) async {
+        trackSelectionTask?.cancel()
         await loadPlayback(track)
     }
 
@@ -244,17 +253,74 @@ final class AppModel: ObservableObject {
         errorMessage = nil
     }
 
-    private func selectRelativeTrack(offset: Int) {
-        guard !likes.tracks.isEmpty else { return }
-        let currentIndex = playback.currentTrack.flatMap { current in
-            likes.tracks.firstIndex(where: { $0.urn == current.urn })
-        } ?? (offset > 0 ? -1 : 0)
-        let nextIndex = (currentIndex + offset + likes.tracks.count)
-            % likes.tracks.count
-        let track = likes.tracks[nextIndex]
-        Task { @MainActor [weak self] in
-            await self?.play(track)
+    func toggleShuffle() {
+        shufflePreparationTask?.cancel()
+        trackSelectionTask?.cancel()
+        likes.cancelLoadingAllTracks()
+        playback.toggleShuffle()
+        shuffledTrackURNs.removeAll()
+        prepareShuffle()
+    }
+
+    private func prepareShuffle() {
+        guard playback.isShuffleEnabled else { return }
+        shufflePreparationTask = Task { @MainActor [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            // LikesController exposes failures so the user can retry with Next.
+            try? await likes.loadAllTracks()
         }
+    }
+
+    private func selectRelativeTrack(offset: Int) {
+        trackSelectionTask?.cancel()
+        trackSelectionTask = Task { @MainActor [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            if playback.isShuffleEnabled {
+                do {
+                    try await likes.loadAllTracks()
+                } catch {
+                    // Never shuffle a partial collection after a failed page.
+                    return
+                }
+            }
+            guard !Task.isCancelled else { return }
+            await selectLoadedRelativeTrack(offset: offset)
+        }
+    }
+
+    private func selectLoadedRelativeTrack(offset: Int) async {
+        guard !likes.tracks.isEmpty else { return }
+        let tracks: [SoundCloudTrack]
+        if playback.isShuffleEnabled {
+            let likedURNs = Set(likes.tracks.map(\.urn))
+            shuffledTrackURNs.removeAll { !likedURNs.contains($0) }
+            let existingURNs = Set(shuffledTrackURNs)
+            var addedURNs = likes.tracks.map(\.urn)
+                .filter { !existingURNs.contains($0) }
+                .shuffled()
+            // Start a new shuffle cycle at the current track.
+            if shuffledTrackURNs.isEmpty,
+               let currentURN = playback.currentTrack?.urn,
+               let index = addedURNs.firstIndex(of: currentURN) {
+                addedURNs.remove(at: index)
+                addedURNs.insert(currentURN, at: 0)
+            }
+            // Keep the existing order as more likes load or tracks are unliked.
+            shuffledTrackURNs.append(contentsOf: addedURNs)
+            let tracksByURN = Dictionary(
+                likes.tracks.map { ($0.urn, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            tracks = shuffledTrackURNs.compactMap { tracksByURN[$0] }
+        } else {
+            tracks = likes.tracks
+        }
+        let currentIndex = playback.currentTrack.flatMap { current in
+            tracks.firstIndex(where: { $0.urn == current.urn })
+        } ?? (offset > 0 ? -1 : 0)
+        let nextIndex = (currentIndex + offset + tracks.count) % tracks.count
+        let track = tracks[nextIndex]
+        await loadPlayback(track)
     }
 }
 
