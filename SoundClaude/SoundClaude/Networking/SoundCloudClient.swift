@@ -313,7 +313,7 @@ actor SoundCloudClient {
             resolvingAgainstBaseURL: false
         )!
         components.queryItems = [
-            URLQueryItem(name: "limit", value: "25"),
+            URLQueryItem(name: "limit", value: "10"),
             URLQueryItem(name: "linked_partitioning", value: "true"),
             URLQueryItem(name: "access", value: "playable,preview"),
         ]
