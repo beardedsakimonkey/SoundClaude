@@ -11,6 +11,7 @@ struct ArtistDetailView: View {
     @State private var errorMessage: String?
     @State private var tracks: [SoundCloudTrack] = []
     @State private var nextPageURL: URL?
+    @State private var loadedPageURLs: Set<URL> = []
     @State private var hasLoadedTracks = false
     @State private var isLoadingTracks = false
     @State private var tracksErrorMessage: String?
@@ -184,12 +185,13 @@ struct ArtistDetailView: View {
                 Button("Try Again") { Task { await loadTracks() } }
                     .disabled(isLoadingTracks)
             }
-            if isLoadingTracks {
+            if isLoadingTracks || (nextPageURL != nil && tracksErrorMessage == nil) {
                 ProgressView("Loading tracks")
                     .frame(maxWidth: .infinity)
-            } else if nextPageURL != nil, tracksErrorMessage == nil {
-                Button("Load more") { Task { await loadTracks() } }
-                    .frame(maxWidth: .infinity)
+                    .task(id: nextPageURL) {
+                        guard nextPageURL != nil, tracksErrorMessage == nil else { return }
+                        await loadTracks()
+                    }
             } else if hasLoadedTracks, tracks.isEmpty, tracksErrorMessage == nil {
                 ContentUnavailableView(
                     "No playable tracks",
@@ -236,10 +238,16 @@ struct ArtistDetailView: View {
         tracksErrorMessage = nil
         defer { isLoadingTracks = false }
         do {
-            let page = try await model.artistTracks(for: details.user, pageURL: nextPageURL)
+            let pageURL = nextPageURL
+            let page = try await model.artistTracks(for: details.user, pageURL: pageURL)
             try Task.checkCancellation()
+            if let nextURL = page.nextURL,
+               nextURL == pageURL || loadedPageURLs.contains(nextURL) {
+                throw SoundCloudError.invalidData
+            }
             var knownURNs = Set(tracks.map(\.urn))
             tracks.append(contentsOf: page.tracks.filter { knownURNs.insert($0.urn).inserted })
+            if let pageURL { loadedPageURLs.insert(pageURL) }
             nextPageURL = page.nextURL
             hasLoadedTracks = true
         } catch {

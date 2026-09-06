@@ -76,6 +76,11 @@ struct SoundClaudeApp: App {
             }
             .keyboardShortcut("m", modifiers: [])
 
+            Button("Toggle Shuffle") {
+                model.toggleShuffle()
+            }
+            .keyboardShortcut("s", modifiers: [])
+
             Button("Seek Back 5 Seconds") {
                 model.playback.seek(by: -5)
             }

@@ -10,6 +10,7 @@ struct TrackDetailView: View {
 
     @State private var relatedTracks: [SoundCloudTrack] = []
     @State private var nextPageURL: URL?
+    @State private var loadedPageURLs: Set<URL> = []
     @State private var hasLoadedRelatedTracks = false
     @State private var isLoadingRelatedTracks = false
     @State private var relatedTracksErrorMessage: String?
@@ -196,12 +197,13 @@ struct TrackDetailView: View {
                 Button("Try Again") { Task { await loadRelatedTracks() } }
                     .disabled(isLoadingRelatedTracks)
             }
-            if isLoadingRelatedTracks {
+            if isLoadingRelatedTracks || (nextPageURL != nil && relatedTracksErrorMessage == nil) {
                 ProgressView("Loading related tracks")
                     .frame(maxWidth: .infinity)
-            } else if nextPageURL != nil, relatedTracksErrorMessage == nil {
-                Button("Load more") { Task { await loadRelatedTracks() } }
-                    .frame(maxWidth: .infinity)
+                    .task(id: nextPageURL) {
+                        guard nextPageURL != nil, relatedTracksErrorMessage == nil else { return }
+                        await loadRelatedTracks()
+                    }
             } else if hasLoadedRelatedTracks, relatedTracks.isEmpty,
                       relatedTracksErrorMessage == nil {
                 ContentUnavailableView(
@@ -220,13 +222,19 @@ struct TrackDetailView: View {
         relatedTracksErrorMessage = nil
         defer { isLoadingRelatedTracks = false }
         do {
-            let page = try await model.relatedTracks(for: track, pageURL: nextPageURL)
+            let pageURL = nextPageURL
+            let page = try await model.relatedTracks(for: track, pageURL: pageURL)
             try Task.checkCancellation()
+            if let nextURL = page.nextURL,
+               nextURL == pageURL || loadedPageURLs.contains(nextURL) {
+                throw SoundCloudError.invalidData
+            }
             var knownURNs = Set(relatedTracks.map(\.urn))
             knownURNs.insert(track.urn)
             relatedTracks.append(contentsOf: page.tracks.filter {
                 knownURNs.insert($0.urn).inserted
             })
+            if let pageURL { loadedPageURLs.insert(pageURL) }
             nextPageURL = page.nextURL
             hasLoadedRelatedTracks = true
         } catch {

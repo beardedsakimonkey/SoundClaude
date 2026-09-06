@@ -160,12 +160,13 @@ struct PlaylistDetailView: View {
                 Button("Try Again") { Task { await load() } }
                     .disabled(isLoading)
             }
-            if isLoading {
+            if isLoading || (nextPageURL != nil && errorMessage == nil) {
                 ProgressView("Loading playlist")
                     .frame(maxWidth: .infinity)
-            } else if nextPageURL != nil, errorMessage == nil {
-                Button("Load more") { Task { await load() } }
-                    .frame(maxWidth: .infinity)
+                    .task(id: nextPageURL) {
+                        guard nextPageURL != nil, errorMessage == nil else { return }
+                        await load()
+                    }
             } else if hasLoadedTracks, tracks.isEmpty, errorMessage == nil {
                 ContentUnavailableView(
                     displayedPlaylist.trackCount == 0 ? "Empty playlist" : "No playable tracks",
