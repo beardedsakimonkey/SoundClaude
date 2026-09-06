@@ -28,7 +28,7 @@ fragment float4 visualizerFragment(
     const float barWidth = 8.0;
     const float barSpacing = 2.0;
     const float barStride = barWidth + barSpacing;
-    float x = uv.x * viewWidth;
+    float x = uv.x * viewWidth - 16.0;
     float bandPosition = x / barStride;
     float horizontalEdgeWidth = fwidth(x);
     if (bandPosition < 0.0 || bandPosition >= 64.0) {
