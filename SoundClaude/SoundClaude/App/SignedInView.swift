@@ -23,20 +23,8 @@ struct SignedInView: View {
                         max: 280
                     )
             } detail: {
-                VStack(spacing: 0) {
-                    MetalVisualizerView(
-                        spectrumBuffer: model.analyzer.spectrumBuffer
-                    )
-                    .frame(
-                        minHeight: 90,
-                        idealHeight: 120,
-                        maxHeight: 150
-                    )
-
-                    Divider()
-                    selectedView
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+                selectedView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             PlayerFooterView(
@@ -69,6 +57,7 @@ struct SignedInView: View {
                     likes: model.likes,
                     playback: model.playback,
                     artworkLoader: model.artworkLoader,
+                    spectrumBuffer: model.analyzer.spectrumBuffer,
                     appErrorMessage: model.errorMessage,
                     onSelectArtist: showArtist,
                     onSelectTrack: showTrack,

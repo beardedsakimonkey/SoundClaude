@@ -4,6 +4,7 @@ import SwiftUI
 struct LikesView: View {
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
+    let spectrumBuffer: OpaquePointer
     let appErrorMessage: String?
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
@@ -18,6 +19,7 @@ struct LikesView: View {
         likes: LikesController,
         playback: PlaybackController,
         artworkLoader: ArtworkLoader,
+        spectrumBuffer: OpaquePointer,
         appErrorMessage: String?,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
@@ -26,6 +28,7 @@ struct LikesView: View {
     ) {
         self.user = user
         self.artworkLoader = artworkLoader
+        self.spectrumBuffer = spectrumBuffer
         self.appErrorMessage = appErrorMessage
         self.onSelectArtist = onSelectArtist
         self.onSelectTrack = onSelectTrack
@@ -36,11 +39,17 @@ struct LikesView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            errorBanner
-            trackList
+        ScrollView {
+            VStack(spacing: 0) {
+                MetalVisualizerView(spectrumBuffer: spectrumBuffer)
+                    .frame(height: 120)
+                Divider()
+                header
+                errorBanner
+                trackList
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var header: some View {
@@ -77,8 +86,17 @@ struct LikesView: View {
         }
     }
 
+    @ViewBuilder
     private var trackList: some View {
-        ScrollView {
+        if likes.tracks.isEmpty,
+           !likes.isLoading,
+           !likes.canLoadMore {
+            ContentUnavailableView(
+                "No liked tracks",
+                systemImage: "heart.slash"
+            )
+            .frame(maxWidth: .infinity, minHeight: 240)
+        } else {
             LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(likes.tracks) { track in
                     TrackListRow(
@@ -97,17 +115,6 @@ struct LikesView: View {
             }
             .padding(.horizontal)
             .padding(.vertical, 8)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay {
-            if likes.tracks.isEmpty,
-               !likes.isLoading,
-               !likes.canLoadMore {
-                ContentUnavailableView(
-                    "No liked tracks",
-                    systemImage: "heart.slash"
-                )
-            }
         }
     }
 
