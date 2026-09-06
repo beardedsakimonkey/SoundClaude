@@ -47,6 +47,12 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         }
 
         encoder.setRenderPipelineState(pipelineState)
+        var viewWidth = Float(view.bounds.width)
+        encoder.setFragmentBytes(
+            &viewWidth,
+            length: MemoryLayout<Float>.size,
+            index: 1
+        )
         bands.withUnsafeMutableBufferPointer { pointer in
             _ = SCSpectrumBufferRead(spectrumBuffer, pointer.baseAddress, nil)
             encoder.setFragmentBytes(
