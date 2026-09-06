@@ -91,7 +91,11 @@ struct PlaylistDetailView: View {
                 Text(displayedPlaylist.title)
                     .font(.system(size: 36, weight: .semibold))
                     .textSelection(.enabled)
-                ArtistLink(artist: displayedPlaylist.owner, onSelect: onSelectArtist)
+                ArtistLink(
+                    artist: displayedPlaylist.owner,
+                    artworkLoader: model.artworkLoader,
+                    onSelect: onSelectArtist
+                )
                     .font(.title3)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 16) {
