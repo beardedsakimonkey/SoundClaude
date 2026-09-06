@@ -113,7 +113,11 @@ struct ArtistDetailView: View {
                     Divider()
                     VStack(alignment: .leading, spacing: 8) {
                         Text("About").font(.headline)
-                        Text(description).textSelection(.enabled)
+                        ExpandableDescriptionText(
+                            description: description,
+                            onSelectArtist: onSelectArtist
+                        )
+                        .id(artist.permalinkURL)
                     }
                 }
 
