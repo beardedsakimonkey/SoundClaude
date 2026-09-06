@@ -12,6 +12,7 @@ struct TrackListRow: View {
     @State private var isHoveringArtwork = false
     @State private var isHoveringTitle = false
     @State private var isHoveringArtist = false
+    @GestureState private var isPressed = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -63,9 +64,15 @@ struct TrackListRow: View {
             guard !isHoveringArtwork, !isHoveringTitle, !isHoveringArtist else { return }
             Task { await onPlayTrack(track) }
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .updating($isPressed) { _, pressed, _ in
+                    pressed = true
+                }
+        )
         .background {
             RoundedRectangle(cornerRadius: 8)
-                .fill(hoverBackground)
+                .fill(rowBackground)
                 .animation(.easeInOut(duration: 0.15), value: isHovering)
         }
         .onHover { isHovering = $0 }
@@ -74,8 +81,11 @@ struct TrackListRow: View {
         }
     }
 
-    private var hoverBackground: Color {
-        isHovering ? Color.primary.opacity(0.06) : Color.clear
+    private var rowBackground: Color {
+        if isPressed {
+            return Color.white.opacity(0.12)
+        }
+        return isHovering ? Color.primary.opacity(0.06) : Color.clear
     }
 
     private var duration: String {
