@@ -23,22 +23,15 @@ struct TrackListRow: View {
                     loader: artworkLoader,
                     size: 44
                 )
-                .overlay(alignment: .bottomTrailing) {
-                    if playback.currentTrack?.urn == track.urn {
-                        Image(systemName: "speaker.wave.2.fill")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(4)
-                            .background(.orange, in: Circle())
-                            .padding(2)
-                    }
-                }
             }
             .buttonStyle(.plain)
             .onHover { isHoveringArtwork = $0 }
             .accessibilityLabel("Open track: \(track.title)")
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
+                    if playback.currentTrack?.urn == track.urn {
+                        TrackPlaybackIndicator(isPlaying: playback.isPlaying)
+                    }
                     Button {
                         onSelectTrack(track)
                     } label: {
