@@ -31,26 +31,29 @@ fragment float4 visualizerFragment(
     float x = uv.x * viewWidth - 16.0;
     float bandPosition = x / barStride;
     float horizontalEdgeWidth = fwidth(x);
+    float verticalEdgeWidth = fwidth(uv.y);
+    float pointsPerUV = horizontalEdgeWidth / verticalEdgeWidth;
     if (bandPosition < 0.0 || bandPosition >= 64.0) {
         return float4(0.0);
     }
     uint bandIndex = (uint)bandPosition;
     float amplitude = saturate(bands[bandIndex]);
     float barPosition = fract(bandPosition) * barStride;
-    float barMask = 1.0 - smoothstep(
-        barWidth * 0.5 - horizontalEdgeWidth * 0.5,
-        barWidth * 0.5 + horizontalEdgeWidth * 0.5,
-        abs(barPosition - barStride * 0.5)
-    );
     float height = 0.035 + amplitude * 0.86;
-    float edgeWidth = fwidth(uv.y);
-    float fill = barMask * (
-        1.0 - smoothstep(height - edgeWidth * 0.5, height + edgeWidth * 0.5, uv.y)
+    // Measure both axes in points so the top stays circular at any aspect ratio.
+    float radius = barWidth * 0.5;
+    float2 capPosition = float2(
+        barPosition - barStride * 0.5,
+        max((uv.y - height) * pointsPerUV + radius, 0.0)
     );
-    float cap = barMask * exp(-140.0 * abs(uv.y - height));
+    float distance = length(capPosition) - radius;
+    float fill = 1.0 - smoothstep(
+        -horizontalEdgeWidth * 0.5, horizontalEdgeWidth * 0.5, distance
+    );
+    float cap = fill * exp(-140.0 * abs(uv.y - height));
 
-    float3 low = float3(1.0, 0.20, 0.05);
-    float3 high = float3(0.55, 0.18, 1.0);
+    float3 low = float3(1.0, 0.30, 0.02);
+    float3 high = float3(1.0, 0.55, 0.08);
     float3 accent = mix(low, high, bandPosition / 64.0);
     float alpha = saturate(
         fill * (0.10 + amplitude * 0.58)
