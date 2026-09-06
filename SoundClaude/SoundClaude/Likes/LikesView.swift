@@ -12,6 +12,7 @@ struct LikesView: View {
     let onSignOut: () async -> Void
 
     @ObservedObject private var likes: LikesController
+    @State private var searchText = ""
     private let playback: PlaybackController
 
     init(
@@ -69,11 +70,49 @@ struct LikesView: View {
                 ProgressView()
                     .controlSize(.small)
             }
+            searchBar
+                .frame(maxWidth: 280)
             Button("Sign out") {
                 Task { await onSignOut() }
             }
         }
         .padding()
+    }
+
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("Search by title or artist", text: $searchText)
+                .textFieldStyle(.plain)
+                .accessibilityLabel("Search liked tracks")
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+                .help("Clear search")
+            }
+        }
+        .padding(10)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var searchQuery: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var filteredTracks: [SoundCloudTrack] {
+        let query = searchQuery
+        guard !query.isEmpty else { return likes.tracks }
+        return likes.tracks.filter {
+            $0.title.localizedStandardContains(query)
+                || $0.artist.username.localizedStandardContains(query)
+        }
     }
 
     @ViewBuilder
@@ -105,8 +144,18 @@ struct LikesView: View {
             )
             .frame(maxWidth: .infinity, minHeight: 240)
         } else {
+            let tracks = filteredTracks
             LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(likes.tracks) { track in
+                if tracks.isEmpty, !searchQuery.isEmpty {
+                    ContentUnavailableView(
+                        "No matching tracks",
+                        systemImage: "magnifyingglass",
+                        description: Text("No loaded liked tracks match your search.")
+                    )
+                    .frame(maxWidth: .infinity, minHeight: 240)
+                }
+
+                ForEach(tracks) { track in
                     TrackListRow(
                         track: track,
                         playback: playback,

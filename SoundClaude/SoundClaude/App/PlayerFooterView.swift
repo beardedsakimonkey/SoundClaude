@@ -123,7 +123,7 @@ struct PlayerFooterView: View {
         } label: {
             Image(systemName: isLiked ? "heart.fill" : "heart")
                 .font(.system(size: 20, weight: .regular))
-                .foregroundStyle(.primary)
+                .foregroundStyle(isLiked ? Color.orange : Color.primary)
                 .opacity(0.7)
                 .frame(width: 32, height: 32)
                 .padding(.horizontal, 6)
