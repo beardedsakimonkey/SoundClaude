@@ -260,6 +260,17 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func artistReposts(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
+        -> SoundCloudTrackPage {
+        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
+        let accessToken = try await auth.validAccessToken()
+        return try await client.artistReposts(
+            urn: urn,
+            accessToken: accessToken,
+            pageURL: pageURL
+        )
+    }
+
     func playlistDetails(for playlist: SoundCloudPlaylist) async throws -> SoundCloudPlaylist {
         let accessToken = try await auth.validAccessToken()
         return try await client.playlist(urn: playlist.urn, accessToken: accessToken)
@@ -362,6 +373,8 @@ final class AppModel: ObservableObject {
         switch source {
         case let .artist(urn):
             return try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
+        case let .artistReposts(urn):
+            return try await client.artistReposts(urn: urn, accessToken: accessToken, pageURL: pageURL)
         case let .playlist(urn):
             return try await client.playlistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
         case let .related(urn):

@@ -1,6 +1,13 @@
 import SwiftUI
 
 struct ArtistDetailView: View {
+    private enum ContentTab: String, CaseIterable, Identifiable {
+        case tracks = "Tracks"
+        case reposts = "Reposts"
+
+        var id: Self { self }
+    }
+
     let artist: SoundCloudUser
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
@@ -15,6 +22,13 @@ struct ArtistDetailView: View {
     @State private var hasLoadedTracks = false
     @State private var isLoadingTracks = false
     @State private var tracksErrorMessage: String?
+    @State private var selectedTab = ContentTab.tracks
+    @State private var reposts: [SoundCloudTrack] = []
+    @State private var repostsNextPageURL: URL?
+    @State private var loadedRepostsPageURLs: Set<URL> = []
+    @State private var hasLoadedReposts = false
+    @State private var isLoadingReposts = false
+    @State private var repostsErrorMessage: String?
     @State private var isShowingArtwork = false
     @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
@@ -56,6 +70,10 @@ struct ArtistDetailView: View {
         }
         .navigationTitle(details?.user.username ?? artist.username)
         .task(id: artist.permalinkURL) { await load() }
+        .onChange(of: selectedTab) { _, tab in
+            guard tab == .reposts, !hasLoadedReposts else { return }
+            Task { await loadReposts() }
+        }
         .sheet(isPresented: $isShowingArtwork) {
             FullSizeArtworkView(
                 title: details?.user.username ?? artist.username,
@@ -123,12 +141,23 @@ struct ArtistDetailView: View {
                 }
 
                 Divider()
-                Text("Tracks").font(.headline)
+                Picker("Artist content", selection: $selectedTab) {
+                    ForEach(ContentTab.allCases) { tab in
+                        Text(tab.rawValue).tag(tab)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
                 if let message = model.errorMessage {
                     Label(message, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                 }
-                trackList
+                switch selectedTab {
+                case .tracks:
+                    trackList
+                case .reposts:
+                    repostList
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
@@ -202,6 +231,49 @@ struct ArtistDetailView: View {
         }
     }
 
+    private var repostList: some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            ForEach(reposts) { track in
+                TrackListRow(
+                    track: track,
+                    playback: model.playback,
+                    artworkLoader: model.artworkLoader,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist,
+                    onPlayTrack: { selected in
+                        await model.play(selected, queue: TrackQueue(
+                            source: .artistReposts(details?.user.urn ?? artist.urn ?? ""),
+                            tracks: reposts,
+                            nextPageURL: repostsNextPageURL
+                        ))
+                    }
+                )
+            }
+            if let repostsErrorMessage {
+                Text(repostsErrorMessage).foregroundStyle(.secondary)
+                Button("Try Again") { Task { await loadReposts() } }
+                    .disabled(isLoadingReposts)
+            }
+            if isLoadingReposts
+                || (repostsNextPageURL != nil && repostsErrorMessage == nil) {
+                ProgressView("Loading reposts")
+                    .frame(maxWidth: .infinity)
+                    .task(id: repostsNextPageURL) {
+                        guard repostsNextPageURL != nil,
+                              repostsErrorMessage == nil else { return }
+                        await loadReposts()
+                    }
+            } else if hasLoadedReposts, reposts.isEmpty,
+                      repostsErrorMessage == nil {
+                ContentUnavailableView(
+                    "No playable reposts",
+                    systemImage: "arrow.2.squarepath",
+                    description: Text("This artist has no reposted tracks available for playback here.")
+                )
+            }
+        }
+    }
+
     @ViewBuilder
     private func statistic(_ count: Int?, label: String) -> some View {
         if let count {
@@ -253,6 +325,33 @@ struct ArtistDetailView: View {
         } catch {
             guard !Task.isCancelled else { return }
             tracksErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func loadReposts() async {
+        guard !isLoadingReposts, let details,
+              !hasLoadedReposts || repostsNextPageURL != nil else { return }
+        isLoadingReposts = true
+        repostsErrorMessage = nil
+        defer { isLoadingReposts = false }
+        do {
+            let pageURL = repostsNextPageURL
+            let page = try await model.artistReposts(for: details.user, pageURL: pageURL)
+            try Task.checkCancellation()
+            if let nextURL = page.nextURL,
+               nextURL == pageURL || loadedRepostsPageURLs.contains(nextURL) {
+                throw SoundCloudError.invalidData
+            }
+            var knownURNs = Set(reposts.map(\.urn))
+            reposts.append(contentsOf: page.tracks.filter {
+                knownURNs.insert($0.urn).inserted
+            })
+            if let pageURL { loadedRepostsPageURLs.insert(pageURL) }
+            repostsNextPageURL = page.nextURL
+            hasLoadedReposts = true
+        } catch {
+            guard !Task.isCancelled else { return }
+            repostsErrorMessage = error.localizedDescription
         }
     }
 }

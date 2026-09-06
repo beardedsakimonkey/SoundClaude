@@ -8,7 +8,7 @@ Core Audio, Accelerate, and Metal. It feautres:
 - authenticated stream resolution with final CDN host validation
 - one `AVPlayer` for Apple HLS/AAC playback
 - saved track, queue source, and playback position, restored paused at startup; cleared on sign-out
-- queues from likes, artist tracks, playlists, and related tracks
+- queues from likes, artist tracks and reposts, playlists, and related tracks
 - account-specific likes metadata cached in Application Support; new likes sync when Likes opens
 - a private Core Audio process tap for this app only
 - a fixed-capacity atomic PCM ring and fixed spectrum snapshot
@@ -57,7 +57,7 @@ restart the Dock and refresh its display.
 
 ## Queues and likes
 
-Next and Previous use the list that started playback. Artist, playlist, and related
+Next and Previous use the list that started playback. Artist, repost, playlist, and related
 queues fetch another page when sequential playback reaches the end of the loaded
 tracks. Shuffle uses the loaded tracks immediately. It does not fetch an entire
 artist catalog. Likes shuffle uses the local library while sync runs in the background.
