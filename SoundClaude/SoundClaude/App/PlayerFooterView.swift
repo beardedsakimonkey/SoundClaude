@@ -124,7 +124,7 @@ struct PlayerFooterView: View {
             Image(systemName: isLiked ? "heart.fill" : "heart")
                 .font(.system(size: 20, weight: .regular))
                 .foregroundStyle(isLiked ? Color.orange : Color.primary)
-                .opacity(0.7)
+                .opacity(0.9)
                 .frame(width: 32, height: 32)
                 .padding(.horizontal, 6)
                 .contentShape(Rectangle())
@@ -270,12 +270,12 @@ struct PlayerFooterView: View {
             Button(action: model.toggleShuffle) {
                 Image(systemName: "shuffle")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(playback.isShuffleEnabled ? Color.accentColor : Color.primary)
+                    .foregroundStyle(playback.isShuffleEnabled ? Color.green : Color.primary)
                     .frame(width: 20, height: 20)
                     .overlay(alignment: .bottom) {
                         if playback.isShuffleEnabled {
                             Circle()
-                                .fill(Color.accentColor)
+                                .fill(Color.green)
                                 .frame(width: 4, height: 4)
                                 .offset(y: 5)
                         }
