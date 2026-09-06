@@ -81,40 +81,68 @@ struct TrackWaveformView: View {
         VStack(spacing: 4) {
             GeometryReader { proxy in
                 Canvas { context, size in
+                    guard size.width > 0, size.height > 0 else { return }
+                    let scale = context.environment.displayScale
+                    guard let bitmap = CGContext(
+                        data: nil,
+                        width: Int(ceil(size.width * scale)),
+                        height: Int(ceil(size.height * scale)),
+                        bitsPerComponent: 8,
+                        bytesPerRow: 0,
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                    ) else { return }
+                    bitmap.scaleBy(x: scale, y: scale)
                     let path = waveform.map { waveformPath($0, size: size) }
-                        ?? Path(roundedRect: CGRect(
+                        ?? CGPath(roundedRect: CGRect(
                             x: 0, y: (size.height - 2) / 2,
                             width: size.width, height: 2
-                        ), cornerRadius: 1)
-                    context.fill(
-                        path,
-                        with: .color(.secondary.opacity(0.3))
-                    )
+                        ), cornerWidth: 1, cornerHeight: 1, transform: nil)
+                    let background = Color.secondary.opacity(0.3)
+                        .resolve(in: context.environment).cgColor
+                    let color = progressColor.resolve(in: context.environment).cgColor
+                    let highlight = Color.white.opacity(0.6)
+                        .resolve(in: context.environment).cgColor
+                    let progress = progress
 
-                    var playedContext = context
-                    playedContext.clip(
-                        to: Path(
-                            CGRect(
-                                x: 0,
-                                y: 0,
-                                width: size.width * progress,
-                                height: size.height
-                            )
-                        )
-                    )
-                    playedContext.fill(path, with: .color(progressColor))
+                    // Rasterize into a bitmap: Canvas's Core Graphics proxy can
+                    // still change path edges when unrelated hover fills change.
+                    bitmap.addPath(path)
+                    bitmap.clip()
+                    bitmap.beginTransparencyLayer(auxiliaryInfo: nil)
+                    // Only the bar outline needs antialiasing. Keep the color
+                    // boundaries from accumulating partial pixel coverage.
+                    bitmap.setShouldAntialias(false)
+
+                    bitmap.setFillColor(background)
+                    bitmap.fill(CGRect(origin: .zero, size: size))
+                    bitmap.setFillColor(color)
+                    bitmap.fill(CGRect(
+                        x: 0, y: 0,
+                        width: size.width * progress,
+                        height: size.height
+                    ))
 
                     if let hoverFraction {
-                        var hoverContext = context
-                        hoverContext.clip(to: Path(CGRect(
+                        let hoverRegion = CGRect(
                             x: size.width * min(progress, hoverFraction),
                             y: 0,
                             width: size.width * abs(hoverFraction - progress),
                             height: size.height
-                        )))
-                        hoverContext.fill(path, with: .color(progressColor))
-                        hoverContext.fill(path, with: .color(.white.opacity(0.6)))
+                        )
+                        bitmap.fill(hoverRegion)
+                        bitmap.setFillColor(highlight)
+                        bitmap.fill(hoverRegion)
                     }
+                    bitmap.endTransparencyLayer()
+                    guard let image = bitmap.makeImage() else { return }
+                    // Preserve the bitmap's pixel size, including any fractional
+                    // layout padding, instead of stretching it to the view bounds.
+                    context.draw(
+                        Image(decorative: image, scale: scale),
+                        at: .zero,
+                        anchor: .topLeading
+                    )
                 }
                 .contentShape(Rectangle())
                 .onContinuousHover { phase in
@@ -238,13 +266,13 @@ struct TrackWaveformView: View {
     private func waveformPath(
         _ waveform: SoundCloudWaveform,
         size: CGSize
-    ) -> Path {
+    ) -> CGPath {
         let barWidth: CGFloat = 2
         let spacing: CGFloat = 2
         let step = barWidth + spacing
         let barCount = max(min(Int(size.width / step), waveform.samples.count), 1)
         let maximumHeight = CGFloat(waveform.height)
-        var path = Path()
+        let path = CGMutablePath()
 
         for index in 0..<barCount {
             let lowerBound = index * waveform.samples.count / barCount
@@ -263,7 +291,8 @@ struct TrackWaveformView: View {
             )
             path.addRoundedRect(
                 in: rect,
-                cornerSize: CGSize(width: 1, height: 1)
+                cornerWidth: 1,
+                cornerHeight: 1
             )
         }
         return path
