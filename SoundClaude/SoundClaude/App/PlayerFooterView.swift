@@ -301,3 +301,12 @@ struct PlayerFooterView: View {
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 }
+
+#Preview {
+    PlayerFooterView(
+        model: AppModel(),
+        onSelectTrack: { _ in },
+        onSelectArtist: { _ in }
+    )
+    .frame(width: 900)
+}
