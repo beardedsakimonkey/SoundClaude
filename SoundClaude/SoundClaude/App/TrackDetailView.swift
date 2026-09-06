@@ -103,9 +103,16 @@ struct TrackDetailView: View {
 
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(alignment: .center, spacing: 8) {
-                            Text(details.track.title)
-                                .font(.system(size: 36, weight: .semibold))
-                                .textSelection(.enabled)
+                            Button {
+                                Task { await model.play(details.track) }
+                            } label: {
+                                Text(details.track.title)
+                                    .font(.system(size: 36, weight: .semibold))
+                                    .foregroundStyle(.primary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Play this track")
+                            .accessibilityLabel("Play \(details.track.title)")
                             if details.track.access == .preview {
                                 TrackPreviewBadge(font: .callout)
                             }
