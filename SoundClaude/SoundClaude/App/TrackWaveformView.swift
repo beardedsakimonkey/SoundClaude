@@ -18,7 +18,8 @@ struct TrackWaveformView: View {
     @State private var errorMessage: String?
     @State private var artworkAccent: ArtworkAccent?
     @State private var accentArtworkURL: URL?
-    @State private var hoverFraction: Double?
+    @State private var hoverFraction: Double = 0
+    @State private var isHovering = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
@@ -80,7 +81,7 @@ struct TrackWaveformView: View {
     private func waveformView(_ waveform: SoundCloudWaveform?) -> some View {
         VStack(spacing: 4) {
             GeometryReader { proxy in
-                Canvas { context, size in
+                HoverAnimatedCanvas(hoverOpacity: isHovering ? 1 : 0) { context, size, hoverOpacity in
                     guard size.width > 0, size.height > 0 else { return }
                     let scale = context.environment.displayScale
                     guard let bitmap = CGContext(
@@ -123,16 +124,21 @@ struct TrackWaveformView: View {
                         height: size.height
                     ))
 
-                    if let hoverFraction {
+                    if hoverOpacity > 0 {
                         let hoverRegion = CGRect(
                             x: size.width * min(progress, hoverFraction),
                             y: 0,
                             width: size.width * abs(hoverFraction - progress),
                             height: size.height
                         )
+                        bitmap.saveGState()
+                        bitmap.setAlpha(hoverOpacity)
+                        bitmap.beginTransparencyLayer(auxiliaryInfo: nil)
                         bitmap.fill(hoverRegion)
                         bitmap.setFillColor(highlight)
                         bitmap.fill(hoverRegion)
+                        bitmap.endTransparencyLayer()
+                        bitmap.restoreGState()
                     }
                     bitmap.endTransparencyLayer()
                     guard let image = bitmap.makeImage() else { return }
@@ -144,6 +150,7 @@ struct TrackWaveformView: View {
                         anchor: .topLeading
                     )
                 }
+                .animation(.easeInOut(duration: 0.15), value: isHovering)
                 .contentShape(Rectangle())
                 .onContinuousHover { phase in
                     switch phase {
@@ -152,11 +159,12 @@ struct TrackWaveformView: View {
                             at: location.x,
                             width: proxy.size.width
                         )
+                        isHovering = true
                     case .ended:
-                        hoverFraction = nil
+                        isHovering = false
                     }
                 }
-                .onDisappear { hoverFraction = nil }
+                .onDisappear { isHovering = false }
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
@@ -343,6 +351,23 @@ struct TrackWaveformView: View {
         } catch {
             guard !Task.isCancelled else { return }
             errorMessage = "Waveform unavailable"
+        }
+    }
+}
+
+// Canvas drawing does not interpolate its inputs without an animatable view.
+private struct HoverAnimatedCanvas: View, Animatable {
+    var hoverOpacity: Double
+    var renderer: (inout GraphicsContext, CGSize, Double) -> Void
+
+    var animatableData: Double {
+        get { hoverOpacity }
+        set { hoverOpacity = newValue }
+    }
+
+    var body: some View {
+        Canvas { context, size in
+            renderer(&context, size, hoverOpacity)
         }
     }
 }
