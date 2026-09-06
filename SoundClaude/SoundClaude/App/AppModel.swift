@@ -16,10 +16,10 @@ final class AppModel: ObservableObject {
     private let configurationError: Error?
     private var playbackTask: Task<Void, Never>?
     private var playbackRequestID: UUID?
-    private var shufflePreparationTask: Task<Void, Never>?
     private var trackSelectionTask: Task<Void, Never>?
     private var hasStarted = false
-    private var shuffledTrackURNs: [String] = []
+    private var queue = TrackQueue(source: .single, tracks: [])
+    private let queueSettingsKey = "playback.queue"
     // These limits bound cache growth as liked-track pages load.
     private let trackDetailsCache = MemoryCache<
         TrackCacheKey,
@@ -84,9 +84,8 @@ final class AppModel: ObservableObject {
         }
         await auth.restore()
         if case .signedIn = auth.state {
+            await likes.restoreCache()
             await restorePlayback()
-            await likes.loadLikedTracks()
-            prepareShuffle()
         }
     }
 
@@ -98,20 +97,19 @@ final class AppModel: ObservableObject {
         errorMessage = nil
         await auth.signIn()
         if case .signedIn = auth.state {
+            await likes.restoreCache()
             await restorePlayback()
-            await likes.loadLikedTracks()
-            prepareShuffle()
         }
     }
 
     func signOut() async {
-        shufflePreparationTask?.cancel()
         trackSelectionTask?.cancel()
         playbackTask?.cancel()
         playbackTask = nil
         playbackRequestID = nil
         playback.clearSession()
-        shuffledTrackURNs.removeAll()
+        queue = TrackQueue(source: .single, tracks: [])
+        UserDefaults.standard.removeObject(forKey: queueSettingsKey)
         audioTap.stop()
         likes.clear()
         playlists.clear()
@@ -123,13 +121,44 @@ final class AppModel: ObservableObject {
     }
 
     func play(_ track: SoundCloudTrack) async {
+        // Detail and waveform controls retain an existing list when possible.
+        if !queue.tracks.contains(where: { $0.urn == track.urn }),
+           !(queue.source == .likes && likes.isLiked(track)) {
+            queue = TrackQueue(source: .single, tracks: [track])
+        }
         trackSelectionTask?.cancel()
+        saveQueue()
         await loadPlayback(track)
+    }
+
+    func playLikedTrack(_ track: SoundCloudTrack) async {
+        await play(track, queue: TrackQueue(source: .likes, tracks: []))
+    }
+
+    func play(_ track: SoundCloudTrack, queue: TrackQueue) async {
+        trackSelectionTask?.cancel()
+        self.queue = queue
+        saveQueue()
+        await loadPlayback(track)
+    }
+
+    private func saveQueue() {
+        var saved = queue
+        saved.replaceLikes([]) // Likes metadata already lives in the account cache.
+        guard let data = try? JSONEncoder().encode(saved) else { return }
+        UserDefaults.standard.set(data, forKey: queueSettingsKey)
     }
 
     private func restorePlayback() async {
         guard playback.currentTrack == nil, playbackTask == nil,
               let session = playback.savedSession else { return }
+        if let data = UserDefaults.standard.data(forKey: queueSettingsKey),
+           let saved = try? JSONDecoder().decode(TrackQueue.self, from: data),
+           saved.source == .likes || saved.tracks.contains(where: { $0.urn == session.track.urn }) {
+            queue = saved
+        } else {
+            queue = TrackQueue(source: .single, tracks: [session.track])
+        }
         await loadPlayback(session.track, position: session.position, autoplay: false)
     }
 
@@ -289,73 +318,57 @@ final class AppModel: ObservableObject {
     }
 
     func toggleShuffle() {
-        shufflePreparationTask?.cancel()
         trackSelectionTask?.cancel()
-        likes.cancelLoadingAllTracks()
         playback.toggleShuffle()
-        shuffledTrackURNs.removeAll()
-        prepareShuffle()
-    }
-
-    private func prepareShuffle() {
-        guard playback.isShuffleEnabled else { return }
-        shufflePreparationTask = Task { @MainActor [weak self] in
-            guard let self, !Task.isCancelled else { return }
-            // LikesController exposes failures so the user can retry with Next.
-            try? await likes.loadAllTracks()
-        }
+        queue.resetShuffle()
+        saveQueue()
     }
 
     private func selectRelativeTrack(offset: Int) {
         trackSelectionTask?.cancel()
         trackSelectionTask = Task { @MainActor [weak self] in
             guard let self, !Task.isCancelled else { return }
-            if playback.isShuffleEnabled {
-                do {
-                    try await likes.loadAllTracks()
-                } catch {
-                    // Never shuffle a partial collection after a failed page.
-                    return
+            do {
+                // Likes use the disk-backed library, including pages added during playback.
+                queue.replaceLikes(likes.tracks)
+                if !playback.isShuffleEnabled, offset > 0 {
+                    while queue.needsNextPage(after: playback.currentTrack?.urn) {
+                        let page = try await nextQueuePage()
+                        try Task.checkCancellation()
+                        try queue.append(page)
+                        saveQueue()
+                    }
                 }
+                try Task.checkCancellation()
+                guard let track = queue.relativeTrack(
+                    to: playback.currentTrack?.urn,
+                    offset: offset,
+                    shuffle: playback.isShuffleEnabled
+                ) else { return }
+                saveQueue()
+                await loadPlayback(track)
+            } catch {
+                guard !Task.isCancelled, !(error is CancellationError) else { return }
+                errorMessage = error.localizedDescription
             }
-            guard !Task.isCancelled else { return }
-            await selectLoadedRelativeTrack(offset: offset)
         }
     }
 
-    private func selectLoadedRelativeTrack(offset: Int) async {
-        guard !likes.tracks.isEmpty else { return }
-        let tracks: [SoundCloudTrack]
-        if playback.isShuffleEnabled {
-            let likedURNs = Set(likes.tracks.map(\.urn))
-            shuffledTrackURNs.removeAll { !likedURNs.contains($0) }
-            let existingURNs = Set(shuffledTrackURNs)
-            var addedURNs = likes.tracks.map(\.urn)
-                .filter { !existingURNs.contains($0) }
-                .shuffled()
-            // Start a new shuffle cycle at the current track.
-            if shuffledTrackURNs.isEmpty,
-               let currentURN = playback.currentTrack?.urn,
-               let index = addedURNs.firstIndex(of: currentURN) {
-                addedURNs.remove(at: index)
-                addedURNs.insert(currentURN, at: 0)
-            }
-            // Keep the existing order as more likes load or tracks are unliked.
-            shuffledTrackURNs.append(contentsOf: addedURNs)
-            let tracksByURN = Dictionary(
-                likes.tracks.map { ($0.urn, $0) },
-                uniquingKeysWith: { first, _ in first }
-            )
-            tracks = shuffledTrackURNs.compactMap { tracksByURN[$0] }
-        } else {
-            tracks = likes.tracks
+    private func nextQueuePage() async throws -> SoundCloudTrackPage {
+        let source = queue.source
+        let pageURL = queue.nextPageURL
+        let accessToken = try await auth.validAccessToken()
+        try Task.checkCancellation()
+        switch source {
+        case let .artist(urn):
+            return try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
+        case let .playlist(urn):
+            return try await client.playlistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
+        case let .related(urn):
+            return try await client.relatedTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
+        case .likes, .single:
+            return SoundCloudTrackPage(tracks: [], nextURL: nil)
         }
-        let currentIndex = playback.currentTrack.flatMap { current in
-            tracks.firstIndex(where: { $0.urn == current.urn })
-        } ?? (offset > 0 ? -1 : 0)
-        let nextIndex = (currentIndex + offset + tracks.count) % tracks.count
-        let track = tracks[nextIndex]
-        await loadPlayback(track)
     }
 }
 

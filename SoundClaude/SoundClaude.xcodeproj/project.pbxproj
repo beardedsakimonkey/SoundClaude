@@ -54,6 +54,8 @@
 		A1000000000000000000003C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003C /* Assets.xcassets */; };
 		A1000000000000000000003D /* PlaylistsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003D /* PlaylistsController.swift */; };
 		A1000000000000000000003E /* PlaylistDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003E /* PlaylistDetailView.swift */; };
+		A1000000000000000000003F /* TrackQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003F /* TrackQueue.swift */; };
+		A10000000000000000000040 /* LikesCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000040 /* LikesCache.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -112,6 +114,8 @@
 		A2000000000000000000003C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A2000000000000000000003D /* PlaylistsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistsController.swift; sourceTree = "<group>"; };
 		A2000000000000000000003E /* PlaylistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistDetailView.swift; sourceTree = "<group>"; };
+		A2000000000000000000003F /* TrackQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackQueue.swift; sourceTree = "<group>"; };
+		A20000000000000000000040 /* LikesCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikesCache.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -222,6 +226,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000009 /* LikesController.swift */,
+				A20000000000000000000040 /* LikesCache.swift */,
 				A2000000000000000000002F /* LikesView.swift */,
 			);
 			path = Likes;
@@ -231,6 +236,7 @@
 			isa = PBXGroup;
 			children = (
 				A2000000000000000000000A /* PlaybackController.swift */,
+				A2000000000000000000003F /* TrackQueue.swift */,
 			);
 			path = Playback;
 			sourceTree = "<group>";
@@ -412,8 +418,10 @@
 				A10000000000000000000012 /* ArtworkLoader.swift in Sources */,
 				A10000000000000000000008 /* SoundCloudModels.swift in Sources */,
 				A10000000000000000000009 /* LikesController.swift in Sources */,
+				A10000000000000000000040 /* LikesCache.swift in Sources */,
 				A10000000000000000000017 /* LikesView.swift in Sources */,
 				A1000000000000000000000A /* PlaybackController.swift in Sources */,
+				A1000000000000000000003F /* TrackQueue.swift in Sources */,
 				A1000000000000000000000B /* AudioTapController.swift in Sources */,
 				A1000000000000000000000C /* ProcessTap.swift in Sources */,
 				A1000000000000000000000D /* SpectrumAnalyzer.swift in Sources */,

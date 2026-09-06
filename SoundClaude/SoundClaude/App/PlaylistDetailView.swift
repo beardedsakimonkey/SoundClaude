@@ -146,7 +146,13 @@ struct PlaylistDetailView: View {
                     artworkLoader: model.artworkLoader,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
-                    onPlayTrack: model.play
+                    onPlayTrack: { selected in
+                        await model.play(selected, queue: TrackQueue(
+                            source: .playlist(playlist.urn),
+                            tracks: tracks,
+                            nextPageURL: nextPageURL
+                        ))
+                    }
                 )
             }
             if let errorMessage {

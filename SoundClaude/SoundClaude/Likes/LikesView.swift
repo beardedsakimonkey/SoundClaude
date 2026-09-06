@@ -50,6 +50,7 @@ struct LikesView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task { await likes.loadLikedTracks() }
     }
 
     private var header: some View {
@@ -62,6 +63,9 @@ struct LikesView: View {
             }
             Spacer()
             if likes.isLoading {
+                Text("Syncing likes…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 ProgressView()
                     .controlSize(.small)
             }
@@ -79,6 +83,10 @@ struct LikesView: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                 Text(message)
                 Spacer()
+                if likes.errorMessage != nil {
+                    Button("Try again") { Task { await likes.loadLikedTracks() } }
+                        .disabled(likes.isLoading)
+                }
             }
             .foregroundStyle(.orange)
             .padding(.horizontal)
@@ -130,10 +138,6 @@ struct LikesView: View {
                 }
             }
             Spacer()
-        }
-        .onAppear {
-            guard likes.errorMessage == nil else { return }
-            Task { await likes.loadMore() }
         }
     }
 

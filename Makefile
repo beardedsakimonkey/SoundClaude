@@ -7,7 +7,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := run
 
-.PHONY: build run lsp icon
+.PHONY: build run lsp icon test
 
 build:
 	xcodebuild \
@@ -45,3 +45,23 @@ icon:
 	$(MAKE) build
 	touch "$(APP)"
 	/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$(abspath $(APP))"
+
+# Standalone regression suites; no credentials or Keychain access required.
+test:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/queue-likes \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
+		SoundClaude/SoundClaude/Likes/LikesCache.swift \
+		SoundClaude/SoundClaude/Likes/LikesController.swift \
+		tests/QueueAndLikesTests.swift
+	/tmp/soundclaude-tests/queue-likes
+	swiftc -o /tmp/soundclaude-tests/track-pages \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		tests/TrackPageDecodingTests.swift
+	/tmp/soundclaude-tests/track-pages
+	swiftc -o /tmp/soundclaude-tests/playlists \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
+		tests/PlaylistTests.swift
+	/tmp/soundclaude-tests/playlists

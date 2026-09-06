@@ -209,12 +209,7 @@ struct PlayerFooterView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             }
-            if playback.isShuffleEnabled, !likes.isLoadingAll,
-               let message = likes.errorMessage {
-                Text("Could not load all likes: \(message) Select Next to retry.")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
+
         }
     }
 

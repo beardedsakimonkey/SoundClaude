@@ -182,7 +182,13 @@ struct TrackDetailView: View {
                     artworkLoader: model.artworkLoader,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
-                    onPlayTrack: model.play
+                    onPlayTrack: { selected in
+                        await model.play(selected, queue: TrackQueue(
+                            source: .related(track.urn),
+                            tracks: relatedTracks,
+                            nextPageURL: nextPageURL
+                        ))
+                    }
                 )
             }
             if let relatedTracksErrorMessage {

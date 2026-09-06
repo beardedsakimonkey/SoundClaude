@@ -170,7 +170,13 @@ struct ArtistDetailView: View {
                     artworkLoader: model.artworkLoader,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
-                    onPlayTrack: model.play
+                    onPlayTrack: { selected in
+                        await model.play(selected, queue: TrackQueue(
+                            source: .artist(details?.user.urn ?? artist.urn ?? ""),
+                            tracks: tracks,
+                            nextPageURL: nextPageURL
+                        ))
+                    }
                 )
             }
             if let tracksErrorMessage {

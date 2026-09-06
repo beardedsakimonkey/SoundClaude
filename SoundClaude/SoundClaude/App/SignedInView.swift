@@ -96,7 +96,7 @@ struct SignedInView: View {
                 appErrorMessage: model.errorMessage,
                 onSelectArtist: showArtist,
                 onSelectTrack: showTrack,
-                onPlayTrack: model.play,
+                onPlayTrack: model.playLikedTrack,
                 onSignOut: model.signOut
             )
         }
