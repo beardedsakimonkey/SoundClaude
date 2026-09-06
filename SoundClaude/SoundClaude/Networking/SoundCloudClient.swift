@@ -444,10 +444,12 @@ actor SoundCloudClient {
     func artworkData(from artworkURL: URL) async throws -> Data {
         try validateArtworkURL(artworkURL)
         var request = URLRequest(url: artworkURL)
-        request.setValue("image/jpeg", forHTTPHeaderField: "Accept")
+        request.setValue("image/jpeg, image/png", forHTTPHeaderField: "Accept")
         let (data, response) = try await send(request, using: session)
         try validate(response: response, data: data)
-        guard response.mimeType?.lowercased() == "image/jpeg",
+        // Original uploads can be PNGs even when their thumbnails are JPEGs.
+        guard let mimeType = response.mimeType?.lowercased(),
+              ["image/jpeg", "image/png"].contains(mimeType),
               !data.isEmpty,
               data.count <= 10 * 1_024 * 1_024 else {
             throw SoundCloudError.invalidData

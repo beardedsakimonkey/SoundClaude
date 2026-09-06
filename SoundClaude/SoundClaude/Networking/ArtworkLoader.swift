@@ -6,6 +6,7 @@ actor ArtworkLoader {
     enum Rendition: Sendable {
         case source
         case square500
+        case square1080
         case original
     }
 
@@ -37,6 +38,11 @@ actor ArtworkLoader {
         } catch {
             guard !Task.isCancelled, renditionURL != url else {
                 throw error
+            }
+            // Some uploads have no accessible original. Try the website's
+            // large rendition before falling back to the 100-pixel thumbnail.
+            if case .original = rendition {
+                return try await data(for: url, rendition: .square1080)
             }
             return try await data(forResolvedURL: url)
         }
@@ -77,6 +83,8 @@ actor ArtworkLoader {
             return sourceURL
         case .square500:
             renditionSuffix = "-t500x500"
+        case .square1080:
+            renditionSuffix = "-t1080x1080"
         case .original:
             renditionSuffix = "-original"
         }
