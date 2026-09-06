@@ -45,7 +45,7 @@ struct PlayerFooterView: View {
                 LinearGradient(
                     colors: [.black, .clear],
                     startPoint: .top,
-                    endPoint: .center
+                    endPoint: .bottom
                 )
             }
         }
