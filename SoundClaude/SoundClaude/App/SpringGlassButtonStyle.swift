@@ -5,11 +5,11 @@ struct SpringGlassButtonStyle: PrimitiveButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button(configuration)
             .buttonStyle(.glass(.clear))
-            .modifier(GlassPressEffect())
+            .modifier(SpringPressEffect())
     }
 }
 
-private struct GlassPressEffect: ViewModifier {
+struct SpringPressEffect: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var isEnabled
     @GestureState private var isPressed = false

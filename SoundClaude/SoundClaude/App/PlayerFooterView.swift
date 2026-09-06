@@ -130,6 +130,7 @@ struct PlayerFooterView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .modifier(SpringPressEffect())
         .disabled(track == nil || isUpdating || likes.isLoading)
         .help(isLiked ? "Unlike track" : "Like track")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
@@ -286,6 +287,7 @@ struct PlayerFooterView: View {
                     }
             }
             .buttonStyle(.plain)
+            .modifier(SpringPressEffect())
             .padding(.horizontal, 6)
             .help(playback.isShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
             .accessibilityLabel("Shuffle")
