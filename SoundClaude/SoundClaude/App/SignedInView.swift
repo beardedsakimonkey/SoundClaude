@@ -16,7 +16,7 @@ struct SignedInView: View {
     var body: some View {
         VStack(spacing: 0) {
             NavigationSplitView {
-                SidebarView(selection: $selectedDestination)
+                SidebarView(selection: sidebarSelection, playlists: model.playlists)
                     .navigationSplitViewColumnWidth(
                         min: 180,
                         ideal: 220,
@@ -42,28 +42,9 @@ struct SignedInView: View {
         }
     }
 
-    @ViewBuilder
     private var selectedView: some View {
-        switch selectedDestination {
-        case .home:
-            NavigationStack {
-                HomeView()
-                    .toolbar { navigationToolbar }
-            }
-        case .liked, .none:
-            NavigationStack(path: navigationPath) {
-                LikesView(
-                    user: user,
-                    likes: model.likes,
-                    playback: model.playback,
-                    artworkLoader: model.artworkLoader,
-                    spectrumBuffer: model.analyzer.spectrumBuffer,
-                    appErrorMessage: model.errorMessage,
-                    onSelectArtist: showArtist,
-                    onSelectTrack: showTrack,
-                    onPlayTrack: model.play,
-                    onSignOut: model.signOut
-                )
+        NavigationStack(path: navigationPath) {
+            rootView
                 .toolbar { navigationToolbar }
                 .navigationDestination(for: Route.self) { route in
                     switch route {
@@ -89,7 +70,35 @@ struct SignedInView: View {
                         .toolbar { navigationToolbar }
                     }
                 }
-            }
+        }
+    }
+
+    @ViewBuilder
+    private var rootView: some View {
+        switch selectedDestination {
+        case .home:
+            HomeView()
+        case let .playlist(playlist):
+            PlaylistDetailView(
+                playlist: playlist,
+                model: model,
+                onSelectTrack: showTrack,
+                onSelectArtist: showArtist
+            )
+            .id(playlist.urn)
+        case .liked, .none:
+            LikesView(
+                user: user,
+                likes: model.likes,
+                playback: model.playback,
+                artworkLoader: model.artworkLoader,
+                spectrumBuffer: model.analyzer.spectrumBuffer,
+                appErrorMessage: model.errorMessage,
+                onSelectArtist: showArtist,
+                onSelectTrack: showTrack,
+                onPlayTrack: model.play,
+                onSignOut: model.signOut
+            )
         }
     }
 
@@ -114,7 +123,7 @@ struct SignedInView: View {
 
     private var navigationButtons: some View {
         HStack(spacing: 8) {
-            if selectedDestination != .home, !path.isEmpty {
+            if !path.isEmpty {
                 Button {
                     _ = navigateBack()
                 } label: {
@@ -124,7 +133,7 @@ struct SignedInView: View {
                 .help("Go back")
             }
 
-            if selectedDestination != .home, !forwardPath.isEmpty {
+            if !forwardPath.isEmpty {
                 Button {
                     _ = navigateForward()
                 } label: {
@@ -138,13 +147,11 @@ struct SignedInView: View {
     }
 
     private func showTrack(_ track: SoundCloudTrack) {
-        selectedDestination = .liked
         forwardPath.removeAll()
         path.append(.track(track))
     }
 
     private func showArtist(_ artist: SoundCloudUser) {
-        selectedDestination = .liked
         if case let .artist(current) = path.last,
            current.permalinkURL == artist.permalinkURL { return }
         forwardPath.removeAll()
@@ -152,8 +159,7 @@ struct SignedInView: View {
     }
 
     private func navigateBack() -> Bool {
-        guard selectedDestination != .home,
-              let route = path.popLast() else {
+        guard let route = path.popLast() else {
             return false
         }
 
@@ -162,13 +168,24 @@ struct SignedInView: View {
     }
 
     private func navigateForward() -> Bool {
-        guard selectedDestination != .home,
-              let route = forwardPath.popLast() else {
+        guard let route = forwardPath.popLast() else {
             return false
         }
 
         path.append(route)
         return true
+    }
+
+    private var sidebarSelection: Binding<SidebarDestination?> {
+        Binding(
+            get: { selectedDestination },
+            set: { destination in
+                guard let destination else { return }
+                path.removeAll()
+                forwardPath.removeAll()
+                selectedDestination = destination
+            }
+        )
     }
 
     private var navigationPath: Binding<[Route]> {
@@ -194,14 +211,38 @@ struct SignedInView: View {
 
 struct SidebarView: View {
     @Binding var selection: SidebarDestination?
+    @ObservedObject var playlists: PlaylistsController
 
     var body: some View {
         List(selection: $selection) {
-            ForEach(SidebarDestination.allCases) { destination in
+            ForEach(SidebarDestination.libraryDestinations) { destination in
                 Label(destination.title, systemImage: destination.systemImage)
                     .tag(destination)
             }
+            Section("Playlists") {
+                ForEach(playlists.playlists) { playlist in
+                    Label(playlist.title, systemImage: "music.note.list")
+                        .lineLimit(1)
+                        .help(playlist.title)
+                        .tag(SidebarDestination.playlist(playlist))
+                }
+                if playlists.isLoading {
+                    ProgressView("Loading playlists")
+                        .controlSize(.small)
+                } else if let errorMessage = playlists.errorMessage {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Try Again") { Task { await playlists.load() } }
+                    }
+                } else if playlists.playlists.isEmpty {
+                    Text("No playlists")
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
+        .task { await playlists.load() }
         .listStyle(.sidebar)
         .navigationTitle("SoundClaude")
     }

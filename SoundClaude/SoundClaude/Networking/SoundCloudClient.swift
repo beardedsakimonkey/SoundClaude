@@ -89,10 +89,12 @@ actor SoundCloudClient {
     private let noRedirectSession: URLSession
     private let decoder = JSONDecoder()
 
-    init(configuration: SoundCloudConfiguration) {
+    init(
+        configuration: SoundCloudConfiguration,
+        sessionConfiguration: URLSessionConfiguration = .ephemeral
+    ) {
         self.configuration = configuration
 
-        let sessionConfiguration = URLSessionConfiguration.ephemeral
         sessionConfiguration.timeoutIntervalForRequest = 30
         sessionConfiguration.timeoutIntervalForResource = 60
         session = URLSession(configuration: sessionConfiguration)
@@ -288,18 +290,7 @@ actor SoundCloudClient {
         guard let url = pageURL ?? components.url else {
             throw SoundCloudError.unexpectedURL
         }
-        try validateAPIURL(url)
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
-        let page = try decoder.decode(RawTrackPage.self, from: data)
-        if let nextURL = page.nextURL {
-            try validateAPIURL(nextURL)
-            guard nextURL != url else { throw SoundCloudError.invalidData }
-        }
-        return SoundCloudTrackPage(
-            tracks: page.collection.compactMap { $0.normalized() },
-            nextURL: page.nextURL
-        )
+        return try await trackPage(at: url, accessToken: accessToken)
     }
 
     func relatedTracks(
@@ -320,6 +311,64 @@ actor SoundCloudClient {
         guard let url = pageURL ?? components.url else {
             throw SoundCloudError.unexpectedURL
         }
+        return try await trackPage(at: url, accessToken: accessToken)
+    }
+
+    func playlists(accessToken: String, pageURL: URL? = nil) async throws
+        -> SoundCloudPlaylistPage {
+        var components = URLComponents(
+            url: configuration.apiBaseURL.appending(path: "me/playlists"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [
+            URLQueryItem(name: "limit", value: "200"),
+            URLQueryItem(name: "linked_partitioning", value: "true"),
+            URLQueryItem(name: "show_tracks", value: "false"),
+        ]
+        guard let url = pageURL ?? components.url else {
+            throw SoundCloudError.unexpectedURL
+        }
+        try validateAPIURL(url)
+        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+        try validate(response: response, data: data)
+        let page = try decoder.decode(RawPlaylistPage.self, from: data)
+        if let nextURL = page.nextURL {
+            try validateAPIURL(nextURL)
+            guard nextURL != url else { throw SoundCloudError.invalidData }
+        }
+        return SoundCloudPlaylistPage(
+            playlists: page.collection.compactMap { $0.normalized() },
+            nextURL: page.nextURL
+        )
+    }
+
+    func playlist(urn: String, accessToken: String) async throws -> SoundCloudPlaylist {
+        let url = configuration.apiBaseURL.appending(path: "playlists")
+            .appending(path: urn)
+            .appending(queryItems: [URLQueryItem(name: "show_tracks", value: "false")])
+        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+        try validate(response: response, data: data)
+        guard let playlist = try decoder.decode(RawPlaylist.self, from: data).normalized() else {
+            throw SoundCloudError.invalidData
+        }
+        return playlist
+    }
+
+    func playlistTracks(
+        urn: String,
+        accessToken: String,
+        pageURL: URL? = nil
+    ) async throws -> SoundCloudTrackPage {
+        let url = pageURL ?? configuration.apiBaseURL.appending(path: "playlists")
+            .appending(path: urn).appending(path: "tracks")
+            .appending(queryItems: [
+                URLQueryItem(name: "linked_partitioning", value: "true"),
+                URLQueryItem(name: "access", value: "playable,preview"),
+            ])
+        return try await trackPage(at: url, accessToken: accessToken)
+    }
+
+    private func trackPage(at url: URL, accessToken: String) async throws -> SoundCloudTrackPage {
         try validateAPIURL(url)
         let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
         try validate(response: response, data: data)

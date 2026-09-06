@@ -52,6 +52,8 @@
 		A1000000000000000000003B /* TrackListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003B /* TrackListRow.swift */; };
 		EA5095DB820C4F7B9F932E11 /* TrackPlaybackIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 311A2AB195D74C16B3ECC0D7 /* TrackPlaybackIndicator.swift */; };
 		A1000000000000000000003C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003C /* Assets.xcassets */; };
+		A1000000000000000000003D /* PlaylistsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003D /* PlaylistsController.swift */; };
+		A1000000000000000000003E /* PlaylistDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003E /* PlaylistDetailView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -108,6 +110,8 @@
 		A2000000000000000000003B /* TrackListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackListRow.swift; sourceTree = "<group>"; };
 		311A2AB195D74C16B3ECC0D7 /* TrackPlaybackIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackPlaybackIndicator.swift; sourceTree = "<group>"; };
 		A2000000000000000000003C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A2000000000000000000003D /* PlaylistsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistsController.swift; sourceTree = "<group>"; };
+		A2000000000000000000003E /* PlaylistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistDetailView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -167,6 +171,8 @@
 				A20000000000000000000001 /* SoundClaudeApp.swift */,
 				A2000000000000000000002B /* KeyboardShortcutsView.swift */,
 				A20000000000000000000002 /* AppModel.swift */,
+				A2000000000000000000003D /* PlaylistsController.swift */,
+				A2000000000000000000003E /* PlaylistDetailView.swift */,
 				A20000000000000000000039 /* ArtistDetailView.swift */,
 				A2000000000000000000003A /* ArtistLink.swift */,
 				A2000000000000000000003B /* TrackListRow.swift */,
@@ -382,6 +388,8 @@
 				A10000000000000000000001 /* SoundClaudeApp.swift in Sources */,
 				A10000000000000000000013 /* KeyboardShortcutsView.swift in Sources */,
 				A10000000000000000000002 /* AppModel.swift in Sources */,
+				A1000000000000000000003D /* PlaylistsController.swift in Sources */,
+				A1000000000000000000003E /* PlaylistDetailView.swift in Sources */,
 				A10000000000000000000039 /* ArtistDetailView.swift in Sources */,
 				A1000000000000000000003A /* ArtistLink.swift in Sources */,
 				A1000000000000000000003B /* TrackListRow.swift in Sources */,

@@ -7,6 +7,7 @@ final class AppModel: ObservableObject {
     let playback: PlaybackController
     let auth: AuthController
     let likes: LikesController
+    let playlists: PlaylistsController
     let artworkLoader: ArtworkLoader
 
     @Published private(set) var errorMessage: String?
@@ -58,6 +59,7 @@ final class AppModel: ObservableObject {
         self.playback = playback
         self.auth = auth
         self.likes = likes
+        playlists = PlaylistsController(client: client, auth: auth)
         artworkLoader = ArtworkLoader(client: client)
 
         playback.onReadyToPlay = { [weak audioTap] in
@@ -112,6 +114,7 @@ final class AppModel: ObservableObject {
         shuffledTrackURNs.removeAll()
         audioTap.stop()
         likes.clear()
+        playlists.clear()
         trackDetailsCache.removeAll()
         artistDetailsCache.removeAll()
         waveformCache.removeAll()
@@ -223,6 +226,21 @@ final class AppModel: ObservableObject {
         let accessToken = try await auth.validAccessToken()
         return try await client.artistTracks(
             urn: urn,
+            accessToken: accessToken,
+            pageURL: pageURL
+        )
+    }
+
+    func playlistDetails(for playlist: SoundCloudPlaylist) async throws -> SoundCloudPlaylist {
+        let accessToken = try await auth.validAccessToken()
+        return try await client.playlist(urn: playlist.urn, accessToken: accessToken)
+    }
+
+    func playlistTracks(for playlist: SoundCloudPlaylist, pageURL: URL? = nil) async throws
+        -> SoundCloudTrackPage {
+        let accessToken = try await auth.validAccessToken()
+        return try await client.playlistTracks(
+            urn: playlist.urn,
             accessToken: accessToken,
             pageURL: pageURL
         )

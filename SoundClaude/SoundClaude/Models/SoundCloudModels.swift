@@ -50,6 +50,25 @@ struct SoundCloudTrackPage: Sendable {
     let nextURL: URL?
 }
 
+struct SoundCloudPlaylist: Identifiable, Sendable, Hashable {
+    let urn: String
+    let title: String
+    let owner: SoundCloudUser
+    let artworkURL: URL?
+    let permalinkURL: URL
+    let description: String?
+    let trackCount: Int?
+    let durationMilliseconds: Int?
+    let isPrivate: Bool
+
+    var id: String { urn }
+}
+
+struct SoundCloudPlaylistPage: Sendable {
+    let playlists: [SoundCloudPlaylist]
+    let nextURL: URL?
+}
+
 struct SoundCloudTrackDetails: Sendable, Equatable {
     let track: SoundCloudTrack
     let description: String?
@@ -129,6 +148,67 @@ struct RawTrackPage: Decodable {
     enum CodingKeys: String, CodingKey {
         case collection
         case nextURL = "next_href"
+    }
+}
+
+struct RawPlaylistPage: Decodable {
+    let collection: [RawPlaylist]
+    let nextURL: URL?
+
+    init(from decoder: Decoder) throws {
+        if var container = try? decoder.unkeyedContainer() {
+            var playlists: [RawPlaylist] = []
+            while !container.isAtEnd {
+                playlists.append(try container.decode(RawPlaylist.self))
+            }
+            collection = playlists
+            nextURL = nil
+        } else {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            collection = try container.decode([RawPlaylist].self, forKey: .collection)
+            nextURL = try container.decodeIfPresent(URL.self, forKey: .nextURL)
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case collection
+        case nextURL = "next_href"
+    }
+}
+
+struct RawPlaylist: Decodable {
+    let urn: String?
+    let title: String?
+    let user: RawUser?
+    private let rawArtworkURL: String?
+    let permalinkURL: URL?
+    let description: String?
+    let trackCount: Int?
+    let duration: Int?
+    let sharing: String?
+
+    enum CodingKeys: String, CodingKey {
+        case urn, title, user, description, duration, sharing
+        case rawArtworkURL = "artwork_url"
+        case permalinkURL = "permalink_url"
+        case trackCount = "track_count"
+    }
+
+    func normalized() -> SoundCloudPlaylist? {
+        guard let urn, let title, let owner = user?.normalized(),
+              let permalinkURL else { return nil }
+        let artworkURL = rawArtworkURL.flatMap { $0.isEmpty ? nil : URL(string: $0) }
+        return SoundCloudPlaylist(
+            urn: urn,
+            title: title,
+            owner: owner,
+            artworkURL: artworkURL,
+            permalinkURL: permalinkURL,
+            description: description,
+            trackCount: trackCount,
+            durationMilliseconds: duration,
+            isPrivate: sharing == "private"
+        )
     }
 }
 
