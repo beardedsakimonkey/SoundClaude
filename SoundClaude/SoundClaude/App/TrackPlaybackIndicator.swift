@@ -14,7 +14,7 @@ struct TrackPlaybackIndicator: View {
             HStack(alignment: .bottom, spacing: 2) {
                 ForEach(0..<3) { index in
                     RoundedRectangle(cornerRadius: 1)
-                        .fill(Color.primary.opacity(0.5))
+                        .fill(.orange)
                         .frame(width: 2, height: barHeight(index))
                 }
             }

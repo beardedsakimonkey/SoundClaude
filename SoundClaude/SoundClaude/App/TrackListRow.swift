@@ -15,6 +15,8 @@ struct TrackListRow: View {
     @GestureState private var isPressed = false
 
     var body: some View {
+        let isCurrentTrack = playback.currentTrack?.urn == track.urn
+
         HStack(spacing: 12) {
             Button {
                 onSelectTrack(track)
@@ -30,7 +32,7 @@ struct TrackListRow: View {
             .accessibilityLabel("Open track: \(track.title)")
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    if playback.currentTrack?.urn == track.urn {
+                    if isCurrentTrack {
                         TrackPlaybackIndicator(isPlaying: playback.isPlaying)
                     }
                     Button {
@@ -38,7 +40,7 @@ struct TrackListRow: View {
                     } label: {
                         Text(track.title)
                             .underline(isHoveringTitle)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
                     }
                     .buttonStyle(.plain)
                     .onHover { isHoveringTitle = $0 }
@@ -48,7 +50,7 @@ struct TrackListRow: View {
                 }
                 ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isCurrentTrack ? Color.orange : Color.secondary)
                     .onHover { isHoveringArtist = $0 }
             }
             .lineLimit(1)
