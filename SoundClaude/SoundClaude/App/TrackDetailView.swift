@@ -152,8 +152,8 @@ struct TrackDetailView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Description")
                             .font(.headline)
-                        Text(description)
-                            .textSelection(.enabled)
+                        ExpandableTrackDescription(description: description)
+                            .id(track.urn)
                     }
                 }
 
@@ -321,5 +321,53 @@ struct TrackDetailView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+}
+
+private struct ExpandableTrackDescription: View {
+    let description: String
+
+    private let collapsedLineLimit = 5
+
+    @State private var isExpanded = false
+    @State private var collapsedHeight: CGFloat = 0
+    @State private var fullHeight: CGFloat = 0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(description)
+                .lineLimit(isExpanded ? nil : collapsedLineLimit)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(alignment: .topLeading) {
+                    // Measure both sizes at the current width, even while expanded.
+                    ZStack(alignment: .topLeading) {
+                        Text(description)
+                            .lineLimit(collapsedLineLimit)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .onGeometryChange(for: CGFloat.self) { proxy in
+                                proxy.size.height
+                            } action: { collapsedHeight = $0 }
+
+                        Text(description)
+                            .lineLimit(nil)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .onGeometryChange(for: CGFloat.self) { proxy in
+                                proxy.size.height
+                            } action: { fullHeight = $0 }
+                    }
+                    .hidden()
+                    .accessibilityHidden(true)
+                }
+
+            if isExpanded || fullHeight > collapsedHeight {
+                Button(isExpanded ? "Show less" : "Show more") {
+                    isExpanded.toggle()
+                }
+                .buttonStyle(.link)
+                .accessibilityHint(isExpanded ? "Collapse track description" : "Expand track description")
+            }
+        }
     }
 }
