@@ -82,7 +82,7 @@ struct PlayerFooterView: View {
                     }
                     .buttonStyle(.plain)
                     .onHover { isHoveringTitle = $0 }
-                    .help(track.title)
+                    .help("View track")
                 } else {
                     Text("Select a track")
                 }
@@ -96,7 +96,7 @@ struct PlayerFooterView: View {
                 .font(.headline.weight(.medium))
                 .foregroundStyle(.secondary)
             }
-            .font(.title2.weight(.semibold))
+            .font(.title3.weight(.semibold))
             .opacity(0.85)
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)

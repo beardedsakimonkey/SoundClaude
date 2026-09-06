@@ -32,7 +32,7 @@ struct ArtistLink: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovering = $0 }
-        .help("View artist: \(artist.username)")
+        .help("View artist")
         .accessibilityLabel("View artist: \(artist.username)")
     }
 }
