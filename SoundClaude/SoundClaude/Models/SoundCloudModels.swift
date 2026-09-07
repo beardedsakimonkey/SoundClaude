@@ -357,3 +357,63 @@ struct StreamResponse: Decodable {
         case previewMP3128URL = "preview_mp3_128_url"
     }
 }
+
+// The public API does not expose profile headers. SoundCloud's profile page
+// includes them in its user hydration data; treat this optional data as best effort.
+enum SoundCloudProfileHeader {
+    static func profileURL(_ url: URL) -> URL? {
+        guard ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+              ["soundcloud.com", "www.soundcloud.com"].contains(url.host?.lowercased() ?? ""),
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        else { return nil }
+        components.scheme = "https"
+        components.host = "soundcloud.com"
+        components.port = nil
+        components.user = nil
+        components.password = nil
+        components.query = nil
+        components.fragment = nil
+        components.path = "/" + url.path.split(separator: "/").joined(separator: "/")
+        return components.url
+    }
+
+    static func imageURL(in html: String, for user: SoundCloudUser) -> URL? {
+        guard let marker = html.range(of: "window.__sc_hydration = "),
+              let end = html.range(of: "</script>", range: marker.upperBound..<html.endIndex),
+              let data = html[marker.upperBound..<end.lowerBound]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: ";"))
+                .data(using: .utf8),
+              let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+        else { return nil }
+
+        for entry in entries where entry["hydratable"] as? String == "user" {
+            guard let profile = entry["data"] as? [String: Any],
+                  matches(profile, user: user),
+                  let visuals = profile["visuals"] as? [String: Any],
+                  visuals["enabled"] as? Bool != false,
+                  let images = visuals["visuals"] as? [[String: Any]] else { continue }
+            for image in images {
+                guard let value = image["visual_url"] as? String,
+                      let url = URL(string: value),
+                      url.scheme == "https",
+                      let host = url.host?.lowercased(),
+                      host.hasSuffix(".sndcdn.com") else { continue }
+                return url
+            }
+        }
+        return nil
+    }
+
+    private static func matches(_ profile: [String: Any], user: SoundCloudUser) -> Bool {
+        if let urn = user.urn, let profileURN = profile["urn"] as? String {
+            return urn == profileURN
+        }
+        guard let permalink = profile["permalink_url"] as? String,
+              let url = URL(string: permalink),
+              let canonicalURL = profileURL(url),
+              let expectedURL = profileURL(user.permalinkURL) else { return false }
+        return canonicalURL == expectedURL
+    }
+
+}

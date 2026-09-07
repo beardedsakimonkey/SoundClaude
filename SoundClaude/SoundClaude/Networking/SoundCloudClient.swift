@@ -272,6 +272,18 @@ actor SoundCloudClient {
         return details
     }
 
+    func artistHeaderURL(for artist: SoundCloudUser) async throws -> URL? {
+        guard let url = SoundCloudProfileHeader.profileURL(artist.permalinkURL)
+        else { return nil }
+        // Public HTML only: do not attach the API access token.
+        let request = URLRequest(url: url, timeoutInterval: 8)
+        let (data, response) = try await session.data(for: request)
+        guard let response = response as? HTTPURLResponse,
+              response.statusCode == 200,
+              let html = String(data: data, encoding: .utf8) else { return nil }
+        return SoundCloudProfileHeader.imageURL(in: html, for: artist)
+    }
+
     func artistTracks(
         urn: String,
         accessToken: String,

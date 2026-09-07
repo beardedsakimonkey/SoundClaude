@@ -44,6 +44,50 @@ struct TrackPageDecodingTests {
                 // Invalid data must remain an error, not become an empty page.
             }
         }
+        let artist = SoundCloudUser(
+            urn: "soundcloud:users:1", username: "Artist", avatarURL: nil,
+            permalinkURL: URL(string: "https://soundcloud.com/artist")!
+        )
+        let banner = "https://i1.sndcdn.com/visuals-example-original.jpg"
+        func profileHTML(_ visuals: String, permalink: String = "https://soundcloud.com/artist") -> String {
+            """
+            <script>window.__sc_hydration = [{"hydratable":"user","data":{
+            "permalink_url":"\(permalink)","visuals":\(visuals)}}];</script>
+            """
+        }
+        let visuals = """
+            {"enabled":true,"visuals":[{"visual_url":"\(banner)"}]}
+            """
+        precondition(SoundCloudProfileHeader.imageURL(
+            in: profileHTML(visuals), for: artist
+        )?.absoluteString == banner)
+        for permalink in [
+            "http://soundcloud.com/artist",
+            "https://www.soundcloud.com/artist/",
+            "https://soundcloud.com/artist?source=test#profile"
+        ] {
+            let variant = SoundCloudUser(
+                urn: artist.urn, username: artist.username, avatarURL: nil,
+                permalinkURL: URL(string: permalink)!
+            )
+            precondition(SoundCloudProfileHeader.profileURL(variant.permalinkURL) == artist.permalinkURL)
+            precondition(SoundCloudProfileHeader.imageURL(
+                in: profileHTML(visuals), for: variant
+            )?.absoluteString == banner)
+        }
+        precondition(SoundCloudProfileHeader.profileURL(URL(string: "https://example.com/artist")!) == nil)
+        for html in [
+            "<html>No hydration data</html>",
+            "<script>window.__sc_hydration = invalid;</script>",
+            profileHTML("null"),
+            profileHTML("{}"),
+            profileHTML(visuals.replacingOccurrences(of: "true", with: "false")),
+            profileHTML(visuals, permalink: "https://soundcloud.com/someone-else"),
+            profileHTML(visuals.replacingOccurrences(of: banner, with: "https://example.com/image.jpg")),
+            profileHTML(visuals.replacingOccurrences(of: "https://i1", with: "http://i1"))
+        ] {
+            precondition(SoundCloudProfileHeader.imageURL(in: html, for: artist) == nil)
+        }
         print("Track page decoding checks passed")
     }
 }

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct ArtistDetailView: View {
@@ -8,11 +9,14 @@ struct ArtistDetailView: View {
         var id: Self { self }
     }
 
+    @Environment(\.colorScheme) private var colorScheme
+
     let artist: SoundCloudUser
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
+    @State private var headerImage: NSImage?
     @State private var details: SoundCloudArtistDetails?
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -70,6 +74,13 @@ struct ArtistDetailView: View {
         }
         .navigationTitle(details?.user.username ?? artist.username)
         .task(id: artist.permalinkURL) { await load() }
+        .task(id: artist.permalinkURL) {
+            headerImage = nil
+            guard let url = try? await model.artistHeaderURL(for: artist),
+                  let data = try? await model.artworkLoader.data(for: url),
+                  !Task.isCancelled else { return }
+            headerImage = NSImage(data: data)
+        }
         .onChange(of: selectedTab) { _, tab in
             guard tab == .reposts, !hasLoadedReposts else { return }
             Task { await loadReposts() }
@@ -102,31 +113,57 @@ struct ArtistDetailView: View {
     private func detailsView(_ details: SoundCloudArtistDetails) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                HStack(alignment: .top, spacing: 24) {
-                    artistPicture(for: details.user)
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(details.user.username)
-                            .font(.system(size: 36, weight: .semibold))
-                            .textSelection(.enabled)
-                        let location = [details.city, details.country]
-                            .compactMap(nonempty).joined(separator: ", ")
-                        if !location.isEmpty {
-                            Text(location)
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 24) {
+                    HStack(alignment: .top, spacing: 24) {
+                        artistPicture(for: details.user)
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(details.user.username)
+                                .font(.system(size: 36, weight: .semibold))
+                                .textSelection(.enabled)
+                            let location = [details.city, details.country]
+                                .compactMap(nonempty).joined(separator: ", ")
+                            if !location.isEmpty {
+                                Text(location)
+                                    .font(.title3)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Link(destination: details.user.permalinkURL) {
+                                Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
+                            }
+                            .help("Open this artist in your web browser")
                         }
-                        Link(destination: details.user.permalinkURL) {
-                            Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
-                        }
-                        .help("Open this artist in your web browser")
+                    }
+
+                    HStack(spacing: 24) {
+                        statistic(details.followersCount, label: "followers")
+                        statistic(details.followingsCount, label: "following")
+                        statistic(details.trackCount, label: "tracks")
                     }
                 }
-
-                HStack(spacing: 24) {
-                    statistic(details.followersCount, label: "followers")
-                    statistic(details.followingsCount, label: "following")
-                    statistic(details.trackCount, label: "tracks")
+                .padding(24)
+                .frame(maxWidth: .infinity, minHeight: 260, alignment: .leading)
+                .background {
+                    if let headerImage {
+                        GeometryReader { geometry in
+                            Image(nsImage: headerImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: geometry.size.width, height: geometry.size.height)
+                                .clipped()
+                                .overlay {
+                                    LinearGradient(
+                                        colors: [.black.opacity(0.65), .black.opacity(0.2)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                }
+                        }
+                        .accessibilityHidden(true)
+                    }
                 }
+                .environment(\.colorScheme, headerImage == nil ? colorScheme : .dark)
+                .padding(.horizontal, -24)
+                .padding(.top, -24)
 
                 if let description = nonempty(details.description) {
                     Divider()
@@ -173,6 +210,8 @@ struct ArtistDetailView: View {
             size: 180,
             rendition: .square500
         )
+        .clipShape(Circle())
+        .overlay { Circle().strokeBorder(.white.opacity(0.2), lineWidth: 1) }
 
         if avatarURL != nil {
             Button {
@@ -182,7 +221,7 @@ struct ArtistDetailView: View {
                     .artworkExpandIndicator(isHovering: isHoveringArtwork)
             }
             .buttonStyle(.plain)
-            .contentShape(RoundedRectangle(cornerRadius: 6))
+            .contentShape(Circle())
             .onHover { isHoveringArtwork = $0 }
             .help("View full-size artist picture")
             .accessibilityLabel("View full-size picture of \(user.username)")
