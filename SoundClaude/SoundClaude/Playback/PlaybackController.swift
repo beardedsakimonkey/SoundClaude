@@ -291,7 +291,11 @@ final class PlaybackController {
     }
 
     func previous() {
-        onPrevious?()
+        if currentTime > 3 {
+            seek(to: 0)
+        } else {
+            onPrevious?()
+        }
     }
 
     private func seekIfNeeded() {
