@@ -17,6 +17,7 @@ struct ArtistDetailView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @State private var headerImage: NSImage?
+    @State private var headerImageURL: URL?
     @State private var details: SoundCloudArtistDetails?
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -76,10 +77,12 @@ struct ArtistDetailView: View {
         .task(id: artist.permalinkURL) { await load() }
         .task(id: artist.permalinkURL) {
             headerImage = nil
+            headerImageURL = nil
             guard let url = try? await model.artistHeaderURL(for: artist),
                   let data = try? await model.artworkLoader.data(for: url),
                   !Task.isCancelled else { return }
             headerImage = NSImage(data: data)
+            headerImageURL = url
         }
         .onChange(of: selectedTab) { _, tab in
             guard tab == .reposts, !hasLoadedReposts else { return }
@@ -98,7 +101,7 @@ struct ArtistDetailView: View {
     @ViewBuilder
     private var artworkBackdrop: some View {
         let backdrop = TrackArtworkBackdropView(
-            artworkURL: details?.user.avatarURL ?? artist.avatarURL,
+            artworkURL: headerImageURL,
             loader: model.artworkLoader
         )
         .frame(height: 340)
@@ -132,12 +135,26 @@ struct ArtistDetailView: View {
                             }
                             .help("Open this artist in your web browser")
                         }
+                        .padding(headerImage == nil ? 0 : 16)
+                        .background {
+                            if headerImage != nil {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(.thinMaterial)
+                            }
+                        }
                     }
 
                     HStack(spacing: 24) {
                         statistic(details.followersCount, label: "followers")
                         statistic(details.followingsCount, label: "following")
                         statistic(details.trackCount, label: "tracks")
+                    }
+                    .padding(headerImage == nil ? 0 : 12)
+                    .background {
+                        if headerImage != nil {
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(.thinMaterial)
+                        }
                     }
                 }
                 .padding(24)
@@ -150,13 +167,6 @@ struct ArtistDetailView: View {
                                 .scaledToFill()
                                 .frame(width: geometry.size.width, height: geometry.size.height)
                                 .clipped()
-                                .overlay {
-                                    LinearGradient(
-                                        colors: [.black.opacity(0.65), .black.opacity(0.2)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                }
                         }
                         .accessibilityHidden(true)
                     }

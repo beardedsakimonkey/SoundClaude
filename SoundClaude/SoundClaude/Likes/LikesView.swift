@@ -42,7 +42,11 @@ struct LikesView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                MetalVisualizerView(spectrumBuffer: spectrumBuffer)
+                ArtworkVisualizerView(
+                    spectrumBuffer: spectrumBuffer,
+                    artworkURL: playback.currentTrack?.artworkURL,
+                    artworkLoader: artworkLoader
+                )
                     .frame(height: 120)
                 Divider()
                 header

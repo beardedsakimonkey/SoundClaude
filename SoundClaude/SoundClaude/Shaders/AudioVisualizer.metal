@@ -21,7 +21,8 @@ vertex RasterData visualizerVertex(uint vertexID [[vertex_id]]) {
 fragment float4 visualizerFragment(
     RasterData input [[stage_in]],
     constant float *bands [[buffer(0)]],
-    constant float &viewWidth [[buffer(1)]]
+    constant float &viewWidth [[buffer(1)]],
+    constant float4 &accentColor [[buffer(2)]]
 ) {
     float2 uv = input.uv;
     // Use points so bar width and spacing stay fixed across window sizes and displays.
@@ -52,9 +53,7 @@ fragment float4 visualizerFragment(
     );
     float cap = fill * exp(-140.0 * abs(uv.y - height));
 
-    float3 low = float3(1.0, 0.30, 0.02);
-    float3 high = float3(1.0, 0.55, 0.08);
-    float3 accent = mix(low, high, bandPosition / 64.0);
+    float3 accent = accentColor.rgb;
     float alpha = saturate(
         fill * (0.10 + amplitude * 0.58)
         + cap * (0.20 + amplitude * 0.80)

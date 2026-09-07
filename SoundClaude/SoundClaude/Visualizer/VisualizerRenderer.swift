@@ -2,12 +2,14 @@ import Foundation
 import MetalKit
 
 final class VisualizerRenderer: NSObject, MTKViewDelegate {
+    var accent: ArtworkAccent
+
     private let spectrumBuffer: OpaquePointer
     private let commandQueue: MTLCommandQueue
     private let pipelineState: MTLRenderPipelineState
     private var bands = [Float](repeating: 0, count: Int(SCSpectrumBandCount))
 
-    init?(view: MTKView, spectrumBuffer: OpaquePointer) {
+    init?(view: MTKView, spectrumBuffer: OpaquePointer, accent: ArtworkAccent) {
         guard let device = view.device,
               let commandQueue = device.makeCommandQueue(),
               let library = device.makeDefaultLibrary(),
@@ -29,6 +31,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             return nil
         }
 
+        self.accent = accent
         self.spectrumBuffer = spectrumBuffer
         self.commandQueue = commandQueue
         super.init()
@@ -47,6 +50,14 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         }
 
         encoder.setRenderPipelineState(pipelineState)
+        var accentColor = SIMD4<Float>(
+            Float(accent.red), Float(accent.green), Float(accent.blue), 1
+        )
+        encoder.setFragmentBytes(
+            &accentColor,
+            length: MemoryLayout<SIMD4<Float>>.stride,
+            index: 2
+        )
         var viewWidth = Float(view.bounds.width)
         encoder.setFragmentBytes(
             &viewWidth,

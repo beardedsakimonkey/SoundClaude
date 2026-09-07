@@ -5,8 +5,46 @@ private final class TransparentMetalView: MTKView {
     override var isOpaque: Bool { false }
 }
 
+struct ArtworkVisualizerView: View {
+    let spectrumBuffer: OpaquePointer
+    let artworkURL: URL?
+    let artworkLoader: ArtworkLoader
+
+    @State private var artworkAccent: ArtworkAccent?
+    @State private var accentArtworkURL: URL?
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+
+    var body: some View {
+        MetalVisualizerView(spectrumBuffer: spectrumBuffer, accent: accent)
+            .task(id: artworkURL) {
+                artworkAccent = nil
+                accentArtworkURL = nil
+                guard let url = artworkURL,
+                      let color = try? await artworkLoader.accentColor(for: url),
+                      !Task.isCancelled else { return }
+                artworkAccent = color
+                accentArtworkURL = url
+            }
+    }
+
+    private var accent: ArtworkAccent {
+        let blue = NSColor.systemBlue.usingColorSpace(.sRGB)!
+        let fallback = ArtworkAccent(
+            red: blue.redComponent, green: blue.greenComponent, blue: blue.blueComponent
+        )
+        let color = accentArtworkURL == artworkURL
+            ? artworkAccent ?? fallback : fallback
+        return color.contrasted(
+            isDark: colorScheme == .dark,
+            increasedContrast: colorSchemeContrast == .increased
+        )
+    }
+}
+
 struct MetalVisualizerView: NSViewRepresentable {
     let spectrumBuffer: OpaquePointer
+    let accent: ArtworkAccent
 
     final class Coordinator {
         var renderer: VisualizerRenderer?
@@ -35,12 +73,15 @@ struct MetalVisualizerView: NSViewRepresentable {
 
         let renderer = VisualizerRenderer(
             view: view,
-            spectrumBuffer: spectrumBuffer
+            spectrumBuffer: spectrumBuffer,
+            accent: accent
         )
         context.coordinator.renderer = renderer
         view.delegate = renderer
         return view
     }
 
-    func updateNSView(_ view: MTKView, context: Context) {}
+    func updateNSView(_ view: MTKView, context: Context) {
+        context.coordinator.renderer?.accent = accent
+    }
 }
