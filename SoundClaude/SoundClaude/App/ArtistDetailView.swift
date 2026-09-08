@@ -17,6 +17,7 @@ struct ArtistDetailView: View {
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
+    let onSelectUsers: (SoundCloudUser, ArtistUserList) -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
 
     @State private var isFollowing: Bool?
@@ -62,12 +63,14 @@ struct ArtistDetailView: View {
         model: AppModel,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
-        onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void
+        onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void,
+        onSelectUsers: @escaping (SoundCloudUser, ArtistUserList) -> Void
     ) {
         self.artist = artist
         self.model = model
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
+        self.onSelectUsers = onSelectUsers
         self.onSelectPlaylist = onSelectPlaylist
         let cached = model.cachedArtistDetails(for: artist)
         _details = State(initialValue: cached)
@@ -172,8 +175,8 @@ struct ArtistDetailView: View {
                     }
 
                     HStack(spacing: 24) {
-                        statistic(details.followersCount.map { max(0, $0 + followerCountAdjustment) }, label: "followers")
-                        statistic(details.followingsCount, label: "following")
+                        userStatistic(details.followersCount.map { max(0, $0 + followerCountAdjustment) }, list: .followers, user: details.user)
+                        userStatistic(details.followingsCount, list: .following, user: details.user)
                         statistic(details.trackCount, label: "tracks")
                     }
                     .padding(headerImage == nil ? 0 : 12)
@@ -499,6 +502,21 @@ struct ArtistDetailView: View {
         .task {
             guard !hasLoadedPlaylists else { return }
             await loadPlaylists()
+        }
+    }
+
+    @ViewBuilder
+    private func userStatistic(_ count: Int?, list: ArtistUserList, user: SoundCloudUser) -> some View {
+        if let count {
+            Button {
+                onSelectUsers(user, list)
+            } label: {
+                Text("\(count.formatted()) \(list.title.lowercased())")
+                    .font(.callout)
+                    .underline()
+            }
+            .buttonStyle(.plain)
+            .help("View \(list.title.lowercased()) of \(user.username)")
         }
     }
 

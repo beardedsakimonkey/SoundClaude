@@ -296,6 +296,18 @@ final class AppModel: ObservableObject {
         try await client.artistHeaderURL(for: artist)
     }
 
+    func artistUsers(
+        for artist: SoundCloudUser,
+        list: ArtistUserList,
+        pageURL: URL? = nil
+    ) async throws -> SoundCloudUserPage {
+        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
+        let accessToken = try await auth.validAccessToken()
+        return try await client.artistUsers(
+            urn: urn, list: list, accessToken: accessToken, pageURL: pageURL
+        )
+    }
+
     func artistTracks(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
         -> SoundCloudTrackPage {
         guard let urn = artist.urn else { throw SoundCloudError.invalidData }

@@ -14,6 +14,33 @@ struct SoundCloudUser: Codable, Sendable, Hashable {
     }
 }
 
+enum ArtistUserList: String, Sendable, Hashable, CaseIterable {
+    case followers
+    case following = "followings"
+
+    var title: String {
+        switch self {
+        case .followers: "Followers"
+        case .following: "Following"
+        }
+    }
+}
+
+struct SoundCloudUserPage: Sendable {
+    let users: [SoundCloudUser]
+    let nextURL: URL?
+}
+
+struct RawUserPage: Decodable {
+    let collection: [RawUser]
+    let nextURL: URL?
+
+    enum CodingKeys: String, CodingKey {
+        case collection
+        case nextURL = "next_href"
+    }
+}
+
 struct SoundCloudArtistDetails: Sendable {
     let user: SoundCloudUser
     let description: String?

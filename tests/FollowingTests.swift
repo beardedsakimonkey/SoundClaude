@@ -72,6 +72,43 @@ struct FollowingTests {
             _ = try await client.followedArtistURNs(accessToken: "test-token")
             fatalError("Missing user URN was ignored")
         } catch SoundCloudError.invalidData {}
+        for list in ArtistUserList.allCases {
+            let nextURL = URL(string: "https://api.soundcloud.com/users/soundcloud:users:1/\(list.rawValue)?cursor=next")!
+            FollowingURLProtocol.respond { request in
+                precondition(request.httpMethod == "GET")
+                precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+                precondition(request.url?.path == "/users/soundcloud:users:1/\(list.rawValue)")
+                if request.url == nextURL {
+                    return (200, #"{"collection":[{"urn":"soundcloud:users:3","username":"Second","permalink_url":"https://soundcloud.com/second"}],"next_href":null}"#)
+                }
+                precondition(request.url?.query == "limit=50")
+                return (200, """
+                    {"collection":[
+                        {"urn":"soundcloud:users:2","username":"First","permalink_url":"https://soundcloud.com/first","avatar_url":"https://i1.sndcdn.com/avatar-large.jpg"},
+                        {"urn":"soundcloud:users:invalid"}
+                    ],"next_href":"\(nextURL.absoluteString)"}
+                    """)
+            }
+            let first = try await client.artistUsers(urn: "soundcloud:users:1", list: list, accessToken: "test-token")
+            precondition(first.users.map(\.username) == ["First"])
+            precondition(first.users.first?.avatarURL != nil)
+            precondition(first.nextURL == nextURL)
+            let last = try await client.artistUsers(urn: "soundcloud:users:1", list: list, accessToken: "test-token", pageURL: first.nextURL)
+            precondition(last.users.map(\.username) == ["Second"] && last.nextURL == nil)
+        }
+        FollowingURLProtocol.respond { _ in (200, #"{"collection":[]}"#) }
+        let users = try await client.artistUsers(urn: "soundcloud:users:1", list: .followers, accessToken: "test-token")
+        precondition(users.users.isEmpty && users.nextURL == nil)
+        FollowingURLProtocol.respond { _ in (200, #"{"collection":[],"next_href":"https://example.com/users"}"#) }
+        do {
+            _ = try await client.artistUsers(urn: "soundcloud:users:1", list: .followers, accessToken: "test-token")
+            fatalError("Unsafe pagination URL was accepted")
+        } catch SoundCloudError.unexpectedURL {}
+        FollowingURLProtocol.respond { _ in (429, "{}") }
+        do {
+            _ = try await client.artistUsers(urn: "soundcloud:users:1", list: .following, accessToken: "test-token")
+            fatalError("Rate limit was accepted as an empty user list")
+        } catch SoundCloudError.rateLimited {}
         print("Following API checks passed")
     }
 }

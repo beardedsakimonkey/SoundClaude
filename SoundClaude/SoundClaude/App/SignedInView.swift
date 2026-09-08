@@ -82,9 +82,18 @@ struct SignedInView: View {
                             model: model,
                             onSelectTrack: showTrack,
                             onSelectArtist: showArtist,
-                            onSelectPlaylist: showPlaylist
+                            onSelectPlaylist: showPlaylist,
+                            onSelectUsers: showArtistUsers
                         )
                         .id(artist.permalinkURL)
+                        .navigationBarBackButtonHidden(true)
+                        .toolbar { navigationToolbar }
+                    case let .artistUsers(artist, list):
+                        ArtistUsersView(
+                            artist: artist, list: list, model: model,
+                            onSelectArtist: showArtist
+                        )
+                        .id(route)
                         .navigationBarBackButtonHidden(true)
                         .toolbar { navigationToolbar }
                     }
@@ -185,6 +194,11 @@ struct SignedInView: View {
            current.permalinkURL == artist.permalinkURL { return }
         forwardPath.removeAll()
         path.append(.artist(artist))
+    }
+
+    private func showArtistUsers(_ artist: SoundCloudUser, list: ArtistUserList) {
+        forwardPath.removeAll()
+        path.append(.artistUsers(artist, list))
     }
 
     private func navigateBack() -> Bool {
@@ -333,4 +347,5 @@ private enum Route: Hashable {
     case playlist(SoundCloudPlaylist)
     case track(SoundCloudTrack)
     case artist(SoundCloudUser)
+    case artistUsers(SoundCloudUser, ArtistUserList)
 }
