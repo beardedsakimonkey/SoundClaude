@@ -9,7 +9,6 @@ struct LikesView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
-    let onSignOut: () async -> Void
 
     @ObservedObject private var likes: LikesController
     @State private var searchText = ""
@@ -25,8 +24,7 @@ struct LikesView: View {
         appErrorMessage: String?,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
-        onPlayTrack: @escaping (SoundCloudTrack) async -> Void,
-        onSignOut: @escaping () async -> Void
+        onPlayTrack: @escaping (SoundCloudTrack) async -> Void
     ) {
         self.user = user
         self.artworkLoader = artworkLoader
@@ -35,7 +33,6 @@ struct LikesView: View {
         self.onSelectArtist = onSelectArtist
         self.onSelectTrack = onSelectTrack
         self.onPlayTrack = onPlayTrack
-        self.onSignOut = onSignOut
         _likes = ObservedObject(wrappedValue: likes)
         self.playback = playback
     }
@@ -77,9 +74,6 @@ struct LikesView: View {
             }
             searchBar
                 .frame(maxWidth: 280)
-            Button("Sign out") {
-                Task { await onSignOut() }
-            }
         }
         .padding()
     }

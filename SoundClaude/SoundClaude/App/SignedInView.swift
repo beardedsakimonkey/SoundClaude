@@ -16,7 +16,14 @@ struct SignedInView: View {
     var body: some View {
         VStack(spacing: 0) {
             NavigationSplitView {
-                SidebarView(selection: sidebarSelection, playlists: model.playlists)
+                SidebarView(
+                    selection: sidebarSelection,
+                    playlists: model.playlists,
+                    user: user,
+                    artworkLoader: model.artworkLoader,
+                    onSelectProfile: showArtist,
+                    onSignOut: model.signOut
+                )
                     .navigationSplitViewColumnWidth(
                         min: 180,
                         ideal: 220,
@@ -114,8 +121,7 @@ struct SignedInView: View {
                 appErrorMessage: model.errorMessage,
                 onSelectArtist: showArtist,
                 onSelectTrack: showTrack,
-                onPlayTrack: model.playLikedTrack,
-                onSignOut: model.signOut
+                onPlayTrack: model.playLikedTrack
             )
         }
     }
@@ -235,6 +241,12 @@ struct SignedInView: View {
 struct SidebarView: View {
     @Binding var selection: SidebarDestination?
     @ObservedObject var playlists: PlaylistsController
+    let user: SoundCloudUser
+    let artworkLoader: ArtworkLoader
+    let onSelectProfile: (SoundCloudUser) -> Void
+    let onSignOut: () async -> Void
+
+    @State private var isProfileHovered = false
 
     var body: some View {
         List(selection: $selection) {
@@ -267,7 +279,53 @@ struct SidebarView: View {
         }
         .task { await playlists.load() }
         .listStyle(.sidebar)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            accountFooter
+        }
         .navigationTitle("SoundClaude")
+    }
+
+    private var accountFooter: some View {
+        HStack(spacing: 8) {
+            Button {
+                onSelectProfile(user)
+            } label: {
+                HStack(spacing: 8) {
+                    TrackArtworkView(
+                        artworkURL: user.avatarURL,
+                        loader: artworkLoader,
+                        size: 24
+                    )
+                    .clipShape(Circle())
+                    Text(user.username)
+                        .font(.callout.weight(.medium))
+                        .underline(isProfileHovered)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .onHover { isProfileHovered = $0 }
+            .help("View profile: \(user.username)")
+            .accessibilityLabel("View profile: \(user.username)")
+
+            Menu {
+                Button("Log out") {
+                    Task { await onSignOut() }
+                }
+            } label: {
+                Image(systemName: "gearshape")
+                    .frame(width: 28, height: 28)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Settings")
+            .accessibilityLabel("Settings")
+        }
+        .padding(12)
     }
 }
 
