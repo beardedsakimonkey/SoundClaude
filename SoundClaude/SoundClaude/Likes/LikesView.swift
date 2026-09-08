@@ -13,6 +13,7 @@ struct LikesView: View {
 
     @ObservedObject private var likes: LikesController
     @State private var searchText = ""
+    @FocusState private var isSearchFocused: Bool
     private let playback: PlaybackController
 
     init(
@@ -89,6 +90,8 @@ struct LikesView: View {
                 .foregroundStyle(.secondary)
             TextField("Search by title or artist", text: $searchText)
                 .textFieldStyle(.plain)
+                .focused($isSearchFocused)
+                .onExitCommand { isSearchFocused = false }
                 .accessibilityLabel("Search liked tracks")
             if !searchText.isEmpty {
                 Button {
@@ -104,6 +107,13 @@ struct LikesView: View {
         }
         .padding(10)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        .background {
+            SearchOutsideClickView {
+                if isSearchFocused {
+                    isSearchFocused = false
+                }
+            }
+        }
     }
 
     private var searchQuery: String {
