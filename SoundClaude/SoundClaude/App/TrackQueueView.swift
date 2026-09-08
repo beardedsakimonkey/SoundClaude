@@ -69,11 +69,12 @@ struct TrackQueueView: View {
             HStack {
                 Spacer()
                 Button("Close") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
+                    .keyboardShortcut("q", modifiers: [])
             }
         }
         .padding(24)
         .frame(width: 560, height: 520)
+        .onExitCommand { dismiss() }
         .dismissOnOutsideClick()
     }
 }

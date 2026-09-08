@@ -217,7 +217,8 @@ struct PlayerFooterView: View {
                         .font(.system(size: 18))
                         .frame(width: 32, height: 32)
                 }
-                .help("Show track queue")
+                .keyboardShortcut("q", modifiers: [])
+                .help("Show track queue (Q)")
                 .accessibilityLabel("Show track queue")
             }
             .buttonStyle(.borderless)
