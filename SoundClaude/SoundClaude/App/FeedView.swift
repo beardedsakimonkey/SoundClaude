@@ -24,6 +24,7 @@ struct FeedView: View {
                                 artworkLoader: model.artworkLoader,
                                 onSelect: onSelectArtist
                             )
+                            .fontWeight(.semibold)
                             .layoutPriority(1)
                             if item.isRepost {
                                 Image(systemName: "repeat")
