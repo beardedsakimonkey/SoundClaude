@@ -318,6 +318,43 @@ actor SoundCloudClient {
         return details
     }
 
+    func followedArtistURNs(accessToken: String) async throws -> Set<String> {
+        struct Page: Decodable {
+            let collection: [RawUser]
+            let next_href: URL?
+        }
+
+        var nextURL: URL? = configuration.apiBaseURL.appending(path: "me/followings")
+            .appending(queryItems: [URLQueryItem(name: "limit", value: "200")])
+        var visited: Set<URL> = []
+        var urns: Set<String> = []
+        while let url = nextURL {
+            try Task.checkCancellation()
+            try validateAPIURL(url)
+            guard visited.insert(url).inserted else { throw SoundCloudError.invalidData }
+            let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+            try validate(response: response, data: data)
+            let page = try decoder.decode(Page.self, from: data)
+            for user in page.collection {
+                guard let urn = user.urn else { throw SoundCloudError.invalidData }
+                urns.insert(urn)
+            }
+            nextURL = page.next_href
+        }
+        return urns
+    }
+
+    func setArtistFollowed(urn: String, isFollowed: Bool, accessToken: String) async throws {
+        let url = configuration.apiBaseURL.appending(path: "me/followings")
+            .appending(path: urn)
+        let (data, response) = try await authenticatedRequest(
+            url: url,
+            accessToken: accessToken,
+            method: isFollowed ? "PUT" : "DELETE"
+        )
+        try validate(response: response, data: data)
+    }
+
     func artistHeaderURL(for artist: SoundCloudUser) async throws -> URL? {
         guard let url = SoundCloudProfileHeader.profileURL(artist.permalinkURL)
         else { return nil }

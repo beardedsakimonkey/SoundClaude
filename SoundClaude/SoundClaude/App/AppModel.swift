@@ -17,6 +17,9 @@ final class AppModel: ObservableObject {
     private var playbackTask: Task<Void, Never>?
     private var playbackRequestID: UUID?
     private var trackSelectionTask: Task<Void, Never>?
+    private var followingTask: Task<Set<String>, Error>?
+    private var followingRequestID: UUID?
+    private var followingOverrides: [String: Bool] = [:]
     private var hasStarted = false
     private var queue = TrackQueue(source: .single, tracks: [])
     private let queueSettingsKey = "playback.queue"
@@ -111,6 +114,10 @@ final class AppModel: ObservableObject {
         queue = TrackQueue(source: .single, tracks: [])
         UserDefaults.standard.removeObject(forKey: queueSettingsKey)
         audioTap.stop()
+        followingTask?.cancel()
+        followingTask = nil
+        followingRequestID = nil
+        followingOverrides = [:]
         likes.clear()
         playlists.clear()
         trackDetailsCache.removeAll()
@@ -247,6 +254,42 @@ final class AppModel: ObservableObject {
         try Task.checkCancellation()
         artistDetailsCache.insert(details, forKey: artist.permalinkURL as NSURL)
         return details
+    }
+
+    func isFollowingArtist(_ artist: SoundCloudUser) async throws -> Bool {
+        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
+        if let followed = followingOverrides[urn] { return followed }
+        if followingTask == nil {
+            followingRequestID = UUID()
+            followingTask = Task {
+                let accessToken = try await auth.validAccessToken()
+                return try await client.followedArtistURNs(accessToken: accessToken)
+            }
+        }
+        let requestID = followingRequestID
+        do {
+            let followed = try await followingTask!.value
+            try Task.checkCancellation()
+            guard followingRequestID == requestID else { throw CancellationError() }
+            return followingOverrides[urn] ?? followed.contains(urn)
+        } catch {
+            if followingRequestID == requestID, !Task.isCancelled {
+                followingTask = nil
+                followingRequestID = nil
+            }
+            throw error
+        }
+    }
+
+    func setArtistFollowed(_ artist: SoundCloudUser, isFollowed: Bool) async throws {
+        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
+        let accessToken = try await auth.validAccessToken()
+        let requestID = followingRequestID
+        try await client.setArtistFollowed(urn: urn, isFollowed: isFollowed, accessToken: accessToken)
+        guard requestID == followingRequestID else { throw CancellationError() }
+        followingOverrides[urn] = isFollowed
+        // Refresh follower counts the next time an artist page opens.
+        artistDetailsCache.removeAll()
     }
 
     func artistHeaderURL(for artist: SoundCloudUser) async throws -> URL? {

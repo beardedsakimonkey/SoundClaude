@@ -16,6 +16,10 @@ struct ArtistDetailView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
+    @State private var isFollowing: Bool?
+    @State private var isUpdatingFollow = false
+    @State private var followErrorMessage: String?
+    @State private var followerCountAdjustment = 0
     @State private var headerImage: NSImage?
     @State private var headerImageURL: URL?
     @State private var details: SoundCloudArtistDetails?
@@ -84,6 +88,9 @@ struct ArtistDetailView: View {
             headerImage = NSImage(data: data)
             headerImageURL = url
         }
+        .task(id: details?.user.urn) {
+            await loadFollowStatus()
+        }
         .onChange(of: selectedTab) { _, tab in
             guard tab == .reposts, !hasLoadedReposts else { return }
             Task { await loadReposts() }
@@ -130,6 +137,9 @@ struct ArtistDetailView: View {
                                     .font(.title3)
                                     .foregroundStyle(.secondary)
                             }
+                            if canFollowArtist {
+                                followControls
+                            }
                             Link(destination: details.user.permalinkURL) {
                                 Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
                             }
@@ -145,7 +155,7 @@ struct ArtistDetailView: View {
                     }
 
                     HStack(spacing: 24) {
-                        statistic(details.followersCount, label: "followers")
+                        statistic(details.followersCount.map { max(0, $0 + followerCountAdjustment) }, label: "followers")
                         statistic(details.followingsCount, label: "following")
                         statistic(details.trackCount, label: "tracks")
                     }
@@ -208,6 +218,66 @@ struct ArtistDetailView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
+        }
+    }
+
+    private var canFollowArtist: Bool {
+        guard let user = details?.user, user.urn != nil,
+              case let .signedIn(account) = model.auth.state else { return false }
+        return user.urn != account.urn && user.permalinkURL != account.permalinkURL
+    }
+
+    private var followControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Button {
+                    Task { await toggleFollow() }
+                } label: {
+                    Label(isFollowing == true ? "Unfollow" : "Follow",
+                          systemImage: isFollowing == true ? "person.badge.minus" : "person.badge.plus")
+                }
+                .disabled(isFollowing == nil || isUpdatingFollow)
+                if isUpdatingFollow || (isFollowing == nil && followErrorMessage == nil) {
+                    ProgressView().controlSize(.small)
+                        .accessibilityLabel("Loading follow status")
+                }
+            }
+            if let followErrorMessage {
+                Text(followErrorMessage)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                if isFollowing == nil {
+                    Button("Try Again") { Task { await loadFollowStatus() } }
+                }
+            }
+        }
+    }
+
+    private func loadFollowStatus() async {
+        guard canFollowArtist, let user = details?.user else { return }
+        isFollowing = nil
+        followErrorMessage = nil
+        do {
+            let followed = try await model.isFollowingArtist(user)
+            try Task.checkCancellation()
+            isFollowing = followed
+        } catch {
+            guard !Task.isCancelled else { return }
+            followErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func toggleFollow() async {
+        guard let isFollowing, !isUpdatingFollow, let user = details?.user else { return }
+        isUpdatingFollow = true
+        followErrorMessage = nil
+        defer { isUpdatingFollow = false }
+        do {
+            try await model.setArtistFollowed(user, isFollowed: !isFollowing)
+            self.isFollowing = !isFollowing
+            followerCountAdjustment += isFollowing ? -1 : 1
+        } catch {
+            followErrorMessage = error.localizedDescription
         }
     }
 
