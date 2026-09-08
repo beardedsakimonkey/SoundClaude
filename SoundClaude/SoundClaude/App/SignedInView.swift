@@ -4,13 +4,15 @@ struct SignedInView: View {
     let user: SoundCloudUser
 
     @ObservedObject private var model: AppModel
-    @State private var selectedDestination: SidebarDestination? = .liked
+    @State private var selectedDestination: SidebarDestination?
+    private let selectionStore = SidebarSelectionStore()
     @State private var path: [Route] = []
     @State private var forwardPath: [Route] = []
 
     init(user: SoundCloudUser, model: AppModel) {
         self.user = user
         _model = ObservedObject(wrappedValue: model)
+        _selectedDestination = State(initialValue: SidebarSelectionStore().restore(for: user))
     }
 
     var body: some View {
@@ -233,6 +235,7 @@ struct SignedInView: View {
                 path.removeAll()
                 forwardPath.removeAll()
                 selectedDestination = destination
+                selectionStore.save(destination, for: user)
             }
         )
     }

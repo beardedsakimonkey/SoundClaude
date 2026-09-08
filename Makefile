@@ -49,6 +49,11 @@ icon:
 # Standalone regression suites; no credentials or Keychain access required.
 test:
 	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/sidebar-selection \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/App/SidebarDestination.swift \
+		tests/SidebarSelectionTests.swift
+	/tmp/soundclaude-tests/sidebar-selection
 	swiftc -o /tmp/soundclaude-tests/queue-likes \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
