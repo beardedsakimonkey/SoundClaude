@@ -25,6 +25,10 @@ struct FeedView: View {
                                 onSelect: onSelectArtist
                             )
                             .layoutPriority(1)
+                            if item.isRepost {
+                                Image(systemName: "repeat")
+                                    .accessibilityHidden(true)
+                            }
                             Text(activityLabel(for: item))
                                 .fixedSize()
                             TimelineView(.periodic(from: .now, by: 60)) { context in
