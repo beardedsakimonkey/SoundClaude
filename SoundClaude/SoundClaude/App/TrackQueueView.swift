@@ -74,5 +74,6 @@ struct TrackQueueView: View {
         }
         .padding(24)
         .frame(width: 560, height: 520)
+        .dismissOnOutsideClick()
     }
 }

@@ -57,6 +57,7 @@ struct KeyboardShortcutsView: View {
         }
         .padding(24)
         .frame(width: 420)
+        .dismissOnOutsideClick()
     }
 }
 

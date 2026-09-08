@@ -171,9 +171,7 @@ struct FullSizeArtworkView: View {
             .padding(12)
         }
         .frame(width: displaySize.width, height: displaySize.height)
-        .background {
-            ArtworkSheetOutsideClickView { dismiss() }
-        }
+        .dismissOnOutsideClick()
         .task(id: artworkURL) {
             guard image == nil else { return }
             await load()
@@ -225,71 +223,6 @@ struct FullSizeArtworkView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
-    }
-}
-
-private struct ArtworkSheetOutsideClickView: NSViewRepresentable {
-    let onDismiss: () -> Void
-
-    func makeNSView(context: Context) -> MonitorView {
-        let view = MonitorView()
-        view.onDismiss = onDismiss
-        return view
-    }
-
-    func updateNSView(_ nsView: MonitorView, context: Context) {
-        nsView.onDismiss = onDismiss
-    }
-
-    static func dismantleNSView(_ nsView: MonitorView, coordinator: ()) {
-        nsView.stopMonitoring()
-    }
-
-    final class MonitorView: NSView {
-        var onDismiss: (() -> Void)?
-        private var monitor: Any?
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            stopMonitoring()
-            guard window != nil else { return }
-
-            monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) {
-                [weak self] event in
-                guard let self,
-                      let sheet = self.window,
-                      sheet.isVisible,
-                      let parent = sheet.sheetParent,
-                      parent.attachedSheet === sheet,
-                      sheet.attachedSheet == nil,
-                      let eventWindow = event.window,
-                      eventWindow === parent || eventWindow === sheet else {
-                    return event
-                }
-
-                let location = eventWindow.convertPoint(toScreen: event.locationInWindow)
-                guard parent.frame.contains(location),
-                      !sheet.frame.contains(location) else {
-                    return event
-                }
-
-                // Consume the click so it cannot activate a control behind the sheet.
-                self.stopMonitoring()
-                self.onDismiss?()
-                return nil
-            }
-        }
-
-        func stopMonitoring() {
-            if let monitor {
-                NSEvent.removeMonitor(monitor)
-                self.monitor = nil
-            }
-        }
-
-        deinit {
-            stopMonitoring()
-        }
     }
 }
 
