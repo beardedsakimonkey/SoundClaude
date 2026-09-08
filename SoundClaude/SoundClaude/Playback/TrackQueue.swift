@@ -2,6 +2,7 @@ import Foundation
 
 struct TrackQueue: Codable {
     enum Source: Codable, Equatable {
+        case feed
         case likes
         case artist(String)
         case artistReposts(String)

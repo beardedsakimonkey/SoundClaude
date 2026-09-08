@@ -50,6 +50,80 @@ struct SoundCloudTrackPage: Sendable {
     let nextURL: URL?
 }
 
+struct SoundCloudFeedItem: Identifiable, Sendable {
+    let track: SoundCloudTrack
+    let user: SoundCloudUser
+    let isRepost: Bool
+    let createdAt: Date
+
+    // A track can appear more than once when different users repost it.
+    var id: String {
+        "\(track.urn)|\(user.urn ?? user.permalinkURL.absoluteString)|\(isRepost)|\(createdAt.timeIntervalSince1970)"
+    }
+}
+
+struct SoundCloudFeedPage: Sendable {
+    let items: [SoundCloudFeedItem]
+    let nextURL: URL?
+}
+
+struct RawFeedPage: Decodable {
+    let collection: [RawFeedActivity]
+    let nextURL: URL?
+
+    enum CodingKeys: String, CodingKey {
+        case collection
+        case nextURL = "next_href"
+    }
+}
+
+struct RawFeedActivity: Decodable {
+    let track: SoundCloudTrack?
+    let isRepost: Bool
+    let reposterURN: String?
+    let createdAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case type, origin, reposter
+        case createdAt = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(String.self, forKey: .type)
+        isRepost = type == "track:repost"
+        guard type == "track" || isRepost else {
+            track = nil
+            reposterURN = nil
+            createdAt = nil
+            return
+        }
+        track = try container.decodeIfPresent(RawTrack.self, forKey: .origin)?.normalized()
+        reposterURN = try container.decodeIfPresent(String.self, forKey: .reposter)
+        let timestamp = try container.decode(String.self, forKey: .createdAt)
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var date = iso.date(from: timestamp)
+        if date == nil {
+            iso.formatOptions = [.withInternetDateTime]
+            date = iso.date(from: timestamp)
+        }
+        if date == nil {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            formatter.dateFormat = "yyyy/MM/dd HH:mm:ss Z"
+            date = formatter.date(from: timestamp)
+        }
+        guard let date else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .createdAt, in: container, debugDescription: "Invalid feed timestamp"
+            )
+        }
+        createdAt = date
+    }
+}
+
 struct SoundCloudPlaylist: Codable, Identifiable, Sendable, Hashable {
     let urn: String
     let title: String

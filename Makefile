@@ -60,6 +60,12 @@ test:
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		tests/TrackPageDecodingTests.swift
 	/tmp/soundclaude-tests/track-pages
+	swiftc -o /tmp/soundclaude-tests/feed \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
+		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
+		tests/FeedTests.swift
+	/tmp/soundclaude-tests/feed
 	swiftc -o /tmp/soundclaude-tests/playlists \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \

@@ -166,6 +166,52 @@ actor SoundCloudClient {
         return user
     }
 
+    func feed(accessToken: String, pageURL: URL? = nil) async throws -> SoundCloudFeedPage {
+        let url = pageURL ?? configuration.apiBaseURL.appending(path: "me/feed")
+            .appending(queryItems: [
+                URLQueryItem(name: "limit", value: "25"),
+                URLQueryItem(name: "access", value: "playable,preview"),
+            ])
+        try validateAPIURL(url)
+        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+        try validate(response: response, data: data)
+        let page = try decoder.decode(RawFeedPage.self, from: data)
+        if let nextURL = page.nextURL {
+            try validateAPIURL(nextURL)
+            guard nextURL != url else { throw SoundCloudError.invalidData }
+        }
+
+        var users: [String: SoundCloudUser] = [:]
+        var items: [SoundCloudFeedItem] = []
+        for activity in page.collection {
+            try Task.checkCancellation()
+            guard let track = activity.track, let createdAt = activity.createdAt else { continue }
+            let user: SoundCloudUser
+            if activity.isRepost {
+                guard let urn = activity.reposterURN else { throw SoundCloudError.invalidData }
+                if let cached = users[urn] {
+                    user = cached
+                } else {
+                    let userURL = configuration.apiBaseURL.appending(path: "users").appending(path: urn)
+                    let (userData, userResponse) = try await authenticatedRequest(
+                        url: userURL, accessToken: accessToken
+                    )
+                    try validate(response: userResponse, data: userData)
+                    guard let resolved = try decoder.decode(RawUser.self, from: userData).normalized()
+                    else { throw SoundCloudError.invalidData }
+                    users[urn] = resolved
+                    user = resolved
+                }
+            } else {
+                user = track.artist
+            }
+            items.append(SoundCloudFeedItem(
+                track: track, user: user, isRepost: activity.isRepost, createdAt: createdAt
+            ))
+        }
+        return SoundCloudFeedPage(items: items, nextURL: page.nextURL)
+    }
+
     func likedTracks(
         accessToken: String,
         pageURL: URL? = nil,

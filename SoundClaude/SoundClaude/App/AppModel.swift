@@ -290,6 +290,11 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func feed(pageURL: URL? = nil) async throws -> SoundCloudFeedPage {
+        let accessToken = try await auth.validAccessToken()
+        return try await client.feed(accessToken: accessToken, pageURL: pageURL)
+    }
+
     func relatedTracks(for track: SoundCloudTrack, pageURL: URL? = nil) async throws
         -> SoundCloudTrackPage {
         let accessToken = try await auth.validAccessToken()
@@ -375,6 +380,9 @@ final class AppModel: ObservableObject {
         let accessToken = try await auth.validAccessToken()
         try Task.checkCancellation()
         switch source {
+        case .feed:
+            let page = try await client.feed(accessToken: accessToken, pageURL: pageURL)
+            return SoundCloudTrackPage(tracks: page.items.map(\.track), nextURL: page.nextURL)
         case let .artist(urn):
             return try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
         case let .artistReposts(urn):

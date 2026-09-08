@@ -76,8 +76,12 @@ struct SignedInView: View {
     @ViewBuilder
     private var rootView: some View {
         switch selectedDestination {
-        case .home:
-            HomeView()
+        case .feed:
+            FeedView(
+                model: model,
+                onSelectTrack: showTrack,
+                onSelectArtist: showArtist
+            )
         case let .playlist(playlist):
             PlaylistDetailView(
                 playlist: playlist,
