@@ -215,6 +215,7 @@ struct PlayerFooterView: View {
                 } label: {
                     Image(systemName: "music.note.list")
                         .font(.system(size: 18))
+                        .foregroundStyle(isShowingQueue ? Color.orange : Color.primary)
                         .frame(width: 32, height: 32)
                 }
                 .keyboardShortcut("q", modifiers: [])
