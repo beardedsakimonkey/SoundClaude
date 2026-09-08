@@ -410,6 +410,28 @@ actor SoundCloudClient {
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
+    func artistLikes(
+        urn: String,
+        accessToken: String,
+        pageURL: URL? = nil
+    ) async throws -> SoundCloudTrackPage {
+        var components = URLComponents(
+            url: configuration.apiBaseURL.appending(path: "users")
+                .appending(path: urn).appending(path: "likes")
+                .appending(path: "tracks"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [
+            URLQueryItem(name: "limit", value: "25"),
+            URLQueryItem(name: "linked_partitioning", value: "true"),
+            URLQueryItem(name: "access", value: "playable,preview"),
+        ]
+        guard let url = pageURL ?? components.url else {
+            throw SoundCloudError.unexpectedURL
+        }
+        return try await trackPage(at: url, accessToken: accessToken)
+    }
+
     func artistPlaylists(
         urn: String,
         accessToken: String,

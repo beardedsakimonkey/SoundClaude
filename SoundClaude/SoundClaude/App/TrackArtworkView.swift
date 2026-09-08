@@ -76,7 +76,7 @@ private struct ArtworkExpandIndicator: ViewModifier {
                         .foregroundStyle(.white)
                         .padding(7)
                         .background(.black.opacity(0.65), in: Circle())
-                        .padding(7)
+                        .padding(11)
                         .transition(.opacity)
                         .accessibilityHidden(true)
                         .allowsHitTesting(false)

@@ -6,6 +6,7 @@ struct ArtistDetailView: View {
         case tracks = "Tracks"
         case reposts = "Reposts"
         case playlists = "Playlists"
+        case likes = "Likes"
 
         var id: Self { self }
     }
@@ -40,6 +41,12 @@ struct ArtistDetailView: View {
     @State private var hasLoadedReposts = false
     @State private var isLoadingReposts = false
     @State private var repostsErrorMessage: String?
+    @State private var likes: [SoundCloudTrack] = []
+    @State private var likesNextPageURL: URL?
+    @State private var loadedLikesPageURLs: Set<URL> = []
+    @State private var hasLoadedLikes = false
+    @State private var isLoadingLikes = false
+    @State private var likesErrorMessage: String?
     @State private var playlists: [SoundCloudPlaylist] = []
     @State private var playlistsNextPageURL: URL?
     @State private var loadedPlaylistsPageURLs: Set<URL> = []
@@ -226,6 +233,8 @@ struct ArtistDetailView: View {
                     repostList
                 case .playlists:
                     playlistList
+                case .likes:
+                    likesList
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -405,6 +414,53 @@ struct ArtistDetailView: View {
         }
     }
 
+    private var likesList: some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            ForEach(likes) { track in
+                TrackListRow(
+                    track: track,
+                    playback: model.playback,
+                    artworkLoader: model.artworkLoader,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist,
+                    onPlayTrack: { selected in
+                        await model.play(selected, queue: TrackQueue(
+                            source: .artistLikes(details?.user.urn ?? artist.urn ?? ""),
+                            tracks: likes,
+                            nextPageURL: likesNextPageURL
+                        ))
+                    }
+                )
+            }
+            if let likesErrorMessage {
+                Text(likesErrorMessage).foregroundStyle(.secondary)
+                Button("Try Again") { Task { await loadLikes() } }
+                    .disabled(isLoadingLikes)
+            }
+            if isLoadingLikes
+                || (likesNextPageURL != nil && likesErrorMessage == nil) {
+                ProgressView("Loading likes")
+                    .frame(maxWidth: .infinity)
+                    .task(id: likesNextPageURL) {
+                        guard likesNextPageURL != nil,
+                              likesErrorMessage == nil else { return }
+                        await loadLikes()
+                    }
+            } else if hasLoadedLikes, likes.isEmpty,
+                      likesErrorMessage == nil {
+                ContentUnavailableView(
+                    "No playable likes",
+                    systemImage: "heart",
+                    description: Text("This artist has no liked tracks available for playback here.")
+                )
+            }
+        }
+        .task {
+            guard !hasLoadedLikes else { return }
+            await loadLikes()
+        }
+    }
+
     private var playlistList: some View {
         LazyVStack(alignment: .leading, spacing: 16) {
             ForEach(playlists) { playlist in
@@ -551,6 +607,32 @@ struct ArtistDetailView: View {
         } catch {
             guard !Task.isCancelled else { return }
             repostsErrorMessage = error.localizedDescription
+        }
+    }
+    private func loadLikes() async {
+        guard !isLoadingLikes, let details,
+              !hasLoadedLikes || likesNextPageURL != nil else { return }
+        isLoadingLikes = true
+        likesErrorMessage = nil
+        defer { isLoadingLikes = false }
+        do {
+            let pageURL = likesNextPageURL
+            let page = try await model.artistLikes(for: details.user, pageURL: pageURL)
+            try Task.checkCancellation()
+            if let nextURL = page.nextURL,
+               nextURL == pageURL || loadedLikesPageURLs.contains(nextURL) {
+                throw SoundCloudError.invalidData
+            }
+            var knownURNs = Set(likes.map(\.urn))
+            likes.append(contentsOf: page.tracks.filter {
+                knownURNs.insert($0.urn).inserted
+            })
+            if let pageURL { loadedLikesPageURLs.insert(pageURL) }
+            likesNextPageURL = page.nextURL
+            hasLoadedLikes = true
+        } catch {
+            guard !Task.isCancelled else { return }
+            likesErrorMessage = error.localizedDescription
         }
     }
 }

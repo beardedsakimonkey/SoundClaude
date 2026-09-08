@@ -318,6 +318,17 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func artistLikes(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
+        -> SoundCloudTrackPage {
+        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
+        let accessToken = try await auth.validAccessToken()
+        return try await client.artistLikes(
+            urn: urn,
+            accessToken: accessToken,
+            pageURL: pageURL
+        )
+    }
+
     func artistPlaylists(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
         -> SoundCloudPlaylistPage {
         guard let urn = artist.urn else { throw SoundCloudError.invalidData }
@@ -441,6 +452,8 @@ final class AppModel: ObservableObject {
             return try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
         case let .artistReposts(urn):
             return try await client.artistReposts(urn: urn, accessToken: accessToken, pageURL: pageURL)
+        case let .artistLikes(urn):
+            return try await client.artistLikes(urn: urn, accessToken: accessToken, pageURL: pageURL)
         case let .playlist(urn):
             return try await client.playlistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
         case let .related(urn):
