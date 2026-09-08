@@ -382,7 +382,7 @@ final class AppModel: ObservableObject {
         switch source {
         case .feed:
             let page = try await client.feed(accessToken: accessToken, pageURL: pageURL)
-            return SoundCloudTrackPage(tracks: page.items.map(\.track), nextURL: page.nextURL)
+            return SoundCloudTrackPage(tracks: page.items.compactMap(\.content.track), nextURL: page.nextURL)
         case let .artist(urn):
             return try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
         case let .artistReposts(urn):

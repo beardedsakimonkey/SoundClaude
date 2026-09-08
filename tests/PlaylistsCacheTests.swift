@@ -117,6 +117,15 @@ struct PlaylistsCacheTests {
         await controller.load()
         precondition(controller.playlists.isEmpty && controller.cache.contents.isEmpty)
 
+        // Refreshing the library must not clear playlist cards opened from the feed.
+        client.details = makePlaylist(9)
+        client.fetchTracks = { _ in SoundCloudTrackPage(tracks: [track(9)], nextURL: nil) }
+        await controller.loadPlaylist(makePlaylist(9))
+        await controller.load()
+        precondition(controller.playlists.isEmpty)
+        precondition(controller.cache.contents["playlist:9"]?.tracks == [track(9)])
+        client.details = makePlaylist(1)
+
         // Another account starts empty. Initial pages survive a failed import.
         auth.state = .signedIn(SoundCloudUser(urn: "user:2", username: "Other", avatarURL: nil,
                                             permalinkURL: user.permalinkURL))

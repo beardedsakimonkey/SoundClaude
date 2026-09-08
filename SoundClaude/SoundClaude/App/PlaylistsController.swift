@@ -68,6 +68,7 @@ final class PlaylistsController: ObservableObject {
             }
             do {
                 let hadCompleteList = cache.hasLoadedList
+                let previousPlaylistURNs = Set(cache.playlists.map(\.urn))
                 var refreshed: [SoundCloudPlaylist] = []
                 var known = Set<String>()
                 var url: URL?
@@ -83,7 +84,10 @@ final class PlaylistsController: ObservableObject {
                         cache.playlists = refreshed
                         cache.hasLoadedList = page.nextURL == nil
                         if cache.hasLoadedList {
-                            cache.contents = cache.contents.filter { known.contains($0.key) }
+                            // Remove deleted library playlists, but keep playlists opened from the feed.
+                            cache.contents = cache.contents.filter {
+                                known.contains($0.key) || !previousPlaylistURNs.contains($0.key)
+                            }
                         }
                         try await save(accountID: accountID, session: session)
                     }

@@ -185,7 +185,7 @@ actor SoundCloudClient {
         var items: [SoundCloudFeedItem] = []
         for activity in page.collection {
             try Task.checkCancellation()
-            guard let track = activity.track, let createdAt = activity.createdAt else { continue }
+            guard let content = activity.content, let createdAt = activity.createdAt else { continue }
             let user: SoundCloudUser
             if activity.isRepost {
                 guard let urn = activity.reposterURN else { throw SoundCloudError.invalidData }
@@ -203,10 +203,10 @@ actor SoundCloudClient {
                     user = resolved
                 }
             } else {
-                user = track.artist
+                user = content.owner
             }
             items.append(SoundCloudFeedItem(
-                track: track, user: user, isRepost: activity.isRepost, createdAt: createdAt
+                content: content, user: user, isRepost: activity.isRepost, createdAt: createdAt
             ))
         }
         return SoundCloudFeedPage(items: items, nextURL: page.nextURL)

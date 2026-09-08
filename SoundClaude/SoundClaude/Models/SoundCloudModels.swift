@@ -53,15 +53,39 @@ struct SoundCloudTrackPage: Sendable {
     let nextURL: URL?
 }
 
+enum SoundCloudFeedContent: Sendable {
+    case track(SoundCloudTrack)
+    case playlist(SoundCloudPlaylist)
+
+    var urn: String {
+        switch self {
+        case let .track(track): track.urn
+        case let .playlist(playlist): playlist.urn
+        }
+    }
+
+    var owner: SoundCloudUser {
+        switch self {
+        case let .track(track): track.artist
+        case let .playlist(playlist): playlist.owner
+        }
+    }
+
+    var track: SoundCloudTrack? {
+        guard case let .track(track) = self else { return nil }
+        return track
+    }
+}
+
 struct SoundCloudFeedItem: Identifiable, Sendable {
-    let track: SoundCloudTrack
+    let content: SoundCloudFeedContent
     let user: SoundCloudUser
     let isRepost: Bool
     let createdAt: Date
 
-    // A track can appear more than once when different users repost it.
+    // Content can appear more than once when different users repost it.
     var id: String {
-        "\(track.urn)|\(user.urn ?? user.permalinkURL.absoluteString)|\(isRepost)|\(createdAt.timeIntervalSince1970)"
+        "\(content.urn)|\(user.urn ?? user.permalinkURL.absoluteString)|\(isRepost)|\(createdAt.timeIntervalSince1970)"
     }
 }
 
@@ -81,7 +105,7 @@ struct RawFeedPage: Decodable {
 }
 
 struct RawFeedActivity: Decodable {
-    let track: SoundCloudTrack?
+    let content: SoundCloudFeedContent?
     let isRepost: Bool
     let reposterURN: String?
     let createdAt: Date?
@@ -94,14 +118,20 @@ struct RawFeedActivity: Decodable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(String.self, forKey: .type)
-        isRepost = type == "track:repost"
-        guard type == "track" || isRepost else {
-            track = nil
+        isRepost = type == "track:repost" || type == "playlist:repost"
+        switch type {
+        case "track", "track:repost":
+            content = try container.decodeIfPresent(RawTrack.self, forKey: .origin)?
+                .normalized().map(SoundCloudFeedContent.track)
+        case "playlist", "playlist:repost":
+            content = try container.decodeIfPresent(RawPlaylist.self, forKey: .origin)?
+                .normalized().map(SoundCloudFeedContent.playlist)
+        default:
+            content = nil
             reposterURN = nil
             createdAt = nil
             return
         }
-        track = try container.decodeIfPresent(RawTrack.self, forKey: .origin)?.normalized()
         reposterURN = try container.decodeIfPresent(String.self, forKey: .reposter)
         let timestamp = try container.decode(String.self, forKey: .createdAt)
         let iso = ISO8601DateFormatter()

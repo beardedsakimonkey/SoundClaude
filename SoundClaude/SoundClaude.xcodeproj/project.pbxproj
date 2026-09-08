@@ -52,6 +52,7 @@
 		A10000000000000000000060 /* ExpandableDescriptionText.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000060 /* ExpandableDescriptionText.swift */; };
 		A1000000000000000000003B /* TrackListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003B /* TrackListRow.swift */; };
 		A10000000000000000000061 /* TrackCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000061 /* TrackCardView.swift */; };
+		A10000000000000000000062 /* PlaylistCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000062 /* PlaylistCardView.swift */; };
 		EA5095DB820C4F7B9F932E11 /* TrackPlaybackIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 311A2AB195D74C16B3ECC0D7 /* TrackPlaybackIndicator.swift */; };
 		A1000000000000000000003C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003C /* Assets.xcassets */; };
 		A1000000000000000000003D /* PlaylistsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003D /* PlaylistsController.swift */; };
@@ -115,6 +116,7 @@
 		A20000000000000000000060 /* ExpandableDescriptionText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandableDescriptionText.swift; sourceTree = "<group>"; };
 		A2000000000000000000003B /* TrackListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackListRow.swift; sourceTree = "<group>"; };
 		A20000000000000000000061 /* TrackCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackCardView.swift; sourceTree = "<group>"; };
+		A20000000000000000000062 /* PlaylistCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistCardView.swift; sourceTree = "<group>"; };
 		311A2AB195D74C16B3ECC0D7 /* TrackPlaybackIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackPlaybackIndicator.swift; sourceTree = "<group>"; };
 		A2000000000000000000003C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A2000000000000000000003D /* PlaylistsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistsController.swift; sourceTree = "<group>"; };
@@ -189,6 +191,7 @@
 				A20000000000000000000060 /* ExpandableDescriptionText.swift */,
 				A2000000000000000000003B /* TrackListRow.swift */,
 				A20000000000000000000061 /* TrackCardView.swift */,
+				A20000000000000000000062 /* PlaylistCardView.swift */,
 				311A2AB195D74C16B3ECC0D7 /* TrackPlaybackIndicator.swift */,
 				A2000000000000000000002C /* TrackDetailView.swift */,
 				A20000000000000000000036 /* TrackWaveformView.swift */,
@@ -411,6 +414,7 @@
 				A10000000000000000000060 /* ExpandableDescriptionText.swift in Sources */,
 				A1000000000000000000003B /* TrackListRow.swift in Sources */,
 				A10000000000000000000061 /* TrackCardView.swift in Sources */,
+				A10000000000000000000062 /* PlaylistCardView.swift in Sources */,
 				EA5095DB820C4F7B9F932E11 /* TrackPlaybackIndicator.swift in Sources */,
 				A10000000000000000000014 /* TrackDetailView.swift in Sources */,
 				A1000000000000000000001E /* TrackWaveformView.swift in Sources */,

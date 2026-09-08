@@ -11,6 +11,12 @@ struct FeedTests {
              "user":{"urn":"soundcloud:users:1","username":"Artist",
              "permalink_url":"https://soundcloud.com/artist"}}
             """
+        let playlist = """
+            {"urn":"soundcloud:playlists:42","title":"Playlist","track_count":8,
+             "permalink_url":"https://soundcloud.com/artist/sets/playlist",
+             "user":{"urn":"soundcloud:users:1","username":"Artist",
+             "permalink_url":"https://soundcloud.com/artist"}}
+            """
         func activity(_ type: String, date: String = "2026-09-08T12:00:00Z", origin: String? = nil) -> String {
             """
             {"type":"\(type)","created_at":"\(date)",
@@ -21,13 +27,25 @@ struct FeedTests {
         for date in ["2026-09-08T12:00:00Z", "2026-09-08T12:00:00.000Z", "2026/09/08 12:00:00 +0000"] {
             let decoded = try decoder.decode(RawFeedActivity.self, from: Data(activity("track", date: date).utf8))
             precondition(decoded.createdAt == ISO8601DateFormatter().date(from: "2026-09-08T12:00:00Z"))
-            precondition(decoded.track?.urn == "soundcloud:tracks:1")
+            precondition(decoded.content?.track?.urn == "soundcloud:tracks:1")
         }
         for type in ["playlist", "playlist:repost", "unknown"] {
             let decoded = try decoder.decode(RawFeedActivity.self, from: Data(activity(type, origin: "{}").utf8))
-            precondition(decoded.track == nil)
+            precondition(decoded.content?.track == nil)
         }
-        for json in ["{}", "{\"collection\":[123]}", activity("track", date: "invalid")] {
+        for type in ["playlist", "playlist:repost"] {
+            let decoded = try decoder.decode(
+                RawFeedActivity.self, from: Data(activity(type, origin: playlist).utf8)
+            )
+            guard case let .playlist(value) = decoded.content else {
+                fatalError("Playlist activity was not decoded")
+            }
+            precondition(value.urn == "soundcloud:playlists:42" && value.trackCount == 8)
+            precondition(decoded.isRepost == (type == "playlist:repost"))
+            precondition(decoded.createdAt != nil)
+        }
+        for json in ["{}", "{\"collection\":[123]}", activity("track", date: "invalid"),
+                     activity("playlist", date: "invalid", origin: playlist)] {
             do {
                 if json.contains("created_at") {
                     _ = try decoder.decode(RawFeedActivity.self, from: Data(json.utf8))
@@ -62,37 +80,50 @@ struct FeedTests {
             return (200, """
                 {"collection":[\(activity("track")),\(activity("playlist", origin: "{}")),
                  \(activity("track:repost")),\(activity("track:repost", date: "2026-09-07T12:00:00Z")),
-                 \(activity("track", origin: blocked)),\(activity("track", origin: preview))],
+                 \(activity("track", origin: blocked)),\(activity("track", origin: preview)),
+                 \(activity("playlist", origin: playlist)),\(activity("playlist:repost", origin: playlist))],
                  "next_href":"\(nextURL)"}
                 """)
         }
         let page = try await client.feed(accessToken: "test-token")
-        precondition(page.items.count == 4)
+        precondition(page.items.count == 6)
         precondition(page.items[0].user.username == "Artist" && !page.items[0].isRepost)
         precondition(page.items[1].user.username == "Reposter" && page.items[1].isRepost)
         precondition(page.items[1].user.avatarURL?.absoluteString == "https://i1.sndcdn.com/reposter.jpg")
-        precondition(page.items[1].track.artist.username == "Artist")
-        for item in page.items {
-            precondition(item.track.likesCount == 1234)
-            precondition(item.track.repostsCount == 56)
-            precondition(item.track.commentCount == 7)
+        precondition(page.items[1].content.track?.artist.username == "Artist")
+        for track in page.items.compactMap(\.content.track) {
+            precondition(track.likesCount == 1234)
+            precondition(track.repostsCount == 56)
+            precondition(track.commentCount == 7)
         }
         precondition(Set(page.items.prefix(3).map(\.id)).count == 3)
-        precondition(page.items.last?.track.access == .preview)
+        precondition(page.items[3].content.track?.access == .preview)
+        guard case let .playlist(postedPlaylist) = page.items[4].content,
+              case let .playlist(repostedPlaylist) = page.items[5].content else {
+            fatalError("Feed lost playlist activities")
+        }
+        precondition(postedPlaylist == repostedPlaylist)
+        precondition(page.items[4].user.username == "Artist" && !page.items[4].isRepost)
+        precondition(page.items[5].user.username == "Reposter" && page.items[5].isRepost)
+        precondition(page.items[4].id != page.items[5].id)
+        precondition(page.items.compactMap(\.content.track).count == 4)
         precondition(page.nextURL?.absoluteString == nextURL)
         precondition(FeedURLProtocol.paths.filter { $0 == "/users/soundcloud:users:2" }.count == 1)
 
         FeedURLProtocol.respond { request in
             precondition(request.url?.absoluteString == nextURL)
             return (200, """
-                {"collection":[\(activity("playlist:repost", origin: "{}"))],
+                {"collection":[\(activity("playlist", origin: playlist))],
                  "next_href":"https://api.soundcloud.com/me/feed?cursor=last"}
                 """)
         }
         let emptyPage = try await client.feed(accessToken: "test-token", pageURL: page.nextURL)
-        precondition(emptyPage.items.isEmpty && emptyPage.nextURL != nil)
-        var queue = TrackQueue(source: .feed, tracks: page.items.map(\.track), nextPageURL: page.nextURL)
-        try queue.append(SoundCloudTrackPage(tracks: [], nextURL: emptyPage.nextURL))
+        precondition(emptyPage.items.count == 1 && emptyPage.nextURL != nil)
+        precondition(emptyPage.items.compactMap(\.content.track).isEmpty)
+        var queue = TrackQueue(source: .feed, tracks: page.items.compactMap(\.content.track), nextPageURL: page.nextURL)
+        try queue.append(SoundCloudTrackPage(
+            tracks: emptyPage.items.compactMap(\.content.track), nextURL: emptyPage.nextURL
+        ))
         precondition(queue.needsNextPage(after: queue.tracks.last?.urn))
         let restored = try decoder.decode(TrackQueue.self, from: JSONEncoder().encode(queue))
         precondition(restored.source == .feed && restored.nextPageURL == emptyPage.nextURL)

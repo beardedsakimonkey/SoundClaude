@@ -2,6 +2,7 @@ import SwiftUI
 
 struct FeedView: View {
     @ObservedObject var model: AppModel
+    let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
@@ -24,7 +25,7 @@ struct FeedView: View {
                                 onSelect: onSelectArtist
                             )
                             .layoutPriority(1)
-                            Text(item.isRepost ? "reposted a track" : "posted a track")
+                            Text(activityLabel(for: item))
                                 .fixedSize()
                             TimelineView(.periodic(from: .now, by: 60)) { context in
                                 Text(relativeTime(for: item.createdAt, now: context.date))
@@ -36,19 +37,30 @@ struct FeedView: View {
                         .lineLimit(1)
                         .padding(.horizontal, 8)
 
-                        TrackCardView(
-                            track: item.track,
-                            model: model,
-                            onSelectTrack: onSelectTrack,
-                            onSelectArtist: onSelectArtist,
-                            onPlayTrack: { track in
-                                await model.play(track, queue: TrackQueue(
-                                    source: .feed,
-                                    tracks: items.map(\.track),
-                                    nextPageURL: nextPageURL
-                                ))
-                            }
-                        )
+                        switch item.content {
+                        case let .track(track):
+                            TrackCardView(
+                                track: track,
+                                model: model,
+                                onSelectTrack: onSelectTrack,
+                                onSelectArtist: onSelectArtist,
+                                onPlayTrack: { track in
+                                    await model.play(track, queue: TrackQueue(
+                                        source: .feed,
+                                        tracks: items.compactMap(\.content.track),
+                                        nextPageURL: nextPageURL
+                                    ))
+                                }
+                            )
+                        case let .playlist(playlist):
+                            PlaylistCardView(
+                                playlist: playlist,
+                                model: model,
+                                playlists: model.playlists,
+                                onSelectPlaylist: onSelectPlaylist,
+                                onSelectArtist: onSelectArtist
+                            )
+                        }
                     }
                 }
 
@@ -65,9 +77,9 @@ struct FeedView: View {
                     }
                 } else if items.isEmpty, errorMessage == nil {
                     ContentUnavailableView(
-                        "No tracks in your feed",
+                        "Your feed is empty",
                         systemImage: "music.note",
-                        description: Text("Tracks posted or reposted by people you follow will appear here.")
+                        description: Text("Tracks and playlists posted or reposted by people you follow will appear here.")
                     )
                     .frame(maxWidth: .infinity)
                 }
@@ -75,6 +87,13 @@ struct FeedView: View {
             .padding(20)
         }
         .navigationTitle("Feed")
+    }
+
+    private func activityLabel(for item: SoundCloudFeedItem) -> String {
+        switch item.content {
+        case .track: item.isRepost ? "reposted a track" : "posted a track"
+        case .playlist: item.isRepost ? "reposted a playlist" : "posted a playlist"
+        }
     }
 
     private func relativeTime(for date: Date, now: Date) -> String {

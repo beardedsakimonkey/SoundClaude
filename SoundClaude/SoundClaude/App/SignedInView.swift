@@ -58,6 +58,17 @@ struct SignedInView: View {
                         .id(track.urn)
                         .navigationBarBackButtonHidden(true)
                         .toolbar { navigationToolbar }
+                    case let .playlist(playlist):
+                        PlaylistDetailView(
+                            playlist: playlist,
+                            model: model,
+                            onSelectTrack: showTrack,
+                            onSelectArtist: showArtist,
+                            playlists: model.playlists
+                        )
+                        .id(playlist.urn)
+                        .navigationBarBackButtonHidden(true)
+                        .toolbar { navigationToolbar }
                     case let .artist(artist):
                         ArtistDetailView(
                             artist: artist,
@@ -79,6 +90,7 @@ struct SignedInView: View {
         case .feed:
             FeedView(
                 model: model,
+                onSelectPlaylist: showPlaylist,
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist
             )
@@ -154,6 +166,11 @@ struct SignedInView: View {
     private func showTrack(_ track: SoundCloudTrack) {
         forwardPath.removeAll()
         path.append(.track(track))
+    }
+
+    private func showPlaylist(_ playlist: SoundCloudPlaylist) {
+        forwardPath.removeAll()
+        path.append(.playlist(playlist))
     }
 
     private func showArtist(_ artist: SoundCloudUser) {
@@ -254,6 +271,7 @@ struct SidebarView: View {
 }
 
 private enum Route: Hashable {
+    case playlist(SoundCloudPlaylist)
     case track(SoundCloudTrack)
     case artist(SoundCloudUser)
 }
