@@ -11,22 +11,25 @@ struct TrackCardView: View {
     @State private var isHoveringTitle = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 20) {
-                Button {
-                    onSelectTrack(track)
-                } label: {
-                    TrackArtworkView(
-                        artworkURL: track.artworkURL,
-                        loader: model.artworkLoader,
-                        size: 140,
-                        rendition: .square500
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Open track: \(track.title)")
+        HStack(alignment: .top, spacing: 20) {
+            Button {
+                onSelectTrack(track)
+            } label: {
+                TrackArtworkView(
+                    artworkURL: track.artworkURL,
+                    loader: model.artworkLoader,
+                    size: 140,
+                    rendition: .square500
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open track: \(track.title)")
 
-                VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    if isCurrentTrack {
+                        TrackPlaybackIndicator(isPlaying: model.playback.isPlaying)
+                    }
                     Button {
                         onSelectTrack(track)
                     } label: {
@@ -35,47 +38,46 @@ struct TrackCardView: View {
                             .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
                             .underline(isHoveringTitle)
                             .multilineTextAlignment(.leading)
-                            .lineLimit(2)
+                            .lineLimit(1)
                     }
                     .buttonStyle(.plain)
                     .onHover { isHoveringTitle = $0 }
                     .help(track.title)
-
-                    ArtistLink(artist: track.artist, onSelect: onSelectArtist)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-
-                    HStack(spacing: 10) {
-                        playButton
-                        if track.access == .preview {
-                            TrackPreviewBadge()
-                        }
-                    }
-                    .padding(.top, 4)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
 
-            TrackWaveformView(
-                track: track,
-                model: model,
-                layout: .compact,
-                onPlayTrack: onPlayTrack
-            )
-            .frame(maxWidth: .infinity)
+                ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                    .font(.callout)
+                    .foregroundStyle(isCurrentTrack ? Color.orange : Color.secondary)
+                    .lineLimit(1)
 
-            HStack(spacing: 20) {
-                statistic(track.likesCount, label: "likes", systemImage: "heart")
-                statistic(track.repostsCount, label: "reposts", systemImage: "arrow.2.squarepath")
-                statistic(track.commentCount, label: "comments", systemImage: "bubble.right")
-                Spacer(minLength: 0)
-                Text(duration)
-                    .monospacedDigit()
-                    .accessibilityLabel("Duration: \(duration)")
+                HStack(spacing: 10) {
+                    playButton
+                    if track.access == .preview {
+                        TrackPreviewBadge()
+                    }
+                    TrackWaveformView(
+                        track: track,
+                        model: model,
+                        layout: .compact,
+                        onPlayTrack: onPlayTrack
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+
+                HStack(spacing: 20) {
+                    statistic(track.likesCount, label: "likes", systemImage: "heart")
+                    statistic(track.repostsCount, label: "reposts", systemImage: "arrow.2.squarepath")
+                    statistic(track.commentCount, label: "comments", systemImage: "bubble.right")
+                    Spacer(minLength: 0)
+                    Text(duration)
+                        .monospacedDigit()
+                        .accessibilityLabel("Duration: \(duration)")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 140, alignment: .top)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
