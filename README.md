@@ -59,6 +59,10 @@ restart the Dock and refresh its display.
 
 ## Queues and likes
 
+History loads up to 25 distinct recently played tracks from your SoundCloud account,
+newest first. Use Refresh History to update the list. The API does not provide older
+pages. Tracks unavailable for app playback are omitted.
+
 Next and Previous use the list that started playback. Feed, artist, repost, playlist, and related
 queues fetch another page when sequential playback reaches the end of the loaded
 tracks. Shuffle uses the loaded tracks immediately. It does not fetch an entire

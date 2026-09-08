@@ -3,9 +3,10 @@ import Foundation
 enum SidebarDestination: Hashable, Identifiable {
     case feed
     case liked
+    case history
     case playlist(SoundCloudPlaylist)
 
-    static let libraryDestinations: [Self] = [.feed, .liked]
+    static let libraryDestinations: [Self] = [.feed, .liked, .history]
 
     var id: Self { self }
 
@@ -15,6 +16,8 @@ enum SidebarDestination: Hashable, Identifiable {
             "Feed"
         case .liked:
             "Liked"
+        case .history:
+            "History"
         case let .playlist(playlist):
             playlist.title
         }
@@ -26,6 +29,8 @@ enum SidebarDestination: Hashable, Identifiable {
             "list.bullet.rectangle"
         case .liked:
             "heart"
+        case .history:
+            "clock.arrow.circlepath"
         case .playlist:
             "music.note.list"
         }

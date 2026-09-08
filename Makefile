@@ -82,3 +82,9 @@ test:
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
 		tests/FollowingTests.swift
 	/tmp/soundclaude-tests/following
+	swiftc -o /tmp/soundclaude-tests/history \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
+		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
+		tests/HistoryTests.swift
+	/tmp/soundclaude-tests/history

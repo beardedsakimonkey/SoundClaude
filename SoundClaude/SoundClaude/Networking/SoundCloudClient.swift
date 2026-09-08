@@ -212,6 +212,16 @@ actor SoundCloudClient {
         return SoundCloudFeedPage(items: items, nextURL: page.nextURL)
     }
 
+    func recentlyPlayedTracks(accessToken: String) async throws -> [SoundCloudTrack] {
+        // History is limited to the last 25 distinct tracks and has no pagination.
+        let url = configuration.apiBaseURL.appending(path: "me/recently-played/tracks")
+            .appending(queryItems: [
+                URLQueryItem(name: "access", value: "playable,preview"),
+            ])
+        let page = try await trackPage(at: url, accessToken: accessToken)
+        return page.tracks
+    }
+
     func likedTracks(
         accessToken: String,
         pageURL: URL? = nil,
