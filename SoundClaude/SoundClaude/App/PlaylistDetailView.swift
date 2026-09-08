@@ -6,18 +6,19 @@ struct PlaylistDetailView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
-    @State private var details: SoundCloudPlaylist?
-    @State private var tracks: [SoundCloudTrack] = []
-    @State private var nextPageURL: URL?
-    @State private var loadedPageURLs: Set<URL> = []
-    @State private var hasLoadedTracks = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @ObservedObject var playlists: PlaylistsController
+
+    private var contents: PlaylistContents? { playlists.cache.contents[playlist.urn] }
+    private var tracks: [SoundCloudTrack] { contents?.tracks ?? [] }
+    private var nextPageURL: URL? { contents?.nextPageURL }
+    private var hasLoadedTracks: Bool { contents?.hasLoadedPage == true }
+    private var isLoading: Bool { playlists.loadingPlaylistURNs.contains(playlist.urn) }
+    private var errorMessage: String? { playlists.playlistErrors[playlist.urn] }
     @State private var isShowingArtwork = false
     @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
-    private var displayedPlaylist: SoundCloudPlaylist { details ?? playlist }
+    private var displayedPlaylist: SoundCloudPlaylist { contents?.playlist ?? playlist }
     private var artworkURL: URL? {
         displayedPlaylist.artworkURL ?? tracks.first(where: { $0.artworkURL != nil })?.artworkURL
     }
@@ -51,7 +52,7 @@ struct PlaylistDetailView: View {
         }
         .navigationTitle(displayedPlaylist.title)
         .task(id: playlist.urn) {
-            if !hasLoadedTracks { await load() }
+            await load()
         }
         .sheet(isPresented: $isShowingArtwork) {
             FullSizeArtworkView(
@@ -164,13 +165,9 @@ struct PlaylistDetailView: View {
                 Button("Try Again") { Task { await load() } }
                     .disabled(isLoading)
             }
-            if isLoading || (nextPageURL != nil && errorMessage == nil) {
+            if isLoading {
                 ProgressView("Loading playlist")
                     .frame(maxWidth: .infinity)
-                    .task(id: nextPageURL) {
-                        guard nextPageURL != nil, errorMessage == nil else { return }
-                        await load()
-                    }
             } else if hasLoadedTracks, tracks.isEmpty, errorMessage == nil {
                 ContentUnavailableView(
                     displayedPlaylist.trackCount == 0 ? "Empty playlist" : "No playable tracks",
@@ -184,31 +181,6 @@ struct PlaylistDetailView: View {
     }
 
     private func load() async {
-        guard !isLoading, !hasLoadedTracks || nextPageURL != nil else { return }
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
-        do {
-            if details == nil {
-                let loaded = try await model.playlistDetails(for: playlist)
-                try Task.checkCancellation()
-                details = loaded
-            }
-            let pageURL = nextPageURL
-            let page = try await model.playlistTracks(for: displayedPlaylist, pageURL: pageURL)
-            try Task.checkCancellation()
-            if let nextURL = page.nextURL,
-               nextURL == pageURL || loadedPageURLs.contains(nextURL) {
-                throw SoundCloudError.invalidData
-            }
-            var knownURNs = Set(tracks.map(\.urn))
-            tracks.append(contentsOf: page.tracks.filter { knownURNs.insert($0.urn).inserted })
-            if let pageURL { loadedPageURLs.insert(pageURL) }
-            nextPageURL = page.nextURL
-            hasLoadedTracks = true
-        } catch {
-            guard !Task.isCancelled else { return }
-            errorMessage = error.localizedDescription
-        }
+        await playlists.loadPlaylist(playlist)
     }
 }

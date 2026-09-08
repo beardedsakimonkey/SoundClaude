@@ -65,3 +65,9 @@ test:
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
 		tests/PlaylistTests.swift
 	/tmp/soundclaude-tests/playlists
+	swiftc -o /tmp/soundclaude-tests/playlists-cache \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/App/PlaylistsCache.swift \
+		SoundClaude/SoundClaude/App/PlaylistsController.swift \
+		tests/PlaylistsCacheTests.swift
+	/tmp/soundclaude-tests/playlists-cache

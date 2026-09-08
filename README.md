@@ -10,6 +10,7 @@ Core Audio, Accelerate, and Metal. It feautres:
 - saved track, queue source, and playback position, restored paused at startup; cleared on sign-out
 - queues from likes, artist tracks and reposts, playlists, and related tracks
 - account-specific likes metadata cached in Application Support; new likes sync when Likes opens
+- account-specific playlist metadata and opened playlist tracks cached locally
 - a private Core Audio process tap for this app only
 - a fixed-capacity atomic PCM ring and fixed spectrum snapshot
 - an Accelerate FFT worker and an `MTKView` renderer
@@ -70,5 +71,14 @@ newest pages until they overlap the cache. Local like changes are saved immediat
 Likes removed on another device can remain cached until a sync reaches the end
 of the remote list, because the API has no incremental change feed. Sign-out clears
 memory and playback state, and retains the account-specific cache for the next login.
+
+The playlist cache uses the same account-specific atomic JSON storage in
+`~/Library/Application Support/SoundClaude/Playlists/`. The sidebar restores its
+saved list before refreshing. Opening a playlist restores its saved details and
+tracks, then fetches all current pages to detect removals and order changes.
+Complete snapshots stay visible if refresh fails. Initial imports save each page;
+interrupted imports restart from the first page on the next visit. Only playlists
+you open have their tracks cached. Sign-out clears memory and retains the cache.
+This stores metadata only; playback still needs a network connection.
 
 Run the regression suites with `make test`.

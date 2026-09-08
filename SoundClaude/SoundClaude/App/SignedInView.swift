@@ -83,7 +83,8 @@ struct SignedInView: View {
                 playlist: playlist,
                 model: model,
                 onSelectTrack: showTrack,
-                onSelectArtist: showArtist
+                onSelectArtist: showArtist,
+                playlists: model.playlists
             )
             .id(playlist.urn)
         case .liked, .none:

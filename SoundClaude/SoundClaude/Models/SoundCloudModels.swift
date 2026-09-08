@@ -50,7 +50,7 @@ struct SoundCloudTrackPage: Sendable {
     let nextURL: URL?
 }
 
-struct SoundCloudPlaylist: Identifiable, Sendable, Hashable {
+struct SoundCloudPlaylist: Codable, Identifiable, Sendable, Hashable {
     let urn: String
     let title: String
     let owner: SoundCloudUser
