@@ -14,6 +14,19 @@ struct FeedView: View {
     @State private var errorMessage: String?
 
     var body: some View {
+        Group {
+            if !hasLoaded, errorMessage == nil {
+                ProgressView("Loading feed")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .task { await loadPage() }
+            } else {
+                feedContent
+            }
+        }
+        .navigationTitle("Feed")
+    }
+
+    private var feedContent: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
                 ForEach(items) { item in
@@ -95,7 +108,6 @@ struct FeedView: View {
             }
             .padding(20)
         }
-        .navigationTitle("Feed")
     }
 
     private func activityLabel(for item: SoundCloudFeedItem) -> String {
