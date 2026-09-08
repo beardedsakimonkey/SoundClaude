@@ -169,7 +169,7 @@ actor SoundCloudClient {
     func feed(accessToken: String, pageURL: URL? = nil) async throws -> SoundCloudFeedPage {
         let url = pageURL ?? configuration.apiBaseURL.appending(path: "me/feed")
             .appending(queryItems: [
-                URLQueryItem(name: "limit", value: "25"),
+                URLQueryItem(name: "limit", value: "10"),
                 URLQueryItem(name: "access", value: "playable,preview"),
             ])
         try validateAPIURL(url)
