@@ -12,13 +12,31 @@ struct ArtistUsersView: View {
     @State private var hasLoaded = false
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var hoveredUserURL: URL?
+    @State private var totalUserCount: Int?
+
+    private var title: String {
+        list == .following
+            ? "\(artist.username) is following"
+            : "Followers of \(artist.username)"
+    }
+
+    private var userCount: Int? {
+        if hasLoaded, nextPageURL == nil { return users.count }
+        return totalUserCount
+    }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
-                Text(artist.username)
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(title)
+                    if let userCount {
+                        Text("(\(userCount.formatted()))")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .font(.title2)
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 24)], spacing: 24) {
                     ForEach(users, id: \.permalinkURL) { user in
@@ -35,6 +53,7 @@ struct ArtistUsersView: View {
                                 .clipShape(Circle())
                                 Text(user.username)
                                     .font(.headline)
+                                    .underline(hoveredUserURL == user.permalinkURL)
                                     .lineLimit(2)
                                     .multilineTextAlignment(.center)
                                     .frame(height: 40, alignment: .top)
@@ -43,6 +62,13 @@ struct ArtistUsersView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .onHover { isHovering in
+                            if isHovering {
+                                hoveredUserURL = user.permalinkURL
+                            } else if hoveredUserURL == user.permalinkURL {
+                                hoveredUserURL = nil
+                            }
+                        }
                         .help("View profile: \(user.username)")
                         .accessibilityLabel("View profile: \(user.username)")
                     }
@@ -71,7 +97,12 @@ struct ArtistUsersView: View {
             }
             .padding(24)
         }
-        .navigationTitle(list.title)
+        .navigationTitle(title)
+        .task(id: artist.permalinkURL) {
+            guard let details = try? await model.artistDetails(for: artist),
+                  !Task.isCancelled else { return }
+            totalUserCount = list == .following ? details.followingsCount : details.followersCount
+        }
     }
 
     private func loadPage() async {
