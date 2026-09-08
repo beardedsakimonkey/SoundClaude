@@ -21,7 +21,7 @@ final class AppModel: ObservableObject {
     private var followingRequestID: UUID?
     private var followingOverrides: [String: Bool] = [:]
     private var hasStarted = false
-    private var queue = TrackQueue(source: .single, tracks: [])
+    @Published private(set) var queue = TrackQueue(source: .single, tracks: [])
     private let queueSettingsKey = "playback.queue"
     // These limits bound cache growth as liked-track pages load.
     private let trackDetailsCache = MemoryCache<

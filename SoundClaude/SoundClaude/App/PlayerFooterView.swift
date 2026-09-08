@@ -8,6 +8,7 @@ struct PlayerFooterView: View {
 
     @State private var isHoveringTitle = false
     @State private var likeErrorMessage: String?
+    @State private var isShowingQueue = false
 
     @Bindable private var playback: PlaybackController
     @ObservedObject private var likes: LikesController
@@ -55,6 +56,13 @@ struct PlayerFooterView: View {
                 .frame(height: 1)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+        }
+        .sheet(isPresented: $isShowingQueue) {
+            TrackQueueView(
+                model: model,
+                onSelectTrack: onSelectTrack,
+                onSelectArtist: onSelectArtist
+            )
         }
         .alert("Could not update like", isPresented: Binding(
             get: { likeErrorMessage != nil },
@@ -201,6 +209,16 @@ struct PlayerFooterView: View {
                     .frame(width: 110)
                     .accessibilityLabel("Volume")
                     .accessibilityValue("\(Int(playback.volume * 100)) percent")
+
+                Button {
+                    isShowingQueue = true
+                } label: {
+                    Image(systemName: "music.note.list")
+                        .font(.system(size: 18))
+                        .frame(width: 32, height: 32)
+                }
+                .help("Show track queue")
+                .accessibilityLabel("Show track queue")
             }
             .buttonStyle(.borderless)
 
