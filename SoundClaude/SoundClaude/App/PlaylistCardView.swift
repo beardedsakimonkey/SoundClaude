@@ -5,6 +5,7 @@ struct PlaylistCardView: View {
     let model: AppModel
     @ObservedObject var playlists: PlaylistsController
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
+    let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @State private var hasRequestedTracks = false
@@ -144,6 +145,7 @@ struct PlaylistCardView: View {
                 number: index + 1,
                 playback: model.playback,
                 artworkLoader: model.artworkLoader,
+                onSelectTrack: onSelectTrack,
                 onPlayTrack: play
             )
         }
@@ -185,61 +187,73 @@ private struct PlaylistTrackRow: View {
     let number: Int
     let playback: PlaybackController
     let artworkLoader: ArtworkLoader
+    let onSelectTrack: (SoundCloudTrack) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
+
+    @State private var isHovering = false
+    @State private var isHoveringTitle = false
+    @GestureState private var isPressed = false
 
     var body: some View {
         let isCurrentTrack = playback.currentTrack?.urn == track.urn
 
-        Button {
-            Task { await onPlayTrack(track) }
-        } label: {
-            HStack(spacing: 12) {
-                TrackArtworkView(artworkURL: track.artworkURL, loader: artworkLoader, size: 44)
-                Text(number.formatted())
-                    .font(.callout.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 20, alignment: .trailing)
-                if isCurrentTrack {
-                    TrackPlaybackIndicator(isPlaying: playback.isPlaying)
-                }
+        HStack(spacing: 12) {
+            TrackArtworkView(artworkURL: track.artworkURL, loader: artworkLoader, size: 44)
+            Text(number.formatted())
+                .font(.callout.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 20, alignment: .trailing)
+            if isCurrentTrack {
+                TrackPlaybackIndicator(isPlaying: playback.isPlaying)
+            }
+            Button {
+                onSelectTrack(track)
+            } label: {
                 Text(track.title)
                     .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
+                    .underline(isHoveringTitle)
                     .lineLimit(1)
-                if track.access == .preview {
-                    TrackPreviewBadge()
-                }
-                Spacer(minLength: 0)
-                Text(duration)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
             }
-            .padding(.vertical, 6)
-            .padding(.horizontal, 8)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .onHover { isHoveringTitle = $0 }
+            .help("Open track: \(track.title)")
+            .accessibilityLabel("Open track: \(track.title)")
+            if track.access == .preview {
+                TrackPreviewBadge()
+            }
+            Spacer(minLength: 0)
+            Text(duration)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
         }
-        .buttonStyle(PlaylistTrackRowStyle())
-        .help("Play \(track.title)")
-        .accessibilityLabel("Play track \(number): \(track.title)")
+        .padding(.vertical, 6)
+        .padding(.horizontal, 8)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard !isHoveringTitle else { return }
+            Task { await onPlayTrack(track) }
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .updating($isPressed) { _, pressed, _ in
+                    pressed = true
+                }
+        )
+        .background {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isPressed
+                    ? Color.primary.opacity(0.12)
+                    : Color.primary.opacity(isHovering ? 0.06 : 0))
+                .animation(.easeInOut(duration: 0.15), value: isHovering)
+        }
+        .onHover { isHovering = $0 }
+        .accessibilityAction(named: "Play") {
+            Task { await onPlayTrack(track) }
+        }
     }
 
     private var duration: String {
         let seconds = max(track.durationMilliseconds, 0) / 1_000
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
-    }
-}
-
-private struct PlaylistTrackRowStyle: ButtonStyle {
-    @State private var isHovering = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(configuration.isPressed
-                        ? Color.primary.opacity(0.12)
-                        : Color.primary.opacity(isHovering ? 0.06 : 0))
-                    .animation(.easeInOut(duration: 0.15), value: isHovering)
-            }
-            .onHover { isHovering = $0 }
     }
 }

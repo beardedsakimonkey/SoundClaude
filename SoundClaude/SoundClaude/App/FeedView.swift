@@ -58,6 +58,7 @@ struct FeedView: View {
                                 model: model,
                                 playlists: model.playlists,
                                 onSelectPlaylist: onSelectPlaylist,
+                                onSelectTrack: onSelectTrack,
                                 onSelectArtist: onSelectArtist
                             )
                         }
