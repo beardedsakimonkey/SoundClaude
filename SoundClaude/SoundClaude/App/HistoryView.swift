@@ -12,6 +12,19 @@ struct HistoryView: View {
     @State private var reloadID = UUID()
 
     var body: some View {
+        Group {
+            if !hasLoaded, errorMessage == nil {
+                ProgressView("Loading history")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                historyContent
+            }
+        }
+        .navigationTitle("History")
+        .task(id: reloadID) { await load() }
+    }
+
+    private var historyContent: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
                 Text("History")
@@ -32,7 +45,7 @@ struct HistoryView: View {
                     )
                 }
 
-                if isLoading || (!hasLoaded && errorMessage == nil) {
+                if isLoading {
                     ProgressView("Loading history")
                         .frame(maxWidth: .infinity)
                 } else if let errorMessage {
@@ -50,8 +63,6 @@ struct HistoryView: View {
             }
             .padding(20)
         }
-        .navigationTitle("History")
-        .task(id: reloadID) { await load() }
     }
 
     private func load() async {
