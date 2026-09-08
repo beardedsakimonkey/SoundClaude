@@ -6,6 +6,7 @@ struct FeedTests {
         let track = """
             {"urn":"soundcloud:tracks:1","title":"Track","access":"playable",
              "created_at":"2020/01/01 00:00:00 +0000",
+             "favoritings_count":1234,"reposts_count":56,"comment_count":7,
              "permalink_url":"https://soundcloud.com/artist/track",
              "user":{"urn":"soundcloud:users:1","username":"Artist",
              "permalink_url":"https://soundcloud.com/artist"}}
@@ -71,6 +72,11 @@ struct FeedTests {
         precondition(page.items[1].user.username == "Reposter" && page.items[1].isRepost)
         precondition(page.items[1].user.avatarURL?.absoluteString == "https://i1.sndcdn.com/reposter.jpg")
         precondition(page.items[1].track.artist.username == "Artist")
+        for item in page.items {
+            precondition(item.track.likesCount == 1234)
+            precondition(item.track.repostsCount == 56)
+            precondition(item.track.commentCount == 7)
+        }
         precondition(Set(page.items.prefix(3).map(\.id)).count == 3)
         precondition(page.items.last?.track.access == .preview)
         precondition(page.nextURL?.absoluteString == nextURL)

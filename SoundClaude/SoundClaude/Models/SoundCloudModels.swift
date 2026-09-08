@@ -34,6 +34,9 @@ struct SoundCloudTrack: Codable, Identifiable, Sendable, Hashable {
     let durationMilliseconds: Int
     let access: Access
     let secretToken: String?
+    var likesCount: Int? = nil
+    var repostsCount: Int? = nil
+    var commentCount: Int? = nil
 
     var id: String { urn }
     var uploader: String { artist.username }
@@ -305,6 +308,7 @@ struct RawTrack: Decodable {
     let createdAt: String?
     let playbackCount: Int?
     let favoritingsCount: Int?
+    let repostsCount: Int?
     let commentCount: Int?
 
     enum CodingKeys: String, CodingKey {
@@ -322,6 +326,7 @@ struct RawTrack: Decodable {
         case createdAt = "created_at"
         case playbackCount = "playback_count"
         case favoritingsCount = "favoritings_count"
+        case repostsCount = "reposts_count"
         case commentCount = "comment_count"
     }
 
@@ -343,7 +348,10 @@ struct RawTrack: Decodable {
             permalinkURL: permalinkURL,
             durationMilliseconds: duration ?? 0,
             access: access,
-            secretToken: Self.extractSecretToken(from: secretURI)
+            secretToken: Self.extractSecretToken(from: secretURI),
+            likesCount: favoritingsCount,
+            repostsCount: repostsCount,
+            commentCount: commentCount
         )
     }
 

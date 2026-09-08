@@ -12,6 +12,7 @@ struct TrackWaveformView: View {
     let track: SoundCloudTrack
     let model: AppModel
     let layout: Layout
+    let onPlayTrack: ((SoundCloudTrack) async -> Void)?
 
     private let playback: PlaybackController
     @State private var waveform: SoundCloudWaveform?
@@ -26,11 +27,13 @@ struct TrackWaveformView: View {
     init(
         track: SoundCloudTrack,
         model: AppModel,
-        layout: Layout = .detail
+        layout: Layout = .detail,
+        onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
     ) {
         self.track = track
         self.model = model
         self.layout = layout
+        self.onPlayTrack = onPlayTrack
         playback = model.playback
         _waveform = State(initialValue: model.cachedWaveform(for: track))
     }
@@ -354,7 +357,11 @@ struct TrackWaveformView: View {
         }
 
         Task { @MainActor in
-            await model.play(track)
+            if let onPlayTrack {
+                await onPlayTrack(track)
+            } else {
+                await model.play(track)
+            }
             guard playback.currentTrack?.urn == track.urn else { return }
             playback.seek(to: target)
         }

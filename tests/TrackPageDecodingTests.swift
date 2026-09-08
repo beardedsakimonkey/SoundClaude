@@ -11,6 +11,27 @@ struct TrackPageDecodingTests {
             """
         let nextURL = "https://api.soundcloud.com/tracks/soundcloud:tracks:1/related?cursor=next"
         let decoder = JSONDecoder()
+        let withoutCounts = try decoder.decode(RawTrack.self, from: Data(track.utf8)).normalized()!
+        precondition(withoutCounts.likesCount == nil)
+        precondition(withoutCounts.repostsCount == nil)
+        precondition(withoutCounts.commentCount == nil)
+        var withCounts = withoutCounts
+        withCounts.likesCount = 1234
+        withCounts.repostsCount = 56
+        withCounts.commentCount = 0
+        let encoded = try JSONEncoder().encode(withCounts)
+        let restored = try decoder.decode(SoundCloudTrack.self, from: encoded)
+        precondition(restored == withCounts)
+        // Track caches and saved queues from older versions do not have these keys.
+        var legacyJSON = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        for key in ["likesCount", "repostsCount", "commentCount"] {
+            legacyJSON.removeValue(forKey: key)
+        }
+        let legacy = try decoder.decode(
+            SoundCloudTrack.self,
+            from: JSONSerialization.data(withJSONObject: legacyJSON)
+        )
+        precondition(legacy == withoutCounts)
         let fixtures: [(String, Int, String?)] = [
             ("[\(track)]", 1, nil),
             ("[]", 0, nil),

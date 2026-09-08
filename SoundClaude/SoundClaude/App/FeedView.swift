@@ -14,9 +14,9 @@ struct FeedView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 16) {
+            LazyVStack(alignment: .leading, spacing: 24) {
                 ForEach(items) { item in
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 5) {
                             ArtistLink(
                                 artist: item.user,
@@ -36,10 +36,9 @@ struct FeedView: View {
                         .lineLimit(1)
                         .padding(.horizontal, 8)
 
-                        TrackListRow(
+                        TrackCardView(
                             track: item.track,
-                            playback: model.playback,
-                            artworkLoader: model.artworkLoader,
+                            model: model,
                             onSelectTrack: onSelectTrack,
                             onSelectArtist: onSelectArtist,
                             onPlayTrack: { track in
