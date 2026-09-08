@@ -26,18 +26,21 @@ struct FeedView: View {
                             )
                             .fontWeight(.semibold)
                             .layoutPriority(1)
-                            if item.isRepost {
-                                Image(systemName: "repeat")
-                                    .accessibilityHidden(true)
-                            }
-                            Text(activityLabel(for: item))
+                            Group {
+                                if item.isRepost {
+                                    Image(systemName: "repeat")
+                                        .accessibilityHidden(true)
+                                }
+                                Text(activityLabel(for: item))
+                                    .fixedSize()
+                                TimelineView(.periodic(from: .now, by: 60)) { context in
+                                    Text(relativeTime(for: item.createdAt, now: context.date))
+                                }
                                 .fixedSize()
-                            TimelineView(.periodic(from: .now, by: 60)) { context in
-                                Text(relativeTime(for: item.createdAt, now: context.date))
                             }
-                            .fixedSize()
+                            .foregroundStyle(.tertiary)
                         }
-                        .font(.caption)
+                        .font(.system(size: 13))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .padding(.horizontal, 8)
