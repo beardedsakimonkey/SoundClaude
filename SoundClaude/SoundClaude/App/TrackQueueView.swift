@@ -25,8 +25,13 @@ struct TrackQueueView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Track Queue")
-                .font(.title2.weight(.semibold))
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("Track Queue")
+                Text("(\(tracks.count))")
+                    .foregroundStyle(.secondary)
+                    .fontWeight(.regular)
+            }
+            .font(.title2.weight(.semibold))
 
             if tracks.isEmpty {
                 ContentUnavailableView(
