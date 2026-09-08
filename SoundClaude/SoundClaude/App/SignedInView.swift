@@ -280,7 +280,20 @@ struct SidebarView: View {
             }
             Section("Playlists") {
                 ForEach(playlists.playlists) { playlist in
-                    Label(playlist.title, systemImage: "music.note.list")
+                    let contents = playlists.cache.contents[playlist.urn]
+                    let artworkURL = contents?.playlist.artworkURL
+                        ?? playlist.artworkURL
+                        ?? contents?.tracks.first(where: { $0.artworkURL != nil })?.artworkURL
+
+                    Label {
+                        Text(playlist.title)
+                    } icon: {
+                        TrackArtworkView(
+                            artworkURL: artworkURL,
+                            loader: artworkLoader,
+                            size: 24
+                        )
+                    }
                         .lineLimit(1)
                         .help(playlist.title)
                         .tag(SidebarDestination.playlist(playlist))
