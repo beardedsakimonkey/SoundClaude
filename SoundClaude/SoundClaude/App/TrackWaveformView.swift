@@ -115,10 +115,8 @@ struct TrackWaveformView: View {
                     // boundaries from accumulating partial pixel coverage.
                     bitmap.setShouldAntialias(false)
 
-                    bitmap.setFillColor(background)
-                    bitmap.fill(CGRect(origin: .zero, size: size))
-                    bitmap.setFillColor(color)
-                    bitmap.fill(CGRect(
+                    fillGradient(background, in: bitmap, rect: CGRect(origin: .zero, size: size))
+                    fillGradient(color, in: bitmap, rect: CGRect(
                         x: 0, y: 0,
                         width: size.width * progress,
                         height: size.height
@@ -134,9 +132,8 @@ struct TrackWaveformView: View {
                         bitmap.saveGState()
                         bitmap.setAlpha(hoverOpacity)
                         bitmap.beginTransparencyLayer(auxiliaryInfo: nil)
-                        bitmap.fill(hoverRegion)
-                        bitmap.setFillColor(highlight)
-                        bitmap.fill(hoverRegion)
+                        fillGradient(color, in: bitmap, rect: hoverRegion)
+                        fillGradient(highlight, in: bitmap, rect: hoverRegion)
                         bitmap.endTransparencyLayer()
                         bitmap.restoreGState()
                     }
@@ -232,6 +229,44 @@ struct TrackWaveformView: View {
                 break
             }
         }
+    }
+
+    private func fillGradient(_ color: CGColor, in bitmap: CGContext, rect: CGRect) {
+        let colorSpace = CGColorSpace(name: CGColorSpace.linearSRGB)!
+        guard let components = color.converted(
+            to: colorSpace, intent: .relativeColorimetric, options: nil
+        )?.components, components.count == 4 else { return }
+
+        // For a fade toward black, scaling all OKLab coordinates by k is
+        // equivalent to scaling linear RGB by k³. This preserves hue and stays
+        // in gamut without a full matrix conversion. OKLab definition:
+        // https://bottosson.github.io/posts/oklab/#converting-from-linear-srgb-to-oklab
+        let locations = (0...32).map { CGFloat($0) / 32 }
+        let colors = locations.map { fraction in
+            let brightness = 1 - 0.4 * fraction
+            let factor = brightness * brightness * brightness
+            return CGColor(colorSpace: colorSpace, components: [
+                components[0] * factor,
+                components[1] * factor,
+                components[2] * factor,
+                components[3]
+            ])!
+        }
+        guard let gradient = CGGradient(
+            colorsSpace: colorSpace, colors: colors as CFArray, locations: locations
+        ) else { return }
+
+        bitmap.saveGState()
+        bitmap.clip(to: rect)
+        // Bitmap coordinates start at the bottom. Sample the OKLab fade with
+        // closely spaced stops because Core Graphics interpolates in RGB.
+        bitmap.drawLinearGradient(
+            gradient,
+            start: CGPoint(x: 0, y: rect.maxY),
+            end: CGPoint(x: 0, y: rect.minY),
+            options: []
+        )
+        bitmap.restoreGState()
     }
 
     private var progressColor: Color {
