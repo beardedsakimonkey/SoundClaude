@@ -51,12 +51,19 @@ struct ArtistUsersView: View {
                                     rendition: .square500
                                 )
                                 .clipShape(Circle())
-                                Text(user.username)
-                                    .font(.headline)
-                                    .underline(hoveredUserURL == user.permalinkURL)
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.center)
-                                    .frame(height: 40, alignment: .top)
+                                VStack(spacing: 4) {
+                                    Text(user.username)
+                                        .font(.headline)
+                                        .underline(hoveredUserURL == user.permalinkURL)
+                                        .lineLimit(2)
+                                    if let followersCount = user.followersCount {
+                                        Text("\(followersCount.formatted()) \(followersCount == 1 ? "follower" : "followers")")
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                }
+                                .multilineTextAlignment(.center)
+                                .frame(minHeight: 40, alignment: .top)
                             }
                             .frame(maxWidth: .infinity)
                             .contentShape(Rectangle())

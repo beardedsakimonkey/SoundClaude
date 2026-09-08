@@ -5,12 +5,14 @@ struct SoundCloudUser: Codable, Sendable, Hashable {
     let username: String
     let avatarURL: URL?
     let permalinkURL: URL
+    var followersCount: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case urn
         case username
         case avatarURL = "avatar_url"
         case permalinkURL = "permalink_url"
+        case followersCount = "followers_count"
     }
 }
 
@@ -467,7 +469,8 @@ struct RawUser: Decodable {
             urn: urn,
             username: username,
             avatarURL: avatarURL,
-            permalinkURL: permalinkURL
+            permalinkURL: permalinkURL,
+            followersCount: followersCount
         )
     }
 
