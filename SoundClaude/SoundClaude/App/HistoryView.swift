@@ -14,9 +14,8 @@ struct HistoryView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
-                Text("Your last 25 recently played tracks, newest first.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                Text("History")
+                    .font(.title.weight(.semibold))
 
                 ForEach(tracks) { track in
                     TrackCardView(
@@ -52,17 +51,6 @@ struct HistoryView: View {
             .padding(20)
         }
         .navigationTitle("History")
-        .toolbar {
-            ToolbarItem {
-                Button {
-                    reloadID = UUID()
-                } label: {
-                    Label("Refresh History", systemImage: "arrow.clockwise")
-                }
-                .disabled(isLoading)
-                .help("Refresh history")
-            }
-        }
         .task(id: reloadID) { await load() }
     }
 
