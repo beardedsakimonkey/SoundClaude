@@ -410,6 +410,21 @@ actor SoundCloudClient {
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
+    func artistPlaylists(
+        urn: String,
+        accessToken: String,
+        pageURL: URL? = nil
+    ) async throws -> SoundCloudPlaylistPage {
+        let url = pageURL ?? configuration.apiBaseURL.appending(path: "users")
+            .appending(path: urn).appending(path: "playlists")
+            .appending(queryItems: [
+                URLQueryItem(name: "limit", value: "25"),
+                URLQueryItem(name: "linked_partitioning", value: "true"),
+                URLQueryItem(name: "show_tracks", value: "false"),
+            ])
+        return try await playlistPage(at: url, accessToken: accessToken)
+    }
+
     func relatedTracks(
         urn: String,
         accessToken: String,
@@ -445,6 +460,10 @@ actor SoundCloudClient {
         guard let url = pageURL ?? components.url else {
             throw SoundCloudError.unexpectedURL
         }
+        return try await playlistPage(at: url, accessToken: accessToken)
+    }
+
+    private func playlistPage(at url: URL, accessToken: String) async throws -> SoundCloudPlaylistPage {
         try validateAPIURL(url)
         let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
         try validate(response: response, data: data)

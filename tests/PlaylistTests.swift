@@ -65,6 +65,28 @@ struct PlaylistTests {
         let lastPage = try await client.playlists(accessToken: "test-token", pageURL: page.nextURL)
         precondition(lastPage.playlists.isEmpty && lastPage.nextURL == nil)
 
+        let artistURN = "soundcloud:users:7"
+        let artistNextURL = "https://api.soundcloud.com/users/\(artistURN)/playlists?cursor=next"
+        PlaylistURLProtocol.respond { request in
+            precondition(request.url?.path == "/users/\(artistURN)/playlists")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            precondition(query.contains(URLQueryItem(name: "show_tracks", value: "false")))
+            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "true")))
+            return (200, "{\"collection\":[\(playlist)],\"next_href\":\"\(artistNextURL)\"}")
+        }
+        let artistPage = try await client.artistPlaylists(urn: artistURN, accessToken: "test-token")
+        precondition(artistPage.playlists == page.playlists)
+        precondition(artistPage.nextURL?.absoluteString == artistNextURL)
+        PlaylistURLProtocol.respond { request in
+            precondition(request.url?.absoluteString == artistNextURL)
+            return (200, "{\"collection\":[],\"next_href\":null}")
+        }
+        let lastArtistPage = try await client.artistPlaylists(
+            urn: artistURN, accessToken: "test-token", pageURL: artistPage.nextURL
+        )
+        precondition(lastArtistPage.playlists.isEmpty && lastArtistPage.nextURL == nil)
+
         PlaylistURLProtocol.respond { request in
             precondition(request.url?.path == "/playlists/soundcloud:playlists:42")
             return (200, playlist)

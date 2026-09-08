@@ -74,7 +74,8 @@ struct SignedInView: View {
                             artist: artist,
                             model: model,
                             onSelectTrack: showTrack,
-                            onSelectArtist: showArtist
+                            onSelectArtist: showArtist,
+                            onSelectPlaylist: showPlaylist
                         )
                         .id(artist.permalinkURL)
                         .navigationBarBackButtonHidden(true)

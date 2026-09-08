@@ -5,6 +5,7 @@ struct ArtistDetailView: View {
     private enum ContentTab: String, CaseIterable, Identifiable {
         case tracks = "Tracks"
         case reposts = "Reposts"
+        case playlists = "Playlists"
 
         var id: Self { self }
     }
@@ -15,6 +16,7 @@ struct ArtistDetailView: View {
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
+    let onSelectPlaylist: (SoundCloudPlaylist) -> Void
 
     @State private var isFollowing: Bool?
     @State private var isUpdatingFollow = false
@@ -38,6 +40,12 @@ struct ArtistDetailView: View {
     @State private var hasLoadedReposts = false
     @State private var isLoadingReposts = false
     @State private var repostsErrorMessage: String?
+    @State private var playlists: [SoundCloudPlaylist] = []
+    @State private var playlistsNextPageURL: URL?
+    @State private var loadedPlaylistsPageURLs: Set<URL> = []
+    @State private var hasLoadedPlaylists = false
+    @State private var isLoadingPlaylists = false
+    @State private var playlistsErrorMessage: String?
     @State private var isShowingArtwork = false
     @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
@@ -46,12 +54,14 @@ struct ArtistDetailView: View {
         artist: SoundCloudUser,
         model: AppModel,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
-        onSelectArtist: @escaping (SoundCloudUser) -> Void
+        onSelectArtist: @escaping (SoundCloudUser) -> Void,
+        onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void
     ) {
         self.artist = artist
         self.model = model
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
+        self.onSelectPlaylist = onSelectPlaylist
         let cached = model.cachedArtistDetails(for: artist)
         _details = State(initialValue: cached)
         _isLoading = State(initialValue: cached == nil)
@@ -214,6 +224,8 @@ struct ArtistDetailView: View {
                     trackList
                 case .reposts:
                     repostList
+                case .playlists:
+                    playlistList
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -393,6 +405,46 @@ struct ArtistDetailView: View {
         }
     }
 
+    private var playlistList: some View {
+        LazyVStack(alignment: .leading, spacing: 16) {
+            ForEach(playlists) { playlist in
+                PlaylistCardView(
+                    playlist: playlist,
+                    model: model,
+                    playlists: model.playlists,
+                    onSelectPlaylist: onSelectPlaylist,
+                    onSelectArtist: onSelectArtist
+                )
+            }
+            if let playlistsErrorMessage {
+                Text(playlistsErrorMessage).foregroundStyle(.secondary)
+                Button("Try Again") { Task { await loadPlaylists() } }
+                    .disabled(isLoadingPlaylists)
+            }
+            if isLoadingPlaylists
+                || (playlistsNextPageURL != nil && playlistsErrorMessage == nil) {
+                ProgressView("Loading playlists")
+                    .frame(maxWidth: .infinity)
+                    .task(id: playlistsNextPageURL) {
+                        guard playlistsNextPageURL != nil,
+                              playlistsErrorMessage == nil else { return }
+                        await loadPlaylists()
+                    }
+            } else if hasLoadedPlaylists, playlists.isEmpty,
+                      playlistsErrorMessage == nil {
+                ContentUnavailableView(
+                    "No playlists",
+                    systemImage: "music.note.list",
+                    description: Text("This artist has no playlists available here.")
+                )
+            }
+        }
+        .task {
+            guard !hasLoadedPlaylists else { return }
+            await loadPlaylists()
+        }
+    }
+
     @ViewBuilder
     private func statistic(_ count: Int?, label: String) -> some View {
         if let count {
@@ -444,6 +496,33 @@ struct ArtistDetailView: View {
         } catch {
             guard !Task.isCancelled else { return }
             tracksErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func loadPlaylists() async {
+        guard !isLoadingPlaylists, let details,
+              !hasLoadedPlaylists || playlistsNextPageURL != nil else { return }
+        isLoadingPlaylists = true
+        playlistsErrorMessage = nil
+        defer { isLoadingPlaylists = false }
+        do {
+            let pageURL = playlistsNextPageURL
+            let page = try await model.artistPlaylists(for: details.user, pageURL: pageURL)
+            try Task.checkCancellation()
+            if let nextURL = page.nextURL,
+               nextURL == pageURL || loadedPlaylistsPageURLs.contains(nextURL) {
+                throw SoundCloudError.invalidData
+            }
+            var knownURNs = Set(playlists.map(\.urn))
+            playlists.append(contentsOf: page.playlists.filter {
+                knownURNs.insert($0.urn).inserted
+            })
+            if let pageURL { loadedPlaylistsPageURLs.insert(pageURL) }
+            playlistsNextPageURL = page.nextURL
+            hasLoadedPlaylists = true
+        } catch {
+            guard !Task.isCancelled else { return }
+            playlistsErrorMessage = error.localizedDescription
         }
     }
 
