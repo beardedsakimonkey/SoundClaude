@@ -111,7 +111,8 @@ struct SignedInView: View {
                 model: model,
                 onSelectPlaylist: showPlaylist,
                 onSelectTrack: showTrack,
-                onSelectArtist: showArtist
+                onSelectArtist: showArtist,
+                feed: model.feed
             )
         case .history:
             HistoryView(

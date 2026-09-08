@@ -8,7 +8,7 @@ Core Audio, Accelerate, and Metal. It feautres:
 - authenticated stream resolution with final CDN host validation
 - one `AVPlayer` for Apple HLS/AAC playback
 - saved track, queue source, and playback position, restored paused at startup; cleared on sign-out
-- a track feed with posts, reposts, user avatars, and relative timestamps
+- a locally cached feed with track and playlist posts, reposts, user avatars, and relative timestamps
 - queues from the feed, likes, artist tracks and reposts, playlists, and related tracks
 - account-specific likes metadata cached in Application Support; new likes sync when Likes opens
 - account-specific playlist metadata and opened playlist tracks cached locally
@@ -77,6 +77,16 @@ newest pages until they overlap the cache. Local like changes are saved immediat
 Likes removed on another device can remain cached until a sync reaches the end
 of the remote list, because the API has no incremental change feed. Sign-out clears
 memory and playback state, and retains the account-specific cache for the next login.
+
+The feed cache saves activity metadata in account-specific atomic JSON files in
+`~/Library/Application Support/SoundClaude/Feed/`. Opening Feed restores saved
+items, then refreshes from the newest page until it reaches the saved feed.
+Older pages are saved as you scroll, including the continuation for the next visit.
+Refresh Feed checks for new items on demand. Failed requests keep the saved
+snapshot available. A complete refresh removes entries no longer returned by the
+API; older entries can remain until that part of the feed is refreshed. Sign-out
+clears memory and retains each account's cache. This stores metadata only;
+playback still needs a network connection.
 
 The playlist cache uses the same account-specific atomic JSON storage in
 `~/Library/Application Support/SoundClaude/Playlists/`. The sidebar restores its

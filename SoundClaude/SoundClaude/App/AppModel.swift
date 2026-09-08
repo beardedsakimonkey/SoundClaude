@@ -8,6 +8,7 @@ final class AppModel: ObservableObject {
     let auth: AuthController
     let likes: LikesController
     let playlists: PlaylistsController
+    let feed: FeedController
     let artworkLoader: ArtworkLoader
 
     @Published private(set) var errorMessage: String?
@@ -63,6 +64,7 @@ final class AppModel: ObservableObject {
         self.auth = auth
         self.likes = likes
         playlists = PlaylistsController(client: client, auth: auth)
+        feed = FeedController(client: client, auth: auth)
         artworkLoader = ArtworkLoader(client: client)
 
         playback.onReadyToPlay = { [weak audioTap] in
@@ -120,6 +122,7 @@ final class AppModel: ObservableObject {
         followingOverrides = [:]
         likes.clear()
         playlists.clear()
+        feed.clear()
         trackDetailsCache.removeAll()
         artistDetailsCache.removeAll()
         waveformCache.removeAll()
@@ -365,11 +368,6 @@ final class AppModel: ObservableObject {
             accessToken: accessToken,
             pageURL: pageURL
         )
-    }
-
-    func feed(pageURL: URL? = nil) async throws -> SoundCloudFeedPage {
-        let accessToken = try await auth.validAccessToken()
-        return try await client.feed(accessToken: accessToken, pageURL: pageURL)
     }
 
     func recentlyPlayedTracks() async throws -> [SoundCloudTrack] {

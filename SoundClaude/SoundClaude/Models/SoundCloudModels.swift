@@ -82,7 +82,7 @@ struct SoundCloudTrackPage: Sendable {
     let nextURL: URL?
 }
 
-enum SoundCloudFeedContent: Sendable {
+enum SoundCloudFeedContent: Codable, Sendable {
     case track(SoundCloudTrack)
     case playlist(SoundCloudPlaylist)
 
@@ -106,7 +106,7 @@ enum SoundCloudFeedContent: Sendable {
     }
 }
 
-struct SoundCloudFeedItem: Identifiable, Sendable {
+struct SoundCloudFeedItem: Codable, Identifiable, Sendable {
     let content: SoundCloudFeedContent
     let user: SoundCloudUser
     let isRepost: Bool

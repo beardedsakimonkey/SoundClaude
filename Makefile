@@ -71,6 +71,12 @@ test:
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
 		tests/FeedTests.swift
 	/tmp/soundclaude-tests/feed
+	swiftc -o /tmp/soundclaude-tests/feed-cache \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/App/FeedCache.swift \
+		SoundClaude/SoundClaude/App/FeedController.swift \
+		tests/FeedCacheTests.swift
+	/tmp/soundclaude-tests/feed-cache
 	swiftc -o /tmp/soundclaude-tests/playlists \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \

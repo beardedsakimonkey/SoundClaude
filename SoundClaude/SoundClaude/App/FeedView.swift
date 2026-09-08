@@ -6,24 +6,22 @@ struct FeedView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
-    @State private var items: [SoundCloudFeedItem] = []
-    @State private var nextPageURL: URL?
-    @State private var loadedPageURLs: Set<URL> = []
-    @State private var hasLoaded = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    @ObservedObject var feed: FeedController
+
+    private var items: [SoundCloudFeedItem] { feed.cache.items }
+    private var nextPageURL: URL? { feed.cache.nextPageURL }
 
     var body: some View {
         Group {
-            if !hasLoaded, errorMessage == nil {
+            if !feed.cache.hasLoadedPage, feed.errorMessage == nil {
                 ProgressView("Loading feed")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .task { await loadPage() }
             } else {
                 feedContent
             }
         }
         .navigationTitle("Feed")
+        .task { await feed.load() }
     }
 
     private var feedContent: some View {
@@ -89,18 +87,19 @@ struct FeedView: View {
                     }
                 }
 
-                if let errorMessage {
+                if let errorMessage = feed.errorMessage {
                     Text(errorMessage).foregroundStyle(.secondary)
-                    Button("Try Again") { Task { await loadPage() } }
-                        .disabled(isLoading)
+                    Button("Try Again") { Task { await feed.retry() } }
+                        .disabled(feed.isLoading)
                 }
-                if !hasLoaded || nextPageURL != nil {
-                    if errorMessage == nil {
-                        ProgressView("Loading feed")
-                            .frame(maxWidth: .infinity)
-                            .task(id: nextPageURL) { await loadPage() }
-                    }
-                } else if items.isEmpty, errorMessage == nil {
+                if feed.isLoading {
+                    ProgressView("Loading feed")
+                        .frame(maxWidth: .infinity)
+                } else if nextPageURL != nil, feed.errorMessage == nil {
+                    ProgressView("Loading feed")
+                        .frame(maxWidth: .infinity)
+                        .task(id: nextPageURL) { await feed.loadMore() }
+                } else if items.isEmpty, feed.errorMessage == nil {
                     ContentUnavailableView(
                         "Your feed is empty",
                         systemImage: "music.note",
@@ -125,29 +124,5 @@ struct FeedView: View {
         formatter.unitsStyle = .full
         formatter.dateTimeStyle = .numeric
         return formatter.localizedString(for: min(date, now.addingTimeInterval(-1)), relativeTo: now)
-    }
-
-    private func loadPage() async {
-        guard !isLoading, !hasLoaded || nextPageURL != nil else { return }
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
-        do {
-            let pageURL = nextPageURL
-            let page = try await model.feed(pageURL: pageURL)
-            try Task.checkCancellation()
-            if let nextURL = page.nextURL,
-               nextURL == pageURL || loadedPageURLs.contains(nextURL) {
-                throw SoundCloudError.invalidData
-            }
-            var knownIDs = Set(items.map(\.id))
-            items.append(contentsOf: page.items.filter { knownIDs.insert($0.id).inserted })
-            if let pageURL { loadedPageURLs.insert(pageURL) }
-            nextPageURL = page.nextURL
-            hasLoaded = true
-        } catch {
-            guard !Task.isCancelled else { return }
-            errorMessage = error.localizedDescription
-        }
     }
 }
