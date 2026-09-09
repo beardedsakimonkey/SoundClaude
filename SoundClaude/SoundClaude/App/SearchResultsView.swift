@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SearchResultsView: View {
     let query: String
+    var isGenreSearch = false
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
@@ -11,17 +12,19 @@ struct SearchResultsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Search results for “\(query)”")
+            Text(isGenreSearch ? "Tracks in “\(query)”" : "Search results for “\(query)”")
                 .font(.title2.weight(.semibold))
                 .textSelection(.enabled)
-            TabPicker(
-                title: "Search type",
-                options: SearchCategory.allCases,
-                selection: $category
-            )
+            if !isGenreSearch {
+                TabPicker(
+                    title: "Search type",
+                    options: SearchCategory.allCases,
+                    selection: $category
+                )
+            }
 
             SearchResultList(
-                query: query, category: category, model: model,
+                query: query, isGenreSearch: isGenreSearch, category: category, model: model,
                 onSelectTrack: onSelectTrack,
                 onSelectPlaylist: onSelectPlaylist,
                 onSelectArtist: onSelectArtist
@@ -42,6 +45,7 @@ private enum SearchCategory: String, CaseIterable {
 
 private struct SearchResultList: View {
     let query: String
+    let isGenreSearch: Bool
     let category: SearchCategory
     let model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
@@ -72,7 +76,8 @@ private struct SearchResultList: View {
                             onSelectArtist: onSelectArtist,
                             onPlayTrack: { track in
                                 await model.play(track, queue: TrackQueue(
-                                    source: .search(query), tracks: tracks, nextPageURL: nextPageURL
+                                    source: isGenreSearch ? .genre(query) : .search(query),
+                                    tracks: tracks, nextPageURL: nextPageURL
                                 ))
                             }
                         )
@@ -143,7 +148,7 @@ private struct SearchResultList: View {
                         ContentUnavailableView(
                             "No \(category.rawValue.lowercased()) found",
                             systemImage: "magnifyingglass",
-                            description: Text("Try another search or result type.")
+                            description: Text(isGenreSearch ? "Try another genre or search." : "Try another search or result type.")
                         )
                     }
                 }
@@ -164,7 +169,11 @@ private struct SearchResultList: View {
             let nextURL: URL?
             switch category {
             case .tracks:
-                let page = try await model.searchTracks(query: query, pageURL: pageURL)
+                let page = try await model.searchTracks(
+                    query: isGenreSearch ? nil : query,
+                    genres: isGenreSearch ? query : nil,
+                    pageURL: pageURL
+                )
                 try Task.checkCancellation()
                 try validateNextPage(page.nextURL, requestedURL: pageURL)
                 var known = Set(tracks.map(\.urn))

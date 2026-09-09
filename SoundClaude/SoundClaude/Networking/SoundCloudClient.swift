@@ -404,11 +404,13 @@ actor SoundCloudClient {
     }
 
     func searchTracks(
-        query: String, accessToken: String, pageURL: URL? = nil
+        query: String? = nil, genres: String? = nil,
+        accessToken: String, pageURL: URL? = nil
     ) async throws -> SoundCloudTrackPage {
         let url = pageURL ?? searchURL(path: "tracks", query: query).appending(queryItems: [
+            URLQueryItem(name: "genres", value: genres),
             URLQueryItem(name: "access", value: "playable,preview"),
-        ])
+        ].filter { $0.value != nil })
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
@@ -438,12 +440,12 @@ actor SoundCloudClient {
         )
     }
 
-    private func searchURL(path: String, query: String) -> URL {
+    private func searchURL(path: String, query: String?) -> URL {
         configuration.apiBaseURL.appending(path: path).appending(queryItems: [
             URLQueryItem(name: "q", value: query),
             URLQueryItem(name: "limit", value: "25"),
             URLQueryItem(name: "linked_partitioning", value: "true"),
-        ])
+        ].filter { $0.value != nil })
     }
 
     func artistTracks(

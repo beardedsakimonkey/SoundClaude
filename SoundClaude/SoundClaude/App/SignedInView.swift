@@ -77,6 +77,7 @@ struct SignedInView: View {
             )
             .fixedSize(horizontal: false, vertical: true)
         }
+        .environment(\.searchGenre, showGenreSearch)
         .background {
             NavigationBackEventView(
                 onBack: navigateBack,
@@ -100,6 +101,18 @@ struct SignedInView: View {
                             onSelectArtist: showArtist
                         )
                         .id(query)
+                        .navigationBarBackButtonHidden(true)
+                        .toolbar { navigationToolbar }
+                    case let .genre(genre):
+                        SearchResultsView(
+                            query: genre,
+                            isGenreSearch: true,
+                            model: model,
+                            onSelectTrack: showTrack,
+                            onSelectPlaylist: showPlaylist,
+                            onSelectArtist: showArtist
+                        )
+                        .id(route)
                         .navigationBarBackButtonHidden(true)
                         .toolbar { navigationToolbar }
                     case let .track(track):
@@ -238,6 +251,12 @@ struct SignedInView: View {
         guard !query.isEmpty else { return }
         forwardPath.removeAll()
         path.append(.search(query))
+    }
+
+    private func showGenreSearch(_ genre: String) {
+        guard !genre.isEmpty else { return }
+        forwardPath.removeAll()
+        path.append(.genre(genre))
     }
 
     private func showTrack(_ track: SoundCloudTrack) {
@@ -513,6 +532,7 @@ private struct SidebarTypingConfiguration: NSViewRepresentable {
 
 private enum Route: Hashable {
     case search(String)
+    case genre(String)
     case playlist(SoundCloudPlaylist)
     case track(SoundCloudTrack)
     case artist(SoundCloudUser)

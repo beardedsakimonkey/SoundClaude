@@ -41,6 +41,7 @@ struct SearchTests {
                 let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
                 let parameters = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value!) })
                 precondition(parameters["q"] == query, "Search text must survive URL encoding")
+                precondition(parameters["genres"] == nil)
                 precondition(parameters["linked_partitioning"] == "true")
                 precondition(parameters["limit"] == "25")
                 if endpoint == "tracks" { precondition(parameters["access"] == "playable,preview") }
@@ -120,7 +121,34 @@ struct SearchTests {
                 fatalError("External page URL was accepted")
             } catch SoundCloudError.unexpectedURL {}
         }
-        print("Search API, pagination, and queue checks passed")
+        let genre = "R&B + café/夜?"
+        let genreNextURL = URL(string: "https://api.soundcloud.com/tracks")!.appending(queryItems: [
+            URLQueryItem(name: "genres", value: genre),
+            URLQueryItem(name: "cursor", value: "next"),
+        ])
+        SearchURLProtocol.respond { request in
+            precondition(request.url?.path == "/tracks")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            let parameters = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value!) })
+            precondition(parameters["genres"] == genre, "Genre must survive URL encoding")
+            precondition(parameters["q"] == nil, "Genre search must not also filter by text")
+            precondition(parameters["limit"] == "25" && parameters["linked_partitioning"] == "true")
+            precondition(parameters["access"] == "playable,preview")
+            return (200, "{\"collection\":[\(track(1))],\"next_href\":\"\(genreNextURL)\"}")
+        }
+        let genrePage = try await client.searchTracks(genres: genre, accessToken: "test-token")
+        precondition(genrePage.tracks.count == 1 && genrePage.nextURL == genreNextURL)
+        let genreQueue = TrackQueue(source: .genre(genre), tracks: genrePage.tracks, nextPageURL: genrePage.nextURL)
+        let restoredGenreQueue = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(genreQueue))
+        precondition(restoredGenreQueue.source == .genre(genre) && restoredGenreQueue.nextPageURL == genreNextURL)
+        SearchURLProtocol.respond { request in
+            precondition(request.url == genreNextURL, "Genre continuation must be used unchanged")
+            return (200, "{\"collection\":[],\"next_href\":null}")
+        }
+        let genreEnd = try await client.searchTracks(genres: genre, accessToken: "test-token", pageURL: genrePage.nextURL)
+        precondition(genreEnd.nextURL == nil)
+        print("Search API, genre filtering, pagination, and queue checks passed")
     }
 }
 
