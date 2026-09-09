@@ -15,6 +15,20 @@ struct TrackPageDecodingTests {
         precondition(withoutCounts.likesCount == nil)
         precondition(withoutCounts.repostsCount == nil)
         precondition(withoutCounts.commentCount == nil)
+        precondition(withoutCounts.genre == nil)
+        let withGenreJSON = String(track.dropLast()) + ",\"genre\":\"Ambient\"}"
+        let withGenre = try decoder.decode(RawTrack.self, from: Data(withGenreJSON.utf8)).normalized()!
+        precondition(withGenre.genre == "Ambient")
+        let genreCache = try JSONEncoder().encode(withGenre)
+        let restoredGenre = try decoder.decode(SoundCloudTrack.self, from: genreCache)
+        precondition(restoredGenre == withGenre)
+        var legacyGenreJSON = try JSONSerialization.jsonObject(with: genreCache) as! [String: Any]
+        legacyGenreJSON.removeValue(forKey: "genre")
+        let legacyGenre = try decoder.decode(
+            SoundCloudTrack.self,
+            from: JSONSerialization.data(withJSONObject: legacyGenreJSON)
+        )
+        precondition(legacyGenre == withoutCounts)
         var withCounts = withoutCounts
         withCounts.likesCount = 1234
         withCounts.repostsCount = 56

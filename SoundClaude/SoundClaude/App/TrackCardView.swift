@@ -26,24 +26,19 @@ struct TrackCardView: View {
             .accessibilityLabel("Open track: \(track.title)")
 
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    if isCurrentTrack {
-                        TrackPlaybackIndicator(isPlaying: model.playback.isPlaying)
+                ViewThatFits(in: .horizontal) {
+                    if let genre = track.genre?.trimmingCharacters(in: .whitespacesAndNewlines),
+                       !genre.isEmpty {
+                        HStack(alignment: .top, spacing: 12) {
+                            trackTitle
+                                .fixedSize(horizontal: true, vertical: false)
+                            Spacer(minLength: 0)
+                            GenrePill(genre: genre)
+                        }
                     }
-                    Button {
-                        onSelectTrack(track)
-                    } label: {
-                        Text(track.title)
-                            .font(.title2.weight(.semibold))
-                            .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
-                            .underline(isHoveringTitle)
-                            .multilineTextAlignment(.leading)
-                            .lineLimit(1)
-                    }
-                    .buttonStyle(.plain)
-                    .onHover { isHoveringTitle = $0 }
-                    .help(track.title)
+                    trackTitle
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                     .font(.callout)
@@ -86,6 +81,27 @@ struct TrackCardView: View {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(.primary.opacity(0.06), lineWidth: 1)
                 .allowsHitTesting(false)
+        }
+    }
+
+    private var trackTitle: some View {
+        HStack(spacing: 6) {
+            if isCurrentTrack {
+                TrackPlaybackIndicator(isPlaying: model.playback.isPlaying)
+            }
+            Button {
+                onSelectTrack(track)
+            } label: {
+                Text(track.title)
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
+                    .underline(isHoveringTitle)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(1)
+            }
+            .buttonStyle(.plain)
+            .onHover { isHoveringTitle = $0 }
+            .help(track.title)
         }
     }
 
