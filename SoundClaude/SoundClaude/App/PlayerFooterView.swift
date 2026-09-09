@@ -41,28 +41,7 @@ struct PlayerFooterView: View {
                 .layoutPriority(1)
         }
         .padding(14)
-        .background {
-            TrackArtworkBackdropView(
-                artworkURL: playback.currentTrack?.artworkURL,
-                loader: artworkLoader,
-                fadesToBottom: false,
-                animatesChanges: true
-            )
-            .mask {
-                LinearGradient(
-                    colors: [.black, .clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-        }
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(.primary.opacity(0.2))
-                .frame(height: 1)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-        }
+        .modifier(PlayerFooterGlass())
         .alert("Could not update like", isPresented: Binding(
             get: { likeErrorMessage != nil },
             set: { if !$0 { likeErrorMessage = nil } }
@@ -307,17 +286,10 @@ struct PlayerFooterView: View {
     }
 
     private var transportControls: some View {
-        Group {
-            if #available(macOS 26.0, *) {
-                transportButtons
-                    .buttonStyle(SpringGlassButtonStyle())
-            } else {
-                transportButtons
-                    .buttonStyle(.bordered)
-            }
-        }
-        .buttonBorderShape(.circle)
-        .controlSize(.large)
+        transportButtons
+            .buttonStyle(PlayerFooterButtonStyle())
+            .buttonBorderShape(.circle)
+            .controlSize(.large)
     }
 
     private var transportButtons: some View {
@@ -390,6 +362,26 @@ struct PlayerFooterView: View {
         guard seconds.isFinite, seconds >= 0 else { return "0:00" }
         let total = Int(seconds)
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+private struct PlayerFooterButtonStyle: PrimitiveButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button(configuration)
+            .buttonStyle(.borderless)
+            .modifier(SpringPressEffect())
+    }
+}
+
+private struct PlayerFooterGlass: ViewModifier {
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+
+        if #available(macOS 26.0, *) {
+            content.glassEffect(.regular, in: shape)
+        } else {
+            content.background(.regularMaterial, in: shape)
+        }
     }
 }
 
