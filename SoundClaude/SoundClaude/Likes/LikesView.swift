@@ -84,7 +84,12 @@ struct LikesView: View {
             TextField("Filter", text: $searchText)
                 .textFieldStyle(.plain)
                 .focused($isSearchFocused)
-                .onExitCommand { isSearchFocused = false }
+                .onExitCommand {
+                    if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        searchText = ""
+                    }
+                    isSearchFocused = false
+                }
                 .accessibilityLabel("Search liked tracks")
             if !searchText.isEmpty {
                 Button {
