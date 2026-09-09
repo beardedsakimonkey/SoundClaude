@@ -14,13 +14,11 @@ struct SearchResultsView: View {
             Text("Search results for “\(query)”")
                 .font(.title2.weight(.semibold))
                 .textSelection(.enabled)
-            Picker("Search type", selection: $category) {
-                ForEach(SearchCategory.allCases, id: \.self) { category in
-                    Text(category.rawValue).tag(category)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(maxWidth: 360)
+            TabPicker(
+                title: "Search type",
+                options: SearchCategory.allCases,
+                selection: $category
+            )
 
             SearchResultList(
                 query: query, category: category, model: model,

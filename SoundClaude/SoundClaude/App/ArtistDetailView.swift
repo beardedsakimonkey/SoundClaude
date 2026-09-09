@@ -220,13 +220,11 @@ struct ArtistDetailView: View {
                 }
 
                 Divider()
-                Picker("Artist content", selection: $selectedTab) {
-                    ForEach(ContentTab.allCases) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
+                TabPicker(
+                    title: "Artist content",
+                    options: ContentTab.allCases,
+                    selection: $selectedTab
+                )
                 if let message = model.errorMessage {
                     Label(message, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
