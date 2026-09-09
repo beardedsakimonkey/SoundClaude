@@ -162,11 +162,11 @@ struct TrackWaveformView: View {
                 // Resampling during window resizing must not start or extend a spring.
                 .animation(nil, value: proxy.size)
                 .animation(
-                    reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.3),
+                    reduceMotion ? nil : Animation(WaveformStaggeredSpring()),
                     value: waveform
                 )
                 .animation(
-                    reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.3),
+                    reduceMotion ? nil : Animation(WaveformStaggeredSpring()),
                     value: barDirection
                 )
                 .animation(.easeInOut(duration: 0.15), value: isHovering)
@@ -438,6 +438,32 @@ struct TrackWaveformView: View {
         }
         waveformTrackURN = track.urn
         waveform = loadedWaveform
+    }
+}
+
+private struct WaveformStaggeredSpring: CustomAnimation {
+    private let spring = Spring(duration: 0.45, bounce: 0.3)
+    private let staggerDuration: TimeInterval = 0.2
+
+    func animate<V: VectorArithmetic>(
+        value: V,
+        time: TimeInterval,
+        context: inout AnimationContext<V>
+    ) -> V? {
+        guard time < spring.settlingDuration + staggerDuration else { return nil }
+        guard var bars = value as? AnimatablePair<WaveformAmplitudes, Double> else {
+            return spring.value(target: value, time: time)
+        }
+
+        // Spread the delay across the width so resizing does not change its duration.
+        let lastIndex = max(bars.first.values.count - 1, 1)
+        bars.first.values = bars.first.values.enumerated().map { index, amplitude in
+            let delay = staggerDuration * Double(index) / Double(lastIndex)
+            guard time > delay else { return 0 }
+            return spring.value(target: amplitude, time: time - delay)
+        }
+        bars.second = spring.value(target: bars.second, time: time)
+        return bars as? V
     }
 }
 
