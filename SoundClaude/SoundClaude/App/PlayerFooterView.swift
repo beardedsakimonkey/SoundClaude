@@ -115,6 +115,7 @@ struct PlayerFooterView: View {
                 .foregroundStyle(isLiked ? Color.orange : Color.primary)
                 .opacity(0.9)
                 .frame(width: 32, height: 32)
+                .modifier(PlayerFooterButtonBackground(color: .orange, isActive: isLiked))
                 .padding(.horizontal, 6)
                 .contentShape(Rectangle())
         }
@@ -231,6 +232,8 @@ struct PlayerFooterView: View {
                         .font(.system(size: 18))
                         .foregroundStyle(isShowingQueue ? Color.orange : Color.primary)
                         .frame(width: 32, height: 32)
+                        .modifier(PlayerFooterButtonBackground(color: .orange, isActive: isShowingQueue))
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .modifier(SpringPressEffect())
@@ -329,9 +332,10 @@ struct PlayerFooterView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(playback.isShuffleEnabled ? Color.green : Color.primary)
                     .opacity(0.9)
-                    .frame(width: 20, height: 20)
+                    .frame(width: 32, height: 32)
+                    .modifier(PlayerFooterButtonBackground(color: .green, isActive: playback.isShuffleEnabled))
+                    .contentShape(Circle())
             }
-            .padding(.horizontal, 6)
             .help(playback.isShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
             .accessibilityLabel("Shuffle")
             .accessibilityValue(playback.isShuffleEnabled ? "On" : "Off")
@@ -341,9 +345,10 @@ struct PlayerFooterView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(playback.repeatMode != .off ? Color.cyan : Color.primary)
                     .opacity(0.9)
-                    .frame(width: 20, height: 20)
+                    .frame(width: 32, height: 32)
+                    .modifier(PlayerFooterButtonBackground(color: .cyan, isActive: playback.repeatMode != .off))
+                    .contentShape(Circle())
             }
-            .padding(.horizontal, 6)
             .help("\(playback.repeatMode.nextAction) (R)")
             .accessibilityLabel("Repeat")
             .accessibilityValue(playback.repeatMode.label)
@@ -354,6 +359,25 @@ struct PlayerFooterView: View {
         guard seconds.isFinite, seconds >= 0 else { return "0:00" }
         let total = Int(seconds)
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+private struct PlayerFooterButtonBackground: ViewModifier {
+    let color: Color
+    let isActive: Bool
+
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                Circle()
+                    .fill(isActive ? color.opacity(0.12) : Color(white: 0.5).opacity(isHovering && isEnabled ? 0.12 : 0))
+                    .frame(width: 32, height: 32)
+            }
+            .contentShape(Circle())
+            .onContentHover { isHovering = $0 }
     }
 }
 
