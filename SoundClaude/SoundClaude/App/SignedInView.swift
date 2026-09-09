@@ -432,7 +432,6 @@ struct SidebarView: View {
                         .underline(isProfileHovered)
                         .lineLimit(1)
                         .truncationMode(.tail)
-                    Spacer(minLength: 0)
                 }
                 .contentShape(Rectangle())
             }
@@ -440,6 +439,8 @@ struct SidebarView: View {
             .onHover { isProfileHovered = $0 }
             .help("View profile: \(user.username)")
             .accessibilityLabel("View profile: \(user.username)")
+
+            Spacer(minLength: 0)
 
             Menu {
                 Button("Log out") {
