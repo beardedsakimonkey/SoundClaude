@@ -296,7 +296,8 @@ struct PlayerFooterView: View {
             Button(action: playback.previous) {
                 Image(systemName: "backward.fill")
                     .font(.system(size: 14, weight: .semibold))
-                    .frame(width: 20, height: 20)
+                    .frame(width: 32, height: 32)
+                    .modifier(PlayerFooterButtonBackground())
             }
             .help("Previous track")
             .accessibilityLabel("Previous track")
@@ -309,6 +310,7 @@ struct PlayerFooterView: View {
                         .transition(reduceMotion ? .identity : .scale(scale: 0.01).combined(with: .opacity))
                 }
                 .frame(width: 44, height: 44)
+                .modifier(PlayerFooterButtonBackground())
                 .animation(
                     reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.6),
                     value: playback.isPlaybackActive
@@ -322,7 +324,8 @@ struct PlayerFooterView: View {
             Button(action: playback.next) {
                 Image(systemName: "forward.fill")
                     .font(.system(size: 14, weight: .semibold))
-                    .frame(width: 20, height: 20)
+                    .frame(width: 32, height: 32)
+                    .modifier(PlayerFooterButtonBackground())
             }
             .help("Next track")
             .accessibilityLabel("Next track")
@@ -363,8 +366,8 @@ struct PlayerFooterView: View {
 }
 
 private struct PlayerFooterButtonBackground: ViewModifier {
-    let color: Color
-    let isActive: Bool
+    var color: Color = .primary
+    var isActive: Bool = false
 
     @Environment(\.isEnabled) private var isEnabled
     @State private var isHovering = false
@@ -374,7 +377,6 @@ private struct PlayerFooterButtonBackground: ViewModifier {
             .background {
                 Circle()
                     .fill(isActive ? color.opacity(0.12) : Color(white: 0.5).opacity(isHovering && isEnabled ? 0.12 : 0))
-                    .frame(width: 32, height: 32)
             }
             .contentShape(Circle())
             .onContentHover { isHovering = $0 }

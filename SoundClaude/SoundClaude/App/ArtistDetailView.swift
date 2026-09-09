@@ -133,7 +133,7 @@ struct ArtistDetailView: View {
             loader: model.artworkLoader,
             cachedImage: headerImage
         )
-        .frame(height: 340)
+        .frame(height: 600)
 
         if #available(macOS 26.0, *) {
             backdrop.backgroundExtensionEffect()
