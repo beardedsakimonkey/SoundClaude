@@ -201,14 +201,24 @@ struct PlayerFooterView: View {
                 // Compensate for the timestamps below the waveform.
                 .offset(y: 8)
 
-                Button(action: playback.toggleMute) {
-                    Image(systemName: volumeIcon)
-                        .frame(width: 24)
+                HStack(spacing: 4) {
+                    Button(action: playback.toggleMute) {
+                        Group {
+                            if playback.volume == 0 || playback.isMuted {
+                                Image(systemName: "speaker.slash.fill")
+                            } else {
+                                Image(systemName: "speaker.wave.3.fill", variableValue: Double(playback.volume))
+                            }
+                        }
+                        .symbolRenderingMode(.hierarchical)
+                        .frame(width: 24, alignment: .leading)
+                    }
+
+                    Slider(value: $playback.volume, in: 0...1)
+                        .frame(width: 110)
+                        .accessibilityLabel("Volume")
+                        .accessibilityValue("\(Int(playback.volume * 100)) percent")
                 }
-                Slider(value: $playback.volume, in: 0...1)
-                    .frame(width: 110)
-                    .accessibilityLabel("Volume")
-                    .accessibilityValue("\(Int(playback.volume * 100)) percent")
 
                 Button {
                     isShowingQueue = true
