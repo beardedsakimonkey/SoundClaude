@@ -91,7 +91,7 @@ final class PlaybackController {
     @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var seekTarget: Double?
     @ObservationIgnored private var isSeekInProgress = false
-    @ObservationIgnored private var shouldPlayWhenReady = false
+    private var shouldPlayWhenReady = false
     @ObservationIgnored private var hasNotifiedReady = false
     @ObservationIgnored private var lastSaveTime = Date.distantPast
     private let remoteCommandCenter = MPRemoteCommandCenter.shared()
@@ -272,8 +272,13 @@ final class PlaybackController {
         }
     }
 
+    // Keep transport controls stable while playback loads, seeks, or buffers.
+    var isPlaybackActive: Bool {
+        isPlaying || shouldPlayWhenReady
+    }
+
     func togglePlayPause() {
-        if isPlaying || shouldPlayWhenReady {
+        if isPlaybackActive {
             pause()
         } else if player.currentItem != nil {
             play()

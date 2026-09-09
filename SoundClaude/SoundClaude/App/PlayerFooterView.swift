@@ -221,7 +221,6 @@ struct PlayerFooterView: View {
                             model: model,
                             layout: .compact
                         )
-                            .id(track.urn)
                     } else {
                         Color.clear
                             .frame(height: TrackWaveformView.Layout.compact.height)
@@ -322,14 +321,14 @@ struct PlayerFooterView: View {
             .accessibilityLabel("Previous track")
 
             Button(action: playback.togglePlayPause) {
-                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                Image(systemName: playback.isPlaybackActive ? "pause.fill" : "play.fill")
                     .font(.system(size: 28, weight: .semibold))
                     .frame(width: 44, height: 44)
             }
             .keyboardShortcut(.space, modifiers: [])
-            .disabled(playback.currentTrack == nil || playback.isLoading)
-            .help(playback.isPlaying ? "Pause" : "Play")
-            .accessibilityLabel(playback.isPlaying ? "Pause" : "Play")
+            .disabled(playback.currentTrack == nil)
+            .help(playback.isPlaybackActive ? "Pause" : "Play")
+            .accessibilityLabel(playback.isPlaybackActive ? "Pause" : "Play")
 
             Button(action: playback.next) {
                 Image(systemName: "forward.end.fill")

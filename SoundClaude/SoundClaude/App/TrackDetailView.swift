@@ -299,7 +299,7 @@ struct TrackDetailView: View {
     private func playButtonLabel(for track: SoundCloudTrack) -> some View {
         let playback = model.playback
         let isCurrentTrack = playback.currentTrack?.urn == track.urn
-        let isPlaying = isCurrentTrack && playback.isPlaying
+        let isPlaying = isCurrentTrack && playback.isPlaybackActive
 
         return Button {
             if playback.currentTrack?.urn == track.urn {

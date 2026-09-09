@@ -110,7 +110,7 @@ struct TrackCardView: View {
     }
 
     private var playButton: some View {
-        let isPlaying = isCurrentTrack && model.playback.isPlaying
+        let isPlaying = isCurrentTrack && model.playback.isPlaybackActive
 
         return Button {
             if isCurrentTrack {

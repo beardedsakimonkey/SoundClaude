@@ -153,7 +153,7 @@ struct PlaylistCardView: View {
 
     private func playButton(for track: SoundCloudTrack) -> some View {
         let isCurrentTrack = model.playback.currentTrack?.urn == track.urn
-        let isPlaying = isCurrentTrack && model.playback.isPlaying
+        let isPlaying = isCurrentTrack && model.playback.isPlaybackActive
 
         return Button {
             if isCurrentTrack {

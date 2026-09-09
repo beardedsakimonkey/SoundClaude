@@ -21,6 +21,7 @@ struct TrackWaveformView: View {
     @State private var accentArtworkURL: URL?
     @State private var hoverFraction: Double = 0
     @State private var isHovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
@@ -84,7 +85,11 @@ struct TrackWaveformView: View {
     private func waveformView(_ waveform: SoundCloudWaveform?) -> some View {
         VStack(spacing: 4) {
             GeometryReader { proxy in
-                HoverAnimatedCanvas(hoverOpacity: isHovering ? 1 : 0) { context, size, hoverOpacity in
+                let amplitudes = barAmplitudes(waveform, width: proxy.size.width)
+                WaveformAnimatedCanvas(
+                    amplitudes: amplitudes,
+                    hoverOpacity: isHovering ? 1 : 0
+                ) { context, size, amplitudes, hoverOpacity in
                     guard size.width > 0, size.height > 0 else { return }
                     let scale = context.environment.displayScale
                     guard let bitmap = CGContext(
@@ -97,11 +102,7 @@ struct TrackWaveformView: View {
                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
                     ) else { return }
                     bitmap.scaleBy(x: scale, y: scale)
-                    let path = waveform.map { waveformPath($0, size: size) }
-                        ?? CGPath(roundedRect: CGRect(
-                            x: 0, y: (size.height - 2) / 2,
-                            width: size.width, height: 2
-                        ), cornerWidth: 1, cornerHeight: 1, transform: nil)
+                    let path = waveformPath(amplitudes, size: size)
                     let background = Color.secondary.opacity(0.3)
                         .resolve(in: context.environment).cgColor
                     let color = progressColor.resolve(in: context.environment).cgColor
@@ -150,6 +151,12 @@ struct TrackWaveformView: View {
                         anchor: .topLeading
                     )
                 }
+                // Resampling during window resizing must not start or extend a spring.
+                .animation(nil, value: proxy.size)
+                .animation(
+                    reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.3),
+                    value: waveform
+                )
                 .animation(.easeInOut(duration: 0.15), value: isHovering)
                 .contentShape(Rectangle())
                 .onContinuousHover { phase in
@@ -309,26 +316,36 @@ struct TrackWaveformView: View {
         return min(max(displayedCurrentTime / displayedDuration, 0), 1)
     }
 
-    private func waveformPath(
-        _ waveform: SoundCloudWaveform,
-        size: CGSize
-    ) -> CGPath {
-        let barWidth: CGFloat = 2
-        let spacing: CGFloat = 2
-        let step = barWidth + spacing
-        let barCount = max(min(Int(size.width / step), waveform.samples.count), 1)
-        let maximumHeight = CGFloat(waveform.height)
-        let path = CGMutablePath()
-
-        for index in 0..<barCount {
+    private func barAmplitudes(
+        _ waveform: SoundCloudWaveform?,
+        width: CGFloat
+    ) -> WaveformAmplitudes {
+        // Keep the same bars for every track, including the loading state.
+        let barCount = max(Int(width / 4), 1)
+        guard let waveform, !waveform.samples.isEmpty, waveform.height > 0 else {
+            return WaveformAmplitudes(values: Array(repeating: 0, count: barCount))
+        }
+        return WaveformAmplitudes(values: (0..<barCount).map { index in
             let lowerBound = index * waveform.samples.count / barCount
             let upperBound = max(
                 (index + 1) * waveform.samples.count / barCount,
                 lowerBound + 1
             )
             let sample = waveform.samples[lowerBound..<upperBound].max() ?? 0
-            let amplitude = min(CGFloat(sample) / maximumHeight, 1)
-            let height = max(amplitude * (size.height - 4), 2)
+            return min(max(Double(sample) / Double(waveform.height), 0), 1)
+        })
+    }
+
+    private func waveformPath(
+        _ amplitudes: WaveformAmplitudes,
+        size: CGSize
+    ) -> CGPath {
+        let barWidth: CGFloat = 2
+        let step: CGFloat = 4
+        let path = CGMutablePath()
+
+        for (index, amplitude) in amplitudes.values.enumerated() {
+            let height = max(CGFloat(amplitude) * (size.height - 4), 2)
             let rect = CGRect(
                 x: CGFloat(index) * step,
                 y: (size.height - height) / 2,
@@ -397,19 +414,57 @@ struct TrackWaveformView: View {
     }
 }
 
-// Canvas drawing does not interpolate its inputs without an animatable view.
-private struct HoverAnimatedCanvas: View, Animatable {
+// Canvas drawing needs explicit animatable inputs for bar heights and hover.
+private struct WaveformAnimatedCanvas: View, Animatable {
+    var amplitudes: WaveformAmplitudes
     var hoverOpacity: Double
-    var renderer: (inout GraphicsContext, CGSize, Double) -> Void
+    var renderer: (inout GraphicsContext, CGSize, WaveformAmplitudes, Double) -> Void
 
-    var animatableData: Double {
-        get { hoverOpacity }
-        set { hoverOpacity = newValue }
+    var animatableData: AnimatablePair<WaveformAmplitudes, Double> {
+        get { AnimatablePair(amplitudes, hoverOpacity) }
+        set {
+            amplitudes = newValue.first
+            hoverOpacity = newValue.second
+        }
     }
 
     var body: some View {
         Canvas { context, size in
-            renderer(&context, size, hoverOpacity)
+            renderer(&context, size, amplitudes, hoverOpacity)
         }
+    }
+}
+
+private struct WaveformAmplitudes: VectorArithmetic {
+    var values: [Double]
+
+    static let zero = WaveformAmplitudes(values: [])
+
+    static func + (lhs: Self, rhs: Self) -> Self {
+        combine(lhs, rhs, +)
+    }
+
+    static func - (lhs: Self, rhs: Self) -> Self {
+        combine(lhs, rhs, -)
+    }
+
+    mutating func scale(by rhs: Double) {
+        values = values.map { $0 * rhs }
+    }
+
+    var magnitudeSquared: Double {
+        values.reduce(0) { $0 + $1 * $1 }
+    }
+
+    private static func combine(
+        _ lhs: Self, _ rhs: Self, _ operation: (Double, Double) -> Double
+    ) -> Self {
+        // Zero padding also handles changes in bar count when the window resizes.
+        Self(values: (0..<max(lhs.values.count, rhs.values.count)).map { index in
+            operation(
+                index < lhs.values.count ? lhs.values[index] : 0,
+                index < rhs.values.count ? rhs.values[index] : 0
+            )
+        })
     }
 }
