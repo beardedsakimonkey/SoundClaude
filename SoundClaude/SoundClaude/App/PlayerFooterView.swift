@@ -223,6 +223,8 @@ struct PlayerFooterView: View {
                         .foregroundStyle(isShowingQueue ? Color.orange : Color.primary)
                         .frame(width: 32, height: 32)
                 }
+                .buttonStyle(.plain)
+                .modifier(SpringPressEffect())
                 .keyboardShortcut("q", modifiers: [])
                 .help(isShowingQueue ? "Hide track queue (Q)" : "Show track queue (Q)")
                 .accessibilityLabel(isShowingQueue ? "Hide track queue" : "Show track queue")

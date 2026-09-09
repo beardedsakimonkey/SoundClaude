@@ -16,7 +16,7 @@ struct SpringPressEffect: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .scaleEffect(isPressed && isEnabled && !reduceMotion ? 0.92 : 1)
+            .scaleEffect(isPressed && isEnabled && !reduceMotion ? 0.86 : 1)
             .animation(
                 reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.65),
                 value: isPressed && isEnabled
