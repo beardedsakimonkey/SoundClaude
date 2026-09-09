@@ -75,6 +75,9 @@ struct ArtistDetailView: View {
         let cached = model.cachedArtistDetails(for: artist)
         _details = State(initialValue: cached)
         _isLoading = State(initialValue: cached == nil)
+        let cachedHeader = model.cachedArtistHeader(for: artist)
+        _headerImage = State(initialValue: cachedHeader?.image)
+        _headerImageURL = State(initialValue: cachedHeader?.artworkURL)
     }
 
     var body: some View {
@@ -100,13 +103,11 @@ struct ArtistDetailView: View {
         .navigationTitle(details?.user.username ?? artist.username)
         .task(id: artist.permalinkURL) { await load() }
         .task(id: artist.permalinkURL) {
-            headerImage = nil
-            headerImageURL = nil
-            guard let url = try? await model.artistHeaderURL(for: artist),
-                  let data = try? await model.artworkLoader.data(for: url),
+            guard headerImage == nil,
+                  let header = try? await model.artistHeader(for: artist),
                   !Task.isCancelled else { return }
-            headerImage = NSImage(data: data)
-            headerImageURL = url
+            headerImage = header.image
+            headerImageURL = header.artworkURL
         }
         .task(id: details?.user.urn) {
             await loadFollowStatus()
@@ -129,7 +130,8 @@ struct ArtistDetailView: View {
     private var artworkBackdrop: some View {
         let backdrop = TrackArtworkBackdropView(
             artworkURL: headerImageURL,
-            loader: model.artworkLoader
+            loader: model.artworkLoader,
+            cachedImage: headerImage
         )
         .frame(height: 340)
 

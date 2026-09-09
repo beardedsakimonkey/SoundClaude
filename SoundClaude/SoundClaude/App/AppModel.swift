@@ -1,4 +1,10 @@
-import Foundation
+import AppKit
+
+struct CachedArtistHeader {
+    let artistURL: URL
+    let artworkURL: URL
+    let image: NSImage
+}
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -34,6 +40,7 @@ final class AppModel: ObservableObject {
         SoundCloudWaveform
     >(countLimit: 50, totalCostLimit: 8 * 1_024 * 1_024)
     private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(countLimit: 100)
+    private var latestArtistHeader: CachedArtistHeader?
 
     init() {
         let configuration: SoundCloudConfiguration
@@ -126,6 +133,7 @@ final class AppModel: ObservableObject {
         trackDetailsCache.removeAll()
         artistDetailsCache.removeAll()
         waveformCache.removeAll()
+        latestArtistHeader = nil
         errorMessage = nil
         await auth.signOut()
     }
@@ -307,8 +315,24 @@ final class AppModel: ObservableObject {
         artistDetailsCache.removeAll()
     }
 
-    func artistHeaderURL(for artist: SoundCloudUser) async throws -> URL? {
-        try await client.artistHeaderURL(for: artist)
+    func cachedArtistHeader(for artist: SoundCloudUser) -> CachedArtistHeader? {
+        guard latestArtistHeader?.artistURL == artist.permalinkURL else { return nil }
+        return latestArtistHeader
+    }
+
+    func artistHeader(for artist: SoundCloudUser) async throws -> CachedArtistHeader? {
+        if let cached = cachedArtistHeader(for: artist) { return cached }
+        guard let url = try await client.artistHeaderURL(for: artist) else { return nil }
+        let data = try await artworkLoader.data(for: url)
+        try Task.checkCancellation()
+        guard let image = NSImage(data: data) else { throw SoundCloudError.invalidData }
+        let header = CachedArtistHeader(
+            artistURL: artist.permalinkURL,
+            artworkURL: url,
+            image: image
+        )
+        latestArtistHeader = header
+        return header
     }
 
     func artistUsers(

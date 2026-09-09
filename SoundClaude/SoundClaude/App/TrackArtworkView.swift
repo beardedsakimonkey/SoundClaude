@@ -239,6 +239,7 @@ struct TrackArtworkBackdropView: View {
     let loader: ArtworkLoader
     var fadesToBottom = true
     var animatesChanges = false
+    var cachedImage: NSImage? = nil
 
     @State private var image: NSImage?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -246,7 +247,7 @@ struct TrackArtworkBackdropView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                if let image {
+                if let image = cachedImage ?? image {
                     Image(nsImage: image)
                         .resizable()
                         .scaledToFill()
@@ -282,6 +283,7 @@ struct TrackArtworkBackdropView: View {
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .task(id: artworkURL) {
+            guard cachedImage == nil else { return }
             if !animatesChanges {
                 image = nil
             }
