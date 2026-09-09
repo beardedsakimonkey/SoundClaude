@@ -13,6 +13,7 @@ Core Audio, Accelerate, and Metal. It feautres:
 - account-specific likes metadata cached in Application Support; new likes sync when Likes opens
 - account-specific playlist metadata and opened playlist tracks cached locally
 - last sidebar selection restored for each account, including playlists
+- sidebar search for tracks, playlists, and users, with paged results and track queues
 - a private Core Audio process tap for this app only
 - a fixed-capacity atomic PCM ring and fixed spectrum snapshot
 - an Accelerate FFT worker and an `MTKView` renderer
@@ -59,6 +60,10 @@ If the Dock or app switcher still shows the old icon, run `killall Dock` to
 restart the Dock and refresh its display.
 
 ## Queues and likes
+
+Enter a query in the search field at the top of the sidebar and press Return.
+Search starts with tracks. Switch to Playlists or Users in the results view, and
+use Load More to fetch another page. Playing a track starts a search results queue.
 
 History loads up to 25 distinct recently played tracks from your SoundCloud account,
 newest first. Use Refresh History to update the list. The API does not provide older

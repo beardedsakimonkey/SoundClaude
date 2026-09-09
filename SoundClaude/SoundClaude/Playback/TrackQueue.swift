@@ -4,6 +4,7 @@ struct TrackQueue: Codable {
     enum Source: Codable, Equatable {
         case feed
         case history
+        case search(String)
         case likes
         case artist(String)
         case artistReposts(String)

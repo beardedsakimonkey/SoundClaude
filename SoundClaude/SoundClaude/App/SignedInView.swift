@@ -23,6 +23,7 @@ struct SignedInView: View {
                     playlists: model.playlists,
                     user: user,
                     artworkLoader: model.artworkLoader,
+                    onSearch: showSearch,
                     onSelectProfile: showArtist,
                     onSignOut: model.signOut
                 )
@@ -57,6 +58,17 @@ struct SignedInView: View {
                 .toolbar { navigationToolbar }
                 .navigationDestination(for: Route.self) { route in
                     switch route {
+                    case let .search(query):
+                        SearchResultsView(
+                            query: query,
+                            model: model,
+                            onSelectTrack: showTrack,
+                            onSelectPlaylist: showPlaylist,
+                            onSelectArtist: showArtist
+                        )
+                        .id(query)
+                        .navigationBarBackButtonHidden(true)
+                        .toolbar { navigationToolbar }
                     case let .track(track):
                         TrackDetailView(
                             track: track,
@@ -188,6 +200,13 @@ struct SignedInView: View {
         .labelStyle(.iconOnly)
     }
 
+    private func showSearch(_ text: String) {
+        let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        forwardPath.removeAll()
+        path.append(.search(query))
+    }
+
     private func showTrack(_ track: SoundCloudTrack) {
         forwardPath.removeAll()
         path.append(.track(track))
@@ -267,10 +286,13 @@ struct SidebarView: View {
     @ObservedObject var playlists: PlaylistsController
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
+    let onSearch: (String) -> Void
     let onSelectProfile: (SoundCloudUser) -> Void
     let onSignOut: () async -> Void
 
     @State private var isProfileHovered = false
+    @State private var searchText = ""
+    @FocusState private var isSearchFocused: Bool
 
     var body: some View {
         List(selection: $selection) {
@@ -316,6 +338,36 @@ struct SidebarView: View {
         }
         .task { await playlists.load() }
         .listStyle(.sidebar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .focused($isSearchFocused)
+                    .onSubmit {
+                        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                        onSearch(searchText)
+                        isSearchFocused = false
+                    }
+                    .accessibilityLabel("Search SoundCloud")
+                    .help("Search SoundCloud. Press Return to search.")
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                        isSearchFocused = true
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                }
+            }
+            .padding(8)
+            .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+            .padding(12)
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             accountFooter
         }
@@ -367,6 +419,7 @@ struct SidebarView: View {
 }
 
 private enum Route: Hashable {
+    case search(String)
     case playlist(SoundCloudPlaylist)
     case track(SoundCloudTrack)
     case artist(SoundCloudUser)

@@ -311,6 +311,21 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func searchTracks(query: String, pageURL: URL? = nil) async throws -> SoundCloudTrackPage {
+        let accessToken = try await auth.validAccessToken()
+        return try await client.searchTracks(query: query, accessToken: accessToken, pageURL: pageURL)
+    }
+
+    func searchPlaylists(query: String, pageURL: URL? = nil) async throws -> SoundCloudPlaylistPage {
+        let accessToken = try await auth.validAccessToken()
+        return try await client.searchPlaylists(query: query, accessToken: accessToken, pageURL: pageURL)
+    }
+
+    func searchUsers(query: String, pageURL: URL? = nil) async throws -> SoundCloudUserPage {
+        let accessToken = try await auth.validAccessToken()
+        return try await client.searchUsers(query: query, accessToken: accessToken, pageURL: pageURL)
+    }
+
     func artistTracks(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
         -> SoundCloudTrackPage {
         guard let urn = artist.urn else { throw SoundCloudError.invalidData }
@@ -460,6 +475,8 @@ final class AppModel: ObservableObject {
         let accessToken = try await auth.validAccessToken()
         try Task.checkCancellation()
         switch source {
+        case let .search(query):
+            return try await client.searchTracks(query: query, accessToken: accessToken, pageURL: pageURL)
         case .feed:
             let page = try await client.feed(accessToken: accessToken, pageURL: pageURL)
             return SoundCloudTrackPage(tracks: page.items.compactMap(\.content.track), nextURL: page.nextURL)

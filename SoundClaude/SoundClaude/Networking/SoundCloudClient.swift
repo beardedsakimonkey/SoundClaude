@@ -403,6 +403,49 @@ actor SoundCloudClient {
         )
     }
 
+    func searchTracks(
+        query: String, accessToken: String, pageURL: URL? = nil
+    ) async throws -> SoundCloudTrackPage {
+        let url = pageURL ?? searchURL(path: "tracks", query: query).appending(queryItems: [
+            URLQueryItem(name: "access", value: "playable,preview"),
+        ])
+        return try await trackPage(at: url, accessToken: accessToken)
+    }
+
+    func searchPlaylists(
+        query: String, accessToken: String, pageURL: URL? = nil
+    ) async throws -> SoundCloudPlaylistPage {
+        let url = pageURL ?? searchURL(path: "playlists", query: query).appending(queryItems: [
+            URLQueryItem(name: "show_tracks", value: "false"),
+        ])
+        return try await playlistPage(at: url, accessToken: accessToken)
+    }
+
+    func searchUsers(
+        query: String, accessToken: String, pageURL: URL? = nil
+    ) async throws -> SoundCloudUserPage {
+        let url = pageURL ?? searchURL(path: "users", query: query)
+        try validateAPIURL(url)
+        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+        try validate(response: response, data: data)
+        let page = try decoder.decode(RawUserPage.self, from: data)
+        if let nextURL = page.nextURL {
+            try validateAPIURL(nextURL)
+            guard nextURL != url else { throw SoundCloudError.invalidData }
+        }
+        return SoundCloudUserPage(
+            users: page.collection.compactMap { $0.normalized() }, nextURL: page.nextURL
+        )
+    }
+
+    private func searchURL(path: String, query: String) -> URL {
+        configuration.apiBaseURL.appending(path: path).appending(queryItems: [
+            URLQueryItem(name: "q", value: query),
+            URLQueryItem(name: "limit", value: "25"),
+            URLQueryItem(name: "linked_partitioning", value: "true"),
+        ])
+    }
+
     func artistTracks(
         urn: String,
         accessToken: String,
