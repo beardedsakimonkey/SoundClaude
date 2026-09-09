@@ -77,7 +77,9 @@ it without reshuffling. Turning shuffle off restores the order from before shuff
 was enabled. Shuffle does not fetch an entire artist catalog. Likes shuffle uses
 the local library while sync runs in the background, adding new likes at the end.
 
-Open Track Queue and drag a row by its handle to change the playback order.
+Open Track Queue with the footer button or Q. It slides up above the footer at the
+bottom right and stays open while you use shuffle and the other playback controls.
+Close it with its close button, Q, or Escape. Drag a row by its handle to change the playback order.
 Moving a track keeps the current track playing and leaves shuffle enabled if it
 is on. The displayed order, including changes made while shuffled, is saved for
 the next launch. Likes refreshes keep this order and add new likes at the end of

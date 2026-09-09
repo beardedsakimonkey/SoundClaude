@@ -4,18 +4,20 @@ struct TrackQueueView: View {
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
+    let onDismiss: () -> Void
 
     @ObservedObject private var likes: LikesController
-    @Environment(\.dismiss) private var dismiss
 
     init(
         model: AppModel,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
-        onSelectArtist: @escaping (SoundCloudUser) -> Void
+        onSelectArtist: @escaping (SoundCloudUser) -> Void,
+        onDismiss: @escaping () -> Void
     ) {
         self.model = model
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
+        self.onDismiss = onDismiss
         _likes = ObservedObject(wrappedValue: model.likes)
     }
 
@@ -25,13 +27,29 @@ struct TrackQueueView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("Track Queue")
-                Text("(\(tracks.count))")
-                    .foregroundStyle(.secondary)
-                    .fontWeight(.regular)
+            HStack {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("Track Queue")
+                    Text("(\(tracks.count))")
+                        .foregroundStyle(.secondary)
+                        .fontWeight(.regular)
+                }
+                .font(.title2.weight(.semibold))
+
+                Spacer()
+
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+                .help("Close track queue (Esc)")
+                .accessibilityLabel("Close track queue")
             }
-            .font(.title2.weight(.semibold))
 
             if tracks.isEmpty {
                 ContentUnavailableView(
@@ -56,11 +74,11 @@ struct TrackQueueView: View {
                                     playback: model.playback,
                                     artworkLoader: model.artworkLoader,
                                     onSelectTrack: { selected in
-                                        dismiss()
+                                        onDismiss()
                                         onSelectTrack(selected)
                                     },
                                     onSelectArtist: { artist in
-                                        dismiss()
+                                        onDismiss()
                                         onSelectArtist(artist)
                                     },
                                     onPlayTrack: { await model.play($0) }
@@ -82,16 +100,8 @@ struct TrackQueueView: View {
                     }
                 }
             }
-
-            HStack {
-                Spacer()
-                Button("Close") { dismiss() }
-                    .keyboardShortcut("q", modifiers: [])
-            }
         }
-        .padding(24)
-        .frame(width: 560, height: 520)
-        .onExitCommand { dismiss() }
-        .dismissOnOutsideClick()
+        .padding(16)
+        .onExitCommand(perform: onDismiss)
     }
 }

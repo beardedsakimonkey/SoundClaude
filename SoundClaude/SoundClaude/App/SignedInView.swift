@@ -8,6 +8,8 @@ struct SignedInView: View {
     private let selectionStore = SidebarSelectionStore()
     @State private var path: [Route] = []
     @State private var forwardPath: [Route] = []
+    @State private var isShowingQueue = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(user: SoundCloudUser, model: AppModel) {
         self.user = user
@@ -36,9 +38,40 @@ struct SignedInView: View {
                 selectedView
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .overlay {
+                GeometryReader { geometry in
+                    ZStack(alignment: .bottomTrailing) {
+                        if isShowingQueue {
+                            TrackQueueView(
+                                model: model,
+                                onSelectTrack: showTrack,
+                                onSelectArtist: showArtist,
+                                onDismiss: { isShowingQueue = false }
+                            )
+                            .frame(
+                                width: max(0, min(560, geometry.size.width - 28)),
+                                height: max(0, min(520, geometry.size.height - 28))
+                            )
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .strokeBorder(.primary.opacity(0.12), lineWidth: 1)
+                                    .allowsHitTesting(false)
+                            }
+                            .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
+                            .padding(14)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottomTrailing)
+                    .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: isShowingQueue)
+                }
+                .clipped()
+            }
 
             PlayerFooterView(
                 model: model,
+                isShowingQueue: $isShowingQueue,
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist
             )

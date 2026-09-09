@@ -5,20 +5,22 @@ struct PlayerFooterView: View {
     let artworkLoader: ArtworkLoader
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
+    @Binding var isShowingQueue: Bool
 
     @State private var isHoveringTitle = false
     @State private var likeErrorMessage: String?
-    @State private var isShowingQueue = false
 
     @Bindable private var playback: PlaybackController
     @ObservedObject private var likes: LikesController
 
     init(
         model: AppModel,
+        isShowingQueue: Binding<Bool>,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onSelectArtist: @escaping (SoundCloudUser) -> Void
     ) {
         self.model = model
+        _isShowingQueue = isShowingQueue
         self.artworkLoader = model.artworkLoader
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
@@ -56,13 +58,6 @@ struct PlayerFooterView: View {
                 .frame(height: 1)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
-        }
-        .sheet(isPresented: $isShowingQueue) {
-            TrackQueueView(
-                model: model,
-                onSelectTrack: onSelectTrack,
-                onSelectArtist: onSelectArtist
-            )
         }
         .alert("Could not update like", isPresented: Binding(
             get: { likeErrorMessage != nil },
@@ -221,7 +216,7 @@ struct PlayerFooterView: View {
                 }
 
                 Button {
-                    isShowingQueue = true
+                    isShowingQueue.toggle()
                 } label: {
                     Image(systemName: "music.note.list")
                         .font(.system(size: 18))
@@ -229,8 +224,9 @@ struct PlayerFooterView: View {
                         .frame(width: 32, height: 32)
                 }
                 .keyboardShortcut("q", modifiers: [])
-                .help("Show track queue (Q)")
-                .accessibilityLabel("Show track queue")
+                .help(isShowingQueue ? "Hide track queue (Q)" : "Show track queue (Q)")
+                .accessibilityLabel(isShowingQueue ? "Hide track queue" : "Show track queue")
+                .accessibilityValue(isShowingQueue ? "Open" : "Closed")
             }
             .buttonStyle(.borderless)
 
@@ -330,6 +326,7 @@ struct PlayerFooterView: View {
 #Preview {
     PlayerFooterView(
         model: AppModel(),
+        isShowingQueue: .constant(false),
         onSelectTrack: { _ in },
         onSelectArtist: { _ in }
     )
