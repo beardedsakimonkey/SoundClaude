@@ -33,10 +33,10 @@ struct HistoryTests {
             precondition(tracks.map(\.urn) == ["soundcloud:tracks:3", "soundcloud:tracks:1"])
             precondition(tracks.last?.access == .preview)
 
-            var queue = TrackQueue(source: .history, tracks: tracks)
+            let queue = TrackQueue(source: .history, tracks: tracks)
             precondition(!queue.needsNextPage(after: tracks.last?.urn))
-            precondition(queue.relativeTrack(to: tracks.first?.urn, offset: 1, shuffle: false) == tracks.last)
-            precondition(queue.relativeTrack(to: tracks.last?.urn, offset: -1, shuffle: false) == tracks.first)
+            precondition(queue.relativeTrack(to: tracks.first?.urn, offset: 1) == tracks.last)
+            precondition(queue.relativeTrack(to: tracks.last?.urn, offset: -1) == tracks.first)
             let restored = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(queue))
             precondition(restored.source == .history && restored.tracks == tracks)
             precondition(restored.nextPageURL == nil)

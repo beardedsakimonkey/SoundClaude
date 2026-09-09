@@ -20,7 +20,7 @@ struct TrackQueueView: View {
     }
 
     private var tracks: [SoundCloudTrack] {
-        model.queue.source == .likes ? likes.tracks : model.queue.tracks
+        model.queue.resolvedTracks(likes: likes.tracks)
     }
 
     var body: some View {
@@ -42,9 +42,15 @@ struct TrackQueueView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(tracks) { track in
+                    List {
+                        ForEach(tracks) { track in
+                            HStack(spacing: 0) {
+                                Image(systemName: "line.3.horizontal")
+                                    .foregroundStyle(.tertiary)
+                                    .frame(width: 28, height: 56)
+                                    .contentShape(Rectangle())
+                                    .help("Drag to reorder")
+                                    .accessibilityLabel("Reorder \(track.title)")
                                 TrackListRow(
                                     track: track,
                                     playback: model.playback,
@@ -59,10 +65,16 @@ struct TrackQueueView: View {
                                     },
                                     onPlayTrack: { await model.play($0) }
                                 )
-                                .id(track.urn)
                             }
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .id(track.urn)
                         }
+                        .onMove(perform: model.moveQueueTracks)
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                     .onAppear {
                         if let urn = model.playback.currentTrack?.urn {
                             proxy.scrollTo(urn, anchor: .center)

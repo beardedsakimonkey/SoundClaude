@@ -41,29 +41,139 @@ struct QueueAndLikesTests {
         let next = URL(string: "https://api.soundcloud.com/tracks?cursor=next")!
         var queue = TrackQueue(source: .artist("user:1"), tracks: [track(1), track(2)], nextPageURL: next)
         queue.replaceLikes([track(99)])
-        precondition(queue.relativeTrack(to: "track:1", offset: 1, shuffle: false) == track(2))
-        precondition(queue.relativeTrack(to: "track:2", offset: -1, shuffle: false) == track(1))
+        precondition(queue.relativeTrack(to: "track:1", offset: 1) == track(2))
+        precondition(queue.relativeTrack(to: "track:2", offset: -1) == track(1))
         precondition(!queue.needsNextPage(after: "track:1"))
         precondition(queue.needsNextPage(after: "track:2"))
         // Shuffle returns a loaded artist track without fetching the next page.
-        precondition(queue.relativeTrack(to: "track:1", offset: 1, shuffle: true) == track(2))
+        queue.setShuffle(true, currentURN: "track:1")
+        precondition(queue.relativeTrack(to: "track:1", offset: 1) == track(2))
+        queue.setShuffle(false, currentURN: "track:1")
         do {
             try queue.append(SoundCloudTrackPage(tracks: [], nextURL: next))
             fatalError("Repeated cursor accepted")
         } catch SoundCloudError.invalidData {}
         try queue.append(SoundCloudTrackPage(tracks: [track(2), track(3)], nextURL: nil))
         precondition(queue.tracks == [track(1), track(2), track(3)])
-        precondition(queue.relativeTrack(to: "track:2", offset: 1, shuffle: false) == track(3))
-        precondition(queue.relativeTrack(to: "track:3", offset: 1, shuffle: false) == track(1))
-        var restored = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(queue))
+        precondition(queue.relativeTrack(to: "track:2", offset: 1) == track(3))
+        precondition(queue.relativeTrack(to: "track:3", offset: 1) == track(1))
+        let restored = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(queue))
         precondition(restored.source == .artist("user:1"))
-        precondition(restored.relativeTrack(to: "track:2", offset: 1, shuffle: false) == track(3))
+        precondition(restored.relativeTrack(to: "track:2", offset: 1) == track(3))
         var likesQueue = TrackQueue(source: .likes, tracks: [track(1), track(2), track(3)])
-        let shuffled = likesQueue.relativeTrack(to: "track:1", offset: 1, shuffle: true)!
+        likesQueue.setShuffle(true, currentURN: "track:1")
+        let shuffled = likesQueue.relativeTrack(to: "track:1", offset: 1)!
         precondition(shuffled != track(1))
-        precondition(likesQueue.relativeTrack(to: shuffled.urn, offset: -1, shuffle: true) == track(1))
+        precondition(likesQueue.relativeTrack(to: shuffled.urn, offset: -1) == track(1))
         likesQueue.replaceLikes([track(1), track(4)])
-        precondition(likesQueue.relativeTrack(to: "track:1", offset: 1, shuffle: true) == track(4))
+        precondition(likesQueue.relativeTrack(to: "track:1", offset: 1) == track(4))
+
+        // Moves use insertion offsets in the original list, including the end.
+        var reordered = TrackQueue(source: .playlist("playlist:1"),
+                                   tracks: [track(1), track(2), track(3), track(4)], nextPageURL: next)
+        precondition(reordered.move(fromOffsets: IndexSet(integer: 0), toOffset: 4))
+        precondition(reordered.tracks == [track(2), track(3), track(4), track(1)])
+        precondition(reordered.relativeTrack(to: "track:4", offset: 1) == track(1))
+        precondition(reordered.needsNextPage(after: "track:1"))
+        precondition(reordered.move(fromOffsets: IndexSet(integer: 3), toOffset: 0))
+        precondition(reordered.tracks == [track(1), track(2), track(3), track(4)])
+        precondition(reordered.move(fromOffsets: IndexSet([0, 2]), toOffset: 4))
+        precondition(reordered.tracks == [track(2), track(4), track(1), track(3)])
+        precondition(reordered.relativeTrack(to: "track:1", offset: -1) == track(4))
+        precondition(!reordered.move(fromOffsets: IndexSet(integer: 1), toOffset: 2))
+        precondition(!reordered.move(fromOffsets: IndexSet(integer: 4), toOffset: 0))
+        precondition(!reordered.move(fromOffsets: IndexSet(), toOffset: 0))
+        precondition(!reordered.move(fromOffsets: IndexSet(integer: 0), toOffset: -1))
+        precondition(!reordered.move(fromOffsets: IndexSet(integer: 0), toOffset: 5))
+        var savedOrder = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(reordered))
+        precondition(savedOrder.tracks == reordered.tracks && savedOrder.nextPageURL == next)
+        try savedOrder.append(SoundCloudTrackPage(tracks: [track(1), track(5)], nextURL: nil))
+        precondition(savedOrder.tracks == [track(2), track(4), track(1), track(3), track(5)])
+
+        // Likes retain their manual order across refreshes and metadata-free persistence.
+        var orderedLikes = TrackQueue(source: .likes, tracks: [track(1), track(2), track(3)])
+        orderedLikes.move(fromOffsets: IndexSet(integer: 2), toOffset: 0)
+        orderedLikes.replaceLikes([track(4), track(1), track(3)])
+        precondition(orderedLikes.tracks == [track(3), track(1), track(4)])
+        orderedLikes = orderedLikes.withoutLikesMetadata()
+        var savedLikes = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(orderedLikes))
+        precondition(savedLikes.tracks.isEmpty)
+        savedLikes.replaceLikes([track(4), track(1), track(3)])
+        precondition(savedLikes.tracks == [track(3), track(1), track(4)])
+        precondition(savedLikes.relativeTrack(to: "track:3", offset: 1) == track(1))
+        // Queues saved before reordering was supported still decode and follow likes order.
+        let legacyData = try JSONEncoder().encode(TrackQueue(source: .likes, tracks: []))
+        var legacyQueue = try JSONDecoder().decode(TrackQueue.self, from: legacyData)
+        legacyQueue.replaceLikes([track(3), track(2)])
+        precondition(legacyQueue.tracks == [track(3), track(2)])
+
+        // Shuffle is visible before any navigation, and navigation never changes it.
+        var eager = TrackQueue(source: .artist("user:1"),
+                               tracks: (1...8).map(track), nextPageURL: next)
+        eager.move(fromOffsets: IndexSet(integer: 0), toOffset: 8)
+        let beforeShuffle = eager.playbackTracks
+        eager.setShuffle(true, currentURN: "track:4")
+        let initialShuffle = eager.playbackTracks
+        precondition(eager.isShuffled && initialShuffle.first == track(4))
+        precondition(Set(initialShuffle.map(\.urn)) == Set(beforeShuffle.map(\.urn)))
+        precondition(eager.resolvedTracks(likes: []) == initialShuffle)
+        for index in initialShuffle.indices {
+            let current = initialShuffle[index]
+            precondition(eager.relativeTrack(to: current.urn, offset: 1)
+                         == initialShuffle[(index + 1) % initialShuffle.count])
+            precondition(eager.relativeTrack(to: current.urn, offset: -1)
+                         == initialShuffle[(index + initialShuffle.count - 1) % initialShuffle.count])
+        }
+        precondition(eager.playbackTracks == initialShuffle)
+        eager.setShuffle(true, currentURN: "track:4") // Restoring an enabled queue keeps its order.
+        precondition(eager.playbackTracks == initialShuffle)
+        precondition(eager.move(fromOffsets: IndexSet(integer: 7), toOffset: 1))
+        let editedShuffle = [initialShuffle[0], initialShuffle[7]] + Array(initialShuffle[1..<7])
+        precondition(eager.isShuffled && eager.playbackTracks == editedShuffle)
+        precondition(eager.relativeTrack(to: "track:4", offset: 1) == initialShuffle[7])
+        var restoredShuffle = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(eager))
+        restoredShuffle.setShuffle(true, currentURN: "track:4")
+        precondition(restoredShuffle.playbackTracks == editedShuffle)
+        precondition(restoredShuffle.nextPageURL == next)
+        restoredShuffle.setShuffle(false, currentURN: "track:4")
+        precondition(!restoredShuffle.isShuffled && restoredShuffle.playbackTracks == beforeShuffle)
+
+        // Shuffled likes survive metadata-free saves and retain their order as likes change.
+        var shuffledLikes = TrackQueue(source: .likes, tracks: (1...4).map(track))
+        shuffledLikes.setShuffle(true, currentURN: "track:2")
+        shuffledLikes.move(fromOffsets: IndexSet(integer: 3), toOffset: 1)
+        let likesOrder = shuffledLikes.playbackTracks
+        let shuffledLikesData = try JSONEncoder().encode(shuffledLikes.withoutLikesMetadata())
+        shuffledLikes = try JSONDecoder().decode(TrackQueue.self, from: shuffledLikesData)
+        precondition(shuffledLikes.tracks.isEmpty && shuffledLikes.isShuffled)
+        precondition(shuffledLikes.resolvedTracks(likes: (1...4).map(track)) == likesOrder)
+        shuffledLikes.replaceLikes((1...4).map(track))
+        shuffledLikes.setShuffle(true, currentURN: "track:2")
+        precondition(shuffledLikes.playbackTracks == likesOrder)
+        let removedURN = likesOrder[2].urn
+        let refreshedLikes = [track(5)] + (1...4).map(track).filter { $0.urn != removedURN }
+        let refreshedOrder = likesOrder.filter { $0.urn != removedURN } + [track(5)]
+        precondition(shuffledLikes.resolvedTracks(likes: refreshedLikes) == refreshedOrder)
+        shuffledLikes.replaceLikes(refreshedLikes)
+        precondition(shuffledLikes.playbackTracks == refreshedOrder)
+        shuffledLikes.replaceLikes([track(6)] + refreshedLikes)
+        precondition(shuffledLikes.playbackTracks == refreshedOrder + [track(6)])
+
+        // Empty queues retain shuffle mode when the first likes arrive.
+        var emptyShuffle = TrackQueue(source: .likes, tracks: [])
+        emptyShuffle.setShuffle(true, currentURN: nil)
+        precondition(emptyShuffle.isShuffled && emptyShuffle.relativeTrack(to: nil, offset: 1) == nil)
+        emptyShuffle.replaceLikes([track(1)])
+        precondition(emptyShuffle.playbackTracks == [track(1)] && emptyShuffle.isShuffled)
+
+        // Older saved shuffle orders remain usable without generating a new random order.
+        var legacyShuffleJSON = try JSONSerialization.jsonObject(with: JSONEncoder().encode(eager)) as! [String: Any]
+        legacyShuffleJSON.removeValue(forKey: "shuffleEnabled")
+        var legacyShuffle = try JSONDecoder().decode(
+            TrackQueue.self, from: JSONSerialization.data(withJSONObject: legacyShuffleJSON)
+        )
+        legacyShuffle.setShuffle(true, currentURN: "track:4")
+        precondition(legacyShuffle.isShuffled && legacyShuffle.playbackTracks == editedShuffle)
 
         let baseline = LikesCache(tracks: [track(1), track(2), track(3), track(4)], hasLoadedPage: true)
         var merged = baseline

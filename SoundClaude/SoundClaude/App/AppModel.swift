@@ -135,6 +135,7 @@ final class AppModel: ObservableObject {
         if !queue.tracks.contains(where: { $0.urn == track.urn }),
            !(queue.source == .likes && likes.isLiked(track)) {
             queue = TrackQueue(source: .single, tracks: [track])
+            queue.setShuffle(playback.isShuffleEnabled, currentURN: track.urn)
         }
         trackSelectionTask?.cancel()
         saveQueue()
@@ -148,13 +149,21 @@ final class AppModel: ObservableObject {
     func play(_ track: SoundCloudTrack, queue: TrackQueue) async {
         trackSelectionTask?.cancel()
         self.queue = queue
+        self.queue.replaceLikes(likes.tracks)
+        self.queue.setShuffle(playback.isShuffleEnabled, currentURN: track.urn)
         saveQueue()
         await loadPlayback(track)
     }
 
+    func moveQueueTracks(fromOffsets offsets: IndexSet, toOffset destination: Int) {
+        queue.replaceLikes(likes.tracks)
+        guard queue.move(fromOffsets: offsets, toOffset: destination) else { return }
+        trackSelectionTask?.cancel()
+        saveQueue()
+    }
+
     private func saveQueue() {
-        var saved = queue
-        saved.replaceLikes([]) // Likes metadata already lives in the account cache.
+        let saved = queue.withoutLikesMetadata()
         guard let data = try? JSONEncoder().encode(saved) else { return }
         UserDefaults.standard.set(data, forKey: queueSettingsKey)
     }
@@ -169,6 +178,9 @@ final class AppModel: ObservableObject {
         } else {
             queue = TrackQueue(source: .single, tracks: [session.track])
         }
+        queue.replaceLikes(likes.tracks)
+        queue.setShuffle(playback.isShuffleEnabled, currentURN: session.track.urn)
+        saveQueue()
         await loadPlayback(session.track, position: session.position, autoplay: false)
     }
 
@@ -435,7 +447,8 @@ final class AppModel: ObservableObject {
     func toggleShuffle() {
         trackSelectionTask?.cancel()
         playback.toggleShuffle()
-        queue.resetShuffle()
+        queue.replaceLikes(likes.tracks)
+        queue.setShuffle(playback.isShuffleEnabled, currentURN: playback.currentTrack?.urn)
         saveQueue()
     }
 
@@ -457,8 +470,7 @@ final class AppModel: ObservableObject {
                 try Task.checkCancellation()
                 guard let track = queue.relativeTrack(
                     to: playback.currentTrack?.urn,
-                    offset: offset,
-                    shuffle: playback.isShuffleEnabled
+                    offset: offset
                 ) else { return }
                 saveQueue()
                 await loadPlayback(track)

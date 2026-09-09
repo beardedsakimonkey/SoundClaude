@@ -19,6 +19,9 @@ struct TrackQueue: Codable {
     private(set) var nextPageURL: URL?
     private var loadedPageURLs: Set<URL> = []
     private var shuffledURNs: [String] = []
+    // Optional so queues saved before eager shuffle still decode.
+    private var shuffleEnabled: Bool?
+    private var reorderedLikesURNs: [String]?
 
     init(source: Source, tracks: [SoundCloudTrack], nextPageURL: URL? = nil) {
         self.source = source
@@ -35,40 +38,88 @@ struct TrackQueue: Codable {
         if let nextPageURL { loadedPageURLs.insert(nextPageURL) }
         var known = Set(tracks.map(\.urn))
         tracks.append(contentsOf: page.tracks.filter { known.insert($0.urn).inserted })
+        updateShuffleOrder()
         nextPageURL = page.nextURL
     }
 
     mutating func replaceLikes(_ likes: [SoundCloudTrack]) {
         guard source == .likes else { return }
-        tracks = likes
+        tracks = ordered(likes, by: reorderedLikesURNs)
+        updateShuffleOrder()
     }
 
-    mutating func resetShuffle() {
-        shuffledURNs = []
+    func resolvedTracks(likes: [SoundCloudTrack]) -> [SoundCloudTrack] {
+        var resolved = self
+        resolved.replaceLikes(likes)
+        return resolved.playbackTracks
+    }
+
+    var isShuffled: Bool { shuffleEnabled ?? !shuffledURNs.isEmpty }
+
+    var playbackTracks: [SoundCloudTrack] {
+        ordered(tracks, by: isShuffled ? shuffledURNs : nil)
+    }
+
+    func withoutLikesMetadata() -> TrackQueue {
+        var saved = self
+        if source == .likes { saved.tracks = [] }
+        return saved
+    }
+
+    private func ordered(_ tracks: [SoundCloudTrack], by urns: [String]?) -> [SoundCloudTrack] {
+        guard let urns else { return tracks }
+        let byURN = Dictionary(tracks.map { ($0.urn, $0) }, uniquingKeysWith: { first, _ in first })
+        let known = Set(urns)
+        return urns.compactMap { byURN[$0] } + tracks.filter { !known.contains($0.urn) }
+    }
+
+    private mutating func updateShuffleOrder() {
+        guard isShuffled else { return }
+        shuffledURNs = playbackTracks.map(\.urn)
+    }
+
+    /// The destination is an insertion offset in the original list, as used by List.onMove.
+    @discardableResult
+    mutating func move(fromOffsets offsets: IndexSet, toOffset destination: Int) -> Bool {
+        guard !offsets.isEmpty, offsets.allSatisfy({ tracks.indices.contains($0) }),
+              (0...tracks.count).contains(destination) else { return false }
+        let current = playbackTracks
+        let moving = offsets.map { current[$0] }
+        var reordered = current.enumerated().filter { !offsets.contains($0.offset) }.map(\.element)
+        let insertion = destination - offsets.filter { $0 < destination }.count
+        reordered.insert(contentsOf: moving, at: insertion)
+        guard reordered != current else { return false }
+        if isShuffled {
+            shuffledURNs = reordered.map(\.urn)
+        } else {
+            tracks = reordered
+            if source == .likes {
+                reorderedLikesURNs = tracks.map(\.urn)
+            }
+        }
+        return true
+    }
+
+    mutating func setShuffle(_ enabled: Bool, currentURN: String?) {
+        guard enabled != isShuffled else { return }
+        shuffleEnabled = enabled
+        guard enabled else {
+            shuffledURNs = []
+            return
+        }
+        shuffledURNs = tracks.map(\.urn).filter { $0 != currentURN }.shuffled()
+        if let currentURN, tracks.contains(where: { $0.urn == currentURN }) {
+            shuffledURNs.insert(currentURN, at: 0)
+        }
     }
 
     func needsNextPage(after urn: String?) -> Bool {
         nextPageURL != nil && (tracks.isEmpty || tracks.last?.urn == urn)
     }
 
-    mutating func relativeTrack(to urn: String?, offset: Int, shuffle: Bool) -> SoundCloudTrack? {
-        guard !tracks.isEmpty else { return nil }
-        let ordered: [SoundCloudTrack]
-        if shuffle {
-            let available = Set(tracks.map(\.urn))
-            shuffledURNs.removeAll { !available.contains($0) }
-            let existing = Set(shuffledURNs)
-            var added = tracks.map(\.urn).filter { !existing.contains($0) }.shuffled()
-            if shuffledURNs.isEmpty, let urn, let index = added.firstIndex(of: urn) {
-                added.remove(at: index)
-                added.insert(urn, at: 0)
-            }
-            shuffledURNs.append(contentsOf: added)
-            let byURN = Dictionary(tracks.map { ($0.urn, $0) }, uniquingKeysWith: { first, _ in first })
-            ordered = shuffledURNs.compactMap { byURN[$0] }
-        } else {
-            ordered = tracks
-        }
+    func relativeTrack(to urn: String?, offset: Int) -> SoundCloudTrack? {
+        let ordered = playbackTracks
+        guard !ordered.isEmpty else { return nil }
         let index = ordered.firstIndex { $0.urn == urn } ?? (offset > 0 ? -1 : 0)
         return ordered[(index + offset + ordered.count) % ordered.count]
     }

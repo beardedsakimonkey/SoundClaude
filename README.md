@@ -71,8 +71,17 @@ pages. Tracks unavailable for app playback are omitted.
 
 Next and Previous use the list that started playback. Feed, artist, repost, playlist, and related
 queues fetch another page when sequential playback reaches the end of the loaded
-tracks. Shuffle uses the loaded tracks immediately. It does not fetch an entire
-artist catalog. Likes shuffle uses the local library while sync runs in the background.
+tracks. Enabling shuffle immediately shuffles the loaded tracks, with the current
+track first. Track Queue shows this playback order, and Next and Previous follow
+it without reshuffling. Turning shuffle off restores the order from before shuffle
+was enabled. Shuffle does not fetch an entire artist catalog. Likes shuffle uses
+the local library while sync runs in the background, adding new likes at the end.
+
+Open Track Queue and drag a row by its handle to change the playback order.
+Moving a track keeps the current track playing and leaves shuffle enabled if it
+is on. The displayed order, including changes made while shuffled, is saved for
+the next launch. Likes refreshes keep this order and add new likes at the end of
+the queue.
 
 The likes cache stores metadata as atomic JSON files in
 `~/Library/Application Support/SoundClaude/Likes/`, separately for each account.
