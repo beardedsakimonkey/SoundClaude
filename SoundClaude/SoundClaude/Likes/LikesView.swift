@@ -58,12 +58,11 @@ struct LikesView: View {
 
     private var header: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Liked tracks")
-                    .font(.title2.weight(.semibold))
-                Text(user.username)
-                    .foregroundStyle(.secondary)
-            }
+            Text("Liked tracks")
+                .font(.title2.weight(.semibold))
+            Text("(\(likes.tracks.count))")
+                .font(.title2.weight(.regular))
+                .foregroundStyle(.secondary)
             Spacer()
             if likes.isLoading {
                 Text("Syncing likes…")
