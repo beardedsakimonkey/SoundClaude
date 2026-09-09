@@ -14,6 +14,14 @@ struct SidebarView: View {
     @FocusState private var isSearchFocused: Bool
 
     var body: some View {
+        VStack(spacing: 0) {
+            accountHeader
+            sidebarList
+        }
+        .navigationTitle("SoundClaude")
+    }
+
+    private var sidebarList: some View {
         List(selection: $selection) {
             ForEach(SidebarDestination.libraryDestinations) { destination in
                 Label(destination.title, systemImage: destination.systemImage)
@@ -108,12 +116,9 @@ struct SidebarView: View {
                     }
                 }
             }
-            .padding(12)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
         }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            accountHeader
-        }
-        .navigationTitle("SoundClaude")
     }
 
     private var accountHeader: some View {
