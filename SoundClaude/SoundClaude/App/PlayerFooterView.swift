@@ -229,7 +229,7 @@ struct PlayerFooterView: View {
                     isShowingQueue.toggle()
                 } label: {
                     Image(systemName: "list.bullet")
-                        .font(.system(size: 18))
+                        .font(.system(size: 14))
                         .foregroundStyle(isShowingQueue ? Color.orange : Color.primary)
                         .frame(width: 32, height: 32)
                         .modifier(PlayerFooterButtonBackground(color: .orange, isActive: isShowingQueue))
