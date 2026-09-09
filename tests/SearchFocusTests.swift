@@ -10,6 +10,7 @@ private struct FilterFixture: View {
             TextField("Filter", text: $text)
                 .textFieldStyle(.plain)
                 .focused($focused)
+                .modifier(PreventAutomaticSearchFocus())
                 .padding(10)
                 .background {
                     SearchOutsideClickView(isFocused: focused) { focused = false }
@@ -38,19 +39,26 @@ private struct SearchFocusTests {
             return view.subviews.lazy.compactMap { descendant(type, in: $0) }.first
         }
         func click(_ point: NSPoint) {
-            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+            // Queue mouse-up first: text editing tracks it inside mouseDown.
+            for type in [NSEvent.EventType.leftMouseUp, .leftMouseDown] {
                 let event = NSEvent.mouseEvent(
                     with: type, location: point, modifierFlags: [],
                     timestamp: ProcessInfo.processInfo.systemUptime,
                     windowNumber: window.windowNumber, context: nil,
                     eventNumber: 1, clickCount: 1, pressure: 1
                 )!
-                app.sendEvent(event)
+                if type == .leftMouseUp {
+                    app.postEvent(event, atStart: true)
+                } else {
+                    app.sendEvent(event)
+                }
             }
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             let field = descendant(NSTextField.self, in: host)!
+            precondition(field.currentEditor() == nil, "Filter must start without focus")
+            precondition(field.isEnabled, "Filter must allow input after appearing")
             precondition(window.makeFirstResponder(field))
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 let monitor = descendant(SearchOutsideClickView.MonitorView.self, in: host)!

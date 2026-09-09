@@ -86,6 +86,7 @@ struct LikesView: View {
             TextField("Filter", text: $searchText)
                 .textFieldStyle(.plain)
                 .focused($isSearchFocused)
+                .modifier(PreventAutomaticSearchFocus())
                 .onExitCommand {
                     if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         searchText = ""

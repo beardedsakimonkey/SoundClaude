@@ -386,6 +386,7 @@ struct SidebarView: View {
                 TextField("Search", text: $searchText)
                     .textFieldStyle(.plain)
                     .focused($isSearchFocused)
+                    .modifier(PreventAutomaticSearchFocus())
                     .onExitCommand {
                         if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             searchText = ""

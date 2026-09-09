@@ -1,6 +1,24 @@
 import AppKit
 import SwiftUI
 
+struct PreventAutomaticSearchFocus: ViewModifier {
+    @State private var isReady = false
+
+    func body(content: Content) -> some View {
+        content
+            // Keep the field out of macOS's initial focus selection.
+            .disabled(!isReady)
+            .onAppear {
+                DispatchQueue.main.async {
+                    isReady = true
+                }
+            }
+            .onDisappear {
+                isReady = false
+            }
+    }
+}
+
 struct SearchOutsideClickView: NSViewRepresentable {
     let isFocused: Bool
     let onOutsideClick: () -> Void
