@@ -9,6 +9,7 @@ struct SearchResultsView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @State private var category: SearchCategory = .tracks
+    @State private var visitedCategories: Set<SearchCategory> = [.tracks]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -19,18 +20,34 @@ struct SearchResultsView: View {
                 TabPicker(
                     title: "Search type",
                     options: SearchCategory.allCases,
-                    selection: $category
+                    selection: Binding(
+                        get: { category },
+                        set: {
+                            visitedCategories.insert($0)
+                            category = $0
+                        }
+                    )
                 )
             }
 
-            SearchResultList(
-                query: query, isGenreSearch: isGenreSearch, category: category, model: model,
-                onSelectTrack: onSelectTrack,
-                onSelectPlaylist: onSelectPlaylist,
-                onSelectArtist: onSelectArtist
-            )
-            // A new type owns new state and cancels the previous request.
-            .id(category)
+            // Keep visited lists mounted to retain results, pagination, and scroll position.
+            ZStack {
+                ForEach(SearchCategory.allCases, id: \.self) { resultCategory in
+                    if visitedCategories.contains(resultCategory) {
+                        SearchResultList(
+                            query: query, isGenreSearch: isGenreSearch,
+                            category: resultCategory, model: model,
+                            onSelectTrack: onSelectTrack,
+                            onSelectPlaylist: onSelectPlaylist,
+                            onSelectArtist: onSelectArtist
+                        )
+                        .opacity(category == resultCategory ? 1 : 0)
+                        .allowsHitTesting(category == resultCategory)
+                        .disabled(category != resultCategory)
+                        .accessibilityHidden(category != resultCategory)
+                    }
+                }
+            }
         }
         .padding(20)
         .navigationTitle("Search")
