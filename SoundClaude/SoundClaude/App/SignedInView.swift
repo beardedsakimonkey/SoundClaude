@@ -275,6 +275,9 @@ struct SignedInView: View {
     }
 
     private func showTrack(_ track: SoundCloudTrack) {
+        isShowingQueue = false
+        if case let .track(current) = path.last,
+           current.urn == track.urn { return }
         forwardPath.removeAll()
         path.append(.track(track))
     }

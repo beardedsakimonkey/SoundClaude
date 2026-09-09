@@ -70,8 +70,9 @@ struct PlayerFooterView: View {
                             .foregroundStyle(.primary)
                     }
                     .buttonStyle(.plain)
+                    .keyboardShortcut("f", modifiers: [])
                     .onHover { isHoveringTitle = $0 }
-                    .help("View track")
+                    .help("Focus current track (F)")
                 } else {
                     Text("Select a track")
                 }
