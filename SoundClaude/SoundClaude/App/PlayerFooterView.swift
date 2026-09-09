@@ -11,6 +11,7 @@ struct PlayerFooterView: View {
     @State private var previousArtworkURL: URL?
     @State private var hasPreviousTrack = false
     @State private var isHoveringTitle = false
+    @State private var isArtworkExpanded = false
     @State private var likeErrorMessage: String?
 
     @Bindable private var playback: PlaybackController
@@ -150,12 +151,20 @@ struct PlayerFooterView: View {
     private var artwork: some View {
         if let track = playback.currentTrack {
             Button {
+                isArtworkExpanded = false
                 onSelectTrack(track)
             } label: {
                 artworkThumbnail
+                    .scaleEffect(isArtworkExpanded && !reduceMotion ? 1.08 : 1)
+                    .animation(
+                        reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.55),
+                        value: isArtworkExpanded
+                    )
             }
             .buttonStyle(.plain)
             .contentShape(RoundedRectangle(cornerRadius: 6))
+            .onHover { isArtworkExpanded = $0 }
+            .onDisappear { isArtworkExpanded = false }
             .help("View track")
             .accessibilityLabel("View track: \(track.title)")
         } else {
