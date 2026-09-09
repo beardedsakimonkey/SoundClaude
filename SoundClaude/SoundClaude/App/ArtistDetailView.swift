@@ -200,6 +200,12 @@ struct ArtistDetailView: View {
                                 .frame(width: geometry.size.width, height: geometry.size.height)
                                 .clipped()
                         }
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 16)
+                                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                        }
+                        .padding(.horizontal, 8)
                         .accessibilityHidden(true)
                     }
                 }
