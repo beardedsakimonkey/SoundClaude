@@ -57,7 +57,7 @@ struct PlayerFooterView: View {
             VStack(alignment: .leading, spacing: 6) {
                 if let track = playback.currentTrack {
                     if track.access == .preview {
-                        TrackPreviewBadge()
+                        TrackPreviewBadge(font: .caption2)
                     }
                     Button {
                         onSelectTrack(track)
