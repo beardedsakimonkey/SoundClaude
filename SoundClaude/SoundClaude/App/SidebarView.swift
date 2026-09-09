@@ -110,13 +110,13 @@ struct SidebarView: View {
             }
             .padding(12)
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            accountFooter
+        .safeAreaInset(edge: .top, spacing: 0) {
+            accountHeader
         }
         .navigationTitle("SoundClaude")
     }
 
-    private var accountFooter: some View {
+    private var accountHeader: some View {
         HStack(spacing: 8) {
             Button {
                 onSelectProfile(user)
