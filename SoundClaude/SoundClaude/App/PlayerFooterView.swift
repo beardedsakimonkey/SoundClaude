@@ -335,8 +335,6 @@ struct PlayerFooterView: View {
                     .opacity(playback.isShuffleEnabled ? 1 : 0.7)
                     .frame(width: 20, height: 20)
             }
-            .buttonStyle(.plain)
-            .modifier(SpringPressEffect())
             .padding(.horizontal, 6)
             .help(playback.isShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
             .accessibilityLabel("Shuffle")
@@ -349,8 +347,6 @@ struct PlayerFooterView: View {
                     .opacity(playback.repeatMode != .off ? 1 : 0.7)
                     .frame(width: 20, height: 20)
             }
-            .buttonStyle(.plain)
-            .modifier(SpringPressEffect())
             .padding(.horizontal, 6)
             .help("\(playback.repeatMode.nextAction) (R)")
             .accessibilityLabel("Repeat")
@@ -365,11 +361,17 @@ struct PlayerFooterView: View {
     }
 }
 
-private struct PlayerFooterButtonStyle: PrimitiveButtonStyle {
+private struct PlayerFooterButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
-        Button(configuration)
-            .buttonStyle(.borderless)
-            .modifier(SpringPressEffect())
+        configuration.label
+            .scaleEffect(configuration.isPressed && isEnabled && !reduceMotion ? 0.9 : 1)
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.2, dampingFraction: 0.7),
+                value: configuration.isPressed && isEnabled
+            )
     }
 }
 
