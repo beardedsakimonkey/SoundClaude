@@ -63,7 +63,14 @@ struct SignedInView: View {
                         }
                         .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
                         .padding(14)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(
+                            .move(edge: .bottom)
+                                .combined(with: .opacity)
+                                .combined(with: .modifier(
+                                    active: QueueBlurModifier(radius: 12),
+                                    identity: QueueBlurModifier(radius: 0)
+                                ))
+                        )
                     }
                 }
                 .frame(width: geometry.size.width, height: availableHeight, alignment: .bottomTrailing)
@@ -348,6 +355,19 @@ struct SignedInView: View {
                 path = newPath
             }
         )
+    }
+}
+
+private struct QueueBlurModifier: AnimatableModifier {
+    var radius: CGFloat
+
+    var animatableData: CGFloat {
+        get { radius }
+        set { radius = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content.blur(radius: max(0, radius))
     }
 }
 
