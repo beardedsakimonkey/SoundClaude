@@ -81,6 +81,11 @@ struct SoundClaudeApp: App {
             }
             .keyboardShortcut("s", modifiers: [])
 
+            Button("Cycle Repeat") {
+                model.playback.cycleRepeatMode()
+            }
+            .keyboardShortcut("r", modifiers: [])
+
             Button("Seek Back 5 Seconds") {
                 model.playback.seek(by: -5)
             }

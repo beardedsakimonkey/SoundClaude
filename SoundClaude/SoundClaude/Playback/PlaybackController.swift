@@ -16,6 +16,31 @@ struct SavedPlayback: Codable {
 @MainActor
 @Observable
 final class PlaybackController {
+    enum RepeatMode: String {
+        case off, all, one
+
+        var label: String {
+            switch self {
+            case .off: "Off"
+            case .all: "Repeat all"
+            case .one: "Repeat one"
+            }
+        }
+
+        var nextAction: String {
+            switch self {
+            case .off: "Repeat all tracks"
+            case .all: "Repeat current track"
+            case .one: "Turn repeat off"
+            }
+        }
+    }
+
+    private(set) var repeatMode: RepeatMode = .off {
+        didSet {
+            defaults.set(repeatMode.rawValue, forKey: SettingsKey.repeatMode)
+        }
+    }
     private(set) var currentTrack: SoundCloudTrack?
     private(set) var isPlaying = false
     private(set) var isLoading = false
@@ -44,12 +69,14 @@ final class PlaybackController {
         static let volume = "playback.volume"
         static let isMuted = "playback.isMuted"
         static let isShuffleEnabled = "playback.isShuffleEnabled"
+        static let repeatMode = "playback.repeatMode"
         static let session = "playback.session"
     }
 
     @ObservationIgnored private let defaults: UserDefaults
     let player: AVPlayer
     @ObservationIgnored var onReadyToPlay: (() -> Void)?
+    @ObservationIgnored var onTrackEnded: (() -> Void)?
     @ObservationIgnored var onNext: (() -> Void)?
     @ObservationIgnored var onPrevious: (() -> Void)?
 
@@ -76,6 +103,7 @@ final class PlaybackController {
         volume = savedVolume.isFinite ? min(max(savedVolume, 0), 1) : 1
         isMuted = defaults.bool(forKey: SettingsKey.isMuted)
         isShuffleEnabled = defaults.bool(forKey: SettingsKey.isShuffleEnabled)
+        repeatMode = RepeatMode(rawValue: defaults.string(forKey: SettingsKey.repeatMode) ?? "") ?? .off
         player = AVPlayer()
         player.volume = volume
         player.isMuted = isMuted
@@ -121,7 +149,12 @@ final class PlaybackController {
                       notification.object as? AVPlayerItem === player.currentItem else {
                     return
                 }
-                onNext?()
+                if repeatMode == .one {
+                    seek(to: 0)
+                    play()
+                } else {
+                    onTrackEnded?()
+                }
             }
         }
         configureRemoteCommands()
@@ -284,6 +317,14 @@ final class PlaybackController {
 
     func toggleShuffle() {
         isShuffleEnabled.toggle()
+    }
+
+    func cycleRepeatMode() {
+        switch repeatMode {
+        case .off: repeatMode = .all
+        case .all: repeatMode = .one
+        case .one: repeatMode = .off
+        }
     }
 
     func next() {

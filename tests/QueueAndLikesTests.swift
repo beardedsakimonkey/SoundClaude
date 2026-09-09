@@ -57,6 +57,19 @@ struct QueueAndLikesTests {
         precondition(queue.tracks == [track(1), track(2), track(3)])
         precondition(queue.relativeTrack(to: "track:2", offset: 1) == track(3))
         precondition(queue.relativeTrack(to: "track:3", offset: 1) == track(1))
+        // Automatic advance stops at the end unless repeat-all permits wrapping.
+        precondition(queue.relativeTrack(to: "track:2", offset: 1, wraps: false) == track(3))
+        precondition(queue.relativeTrack(to: "track:3", offset: 1, wraps: false) == nil)
+        precondition(queue.relativeTrack(to: "track:3", offset: 1, wraps: true) == track(1))
+        var repeatQueue = queue
+        repeatQueue.setShuffle(true, currentURN: "track:2")
+        let shuffledEnd = repeatQueue.playbackTracks.last!.urn
+        precondition(repeatQueue.relativeTrack(to: shuffledEnd, offset: 1, wraps: false) == nil)
+        precondition(repeatQueue.relativeTrack(to: shuffledEnd, offset: 1, wraps: true)
+                     == repeatQueue.playbackTracks.first)
+        let single = TrackQueue(source: .single, tracks: [track(1)])
+        precondition(single.relativeTrack(to: "track:1", offset: 1, wraps: false) == nil)
+        precondition(single.relativeTrack(to: "track:1", offset: 1, wraps: true) == track(1))
         let restored = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(queue))
         precondition(restored.source == .artist("user:1"))
         precondition(restored.relativeTrack(to: "track:2", offset: 1) == track(3))

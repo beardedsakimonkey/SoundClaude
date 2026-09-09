@@ -8,6 +8,7 @@ struct KeyboardShortcutsView: View {
         Shortcut(title: "Play or pause", keys: ["Space"]),
         Shortcut(title: "Mute or unmute", keys: ["M"]),
         Shortcut(title: "Toggle shuffle", keys: ["S"]),
+        Shortcut(title: "Cycle repeat", keys: ["R"]),
         Shortcut(title: "Toggle track queue", keys: ["Q"]),
         Shortcut(title: "Seek back 5 seconds", keys: ["←"]),
         Shortcut(title: "Seek forward 5 seconds", keys: ["→"]),

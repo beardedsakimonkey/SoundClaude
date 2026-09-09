@@ -265,6 +265,8 @@ struct PlayerFooterView: View {
         .controlSize(.large)
     }
 
+    private let repeatColor = Color(red: 0.1, green: 0.55, blue: 1)
+
     private var transportButtons: some View {
         HStack(spacing: 12) {
             Button(action: playback.previous) {
@@ -313,6 +315,27 @@ struct PlayerFooterView: View {
             .help(playback.isShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
             .accessibilityLabel("Shuffle")
             .accessibilityValue(playback.isShuffleEnabled ? "On" : "Off")
+
+            Button(action: playback.cycleRepeatMode) {
+                Image(systemName: playback.repeatMode == .one ? "repeat.1" : "repeat")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(playback.repeatMode != .off ? repeatColor : Color.primary)
+                    .frame(width: 20, height: 20)
+                    .overlay(alignment: .bottom) {
+                        if playback.repeatMode != .off {
+                            Circle()
+                                .fill(repeatColor)
+                                .frame(width: 4, height: 4)
+                                .offset(y: 5)
+                        }
+                    }
+            }
+            .buttonStyle(.plain)
+            .modifier(SpringPressEffect())
+            .padding(.horizontal, 6)
+            .help("\(playback.repeatMode.nextAction) (R)")
+            .accessibilityLabel("Repeat")
+            .accessibilityValue(playback.repeatMode.label)
         }
     }
 

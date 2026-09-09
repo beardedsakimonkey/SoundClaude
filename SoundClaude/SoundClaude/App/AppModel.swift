@@ -79,6 +79,9 @@ final class AppModel: ObservableObject {
                 await audioTap?.startForCurrentProcess()
             }
         }
+        playback.onTrackEnded = { [weak self] in
+            self?.selectRelativeTrack(offset: 1, isAutomatic: true)
+        }
         playback.onNext = { [weak self] in
             self?.selectRelativeTrack(offset: 1)
         }
@@ -476,7 +479,7 @@ final class AppModel: ObservableObject {
         saveQueue()
     }
 
-    private func selectRelativeTrack(offset: Int) {
+    private func selectRelativeTrack(offset: Int, isAutomatic: Bool = false) {
         trackSelectionTask?.cancel()
         trackSelectionTask = Task { @MainActor [weak self] in
             guard let self, !Task.isCancelled else { return }
@@ -494,8 +497,12 @@ final class AppModel: ObservableObject {
                 try Task.checkCancellation()
                 guard let track = queue.relativeTrack(
                     to: playback.currentTrack?.urn,
-                    offset: offset
-                ) else { return }
+                    offset: offset,
+                    wraps: !isAutomatic || playback.repeatMode == .all
+                ) else {
+                    if isAutomatic { playback.pause() }
+                    return
+                }
                 saveQueue()
                 await loadPlayback(track)
             } catch {

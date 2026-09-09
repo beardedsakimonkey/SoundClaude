@@ -117,10 +117,12 @@ struct TrackQueue: Codable {
         nextPageURL != nil && (tracks.isEmpty || tracks.last?.urn == urn)
     }
 
-    func relativeTrack(to urn: String?, offset: Int) -> SoundCloudTrack? {
+    func relativeTrack(to urn: String?, offset: Int, wraps: Bool = true) -> SoundCloudTrack? {
         let ordered = playbackTracks
         guard !ordered.isEmpty else { return nil }
         let index = ordered.firstIndex { $0.urn == urn } ?? (offset > 0 ? -1 : 0)
-        return ordered[(index + offset + ordered.count) % ordered.count]
+        let destination = index + offset
+        guard wraps || ordered.indices.contains(destination) else { return nil }
+        return ordered[((destination % ordered.count) + ordered.count) % ordered.count]
     }
 }
