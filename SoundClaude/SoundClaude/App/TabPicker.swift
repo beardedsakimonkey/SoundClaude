@@ -6,6 +6,9 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
     let options: [Selection]
     @Binding var selection: Selection
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var underlineNamespace
+
     var body: some View {
         HStack(spacing: 8) {
             ForEach(options, id: \.self) { option in
@@ -20,9 +23,9 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                         .padding(.horizontal, 20)
                         .padding(.vertical, 14)
                         .overlay(alignment: .bottom) {
-                            Rectangle()
-                                .fill(isSelected ? Color.primary : Color.clear)
+                            Color.clear
                                 .frame(height: 2)
+                                .matchedGeometryEffect(id: option, in: underlineNamespace)
                         }
                         .contentShape(Rectangle())
                 }
@@ -30,6 +33,14 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             }
         }
+        .overlay {
+            Rectangle()
+                .fill(Color.primary)
+                .matchedGeometryEffect(id: selection, in: underlineNamespace, isSource: false)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
     }
