@@ -103,21 +103,19 @@ struct TrackDetailView: View {
                     artworkView(for: details.track)
 
                     VStack(alignment: .leading, spacing: 10) {
-                        HStack(alignment: .center, spacing: 8) {
-                            Button {
-                                Task { await model.play(details.track) }
-                            } label: {
-                                Text(details.track.title)
-                                    .font(.system(size: 36, weight: .semibold))
-                                    .foregroundStyle(.primary)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Play this track")
-                            .accessibilityLabel("Play \(details.track.title)")
-                            if details.track.access == .preview {
-                                TrackPreviewBadge(font: .callout)
-                            }
+                        if details.track.access == .preview {
+                            TrackPreviewBadge(font: .callout)
                         }
+                        Button {
+                            Task { await model.play(details.track) }
+                        } label: {
+                            Text(details.track.title)
+                                .font(.system(size: 36, weight: .semibold))
+                                .foregroundStyle(.primary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Play this track")
+                        .accessibilityLabel("Play \(details.track.title)")
                         ArtistLink(
                             artist: details.track.artist,
                             artworkLoader: model.artworkLoader,
