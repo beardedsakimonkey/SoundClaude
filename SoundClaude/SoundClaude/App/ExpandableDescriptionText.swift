@@ -47,7 +47,7 @@ struct ExpandableDescriptionText: View {
                     LinearGradient(
                         stops: [
                             .init(color: .black, location: 0),
-                            .init(color: .black, location: 0.7),
+                            .init(color: .black, location: 0.8),
                             .init(color: isTruncated ? .clear : .black, location: 1)
                         ],
                         startPoint: .top,

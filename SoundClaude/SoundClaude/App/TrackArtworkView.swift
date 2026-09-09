@@ -295,7 +295,7 @@ struct TrackArtworkBackdropView: View {
                 nextImage = nil
             }
             guard !Task.isCancelled else { return }
-            withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.6) : nil) {
+            withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
                 image = nextImage
             }
         }

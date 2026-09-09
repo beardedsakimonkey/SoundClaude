@@ -7,6 +7,9 @@ struct PlayerFooterView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     @Binding var isShowingQueue: Bool
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var previousArtworkURL: URL?
+    @State private var hasPreviousTrack = false
     @State private var isHoveringTitle = false
     @State private var likeErrorMessage: String?
 
@@ -161,8 +164,46 @@ struct PlayerFooterView: View {
     }
 
     private var artworkThumbnail: some View {
+        Color.clear
+            .frame(width: 80, height: 80)
+            .keyframeAnimator(initialValue: 180.0, trigger: playback.currentTrack?.urn) { _, angle in
+                let sign = playback.trackChangeDirection == .forward ? -1.0 : 1.0
+                let shouldFlip = !reduceMotion && hasPreviousTrack && playback.currentTrack != nil
+                let rotation = shouldFlip ? angle : 180
+
+                ZStack {
+                    thumbnail(for: previousArtworkURL)
+                        .opacity(rotation < 90 ? 1 : 0)
+                        .rotation3DEffect(
+                            .degrees(sign * rotation),
+                            axis: (x: 0, y: 1, z: 0),
+                            perspective: 0.5
+                        )
+                    thumbnail(for: playback.currentTrack?.artworkURL)
+                        .opacity(rotation >= 90 ? 1 : 0)
+                        .rotation3DEffect(
+                            .degrees(sign * (rotation - 180)),
+                            axis: (x: 0, y: 1, z: 0),
+                            perspective: 0.5
+                        )
+                }
+            } keyframes: { _ in
+                MoveKeyframe(0)
+                SpringKeyframe(
+                    180,
+                    spring: .init(duration: 0.42, bounce: 0.22),
+                    startVelocity: 450
+                )
+            }
+            .onChange(of: playback.currentTrack) { oldTrack, _ in
+                previousArtworkURL = oldTrack?.artworkURL
+                hasPreviousTrack = oldTrack != nil
+            }
+    }
+
+    private func thumbnail(for url: URL?) -> some View {
         TrackArtworkView(
-            artworkURL: playback.currentTrack?.artworkURL,
+            artworkURL: url,
             loader: artworkLoader,
             size: 80,
             rendition: .square500

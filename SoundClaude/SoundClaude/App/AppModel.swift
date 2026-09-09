@@ -198,7 +198,8 @@ final class AppModel: ObservableObject {
     private func loadPlayback(
         _ track: SoundCloudTrack,
         position: Double = 0,
-        autoplay: Bool = true
+        autoplay: Bool = true,
+        direction: PlaybackController.TrackChangeDirection = .forward
     ) async {
         guard !Task.isCancelled else { return }
         playbackTask?.cancel()
@@ -229,7 +230,8 @@ final class AppModel: ObservableObject {
                     track: track,
                     source: source,
                     position: position,
-                    autoplay: autoplay
+                    autoplay: autoplay,
+                    direction: direction
                 )
             } catch is CancellationError {
                 return
@@ -504,7 +506,7 @@ final class AppModel: ObservableObject {
                     return
                 }
                 saveQueue()
-                await loadPlayback(track)
+                await loadPlayback(track, direction: offset < 0 ? .backward : .forward)
             } catch {
                 guard !Task.isCancelled, !(error is CancellationError) else { return }
                 errorMessage = error.localizedDescription

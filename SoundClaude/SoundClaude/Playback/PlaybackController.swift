@@ -41,6 +41,11 @@ final class PlaybackController {
             defaults.set(repeatMode.rawValue, forKey: SettingsKey.repeatMode)
         }
     }
+    enum TrackChangeDirection {
+        case forward, backward
+    }
+
+    private(set) var trackChangeDirection: TrackChangeDirection = .forward
     private(set) var currentTrack: SoundCloudTrack?
     private(set) var isPlaying = false
     private(set) var isLoading = false
@@ -217,7 +222,8 @@ final class PlaybackController {
         track: SoundCloudTrack,
         source: PlaybackSource,
         position: Double = 0,
-        autoplay: Bool = true
+        autoplay: Bool = true,
+        direction: TrackChangeDirection = .forward
     ) {
         pause()
         itemStatusObservation?.invalidate()
@@ -225,6 +231,7 @@ final class PlaybackController {
         isSeekInProgress = false
         hasNotifiedReady = false
         errorMessage = nil
+        trackChangeDirection = direction
         currentTrack = track
         duration = Double(track.durationMilliseconds) / 1_000
         let safePosition = position.isFinite ? max(position, 0) : 0
