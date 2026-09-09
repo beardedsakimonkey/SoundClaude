@@ -74,11 +74,14 @@ struct PlayerFooterView: View {
             artwork
             VStack(alignment: .leading, spacing: 6) {
                 if let track = playback.currentTrack {
+                    if track.access == .preview {
+                        TrackPreviewBadge()
+                    }
                     Button {
                         onSelectTrack(track)
                     } label: {
                         Text(track.title)
-                            .lineLimit(2)
+                            .lineLimit(track.access == .preview ? 1 : 2)
                             .multilineTextAlignment(.leading)
                             .underline(isHoveringTitle)
                             .foregroundStyle(.primary)
