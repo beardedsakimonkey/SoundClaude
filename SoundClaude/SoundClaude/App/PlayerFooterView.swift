@@ -302,15 +302,8 @@ struct PlayerFooterView: View {
                 Image(systemName: "shuffle")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(playback.isShuffleEnabled ? Color.green : Color.primary)
+                    .opacity(playback.isShuffleEnabled ? 1 : 0.7)
                     .frame(width: 20, height: 20)
-                    .overlay(alignment: .bottom) {
-                        if playback.isShuffleEnabled {
-                            Circle()
-                                .fill(Color.green)
-                                .frame(width: 4, height: 4)
-                                .offset(y: 5)
-                        }
-                    }
             }
             .buttonStyle(.plain)
             .modifier(SpringPressEffect())
@@ -323,15 +316,8 @@ struct PlayerFooterView: View {
                 Image(systemName: playback.repeatMode == .one ? "repeat.1" : "repeat")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(playback.repeatMode != .off ? Color.cyan : Color.primary)
+                    .opacity(playback.repeatMode != .off ? 1 : 0.7)
                     .frame(width: 20, height: 20)
-                    .overlay(alignment: .bottom) {
-                        if playback.repeatMode != .off {
-                            Circle()
-                                .fill(Color.cyan)
-                                .frame(width: 4, height: 4)
-                                .offset(y: 5)
-                        }
-                    }
             }
             .buttonStyle(.plain)
             .modifier(SpringPressEffect())
