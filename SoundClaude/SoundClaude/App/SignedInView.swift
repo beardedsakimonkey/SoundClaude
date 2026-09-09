@@ -345,6 +345,7 @@ struct SidebarView: View {
                 TextField("Search", text: $searchText)
                     .textFieldStyle(.plain)
                     .focused($isSearchFocused)
+                    .onExitCommand { isSearchFocused = false }
                     .onSubmit {
                         guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
                         onSearch(searchText)
@@ -366,6 +367,13 @@ struct SidebarView: View {
             }
             .padding(8)
             .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+            .background {
+                SearchOutsideClickView {
+                    if isSearchFocused {
+                        isSearchFocused = false
+                    }
+                }
+            }
             .padding(12)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
