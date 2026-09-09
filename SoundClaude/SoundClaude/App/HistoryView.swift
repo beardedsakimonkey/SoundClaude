@@ -28,7 +28,7 @@ struct HistoryView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
                 Text("History")
-                    .font(.title.weight(.semibold))
+                    .font(.largeTitle.weight(.semibold))
 
                 ForEach(tracks) { track in
                     TrackCardView(

@@ -373,8 +373,16 @@ struct SidebarView: View {
         .listStyle(.sidebar)
         .safeAreaInset(edge: .top, spacing: 0) {
             HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
+                Button {
+                    isSearchFocused = true
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut("/", modifiers: [])
+                .accessibilityLabel("Focus search")
+                .help("Focus search (/)")
                 TextField("Search", text: $searchText)
                     .textFieldStyle(.plain)
                     .focused($isSearchFocused)
@@ -385,7 +393,7 @@ struct SidebarView: View {
                         isSearchFocused = false
                     }
                     .accessibilityLabel("Search SoundCloud")
-                    .help("Search SoundCloud. Press Return to search.")
+                    .help("Search SoundCloud. Press / to focus, then Return to search.")
                 if !searchText.isEmpty {
                     Button {
                         searchText = ""

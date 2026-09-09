@@ -29,7 +29,7 @@ enum SidebarDestination: Codable, Hashable, Identifiable {
         case .feed:
             "Feed"
         case .liked:
-            "Liked"
+            "Likes"
         case .history:
             "History"
         case let .playlist(playlist):

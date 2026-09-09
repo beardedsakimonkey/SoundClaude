@@ -58,10 +58,10 @@ struct LikesView: View {
 
     private var header: some View {
         HStack {
-            Text("Liked tracks")
-                .font(.title2.weight(.semibold))
+            Text("Likes")
+                .font(.largeTitle.weight(.semibold))
             Text("(\(likes.tracks.count))")
-                .font(.title2.weight(.regular))
+                .font(.largeTitle.weight(.regular))
                 .foregroundStyle(.secondary)
             Spacer()
             if likes.isLoading {
@@ -81,7 +81,7 @@ struct LikesView: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
-            TextField("Search by title or artist", text: $searchText)
+            TextField("Filter", text: $searchText)
                 .textFieldStyle(.plain)
                 .focused($isSearchFocused)
                 .onExitCommand { isSearchFocused = false }

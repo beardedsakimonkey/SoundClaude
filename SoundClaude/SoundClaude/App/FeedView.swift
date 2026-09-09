@@ -28,7 +28,7 @@ struct FeedView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
                 Text("Feed")
-                    .font(.title.weight(.semibold))
+                    .font(.largeTitle.weight(.semibold))
 
                 ForEach(items) { item in
                     VStack(alignment: .leading, spacing: 8) {

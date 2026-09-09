@@ -4,6 +4,7 @@ struct KeyboardShortcutsView: View {
     @Environment(\.dismiss) private var dismiss
 
     private let shortcuts = [
+        Shortcut(title: "Focus search", keys: ["/"]),
         Shortcut(title: "Play or pause", keys: ["Space"]),
         Shortcut(title: "Mute or unmute", keys: ["M"]),
         Shortcut(title: "Toggle shuffle", keys: ["S"]),
