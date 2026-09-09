@@ -332,6 +332,7 @@ struct SidebarView: View {
             ForEach(SidebarDestination.libraryDestinations) { destination in
                 Label(destination.title, systemImage: destination.systemImage)
                     .tag(destination)
+                    .background(SidebarTypingConfiguration())
             }
             Section("Playlists") {
                 ForEach(playlists.playlists) { playlist in
@@ -471,6 +472,42 @@ struct SidebarView: View {
             .accessibilityLabel("Settings")
         }
         .padding(12)
+    }
+}
+
+// Attach inside a row so only the sidebar's enclosing table is configured.
+private struct SidebarTypingConfiguration: NSViewRepresentable {
+    func makeNSView(context: Context) -> ConfigurationView {
+        ConfigurationView()
+    }
+
+    func updateNSView(_ nsView: ConfigurationView, context: Context) {
+        nsView.disableTypeSelect()
+    }
+
+    final class ConfigurationView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            disableTypeSelect()
+        }
+
+        override func viewDidMoveToSuperview() {
+            super.viewDidMoveToSuperview()
+            disableTypeSelect()
+        }
+
+        func disableTypeSelect() {
+            var ancestor = superview
+            while let view = ancestor {
+                if let table = view as? NSTableView {
+                    table.allowsTypeSelect = false
+                    return
+                }
+                ancestor = view.superview
+            }
+        }
     }
 }
 
