@@ -39,7 +39,13 @@ struct PlaylistDetailView: View {
                         )
                     }
                     Divider()
-                    Text("Tracks").font(.headline)
+                    HStack {
+                        Text("Tracks")
+                        Text("(\((displayedPlaylist.trackCount ?? tracks.count).formatted()))")
+                            .foregroundStyle(.secondary)
+                            .fontWeight(.regular)
+                    }
+                    .font(.headline)
                     if let message = model.errorMessage {
                         Label(message, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
@@ -99,18 +105,6 @@ struct PlaylistDetailView: View {
                 )
                     .font(.title3)
                     .foregroundStyle(.secondary)
-                HStack(spacing: 16) {
-                    if let count = displayedPlaylist.trackCount {
-                        Text("\(count.formatted()) \(count == 1 ? "track" : "tracks")")
-                    }
-                    if let duration = displayedPlaylist.durationMilliseconds, duration > 0 {
-                        Text(Duration.milliseconds(duration).formatted(.units(
-                            allowed: [.hours, .minutes], width: .abbreviated
-                        )))
-                    }
-                }
-                .font(.callout)
-                .foregroundStyle(.secondary)
                 Link(destination: displayedPlaylist.permalinkURL) {
                     Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
                 }
