@@ -11,7 +11,6 @@ struct PlayerFooterView: View {
     @State private var previousArtworkURL: URL?
     @State private var hasPreviousTrack = false
     @State private var isHoveringTitle = false
-    @State private var isArtworkExpanded = false
     @State private var likeErrorMessage: String?
 
     @Bindable private var playback: PlaybackController
@@ -131,20 +130,16 @@ struct PlayerFooterView: View {
     private var artwork: some View {
         if let track = playback.currentTrack {
             Button {
-                isArtworkExpanded = false
                 onSelectTrack(track)
             } label: {
                 artworkThumbnail
-                    .scaleEffect(isArtworkExpanded && !reduceMotion ? 1.08 : 1)
-                    .animation(
-                        reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.55),
-                        value: isArtworkExpanded
-                    )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PlayerFooterButtonStyle(
+                pressAnimation: .interpolatingSpring(mass: 2, stiffness: 180, damping: 36),
+                response: 0.3,
+                dampingFraction: 0.45
+            ))
             .contentShape(RoundedRectangle(cornerRadius: 6))
-            .onHover { isArtworkExpanded = $0 }
-            .onDisappear { isArtworkExpanded = false }
             .help("View track")
             .accessibilityLabel("View track: \(track.title)")
         } else {
@@ -363,15 +358,22 @@ struct PlayerFooterView: View {
 }
 
 private struct PlayerFooterButtonStyle: ButtonStyle {
+    var pressAnimation: Animation? = nil
+    var response: Double = 0.2
+    var dampingFraction: Double = 0.7
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed && isEnabled && !reduceMotion ? 0.9 : 1)
+        let isPressed = configuration.isPressed && isEnabled
+        let spring = Animation.spring(response: response, dampingFraction: dampingFraction)
+
+        return configuration.label
+            .scaleEffect(isPressed && !reduceMotion ? 0.9 : 1)
             .animation(
-                reduceMotion ? nil : .spring(response: 0.2, dampingFraction: 0.7),
-                value: configuration.isPressed && isEnabled
+                reduceMotion ? nil : (isPressed ? pressAnimation ?? spring : spring),
+                value: isPressed
             )
     }
 }

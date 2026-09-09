@@ -27,7 +27,7 @@ struct TrackListRow: View {
                     size: 44
                 )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(TrackArtworkButtonStyle())
             .onHover { isHoveringArtwork = $0 }
             .accessibilityLabel("Open track: \(track.title)")
             VStack(alignment: .leading, spacing: 3) {
@@ -93,6 +93,20 @@ struct TrackListRow: View {
     private var duration: String {
         let seconds = max(track.durationMilliseconds, 0) / 1_000
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+private struct TrackArtworkButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && isEnabled && !reduceMotion ? 0.92 : 1)
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.4),
+                value: configuration.isPressed && isEnabled
+            )
     }
 }
 
