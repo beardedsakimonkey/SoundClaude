@@ -28,30 +28,30 @@ final class AuthController: ObservableObject {
     ) {
         self.client = client
         self.tokenStore = tokenStore
+        // Resolve the local account before SwiftUI builds its first view.
+        do {
+            token = try tokenStore.load()
+            if let token {
+                state = token.user.map(State.signedIn) ?? .restoring
+            }
+        } catch {
+            state = .failed(error.localizedDescription)
+        }
     }
 
     func restore() async {
         restoreTask?.cancel()
-        state = .restoring
-        do {
-            guard let savedToken = try tokenStore.load() else {
-                state = .signedOut
-                return
-            }
-            token = savedToken
-            if let user = savedToken.user {
-                state = .signedIn(user)
-            }
-            let task = Task { @MainActor in
-                await validateRestoredSession()
-            }
-            restoreTask = task
-            // Cached accounts can load their library while validation runs.
-            if savedToken.user == nil {
-                await task.value
-            }
-        } catch {
-            state = .failed(error.localizedDescription)
+        guard let token else { return }
+        if token.user == nil {
+            state = .restoring
+        }
+        let task = Task { @MainActor in
+            await validateRestoredSession()
+        }
+        restoreTask = task
+        // Cached accounts can load their library while validation runs.
+        if token.user == nil {
+            await task.value
         }
     }
 

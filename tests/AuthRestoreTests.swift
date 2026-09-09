@@ -5,7 +5,11 @@ import Foundation
 final class KeychainTokenStore {
     var record: TokenRecord?
     var deletes = 0
-    func load() throws -> TokenRecord? { record }
+    var loadError: Error?
+    func load() throws -> TokenRecord? {
+        if let loadError { throw loadError }
+        return record
+    }
     func save(_ record: TokenRecord) throws { self.record = record }
     func delete() throws { record = nil; deletes += 1 }
 }
@@ -68,12 +72,27 @@ struct AuthRestoreTests {
         }
 
         let (emptyAuth, _, _) = setup(nil)
+        precondition(emptyAuth.state == .signedOut)
         await emptyAuth.restore()
         precondition(emptyAuth.state == .signedOut)
 
-        // Restore returns with cached identity while the profile request is held.
+        let failedStore = KeychainTokenStore()
+        failedStore.loadError = SoundCloudError.invalidData
+        let failedAuth = AuthController(client: SoundCloudClient(), tokenStore: failedStore)
+        guard case .failed = failedAuth.state else { fatalError("Expected Keychain error") }
+        await failedAuth.restore()
+        guard case .failed = failedAuth.state else { fatalError("Lost Keychain error") }
+        precondition(failedStore.deletes == 0)
+
+        // The first view has the cached identity, with no intermediate signed-out or loading state.
         let (auth, client, store) = setup(record())
+        precondition(auth.state == .signedIn(user))
+        precondition(client.userToken == nil && client.refreshCount == 0)
+        var launchStates: [AuthController.State] = []
+        let observation = auth.$state.sink { launchStates.append($0) }
         await auth.restore()
+        precondition(launchStates.allSatisfy { $0 == .signedIn(user) })
+        observation.cancel()
         precondition(auth.state == .signedIn(user))
         await until { client.pendingUser != nil }
         precondition(client.refreshCount == 0 && client.userToken == "saved")
@@ -92,6 +111,7 @@ struct AuthRestoreTests {
 
         // Expired credentials do not delay the interface; concurrent callers share refresh.
         let (expiredAuth, expiredClient, expiredStore) = setup(record(expired: true))
+        precondition(expiredAuth.state == .signedIn(user))
         await expiredAuth.restore()
         precondition(expiredAuth.state == .signedIn(user))
         await until { expiredClient.pendingRefresh != nil }
@@ -132,6 +152,7 @@ struct AuthRestoreTests {
         }
 
         let (legacyAuth, legacyClient, legacyStore) = setup(record(cached: false))
+        precondition(legacyAuth.state == .restoring)
         let legacyRestore = Task { await legacyAuth.restore() }
         await until { legacyClient.pendingUser != nil }
         precondition(legacyAuth.state == .restoring)
