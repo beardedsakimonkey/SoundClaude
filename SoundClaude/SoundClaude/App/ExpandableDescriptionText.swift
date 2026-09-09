@@ -9,6 +9,10 @@ struct ExpandableDescriptionText: View {
     @State private var collapsedHeight: CGFloat = 0
     @State private var fullHeight: CGFloat = 0
 
+    private var isTruncated: Bool {
+        !isExpanded && fullHeight > collapsedHeight
+    }
+
     init(description: String, onSelectArtist: @escaping (SoundCloudUser) -> Void) {
         self.description = ArtistMentionText(description, onSelectArtist: onSelectArtist)
     }
@@ -39,8 +43,19 @@ struct ExpandableDescriptionText: View {
                     .hidden()
                     .accessibilityHidden(true)
                 }
+                .mask {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black, location: 0),
+                            .init(color: .black, location: 0.7),
+                            .init(color: isTruncated ? .clear : .black, location: 1)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
 
-            if isExpanded || fullHeight > collapsedHeight {
+            if isExpanded || isTruncated {
                 Button(isExpanded ? "Show less" : "Show more") {
                     isExpanded.toggle()
                 }
