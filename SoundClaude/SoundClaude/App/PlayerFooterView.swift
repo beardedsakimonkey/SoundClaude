@@ -314,7 +314,7 @@ struct PlayerFooterView: View {
     private var transportButtons: some View {
         HStack(spacing: 12) {
             Button(action: playback.previous) {
-                Image(systemName: "backward.end.fill")
+                Image(systemName: "backward.fill")
                     .font(.system(size: 14, weight: .semibold))
                     .frame(width: 20, height: 20)
             }
@@ -322,9 +322,17 @@ struct PlayerFooterView: View {
             .accessibilityLabel("Previous track")
 
             Button(action: playback.togglePlayPause) {
-                Image(systemName: playback.isPlaybackActive ? "pause.fill" : "play.fill")
-                    .font(.system(size: 28, weight: .semibold))
-                    .frame(width: 44, height: 44)
+                ZStack {
+                    Image(systemName: playback.isPlaybackActive ? "pause.fill" : "play.fill")
+                        .font(.system(size: 28, weight: .semibold))
+                        .id(playback.isPlaybackActive)
+                        .transition(reduceMotion ? .identity : .scale(scale: 0.01).combined(with: .opacity))
+                }
+                .frame(width: 44, height: 44)
+                .animation(
+                    reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.6),
+                    value: playback.isPlaybackActive
+                )
             }
             .keyboardShortcut(.space, modifiers: [])
             .disabled(playback.currentTrack == nil)
@@ -332,7 +340,7 @@ struct PlayerFooterView: View {
             .accessibilityLabel(playback.isPlaybackActive ? "Pause" : "Play")
 
             Button(action: playback.next) {
-                Image(systemName: "forward.end.fill")
+                Image(systemName: "forward.fill")
                     .font(.system(size: 14, weight: .semibold))
                     .frame(width: 20, height: 20)
             }
