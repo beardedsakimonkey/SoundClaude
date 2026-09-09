@@ -414,7 +414,7 @@ struct SidebarView: View {
             .padding(8)
             .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
             .background {
-                SearchOutsideClickView {
+                SearchOutsideClickView(isFocused: isSearchFocused) {
                     if isSearchFocused {
                         isSearchFocused = false
                     }

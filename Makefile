@@ -7,7 +7,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := run
 
-.PHONY: build run lsp icon test
+.PHONY: build run lsp icon test test-focus
 
 build:
 	xcodebuild \
@@ -45,6 +45,14 @@ icon:
 	$(MAKE) build
 	touch "$(APP)"
 	/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$(abspath $(APP))"
+
+# Focus regression opens a temporary window and requires a macOS GUI session.
+test-focus:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/search-focus \
+		SoundClaude/SoundClaude/Likes/SearchOutsideClickView.swift \
+		tests/SearchFocusTests.swift
+	/tmp/soundclaude-tests/search-focus
 
 # Standalone regression suites; no credentials or Keychain access required.
 test:

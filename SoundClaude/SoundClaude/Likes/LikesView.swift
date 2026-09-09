@@ -106,7 +106,7 @@ struct LikesView: View {
         .padding(10)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
         .background {
-            SearchOutsideClickView {
+            SearchOutsideClickView(isFocused: isSearchFocused) {
                 if isSearchFocused {
                     isSearchFocused = false
                 }
