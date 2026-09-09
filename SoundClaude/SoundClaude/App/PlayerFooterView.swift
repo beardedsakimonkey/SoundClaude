@@ -111,7 +111,7 @@ struct PlayerFooterView: View {
             }
         } label: {
             Image(systemName: isLiked ? "heart.fill" : "heart")
-                .font(.system(size: 20, weight: .regular))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(isLiked ? Color.orange : Color.primary)
                 .opacity(0.9)
                 .frame(width: 32, height: 32)
@@ -328,7 +328,7 @@ struct PlayerFooterView: View {
                 Image(systemName: "shuffle")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(playback.isShuffleEnabled ? Color.green : Color.primary)
-                    .opacity(playback.isShuffleEnabled ? 1 : 0.7)
+                    .opacity(0.9)
                     .frame(width: 20, height: 20)
             }
             .padding(.horizontal, 6)
@@ -340,7 +340,7 @@ struct PlayerFooterView: View {
                 Image(systemName: playback.repeatMode == .one ? "repeat.1" : "repeat")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(playback.repeatMode != .off ? Color.cyan : Color.primary)
-                    .opacity(playback.repeatMode != .off ? 1 : 0.7)
+                    .opacity(0.9)
                     .frame(width: 20, height: 20)
             }
             .padding(.horizontal, 6)
