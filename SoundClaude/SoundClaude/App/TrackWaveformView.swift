@@ -12,10 +12,13 @@ struct TrackWaveformView: View {
     let track: SoundCloudTrack
     let model: AppModel
     let layout: Layout
+    let invertsBarsOnTrackChange: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
 
     private let playback: PlaybackController
     @State private var waveform: SoundCloudWaveform?
+    @State private var waveformTrackURN: String?
+    @State private var barDirection: Double = 1
     @State private var errorMessage: String?
     @State private var artworkAccent: ArtworkAccent?
     @State private var accentArtworkURL: URL?
@@ -29,14 +32,19 @@ struct TrackWaveformView: View {
         track: SoundCloudTrack,
         model: AppModel,
         layout: Layout = .detail,
+        invertsBarsOnTrackChange: Bool = false,
         onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
     ) {
         self.track = track
         self.model = model
         self.layout = layout
+        self.invertsBarsOnTrackChange = invertsBarsOnTrackChange
         self.onPlayTrack = onPlayTrack
         playback = model.playback
         _waveform = State(initialValue: model.cachedWaveform(for: track))
+        _waveformTrackURN = State(
+            initialValue: model.cachedWaveform(for: track) == nil ? nil : track.urn
+        )
     }
 
     var body: some View {
@@ -68,7 +76,7 @@ struct TrackWaveformView: View {
                 }
             }
         }
-        .task(id: track.waveformURL) {
+        .task(id: [track.urn, track.waveformURL?.absoluteString ?? ""]) {
             await load()
         }
         .task(id: track.artworkURL) {
@@ -156,6 +164,10 @@ struct TrackWaveformView: View {
                 .animation(
                     reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.3),
                     value: waveform
+                )
+                .animation(
+                    reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.3),
+                    value: barDirection
                 )
                 .animation(.easeInOut(duration: 0.15), value: isHovering)
                 .contentShape(Rectangle())
@@ -333,6 +345,7 @@ struct TrackWaveformView: View {
             )
             let sample = waveform.samples[lowerBound..<upperBound].max() ?? 0
             return min(max(Double(sample) / Double(waveform.height), 0), 1)
+                * barDirection
         })
     }
 
@@ -345,7 +358,9 @@ struct TrackWaveformView: View {
         let path = CGMutablePath()
 
         for (index, amplitude) in amplitudes.values.enumerated() {
-            let height = max(CGFloat(amplitude) * (size.height - 4), 2)
+            // Signed amplitudes let the endpoints cross at the center. Take the
+            // absolute value only when drawing, after spring interpolation.
+            let height = max(CGFloat(abs(amplitude)) * (size.height - 4), 2)
             let rect = CGRect(
                 x: CGFloat(index) * step,
                 y: (size.height - height) / 2,
@@ -396,21 +411,33 @@ struct TrackWaveformView: View {
 
     private func load() async {
         if let cachedWaveform = model.cachedWaveform(for: track) {
-            waveform = cachedWaveform
+            setWaveform(cachedWaveform)
             errorMessage = nil
             return
         }
 
-        waveform = nil
+        if !invertsBarsOnTrackChange {
+            waveform = nil
+        }
         errorMessage = nil
         do {
             let loadedWaveform = try await model.waveform(for: track)
             guard !Task.isCancelled else { return }
-            waveform = loadedWaveform
+            setWaveform(loadedWaveform)
         } catch {
             guard !Task.isCancelled else { return }
+            waveform = nil
             errorMessage = "Waveform unavailable"
         }
+    }
+
+    private func setWaveform(_ loadedWaveform: SoundCloudWaveform) {
+        if invertsBarsOnTrackChange,
+           let waveformTrackURN, waveformTrackURN != track.urn {
+            barDirection *= -1
+        }
+        waveformTrackURN = track.urn
+        waveform = loadedWaveform
     }
 }
 

@@ -219,7 +219,8 @@ struct PlayerFooterView: View {
                         TrackWaveformView(
                             track: track,
                             model: model,
-                            layout: .compact
+                            layout: .compact,
+                            invertsBarsOnTrackChange: true
                         )
                     } else {
                         Color.clear
