@@ -62,7 +62,7 @@ struct LikesView: View {
                 Text("Likes")
                     .font(.largeTitle.weight(.semibold))
                 Text("(\(likes.tracks.count))")
-                    .font(.title.weight(.light))
+                    .font(.title.weight(.regular))
                     .foregroundStyle(.secondary)
             }
             Spacer()

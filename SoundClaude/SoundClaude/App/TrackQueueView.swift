@@ -30,8 +30,6 @@ struct TrackQueueView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: "music.note.list")
-                        .accessibilityHidden(true)
                     Text("Track Queue")
                     Text("(\(tracks.count))")
                         .foregroundStyle(.secondary)
