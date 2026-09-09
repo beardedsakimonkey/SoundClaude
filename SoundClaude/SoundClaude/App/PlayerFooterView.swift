@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct PlayerFooterView: View {
+    private let artworkThumbnailSize: CGFloat = 72
+
     let model: AppModel
     let artworkLoader: ArtworkLoader
     let onSelectArtist: (SoundCloudUser) -> Void
@@ -32,7 +34,7 @@ struct PlayerFooterView: View {
     }
 
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 6) {
             trackIdentity
                 .frame(width: 340)
             playbackControls
@@ -150,7 +152,7 @@ struct PlayerFooterView: View {
 
     private var artworkThumbnail: some View {
         Color.clear
-            .frame(width: 80, height: 80)
+            .frame(width: artworkThumbnailSize, height: artworkThumbnailSize)
             .keyframeAnimator(initialValue: 180.0, trigger: playback.currentTrack?.urn) { _, angle in
                 let sign = playback.trackChangeDirection == .forward ? -1.0 : 1.0
                 let shouldFlip = !reduceMotion && hasPreviousTrack && playback.currentTrack != nil
@@ -190,7 +192,7 @@ struct PlayerFooterView: View {
         TrackArtworkView(
             artworkURL: url,
             loader: artworkLoader,
-            size: 80,
+            size: artworkThumbnailSize,
             rendition: .square500
         )
     }
