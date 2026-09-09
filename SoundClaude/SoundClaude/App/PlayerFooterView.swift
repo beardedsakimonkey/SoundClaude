@@ -224,6 +224,21 @@ struct PlayerFooterView: View {
                 // Compensate for the timestamps below the waveform.
                 .offset(y: 8)
 
+                Button {
+                    isShowingQueue.toggle()
+                } label: {
+                    Image(systemName: "list.bullet")
+                        .font(.system(size: 18))
+                        .foregroundStyle(isShowingQueue ? Color.orange : Color.primary)
+                        .frame(width: 32, height: 32)
+                }
+                .buttonStyle(.plain)
+                .modifier(SpringPressEffect())
+                .keyboardShortcut("q", modifiers: [])
+                .help(isShowingQueue ? "Hide track queue (Q)" : "Show track queue (Q)")
+                .accessibilityLabel(isShowingQueue ? "Hide track queue" : "Show track queue")
+                .accessibilityValue(isShowingQueue ? "Open" : "Closed")
+
                 HStack(spacing: 4) {
                     Button(action: playback.toggleMute) {
                         Group {
@@ -242,21 +257,6 @@ struct PlayerFooterView: View {
                         .accessibilityLabel("Volume")
                         .accessibilityValue("\(Int(playback.volume * 100)) percent")
                 }
-
-                Button {
-                    isShowingQueue.toggle()
-                } label: {
-                    Image(systemName: "music.note.list")
-                        .font(.system(size: 18))
-                        .foregroundStyle(isShowingQueue ? Color.orange : Color.primary)
-                        .frame(width: 32, height: 32)
-                }
-                .buttonStyle(.plain)
-                .modifier(SpringPressEffect())
-                .keyboardShortcut("q", modifiers: [])
-                .help(isShowingQueue ? "Hide track queue (Q)" : "Show track queue (Q)")
-                .accessibilityLabel(isShowingQueue ? "Hide track queue" : "Show track queue")
-                .accessibilityValue(isShowingQueue ? "Open" : "Closed")
             }
             .buttonStyle(.borderless)
 
