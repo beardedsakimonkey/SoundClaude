@@ -85,7 +85,7 @@ struct PlayerFooterView: View {
                 .font(.headline.weight(.medium))
                 .foregroundStyle(.secondary)
             }
-            .font(.title3.weight(.semibold))
+            .font(.system(size: 14, weight: .semibold))
             .opacity(0.85)
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
