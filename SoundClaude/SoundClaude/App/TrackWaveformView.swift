@@ -97,7 +97,7 @@ struct TrackWaveformView: View {
                 let amplitudes = barAmplitudes(waveform, width: proxy.size.width)
                 WaveformAnimatedCanvas(
                     amplitudes: amplitudes,
-                    hoverOpacity: isHovering && contentHoverEnabled ? 1 : 0
+                    hoverOpacity: isHovering && contentHoverEnabled ? 0.3 : 0
                 ) { context, size, amplitudes, hoverOpacity in
                     guard size.width > 0, size.height > 0 else { return }
                     let scale = context.environment.displayScale
