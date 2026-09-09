@@ -5,6 +5,7 @@ Core Audio, Accelerate, and Metal. It feautres:
 
 - OAuth authorization-code authentication with PKCE and a loopback callback
 - Keychain token persistence and refresh
+- immediate launch from the saved account profile, with session validation in the background
 - authenticated stream resolution with final CDN host validation
 - one `AVPlayer` for Apple HLS/AAC playback
 - saved track, queue source, and playback position, restored paused at startup; cleared on sign-out

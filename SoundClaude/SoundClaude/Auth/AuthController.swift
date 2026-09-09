@@ -19,6 +19,7 @@ final class AuthController: ObservableObject {
     private let tokenStore: KeychainTokenStore
     private var token: TokenRecord?
     private var refreshTask: Task<String, Error>?
+    private var restoreTask: Task<Void, Never>?
     private var callbackServer: OAuthCallbackServer?
 
     init(
@@ -30,6 +31,7 @@ final class AuthController: ObservableObject {
     }
 
     func restore() async {
+        restoreTask?.cancel()
         state = .restoring
         do {
             guard let savedToken = try tokenStore.load() else {
@@ -37,19 +39,49 @@ final class AuthController: ObservableObject {
                 return
             }
             token = savedToken
+            if let user = savedToken.user {
+                state = .signedIn(user)
+            }
+            let task = Task { @MainActor in
+                await validateRestoredSession()
+            }
+            restoreTask = task
+            // Cached accounts can load their library while validation runs.
+            if savedToken.user == nil {
+                await task.value
+            }
+        } catch {
+            state = .failed(error.localizedDescription)
+        }
+    }
+
+    private func validateRestoredSession() async {
+        do {
+            try Task.checkCancellation()
             let accessToken = try await validAccessToken()
+            try Task.checkCancellation()
             let user = try await client.currentUser(accessToken: accessToken)
+            try Task.checkCancellation()
             try saveUser(user)
             state = .signedIn(user)
         } catch {
-            try? tokenStore.delete()
-            token = nil
-            state = .failed(error.localizedDescription)
+            guard !Task.isCancelled else { return }
+            if case SoundCloudError.unauthorized = error {
+                try? tokenStore.delete()
+                token = nil
+                state = .failed(error.localizedDescription)
+            } else if case .signedIn = state {
+                // Keep the cached account usable during temporary failures.
+            } else {
+                state = .failed(error.localizedDescription)
+            }
         }
     }
 
     func signIn() async {
         guard callbackServer == nil else { return }
+        restoreTask?.cancel()
+        restoreTask = nil
         state = .signingIn
 
         do {
@@ -103,6 +135,8 @@ final class AuthController: ObservableObject {
     }
 
     func signOut() async {
+        restoreTask?.cancel()
+        restoreTask = nil
         refreshTask?.cancel()
         refreshTask = nil
         callbackServer?.cancel()

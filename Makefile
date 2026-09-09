@@ -49,6 +49,12 @@ icon:
 # Standalone regression suites; no credentials or Keychain access required.
 test:
 	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/auth-restore \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/Auth/AuthController.swift \
+		SoundClaude/SoundClaude/Auth/OAuthCallbackServer.swift \
+		tests/AuthRestoreTests.swift
+	/tmp/soundclaude-tests/auth-restore
 	swiftc -o /tmp/soundclaude-tests/search \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
