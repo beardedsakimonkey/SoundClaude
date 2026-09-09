@@ -128,7 +128,7 @@ struct PlaylistDetailView: View {
                 thumbnail.artworkExpandIndicator(isHovering: isHoveringArtwork)
             }
             .buttonStyle(.plain)
-            .onHover { isHoveringArtwork = $0 }
+            .onContentHover { isHoveringArtwork = $0 }
             .help("View full-size playlist artwork")
             .accessibilityLabel("View full-size artwork for \(displayedPlaylist.title)")
         } else {

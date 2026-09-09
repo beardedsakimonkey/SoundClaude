@@ -28,7 +28,7 @@ struct TrackListRow: View {
                 )
             }
             .buttonStyle(TrackArtworkButtonStyle())
-            .onHover { isHoveringArtwork = $0 }
+            .onContentHover { isHoveringArtwork = $0 }
             .accessibilityLabel("Open track: \(track.title)")
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
@@ -43,7 +43,7 @@ struct TrackListRow: View {
                             .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
                     }
                     .buttonStyle(.plain)
-                    .onHover { isHoveringTitle = $0 }
+                    .onContentHover { isHoveringTitle = $0 }
                     if track.access == .preview {
                         TrackPreviewBadge()
                     }
@@ -51,7 +51,7 @@ struct TrackListRow: View {
                 ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                     .font(.caption)
                     .foregroundStyle(isCurrentTrack ? Color.orange : Color.secondary)
-                    .onHover { isHoveringArtist = $0 }
+                    .onContentHover { isHoveringArtist = $0 }
             }
             .lineLimit(1)
             Spacer()
@@ -77,7 +77,7 @@ struct TrackListRow: View {
                 .fill(rowBackground)
                 .animation(.easeInOut(duration: 0.15), value: isHovering)
         }
-        .onHover { isHovering = $0 }
+        .onContentHover { isHovering = $0 }
         .accessibilityAction(named: "Play") {
             Task { await onPlayTrack(track) }
         }

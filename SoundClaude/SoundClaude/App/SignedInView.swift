@@ -9,6 +9,7 @@ struct SignedInView: View {
     @State private var path: [Route] = []
     @State private var forwardPath: [Route] = []
     @State private var isShowingQueue = false
+    @State private var isHoveringQueue = false
     @State private var footerHeight: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -39,6 +40,7 @@ struct SignedInView: View {
             selectedView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .environment(\.contentHoverEnabled, !isShowingQueue || !isHoveringQueue)
         .overlay {
             GeometryReader { geometry in
                 let availableHeight = max(0, geometry.size.height - footerHeight)
@@ -61,6 +63,9 @@ struct SignedInView: View {
                                 .strokeBorder(.primary.opacity(0.12), lineWidth: 1)
                                 .allowsHitTesting(false)
                         }
+                        .contentShape(RoundedRectangle(cornerRadius: 16))
+                        .onHover { isHoveringQueue = $0 }
+                        .onDisappear { isHoveringQueue = false }
                         .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
                         .padding(14)
                         .transition(

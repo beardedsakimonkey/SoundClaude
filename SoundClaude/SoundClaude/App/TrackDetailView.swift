@@ -252,7 +252,7 @@ struct TrackDetailView: View {
             }
             .buttonStyle(.plain)
             .contentShape(RoundedRectangle(cornerRadius: 6))
-            .onHover { isHoveringArtwork = $0 }
+            .onContentHover { isHoveringArtwork = $0 }
             .help("View full-size artwork")
             .accessibilityLabel(
                 "View full-size artwork for \(track.title)"

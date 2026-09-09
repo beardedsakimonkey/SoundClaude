@@ -54,7 +54,7 @@ struct PlaylistCardView: View {
                         .lineLimit(1)
                 }
                 .buttonStyle(.plain)
-                .onHover { isHoveringTitle = $0 }
+                .onContentHover { isHoveringTitle = $0 }
                 .help(displayedPlaylist.title)
 
                 ArtistLink(artist: displayedPlaylist.owner, onSelect: onSelectArtist)
@@ -215,7 +215,7 @@ private struct PlaylistTrackRow: View {
                     .lineLimit(1)
             }
             .buttonStyle(.plain)
-            .onHover { isHoveringTitle = $0 }
+            .onContentHover { isHoveringTitle = $0 }
             .help("Open track: \(track.title)")
             .accessibilityLabel("Open track: \(track.title)")
             if track.access == .preview {
@@ -246,7 +246,7 @@ private struct PlaylistTrackRow: View {
                     : Color.primary.opacity(isHovering ? 0.06 : 0))
                 .animation(.easeInOut(duration: 0.15), value: isHovering)
         }
-        .onHover { isHovering = $0 }
+        .onContentHover { isHovering = $0 }
         .accessibilityAction(named: "Play") {
             Task { await onPlayTrack(track) }
         }

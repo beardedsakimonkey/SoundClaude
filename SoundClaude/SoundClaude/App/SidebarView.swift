@@ -137,7 +137,7 @@ struct SidebarView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .onHover { isProfileHovered = $0 }
+            .onContentHover { isProfileHovered = $0 }
             .help("View profile: \(user.username)")
             .accessibilityLabel("View profile: \(user.username)")
 

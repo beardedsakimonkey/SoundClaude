@@ -332,7 +332,7 @@ struct ArtistDetailView: View {
             }
             .buttonStyle(.plain)
             .contentShape(Circle())
-            .onHover { isHoveringArtwork = $0 }
+            .onContentHover { isHoveringArtwork = $0 }
             .help("View full-size artist picture")
             .accessibilityLabel("View full-size picture of \(user.username)")
         } else {

@@ -100,7 +100,7 @@ struct TrackCardView: View {
                     .lineLimit(1)
             }
             .buttonStyle(.plain)
-            .onHover { isHoveringTitle = $0 }
+            .onContentHover { isHoveringTitle = $0 }
             .help(track.title)
         }
     }

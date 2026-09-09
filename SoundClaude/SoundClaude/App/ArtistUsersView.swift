@@ -69,7 +69,7 @@ struct ArtistUsersView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .onHover { isHovering in
+                        .onContentHover { isHovering in
                             if isHovering {
                                 hoveredUserURL = user.permalinkURL
                             } else if hoveredUserURL == user.permalinkURL {

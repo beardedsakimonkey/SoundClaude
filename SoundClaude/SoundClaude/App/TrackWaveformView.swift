@@ -24,6 +24,7 @@ struct TrackWaveformView: View {
     @State private var accentArtworkURL: URL?
     @State private var hoverFraction: Double = 0
     @State private var isHovering = false
+    @Environment(\.contentHoverEnabled) private var contentHoverEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
@@ -96,7 +97,7 @@ struct TrackWaveformView: View {
                 let amplitudes = barAmplitudes(waveform, width: proxy.size.width)
                 WaveformAnimatedCanvas(
                     amplitudes: amplitudes,
-                    hoverOpacity: isHovering ? 1 : 0
+                    hoverOpacity: isHovering && contentHoverEnabled ? 1 : 0
                 ) { context, size, amplitudes, hoverOpacity in
                     guard size.width > 0, size.height > 0 else { return }
                     let scale = context.environment.displayScale
