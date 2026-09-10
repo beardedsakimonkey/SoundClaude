@@ -639,6 +639,30 @@ actor SoundCloudClient {
         try validate(response: response, data: data)
     }
 
+    func trackComments(
+        urn: String,
+        secretToken: String? = nil,
+        accessToken: String,
+        pageURL: URL? = nil
+    ) async throws -> SoundCloudCommentPage {
+        let url = pageURL ?? configuration.apiBaseURL.appending(path: "tracks")
+            .appending(path: urn).appending(path: "comments")
+            .appending(queryItems: [
+                URLQueryItem(name: "limit", value: "50"),
+                URLQueryItem(name: "linked_partitioning", value: "true"),
+                URLQueryItem(name: "secret_token", value: secretToken),
+            ].filter { $0.value != nil })
+        try validateAPIURL(url)
+        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+        try validate(response: response, data: data)
+        let page = try decoder.decode(SoundCloudCommentPage.self, from: data)
+        if let nextURL = page.nextURL {
+            try validateAPIURL(nextURL)
+            guard nextURL != url else { throw SoundCloudError.invalidData }
+        }
+        return page
+    }
+
     func track(
         urn: String,
         secretToken: String?,

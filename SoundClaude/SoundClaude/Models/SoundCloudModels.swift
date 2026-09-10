@@ -216,6 +216,73 @@ struct SoundCloudTrackDetails: Sendable, Equatable {
     let commentCount: Int?
 }
 
+struct SoundCloudComment: Decodable, Identifiable, Sendable {
+    let urn: String
+    let body: String
+    let user: SoundCloudUser?
+    let createdAt: Date?
+    let timestampMilliseconds: Int?
+
+    var id: String { urn }
+
+    enum CodingKeys: String, CodingKey {
+        case urn, body, user, timestamp
+        case createdAt = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        urn = try container.decode(String.self, forKey: .urn)
+        body = try container.decode(String.self, forKey: .body)
+        user = try container.decodeIfPresent(RawUser.self, forKey: .user)?.normalized()
+
+        // The schema uses a string, but the API example uses a number.
+        let timestamp: Double?
+        if let number = try? container.decode(Double.self, forKey: .timestamp) {
+            timestamp = number
+        } else if let string = try? container.decode(String.self, forKey: .timestamp) {
+            timestamp = Double(string)
+        } else {
+            timestamp = nil
+        }
+        if let timestamp, timestamp.isFinite, timestamp >= 0 {
+            timestampMilliseconds = Int(exactly: timestamp.rounded(.towardZero))
+        } else {
+            timestampMilliseconds = nil
+        }
+
+        if let value = try container.decodeIfPresent(String.self, forKey: .createdAt) {
+            let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            var date = iso.date(from: value)
+            if date == nil {
+                iso.formatOptions = [.withInternetDateTime]
+                date = iso.date(from: value)
+            }
+            if date == nil {
+                let formatter = DateFormatter()
+                formatter.locale = Locale(identifier: "en_US_POSIX")
+                formatter.timeZone = TimeZone(secondsFromGMT: 0)
+                formatter.dateFormat = "yyyy/MM/dd HH:mm:ss Z"
+                date = formatter.date(from: value)
+            }
+            createdAt = date
+        } else {
+            createdAt = nil
+        }
+    }
+}
+
+struct SoundCloudCommentPage: Decodable, Sendable {
+    let comments: [SoundCloudComment]
+    let nextURL: URL?
+
+    enum CodingKeys: String, CodingKey {
+        case comments = "collection"
+        case nextURL = "next_href"
+    }
+}
+
 struct SoundCloudWaveform: Decodable, Sendable, Equatable {
     let width: Int
     let height: Int

@@ -18,6 +18,8 @@ struct TrackDetailView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var isShowingArtwork = false
+    @State private var isShowingComments = false
+    @State private var isHoveringComments = false
     @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
@@ -79,6 +81,13 @@ struct TrackDetailView: View {
                 cachedArtwork: $cachedFullSizeArtwork
             )
         }
+        .sheet(isPresented: $isShowingComments) {
+            TrackCommentsView(
+                track: details?.track ?? track,
+                model: model,
+                onSelectArtist: onSelectArtist
+            )
+        }
     }
 
     @ViewBuilder
@@ -133,7 +142,20 @@ struct TrackDetailView: View {
                 HStack(spacing: 24) {
                     statistic(details.playbackCount, label: "plays")
                     statistic(details.favoritingsCount, label: "likes")
-                    statistic(details.commentCount, label: "comments")
+                    Button {
+                        isShowingComments = true
+                    } label: {
+                        Text(details.commentCount.map {
+                            "\($0.formatted()) \($0 == 1 ? "comment" : "comments")"
+                        } ?? "Comments")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .underline(isHoveringComments)
+                    }
+                    .buttonStyle(.plain)
+                    .onContentHover { isHoveringComments = $0 }
+                    .help("Read track comments")
+                    .accessibilityLabel("Read comments on \(details.track.title)")
                 }
 
                 HStack(alignment: .top, spacing: 16) {

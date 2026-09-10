@@ -70,6 +70,10 @@ History loads up to 25 distinct recently played tracks from your SoundCloud acco
 newest first. Use Refresh History to update the list. The API does not provide older
 pages. Tracks unavailable for app playback are omitted.
 
+Click the comment count in a track's detail view to read its comments. The sheet
+shows authors, dates, and track timestamps when available. Select an author to
+open their profile, or use Load More to fetch the next page.
+
 Next and Previous use the list that started playback. Feed, artist, repost, playlist, and related
 queues fetch another page when sequential playback reaches the end of the loaded
 tracks. Selecting a known track updates the player before its stream URL resolves.
