@@ -87,7 +87,7 @@ struct TrackDetailView: View {
             artworkURL: details?.track.artworkURL ?? track.artworkURL,
             loader: model.artworkLoader
         )
-        .frame(height: 340)
+        .frame(height: 410)
 
         if #available(macOS 26.0, *) {
             backdrop.backgroundExtensionEffect()
@@ -266,7 +266,7 @@ struct TrackDetailView: View {
         TrackArtworkView(
             artworkURL: track.artworkURL,
             loader: model.artworkLoader,
-            size: 180,
+            size: 250,
             rendition: .square500
         )
     }

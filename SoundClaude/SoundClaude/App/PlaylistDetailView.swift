@@ -76,7 +76,7 @@ struct PlaylistDetailView: View {
             artworkURL: artworkURL,
             loader: model.artworkLoader
         )
-        .frame(height: 340)
+        .frame(height: 410)
 
         if #available(macOS 26.0, *) {
             backdrop.backgroundExtensionEffect()
@@ -118,7 +118,7 @@ struct PlaylistDetailView: View {
         let thumbnail = TrackArtworkView(
             artworkURL: artworkURL,
             loader: model.artworkLoader,
-            size: 180,
+            size: 250,
             rendition: .square500
         )
         if artworkURL != nil {
