@@ -72,7 +72,9 @@ pages. Tracks unavailable for app playback are omitted.
 
 Next and Previous use the list that started playback. Feed, artist, repost, playlist, and related
 queues fetch another page when sequential playback reaches the end of the loaded
-tracks. Enabling shuffle immediately shuffles the loaded tracks, with the current
+tracks. Selecting a known track updates the player before its stream URL resolves.
+The next queued track's waveform and artwork load ahead of time; audio still needs
+stream resolution and buffering. Enabling shuffle immediately shuffles the loaded tracks, with the current
 track first. Track Queue shows this playback order, and Next and Previous follow
 it without reshuffling. Turning shuffle off restores the order from before shuffle
 was enabled. Shuffle does not fetch an entire artist catalog. Likes shuffle uses

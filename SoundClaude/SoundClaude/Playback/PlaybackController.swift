@@ -91,6 +91,7 @@ final class PlaybackController {
     @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var seekTarget: Double?
     @ObservationIgnored private var isSeekInProgress = false
+    @ObservationIgnored private var loadingRequestID: UUID?
     private var shouldPlayWhenReady = false
     @ObservationIgnored private var hasNotifiedReady = false
     @ObservationIgnored private var lastSaveTime = Date.distantPast
@@ -129,7 +130,7 @@ final class PlaybackController {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                if seekTarget == nil, player.currentItem?.status != .failed {
+                if seekTarget == nil, let item = player.currentItem, item.status != .failed {
                     let seconds = player.currentTime().seconds
                     currentTime = seconds.isFinite ? seconds : 0
                 }
@@ -192,7 +193,7 @@ final class PlaybackController {
     func saveSession() {
         guard let track = currentTrack,
               player.currentItem?.status != .failed else { return }
-        let seconds = seekTarget ?? player.currentTime().seconds
+        let seconds = seekTarget ?? (player.currentItem == nil ? currentTime : player.currentTime().seconds)
         let position = seconds.isFinite ? max(seconds, 0) : currentTime
         let session = SavedPlayback(track: track, position: position)
         guard let data = try? JSONEncoder().encode(session) else { return }
@@ -204,6 +205,7 @@ final class PlaybackController {
         pause()
         itemStatusObservation?.invalidate()
         itemStatusObservation = nil
+        loadingRequestID = nil
         player.replaceCurrentItem(with: nil)
         currentTrack = nil
         currentTime = 0
@@ -218,15 +220,19 @@ final class PlaybackController {
         updateRemoteCommandAvailability()
     }
 
-    func load(
+    @discardableResult
+    func beginLoading(
         track: SoundCloudTrack,
-        source: PlaybackSource,
         position: Double = 0,
         autoplay: Bool = true,
         direction: TrackChangeDirection = .forward
-    ) {
+    ) -> UUID {
         pause()
         itemStatusObservation?.invalidate()
+        itemStatusObservation = nil
+        player.replaceCurrentItem(with: nil)
+        let requestID = UUID()
+        loadingRequestID = requestID
         seekTarget = nil
         isSeekInProgress = false
         hasNotifiedReady = false
@@ -239,8 +245,16 @@ final class PlaybackController {
         seekTarget = currentTime
         shouldPlayWhenReady = autoplay
         isLoading = true
+        isPlaying = false
         updateNowPlayingInfo(elapsedTime: currentTime)
+        saveSession()
+        updateRemoteCommandAvailability()
+        return requestID
+    }
 
+    func load(source: PlaybackSource, requestID: UUID) {
+        guard loadingRequestID == requestID else { return }
+        loadingRequestID = nil
         let item = AVPlayerItem(url: source.url)
         player.replaceCurrentItem(with: item)
         saveSession()
@@ -272,6 +286,15 @@ final class PlaybackController {
         }
     }
 
+    func failLoading(requestID: UUID, message: String? = nil) {
+        guard loadingRequestID == requestID else { return }
+        loadingRequestID = nil
+        isLoading = false
+        shouldPlayWhenReady = false
+        errorMessage = message
+        updateNowPlayingInfo(elapsedTime: currentTime)
+    }
+
     // Keep transport controls stable while playback loads, seeks, or buffers.
     var isPlaybackActive: Bool {
         isPlaying || shouldPlayWhenReady
@@ -280,12 +303,13 @@ final class PlaybackController {
     func togglePlayPause() {
         if isPlaybackActive {
             pause()
-        } else if player.currentItem != nil {
+        } else if isLoading || player.currentItem != nil {
             play()
         }
     }
 
     private func play() {
+        guard isLoading || player.currentItem != nil else { return }
         shouldPlayWhenReady = true
         playIfReady()
     }
@@ -308,8 +332,9 @@ final class PlaybackController {
 
     func seek(to seconds: Double) {
         guard seconds.isFinite,
-              let item = player.currentItem,
-              item.status != .failed else { return }
+              currentTrack != nil,
+              isLoading || player.currentItem != nil,
+              player.currentItem?.status != .failed else { return }
         let upperBound = duration > 0 ? duration : seconds
         let target = min(max(seconds, 0), upperBound)
         seekTarget = target
@@ -463,7 +488,7 @@ final class PlaybackController {
     }
 
     private func updateRemoteCommandAvailability() {
-        let hasTrack = player.currentItem != nil
+        let hasTrack = currentTrack != nil
         remoteCommandCenter.playCommand.isEnabled = hasTrack
         remoteCommandCenter.pauseCommand.isEnabled = hasTrack
         remoteCommandCenter.togglePlayPauseCommand.isEnabled = hasTrack

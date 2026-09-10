@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 struct CachedArtistHeader {
     let artistURL: URL
@@ -24,6 +25,9 @@ final class AppModel: ObservableObject {
     private var playbackTask: Task<Void, Never>?
     private var playbackRequestID: UUID?
     private var trackSelectionTask: Task<Void, Never>?
+    private var queuePrefetchTask: Task<Void, Never>?
+    private var prefetchedTrack: SoundCloudTrack?
+    private var likesObservation: AnyCancellable?
     private var followingTask: Task<Set<String>, Error>?
     private var followingRequestID: UUID?
     private var followingOverrides: [String: Bool] = [:]
@@ -39,6 +43,7 @@ final class AppModel: ObservableObject {
         NSURL,
         SoundCloudWaveform
     >(countLimit: 50, totalCostLimit: 8 * 1_024 * 1_024)
+    private var waveformRequests: [URL: (id: UUID, task: Task<SoundCloudWaveform, Error>)] = [:]
     private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(countLimit: 100)
     private var latestArtistHeader: CachedArtistHeader?
 
@@ -88,6 +93,10 @@ final class AppModel: ObservableObject {
         playback.onPrevious = { [weak self] in
             self?.selectRelativeTrack(offset: -1)
         }
+        likesObservation = likes.$tracks.dropFirst().sink { [weak self] tracks in
+            guard let self, queue.source == .likes else { return }
+            prefetchNextTrack(likedTracks: tracks)
+        }
     }
 
     func start() async {
@@ -120,6 +129,9 @@ final class AppModel: ObservableObject {
     func signOut() async {
         trackSelectionTask?.cancel()
         playbackTask?.cancel()
+        queuePrefetchTask?.cancel()
+        queuePrefetchTask = nil
+        prefetchedTrack = nil
         playbackTask = nil
         playbackRequestID = nil
         playback.clearSession()
@@ -135,6 +147,8 @@ final class AppModel: ObservableObject {
         feed.clear()
         trackDetailsCache.removeAll()
         artistDetailsCache.removeAll()
+        for request in waveformRequests.values { request.task.cancel() }
+        waveformRequests.removeAll()
         waveformCache.removeAll()
         latestArtistHeader = nil
         errorMessage = nil
@@ -171,6 +185,7 @@ final class AppModel: ObservableObject {
         guard queue.move(fromOffsets: offsets, toOffset: destination) else { return }
         trackSelectionTask?.cancel()
         saveQueue()
+        prefetchNextTrack()
     }
 
     private func saveQueue() {
@@ -203,15 +218,25 @@ final class AppModel: ObservableObject {
     ) async {
         guard !Task.isCancelled else { return }
         playbackTask?.cancel()
-        let requestID = UUID()
+        // Publish the selection before any network wait so the artwork,
+        // waveform, and repeated Next presses use the new track immediately.
+        let requestID = playback.beginLoading(
+            track: track,
+            position: position,
+            autoplay: autoplay,
+            direction: direction
+        )
         playbackRequestID = requestID
         errorMessage = nil
         audioTap.stop()
+        prefetchNextTrack()
 
         let task = Task { @MainActor in
             defer {
                 // An older request must not clear the latest request's task.
                 if playbackRequestID == requestID {
+                    // No-op once the source was attached or an error was set.
+                    playback.failLoading(requestID: requestID)
                     playbackTask = nil
                     playbackRequestID = nil
                 }
@@ -226,18 +251,13 @@ final class AppModel: ObservableObject {
                 )
                 guard !Task.isCancelled,
                       playbackRequestID == requestID else { return }
-                playback.load(
-                    track: track,
-                    source: source,
-                    position: position,
-                    autoplay: autoplay,
-                    direction: direction
-                )
+                playback.load(source: source, requestID: requestID)
             } catch is CancellationError {
                 return
             } catch {
                 guard !Task.isCancelled,
                       playbackRequestID == requestID else { return }
+                playback.failLoading(requestID: requestID, message: error.localizedDescription)
                 errorMessage = error.localizedDescription
             }
         }
@@ -262,6 +282,7 @@ final class AppModel: ObservableObject {
             secretToken: track.secretToken,
             accessToken: accessToken
         )
+        try Task.checkCancellation()
         trackDetailsCache.insert(details, forKey: cacheKey)
         return details
     }
@@ -457,9 +478,28 @@ final class AppModel: ObservableObject {
             return cachedWaveform
         }
 
-        let waveform = try await client.waveform(from: waveformURL)
-        let cost = waveform.samples.count * MemoryLayout<Int>.stride
-        waveformCache.insert(waveform, forKey: cacheKey, cost: cost)
+        let request: (id: UUID, task: Task<SoundCloudWaveform, Error>)
+        if let existing = waveformRequests[waveformURL] {
+            request = existing
+        } else {
+            request = (UUID(), Task { [client] in
+                try await client.waveform(from: waveformURL)
+            })
+            waveformRequests[waveformURL] = request
+        }
+        defer {
+            if waveformRequests[waveformURL]?.id == request.id {
+                waveformRequests[waveformURL] = nil
+            }
+        }
+        let waveform = try await request.task.value
+        // A cancelled prefetch may still serve a visible waveform. Sign-out
+        // removes the request so an old response cannot repopulate the cache.
+        if waveformRequests[waveformURL]?.id == request.id {
+            let cost = waveform.samples.count * MemoryLayout<Int>.stride
+            waveformCache.insert(waveform, forKey: cacheKey, cost: cost)
+        }
+        try Task.checkCancellation()
         return waveform
     }
 
@@ -479,6 +519,40 @@ final class AppModel: ObservableObject {
         queue.replaceLikes(likes.tracks)
         queue.setShuffle(playback.isShuffleEnabled, currentURN: playback.currentTrack?.urn)
         saveQueue()
+        prefetchNextTrack()
+    }
+
+    private func prefetchNextTrack(likedTracks: [SoundCloudTrack]? = nil) {
+        var resolvedQueue = queue
+        resolvedQueue.replaceLikes(likedTracks ?? likes.tracks)
+        let currentURN = playback.currentTrack?.urn
+        // A sequential page boundary has no known next track yet.
+        let needsPage = !playback.isShuffleEnabled && resolvedQueue.needsNextPage(after: currentURN)
+        let candidate = currentURN == nil || needsPage ? nil
+            : resolvedQueue.relativeTrack(to: currentURN, offset: 1)
+        let next = candidate?.urn == currentURN ? nil : candidate
+        guard next != prefetchedTrack else { return }
+        queuePrefetchTask?.cancel()
+        prefetchedTrack = next
+        guard let next else {
+            queuePrefetchTask = nil
+            return
+        }
+        queuePrefetchTask = Task { [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            // Warm the same bounded caches used by the footer and waveform.
+            // ArtworkLoader shares in-flight requests with visible artwork.
+            async let waveform = try? self.waveform(for: next)
+            async let artwork = self.prefetchArtwork(for: next)
+            _ = await (waveform, artwork)
+        }
+    }
+
+    private func prefetchArtwork(for track: SoundCloudTrack) async {
+        guard let url = track.artworkURL else { return }
+        async let thumbnail = try? artworkLoader.data(for: url, rendition: .square500)
+        async let accent = try? artworkLoader.data(for: url)
+        _ = await (thumbnail, accent)
     }
 
     private func selectRelativeTrack(offset: Int, isAutomatic: Bool = false) {
@@ -506,6 +580,8 @@ final class AppModel: ObservableObject {
                     return
                 }
                 saveQueue()
+                // Queue edits cancel page selection, not the selected stream load.
+                trackSelectionTask = nil
                 await loadPlayback(track, direction: offset < 0 ? .backward : .forward)
             } catch {
                 guard !Task.isCancelled, !(error is CancellationError) else { return }
