@@ -13,34 +13,30 @@ struct TrackCommentsView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Comments").font(.headline)
+        LazyVStack(alignment: .leading, spacing: 20) {
+            ForEach(comments) { comment in
+                commentRow(comment)
+                Divider()
+            }
 
-            LazyVStack(alignment: .leading, spacing: 20) {
-                ForEach(comments) { comment in
-                    commentRow(comment)
-                    Divider()
-                }
-
-                if isLoading {
-                    ProgressView("Loading comments")
-                        .frame(maxWidth: .infinity)
-                } else if let errorMessage {
-                    VStack(spacing: 8) {
-                        Text(errorMessage).foregroundStyle(.secondary)
-                        Button("Try Again") { Task { await loadPage() } }
-                    }
+            if isLoading {
+                ProgressView("Loading comments")
                     .frame(maxWidth: .infinity)
-                } else if nextPageURL != nil {
-                    Button("Load More") { Task { await loadPage() } }
-                        .frame(maxWidth: .infinity)
-                } else if hasLoaded, comments.isEmpty {
-                    ContentUnavailableView(
-                        "No comments",
-                        systemImage: "bubble.left.and.bubble.right",
-                        description: Text("There are no comments to show for this track.")
-                    )
+            } else if let errorMessage {
+                VStack(spacing: 8) {
+                    Text(errorMessage).foregroundStyle(.secondary)
+                    Button("Try Again") { Task { await loadPage() } }
                 }
+                .frame(maxWidth: .infinity)
+            } else if nextPageURL != nil {
+                Button("Load More") { Task { await loadPage() } }
+                    .frame(maxWidth: .infinity)
+            } else if hasLoaded, comments.isEmpty {
+                ContentUnavailableView(
+                    "No comments",
+                    systemImage: "bubble.left.and.bubble.right",
+                    description: Text("There are no comments to show for this track.")
+                )
             }
         }
         .task {

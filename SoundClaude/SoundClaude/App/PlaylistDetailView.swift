@@ -39,13 +39,10 @@ struct PlaylistDetailView: View {
                         )
                     }
                     Divider()
-                    HStack {
-                        Text("Tracks")
-                        Text("(\((displayedPlaylist.trackCount ?? tracks.count).formatted()))")
-                            .foregroundStyle(.secondary)
-                            .fontWeight(.regular)
-                    }
-                    .font(.headline)
+                    CountedSectionHeader(
+                        title: "Tracks",
+                        count: displayedPlaylist.trackCount ?? tracks.count
+                    )
                     if let message = model.errorMessage {
                         Label(message, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)

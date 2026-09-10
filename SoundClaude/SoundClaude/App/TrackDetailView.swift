@@ -18,7 +18,6 @@ struct TrackDetailView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var isShowingArtwork = false
-    @State private var isHoveringComments = false
     @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
@@ -98,109 +97,92 @@ struct TrackDetailView: View {
     }
 
     private func detailsView(_ details: SoundCloudTrackDetails) -> some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    HStack(alignment: .top, spacing: 24) {
-                        artworkView(for: details.track)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                HStack(alignment: .top, spacing: 24) {
+                    artworkView(for: details.track)
 
-                        VStack(alignment: .leading, spacing: 10) {
-                            if details.track.access == .preview {
-                                TrackPreviewBadge(font: .callout)
-                            }
-                            Button {
-                                Task { await model.play(details.track) }
-                            } label: {
-                                Text(details.track.title)
-                                    .font(.system(size: 36, weight: .semibold))
-                                    .foregroundStyle(.primary)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Play this track")
-                            .accessibilityLabel("Play \(details.track.title)")
-                            ArtistLink(
-                                artist: details.track.artist,
-                                artworkLoader: model.artworkLoader,
-                                onSelect: onSelectArtist
-                            )
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
-                            Link(destination: details.track.permalinkURL) {
-                                Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
-                            }
-                            .help("Open this track in your web browser")
-
-                            HStack(alignment: .top, spacing: 16) {
-                                playButton(for: details.track)
-                                    .frame(height: TrackWaveformView.Layout.detail.height)
-
-                                    if details.track.waveformURL != nil {
-                                        TrackWaveformView(track: details.track, model: model)
-                                    }
-                            }
+                    VStack(alignment: .leading, spacing: 10) {
+                        if details.track.access == .preview {
+                            TrackPreviewBadge(font: .callout)
                         }
-                    }
-
-                    HStack(spacing: 24) {
-                        statistic(details.playbackCount, label: "plays")
-                        statistic(details.favoritingsCount, label: "likes")
                         Button {
-                            withAnimation {
-                                proxy.scrollTo("comments", anchor: .top)
-                            }
+                            Task { await model.play(details.track) }
                         } label: {
-                            Text(details.commentCount.map {
-                                "\($0.formatted()) \($0 == 1 ? "comment" : "comments")"
-                            } ?? "Comments")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                            .underline(isHoveringComments)
+                            Text(details.track.title)
+                                .font(.system(size: 36, weight: .semibold))
+                                .foregroundStyle(.primary)
                         }
                         .buttonStyle(.plain)
-                        .onContentHover { isHoveringComments = $0 }
-                        .help("Read track comments")
-                        .accessibilityLabel("Read comments on \(details.track.title)")
-                    }
+                        .help("Play this track")
+                        .accessibilityLabel("Play \(details.track.title)")
+                        ArtistLink(
+                            artist: details.track.artist,
+                            artworkLoader: model.artworkLoader,
+                            onSelect: onSelectArtist
+                        )
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                        Link(destination: details.track.permalinkURL) {
+                            Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
+                        }
+                        .help("Open this track in your web browser")
 
-                    if let description = nonempty(details.description) {
-                        Divider()
+                        HStack(alignment: .top, spacing: 16) {
+                            playButton(for: details.track)
+                                .frame(height: TrackWaveformView.Layout.detail.height)
 
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Description")
-                                .font(.headline)
-                            ExpandableDescriptionText(
-                                description: description,
-                                onSelectArtist: onSelectArtist
-                            )
-                            .id(track.urn)
+                                if details.track.waveformURL != nil {
+                                    TrackWaveformView(track: details.track, model: model)
+                                }
                         }
                     }
+                }
 
+                if let description = nonempty(details.description) {
                     Divider()
-                    HStack(alignment: .top, spacing: 24) {
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Description")
+                            .font(.headline)
+                        ExpandableDescriptionText(
+                            description: description,
+                            onSelectArtist: onSelectArtist
+                        )
+                        .id(track.urn)
+                    }
+                }
+
+                Divider()
+                HStack(alignment: .top, spacing: 24) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        CountedSectionHeader(
+                            title: "Comments",
+                            count: details.commentCount
+                        )
+
                         TrackCommentsView(
                             track: details.track,
                             model: model,
                             onSelectArtist: onSelectArtist
                         )
                         .id(track.urn)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                        .id("comments")
-
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Related tracks").font(.headline)
-                            if let message = model.errorMessage {
-                                Label(message, systemImage: "exclamationmark.triangle")
-                                    .foregroundStyle(.orange)
-                            }
-                            relatedTrackList
-                        }
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Related tracks").font(.headline)
+                        if let message = model.errorMessage {
+                            Label(message, systemImage: "exclamationmark.triangle")
+                                .foregroundStyle(.orange)
+                        }
+                        relatedTrackList
+                    }
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(24)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(24)
         }
     }
 
@@ -301,15 +283,6 @@ struct TrackDetailView: View {
             size: 250,
             rendition: .square500
         )
-    }
-
-    @ViewBuilder
-    private func statistic(_ count: Int?, label: String) -> some View {
-        if let count {
-            Text("\(count.formatted()) \(label)")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
     }
 
     private func playButton(for track: SoundCloudTrack) -> some View {
