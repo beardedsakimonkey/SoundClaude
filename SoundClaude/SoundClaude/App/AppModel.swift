@@ -287,6 +287,20 @@ final class AppModel: ObservableObject {
         return details
     }
 
+    func addTrackComment(for track: SoundCloudTrack, body: String) async throws
+        -> SoundCloudComment {
+        let accessToken = try await auth.validAccessToken()
+        let comment = try await client.addTrackComment(
+            urn: track.urn, body: body, accessToken: accessToken
+        )
+        let cacheKey = TrackCacheKey(track: track)
+        if var details = trackDetailsCache.value(forKey: cacheKey), let count = details.commentCount {
+            details.commentCount = count + 1
+            trackDetailsCache.insert(details, forKey: cacheKey)
+        }
+        return comment
+    }
+
     func trackComments(for track: SoundCloudTrack, pageURL: URL? = nil) async throws
         -> SoundCloudCommentPage {
         let accessToken = try await auth.validAccessToken()

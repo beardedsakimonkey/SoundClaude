@@ -6,6 +6,12 @@ struct TrackCommentsView: View {
     @ObservedObject var model: AppModel
     let onSelectArtist: (SoundCloudUser) -> Void
 
+    let onCommentAdded: () -> Void
+
+    @State private var draft = ""
+    @FocusState private var isCommentFocused: Bool
+    @State private var isPosting = false
+    @State private var postingErrorMessage: String?
     @State private var comments: [SoundCloudComment] = []
     @State private var nextPageURL: URL?
     @State private var loadedPageURLs: Set<URL> = []
@@ -19,6 +25,8 @@ struct TrackCommentsView: View {
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 24) {
+            commentComposer
+
             ForEach(comments) { comment in
                 commentRow(comment)
             }
@@ -54,6 +62,58 @@ struct TrackCommentsView: View {
                   !Task.isCancelled else { return }
             artworkAccent = accent
             accentArtworkURL = url
+        }
+    }
+
+    private var commentComposer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TextField("Write a comment…", text: $draft, axis: .vertical)
+                .lineLimit(3...8)
+                .textFieldStyle(.roundedBorder)
+                .focused($isCommentFocused)
+                .modifier(PreventAutomaticSearchFocus())
+                .onExitCommand { isCommentFocused = false }
+                .background {
+                    SearchOutsideClickView(isFocused: isCommentFocused) {
+                        isCommentFocused = false
+                    }
+                }
+                .accessibilityLabel("Comment")
+                .disabled(isPosting)
+
+            HStack {
+                if isPosting {
+                    ProgressView().controlSize(.small)
+                    Text("Posting comment…").foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Post Comment") {
+                    Task { await postComment() }
+                }
+                .disabled(isPosting || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+
+            if let postingErrorMessage {
+                Text(postingErrorMessage)
+                    .foregroundStyle(.red)
+                    .textSelection(.enabled)
+            }
+        }
+    }
+
+    private func postComment() async {
+        guard !isPosting, !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        isPosting = true
+        postingErrorMessage = nil
+        defer { isPosting = false }
+        do {
+            let comment = try await model.addTrackComment(for: track, body: draft)
+            comments.removeAll { $0.urn == comment.urn }
+            comments.insert(comment, at: 0)
+            draft = ""
+            onCommentAdded()
+        } catch {
+            postingErrorMessage = error.localizedDescription
         }
     }
 

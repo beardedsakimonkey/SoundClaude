@@ -213,7 +213,7 @@ struct SoundCloudTrackDetails: Sendable, Equatable {
     let createdAt: String?
     let playbackCount: Int?
     let favoritingsCount: Int?
-    let commentCount: Int?
+    var commentCount: Int?
 }
 
 struct SoundCloudComment: Decodable, Identifiable, Sendable {

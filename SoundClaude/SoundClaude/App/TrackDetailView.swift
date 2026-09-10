@@ -162,7 +162,12 @@ struct TrackDetailView: View {
                         TrackCommentsView(
                             track: details.track,
                             model: model,
-                            onSelectArtist: onSelectArtist
+                            onSelectArtist: onSelectArtist,
+                            onCommentAdded: {
+                                if let count = self.details?.commentCount {
+                                    self.details?.commentCount = count + 1
+                                }
+                            }
                         )
                         .id(track.urn)
                     }

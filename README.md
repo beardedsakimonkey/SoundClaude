@@ -73,7 +73,8 @@ pages. Tracks unavailable for app playback are omitted.
 Comments appear below the track description, with related tracks in the right
 column. Click the comment count to scroll to the comments. Comments show authors,
 dates, and track timestamps when available. Select an author to open their profile,
-or use Load More to fetch the next page.
+or use Load More to fetch the next page. Write a comment above the list and select
+Post Comment to publish it. Failed posts keep your draft so you can try again.
 
 Next and Previous use the list that started playback. Feed, artist, repost, playlist, and related
 queues fetch another page when sequential playback reaches the end of the loaded

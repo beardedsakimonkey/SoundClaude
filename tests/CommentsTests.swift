@@ -43,6 +43,53 @@ struct CommentsTests {
             precondition(decoded.user == nil && decoded.createdAt == nil && decoded.timestampMilliseconds == nil)
         }
 
+        let draft = "Great \"track\"! 🎶\nMore & more"
+        CommentsURLProtocol.respond { request in
+            precondition(request.httpMethod == "POST")
+            precondition(request.url?.path == "/tracks/soundcloud:tracks:1/comments")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            precondition(request.value(forHTTPHeaderField: "Content-Type") == "application/json; charset=utf-8")
+            var body = request.httpBody ?? Data()
+            if let stream = request.httpBodyStream {
+                stream.open()
+                defer { stream.close() }
+                var buffer = [UInt8](repeating: 0, count: 1024)
+                while stream.hasBytesAvailable {
+                    let count = stream.read(&buffer, maxLength: buffer.count)
+                    precondition(count >= 0)
+                    if count == 0 { break }
+                    body.append(contentsOf: buffer.prefix(count))
+                }
+            }
+            let payload = try! JSONSerialization.jsonObject(with: body) as! [String: [String: String]]
+            precondition(payload == ["comment": ["body": draft]])
+            return (201, comment(timestamp: "null"))
+        }
+        let posted = try await client.addTrackComment(
+            urn: "soundcloud:tracks:1", body: draft, accessToken: "test-token"
+        )
+        precondition(posted.urn == "soundcloud:comments:1234")
+        precondition(posted.user?.username == "Listener")
+        CommentsURLProtocol.respond { _ in fatalError("Empty comment was sent") }
+        do {
+            _ = try await client.addTrackComment(urn: "soundcloud:tracks:1", body: " \n ", accessToken: "test-token")
+            fatalError("Empty comment was accepted")
+        } catch SoundCloudError.api {}
+        for status in [401, 403, 422, 429] {
+            CommentsURLProtocol.respond { _ in (status, "{}") }
+            do {
+                _ = try await client.addTrackComment(urn: "soundcloud:tracks:1", body: draft, accessToken: "test-token")
+                fatalError("Failed post was accepted")
+            } catch SoundCloudError.unauthorized { precondition(status == 401)
+            } catch SoundCloudError.rateLimited { precondition(status == 429)
+            } catch SoundCloudError.api { precondition(status == 403 || status == 422) }
+        }
+        CommentsURLProtocol.respond { _ in (201, "{}") }
+        do {
+            _ = try await client.addTrackComment(urn: "soundcloud:tracks:1", body: draft, accessToken: "test-token")
+            fatalError("Malformed posted comment was accepted")
+        } catch is DecodingError {}
+
         let nextURL = URL(string: "https://api.soundcloud.com/tracks/soundcloud:tracks:1/comments?cursor=next")!
         CommentsURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")

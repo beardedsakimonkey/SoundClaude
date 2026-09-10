@@ -639,6 +639,24 @@ actor SoundCloudClient {
         try validate(response: response, data: data)
     }
 
+    func addTrackComment(
+        urn: String,
+        body: String,
+        accessToken: String
+    ) async throws -> SoundCloudComment {
+        guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw SoundCloudError.api("Enter a comment before posting.")
+        }
+        let url = configuration.apiBaseURL.appending(path: "tracks")
+            .appending(path: urn).appending(path: "comments")
+        let payload = try JSONSerialization.data(withJSONObject: ["comment": ["body": body]])
+        let (data, response) = try await authenticatedRequest(
+            url: url, accessToken: accessToken, method: "POST", body: payload
+        )
+        try validate(response: response, data: data)
+        return try decoder.decode(SoundCloudComment.self, from: data)
+    }
+
     func trackComments(
         urn: String,
         secretToken: String? = nil,
@@ -838,10 +856,15 @@ actor SoundCloudClient {
     private func authenticatedRequest(
         url: URL,
         accessToken: String,
-        method: String = "GET"
+        method: String = "GET",
+        body: Data? = nil
     ) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
         request.httpMethod = method
+        if let body {
+            request.httpBody = body
+            request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+        }
         request.setValue(
             "application/json; charset=utf-8",
             forHTTPHeaderField: "Accept"
