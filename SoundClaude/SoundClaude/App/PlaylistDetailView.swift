@@ -38,7 +38,6 @@ struct PlaylistDetailView: View {
                             onSelectArtist: onSelectArtist
                         )
                     }
-                    Divider()
                     CountedSectionHeader(
                         title: "Tracks",
                         count: displayedPlaylist.trackCount ?? tracks.count

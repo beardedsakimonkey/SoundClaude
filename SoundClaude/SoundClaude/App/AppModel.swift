@@ -587,7 +587,10 @@ final class AppModel: ObservableObject {
                     offset: offset,
                     wraps: !isAutomatic || playback.repeatMode == .all
                 ) else {
-                    if isAutomatic { playback.pause() }
+                    if isAutomatic {
+                        playback.pause()
+                        playback.seek(to: 0)
+                    }
                     return
                 }
                 saveQueue()
