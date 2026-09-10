@@ -16,13 +16,10 @@ struct ArtistLink: View {
                     TrackArtworkView(
                         artworkURL: artist.avatarURL,
                         loader: artworkLoader,
-                        size: 24
+                        size: 24,
+                        showsBorder: false
                     )
                     .clipShape(Circle())
-                    .overlay {
-                        Circle()
-                            .strokeBorder(.white.opacity(0.2), lineWidth: 1)
-                    }
                 }
                 Text(artist.username)
                     .underline(isHovering)

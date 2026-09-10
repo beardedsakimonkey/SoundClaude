@@ -7,6 +7,7 @@ struct TrackArtworkView: View {
     let size: CGFloat
     let rendition: ArtworkLoader.Rendition
     let shape: RoundedRectangle
+    let showsBorder: Bool
 
     @State private var image: NSImage?
 
@@ -15,13 +16,15 @@ struct TrackArtworkView: View {
         loader: ArtworkLoader,
         size: CGFloat,
         rendition: ArtworkLoader.Rendition = .source,
-        shape: RoundedRectangle = RoundedRectangle(cornerRadius: 6)
+        shape: RoundedRectangle = RoundedRectangle(cornerRadius: 6),
+        showsBorder: Bool = true
     ) {
         self.artworkURL = artworkURL
         self.loader = loader
         self.size = size
         self.rendition = rendition
         self.shape = shape
+        self.showsBorder = showsBorder
     }
 
     var body: some View {
@@ -42,8 +45,10 @@ struct TrackArtworkView: View {
         .frame(width: size, height: size)
         .clipShape(shape)
         .overlay {
-            shape
-                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+            if showsBorder {
+                shape
+                    .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+            }
         }
         .accessibilityHidden(true)
         .task(id: artworkURL) {
