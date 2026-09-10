@@ -4,6 +4,7 @@ struct ExpandableDescriptionText: View {
     private let description: ArtistMentionText
 
     private let collapsedLineLimit = 5
+    private let opacity = 0.7
 
     @State private var isExpanded = false
     @State private var collapsedHeight: CGFloat = 0
@@ -46,9 +47,9 @@ struct ExpandableDescriptionText: View {
                 .mask {
                     LinearGradient(
                         stops: [
-                            .init(color: .black, location: 0),
-                            .init(color: .black, location: 0.8),
-                            .init(color: isTruncated ? .clear : .black, location: 1)
+                            .init(color: .black.opacity(opacity), location: 0),
+                            .init(color: .black.opacity(opacity), location: 0.8),
+                            .init(color: isTruncated ? .clear : .black.opacity(opacity), location: 1)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
