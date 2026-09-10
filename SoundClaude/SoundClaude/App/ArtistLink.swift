@@ -23,7 +23,7 @@ struct ArtistLink: View {
                 }
                 Text(artist.username)
                     .underline(isHovering)
-                    .multilineTextAlignment(.leading)
+                    .lineLimit(1)
             }
             .contentShape(Rectangle())
         }
