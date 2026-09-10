@@ -136,6 +136,15 @@ struct TrackDetailView: View {
                             Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
                         }
                         .help("Open this track in your web browser")
+
+                        HStack(alignment: .top, spacing: 16) {
+                            playButton(for: details.track)
+                                .frame(height: TrackWaveformView.Layout.detail.height)
+
+                                if details.track.waveformURL != nil {
+                                    TrackWaveformView(track: details.track, model: model)
+                                }
+                        }
                     }
                 }
 
@@ -156,15 +165,6 @@ struct TrackDetailView: View {
                     .onContentHover { isHoveringComments = $0 }
                     .help("Read track comments")
                     .accessibilityLabel("Read comments on \(details.track.title)")
-                }
-
-                HStack(alignment: .top, spacing: 16) {
-                    playButton(for: details.track)
-                        .frame(height: TrackWaveformView.Layout.detail.height)
-
-                    if details.track.waveformURL != nil {
-                        TrackWaveformView(track: details.track, model: model)
-                    }
                 }
 
                 if let description = nonempty(details.description) {
