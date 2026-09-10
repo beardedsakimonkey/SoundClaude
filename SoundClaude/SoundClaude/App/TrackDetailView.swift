@@ -140,8 +140,6 @@ struct TrackDetailView: View {
                 }
 
                 if let description = nonempty(details.description) {
-                    Divider()
-
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Description")
                             .font(.headline)

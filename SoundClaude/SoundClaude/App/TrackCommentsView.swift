@@ -16,7 +16,6 @@ struct TrackCommentsView: View {
         LazyVStack(alignment: .leading, spacing: 20) {
             ForEach(comments) { comment in
                 commentRow(comment)
-                Divider()
             }
 
             if isLoading {
@@ -46,7 +45,7 @@ struct TrackCommentsView: View {
 
     private func commentRow(_ comment: SoundCloudComment) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 if let user = comment.user {
                     ArtistLink(
                         artist: user,
@@ -56,6 +55,12 @@ struct TrackCommentsView: View {
                     .font(.headline)
                 } else {
                     Label("Unknown user", systemImage: "person.crop.circle")
+                        .foregroundStyle(.secondary)
+                }
+                if let timestamp = comment.timestampMilliseconds {
+                    let seconds = timestamp / 1_000
+                    Text("At \(seconds / 60):\(String(format: "%02d", seconds % 60))")
+                        .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -68,16 +73,10 @@ struct TrackCommentsView: View {
             }
 
             Text(comment.body)
+                .foregroundStyle(.primary.opacity(0.75))
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
-
-            if let timestamp = comment.timestampMilliseconds {
-                let seconds = timestamp / 1_000
-                Text("At \(seconds / 60):\(String(format: "%02d", seconds % 60))")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 
