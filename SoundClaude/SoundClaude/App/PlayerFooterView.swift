@@ -48,7 +48,7 @@ struct PlayerFooterView: View {
                 .layoutPriority(1)
         }
         .padding(contentInset)
-        .padding(.leading, 2)
+        .padding(.horizontal, 2)
         .modifier(PlayerFooterGlass(cornerRadius: cornerRadius))
         .alert("Could not update like", isPresented: Binding(
             get: { likeErrorMessage != nil },
@@ -229,7 +229,8 @@ struct PlayerFooterView: View {
                         Text(format(seconds: playback.duration))
                     }
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
+                    .offset(y: -4)
                 }
                 .frame(maxWidth: .infinity)
                 // Compensate for the timestamps below the waveform.
