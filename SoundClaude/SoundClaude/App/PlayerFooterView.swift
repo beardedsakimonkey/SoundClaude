@@ -130,8 +130,9 @@ struct PlayerFooterView: View {
         }
         .buttonStyle(.plain)
         .modifier(SpringPressEffect())
+        .keyboardShortcut("l", modifiers: [])
         .disabled(track == nil || isUpdating || likes.isLoading)
-        .help(isLiked ? "Unlike track" : "Like track")
+        .help(isLiked ? "Unlike track (L)" : "Like track (L)")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
         .accessibilityValue(isLiked ? "Liked" : "Not liked")
     }

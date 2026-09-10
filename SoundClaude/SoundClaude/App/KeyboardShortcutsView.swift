@@ -6,6 +6,7 @@ struct KeyboardShortcutsView: View {
     private let shortcuts = [
         Shortcut(title: "Play or pause", keys: ["Space"]),
         Shortcut(title: "Mute or unmute", keys: ["M"]),
+        Shortcut(title: "Like or unlike current track", keys: ["L"]),
         Shortcut(title: "Toggle shuffle", keys: ["S"]),
         Shortcut(title: "Cycle repeat", keys: ["R"]),
         Shortcut(title: "Toggle track queue", keys: ["Q"]),

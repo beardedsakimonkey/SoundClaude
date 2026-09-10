@@ -205,7 +205,7 @@ struct ArtistDetailView: View {
                             RoundedRectangle(cornerRadius: 16)
                                 .strokeBorder(.white.opacity(0.2), lineWidth: 1)
                         }
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, 10)
                         .accessibilityHidden(true)
                     }
                 }
