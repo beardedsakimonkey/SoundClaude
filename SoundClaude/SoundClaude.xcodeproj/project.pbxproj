@@ -72,6 +72,7 @@
 		A1000000000000000000003E /* PlaylistDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003E /* PlaylistDetailView.swift */; };
 		A1000000000000000000003F /* TrackQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003F /* TrackQueue.swift */; };
 		A10000000000000000000040 /* LikesCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000040 /* LikesCache.swift */; };
+		53FD266F04FB426AA01E2B0A /* PlayerArtworkGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4925E94F504F440FA2B06DBF /* PlayerArtworkGlass.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -148,6 +149,7 @@
 		A2000000000000000000003E /* PlaylistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistDetailView.swift; sourceTree = "<group>"; };
 		A2000000000000000000003F /* TrackQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackQueue.swift; sourceTree = "<group>"; };
 		A20000000000000000000040 /* LikesCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikesCache.swift; sourceTree = "<group>"; };
+		4925E94F504F440FA2B06DBF /* PlayerArtworkGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerArtworkGlass.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -233,6 +235,7 @@
 				A20000000000000000000032 /* FeedView.swift */,
 				A20000000000000000000073 /* HistoryView.swift */,
 				A20000000000000000000080 /* SearchResultsView.swift */,
+				4925E94F504F440FA2B06DBF /* PlayerArtworkGlass.swift */,
 				A20000000000000000000033 /* PlayerFooterView.swift */,
 				A20000000000000000000038 /* SpringGlassButtonStyle.swift */,
 				A20000000000000000000081 /* TabPicker.swift */,
@@ -468,6 +471,7 @@
 				A1000000000000000000001A /* FeedView.swift in Sources */,
 				A10000000000000000000073 /* HistoryView.swift in Sources */,
 				A10000000000000000000080 /* SearchResultsView.swift in Sources */,
+				53FD266F04FB426AA01E2B0A /* PlayerArtworkGlass.swift in Sources */,
 				A1000000000000000000001B /* PlayerFooterView.swift in Sources */,
 				A10000000000000000000038 /* SpringGlassButtonStyle.swift in Sources */,
 				A10000000000000000000081 /* TabPicker.swift in Sources */,

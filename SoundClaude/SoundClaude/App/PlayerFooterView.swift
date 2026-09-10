@@ -19,6 +19,8 @@ struct PlayerFooterView: View {
     @State private var previousArtworkURL: URL?
     @State private var hasPreviousTrack = false
     @State private var isHoveringTitle = false
+    @State private var isHoveringArtwork = false
+    @State private var artworkPointerPosition: CGPoint = .zero
     @State private var likeErrorMessage: String?
 
     @Bindable private var playback: PlaybackController
@@ -158,6 +160,10 @@ struct PlayerFooterView: View {
         }
     }
 
+    private var artworkTilt: CGPoint {
+        isHoveringArtwork && !reduceMotion ? artworkPointerPosition : .zero
+    }
+
     private var artworkThumbnail: some View {
         Color.clear
             .frame(width: artworkThumbnailSize, height: artworkThumbnailSize)
@@ -190,6 +196,40 @@ struct PlayerFooterView: View {
                     startVelocity: 450
                 )
             }
+            .rotation3DEffect(
+                .degrees(-Double(artworkTilt.y) * 10),
+                axis: (x: 1, y: 0, z: 0),
+                perspective: 0.35
+            )
+            .rotation3DEffect(
+                .degrees(Double(artworkTilt.x) * 10),
+                axis: (x: 0, y: 1, z: 0),
+                perspective: 0.35
+            )
+            .offset(y: isHoveringArtwork && !reduceMotion ? -1 : 0)
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.85),
+                value: artworkTilt
+            )
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
+                value: isHoveringArtwork
+            )
+            // Track the pointer in a fixed frame so the tilt does not move the hover area.
+            .frame(width: artworkThumbnailSize, height: artworkThumbnailSize)
+            .contentShape(artworkShape)
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location):
+                    artworkPointerPosition = CGPoint(
+                        x: min(max(location.x / artworkThumbnailSize * 2 - 1, -1), 1),
+                        y: min(max(location.y / artworkThumbnailSize * 2 - 1, -1), 1)
+                    )
+                case .ended:
+                    artworkPointerPosition = .zero
+                }
+            }
+            .onContentHover { isHoveringArtwork = $0 }
             .onChange(of: playback.currentTrack) { oldTrack, _ in
                 previousArtworkURL = oldTrack?.artworkURL
                 hasPreviousTrack = oldTrack != nil
@@ -204,6 +244,10 @@ struct PlayerFooterView: View {
             rendition: .square500,
             shape: artworkShape
         )
+        .modifier(PlayerArtworkGlass(
+            cornerRadius: cornerRadius - contentInset,
+            isHovering: isHoveringArtwork && !reduceMotion
+        ))
     }
 
     private var playbackControls: some View {
