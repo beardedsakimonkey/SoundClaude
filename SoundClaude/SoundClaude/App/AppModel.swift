@@ -155,7 +155,7 @@ final class AppModel: ObservableObject {
         await auth.signOut()
     }
 
-    func play(_ track: SoundCloudTrack) async {
+    func play(_ track: SoundCloudTrack, position: Double = 0) async {
         // Detail and waveform controls retain an existing list when possible.
         if !queue.tracks.contains(where: { $0.urn == track.urn }),
            !(queue.source == .likes && likes.isLiked(track)) {
@@ -164,7 +164,7 @@ final class AppModel: ObservableObject {
         }
         trackSelectionTask?.cancel()
         saveQueue()
-        await loadPlayback(track)
+        await loadPlayback(track, position: position)
     }
 
     func playLikedTrack(_ track: SoundCloudTrack) async {

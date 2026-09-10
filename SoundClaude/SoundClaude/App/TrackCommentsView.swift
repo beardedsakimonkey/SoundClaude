@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct TrackCommentsView: View {
@@ -11,9 +12,13 @@ struct TrackCommentsView: View {
     @State private var hasLoaded = false
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var artworkAccent: ArtworkAccent?
+    @State private var accentArtworkURL: URL?
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: 20) {
+        LazyVStack(alignment: .leading, spacing: 24) {
             ForEach(comments) { comment in
                 commentRow(comment)
             }
@@ -41,6 +46,32 @@ struct TrackCommentsView: View {
         .task {
             if !hasLoaded { await loadPage() }
         }
+        .task(id: track.artworkURL) {
+            artworkAccent = nil
+            accentArtworkURL = nil
+            guard let url = track.artworkURL,
+                  let accent = try? await model.artworkLoader.accentColor(for: url),
+                  !Task.isCancelled else { return }
+            artworkAccent = accent
+            accentArtworkURL = url
+        }
+    }
+
+    private var timestampColor: Color {
+        let blue = NSColor.systemBlue.usingColorSpace(.sRGB)!
+        let fallback = ArtworkAccent(
+            red: blue.redComponent, green: blue.greenComponent, blue: blue.blueComponent
+        )
+        let accent = accentArtworkURL == track.artworkURL
+            ? artworkAccent ?? fallback : fallback
+        let contrastedAccent = accent.contrasted(
+            isDark: colorScheme == .dark,
+            increasedContrast: colorSchemeContrast == .increased
+        )
+        return Color(
+            .sRGB, red: contrastedAccent.red,
+            green: contrastedAccent.green, blue: contrastedAccent.blue
+        )
     }
 
     private func commentRow(_ comment: SoundCloudComment) -> some View {
@@ -59,17 +90,37 @@ struct TrackCommentsView: View {
                 }
                 if let timestamp = comment.timestampMilliseconds {
                     let seconds = timestamp / 1_000
-                    Text("At \(seconds / 60):\(String(format: "%02d", seconds % 60))")
-                        .font(.caption.monospacedDigit())
+                    let timeLabel = "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
+                    Text("at")
+                        .font(.caption)
                         .foregroundStyle(.secondary)
+                    Button {
+                        let position = Double(timestamp) / 1_000
+                        if model.playback.currentTrack?.urn == track.urn {
+                            model.playback.seek(to: position)
+                        } else {
+                            Task { await model.play(track, position: position) }
+                        }
+                    } label: {
+                        Text(timeLabel)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(timestampColor.opacity(0.12), in: Capsule())
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(timestampColor)
+                    .help("Jump to \(timeLabel)")
+                    .accessibilityLabel("Jump to \(timeLabel) in \(track.title)")
                 }
-                Spacer()
                 if let createdAt = comment.createdAt {
-                    Text(createdAt, style: .relative)
+                    Text(createdAt.formatted(.relative(presentation: .numeric, unitsStyle: .wide)))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .help(createdAt.formatted(date: .abbreviated, time: .shortened))
                 }
+                Spacer()
             }
 
             Text(comment.body)
