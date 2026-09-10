@@ -2,6 +2,12 @@ import SwiftUI
 
 struct PlayerFooterView: View {
     private let artworkThumbnailSize: CGFloat = 72
+    private let cornerRadius: CGFloat = 18
+    private let contentInset: CGFloat = 6
+
+    private var artworkShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius - contentInset, style: .continuous)
+    }
 
     let model: AppModel
     let artworkLoader: ArtworkLoader
@@ -41,8 +47,9 @@ struct PlayerFooterView: View {
                 .frame(maxWidth: .infinity)
                 .layoutPriority(1)
         }
-        .padding(14)
-        .modifier(PlayerFooterGlass())
+        .padding(contentInset)
+        .padding(.leading, 2)
+        .modifier(PlayerFooterGlass(cornerRadius: cornerRadius))
         .alert("Could not update like", isPresented: Binding(
             get: { likeErrorMessage != nil },
             set: { if !$0 { likeErrorMessage = nil } }
@@ -142,7 +149,7 @@ struct PlayerFooterView: View {
                 response: 0.3,
                 dampingFraction: 0.45
             ))
-            .contentShape(RoundedRectangle(cornerRadius: 6))
+            .contentShape(artworkShape)
             .help("View track")
             .accessibilityLabel("View track: \(track.title)")
         } else {
@@ -193,7 +200,8 @@ struct PlayerFooterView: View {
             artworkURL: url,
             loader: artworkLoader,
             size: artworkThumbnailSize,
-            rendition: .square500
+            rendition: .square500,
+            shape: artworkShape
         )
     }
 
@@ -407,8 +415,10 @@ private struct PlayerFooterButtonStyle: ButtonStyle {
 }
 
 private struct PlayerFooterGlass: ViewModifier {
+    let cornerRadius: CGFloat
+
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
         if #available(macOS 26.0, *) {
             content.glassEffect(.regular, in: shape)

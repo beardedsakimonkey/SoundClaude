@@ -6,6 +6,7 @@ struct TrackArtworkView: View {
     let loader: ArtworkLoader
     let size: CGFloat
     let rendition: ArtworkLoader.Rendition
+    let shape: RoundedRectangle
 
     @State private var image: NSImage?
 
@@ -13,17 +14,19 @@ struct TrackArtworkView: View {
         artworkURL: URL?,
         loader: ArtworkLoader,
         size: CGFloat,
-        rendition: ArtworkLoader.Rendition = .source
+        rendition: ArtworkLoader.Rendition = .source,
+        shape: RoundedRectangle = RoundedRectangle(cornerRadius: 6)
     ) {
         self.artworkURL = artworkURL
         self.loader = loader
         self.size = size
         self.rendition = rendition
+        self.shape = shape
     }
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 6)
+            shape
                 .fill(.quaternary)
             if let image {
                 Image(nsImage: image)
@@ -37,9 +40,9 @@ struct TrackArtworkView: View {
             }
         }
         .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(shape)
         .overlay {
-            RoundedRectangle(cornerRadius: 6)
+            shape
                 .strokeBorder(.white.opacity(0.2), lineWidth: 1)
         }
         .accessibilityHidden(true)
