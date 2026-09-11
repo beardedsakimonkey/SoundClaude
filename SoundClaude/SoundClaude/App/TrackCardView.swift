@@ -47,9 +47,6 @@ struct TrackCardView: View {
 
                 HStack(spacing: 10) {
                     playButton
-                    if track.access == .preview {
-                        TrackPreviewBadge()
-                    }
                     TrackWaveformView(
                         track: track,
                         model: model,
@@ -85,7 +82,7 @@ struct TrackCardView: View {
     }
 
     private var trackTitle: some View {
-        HStack(spacing: 6) {
+        HStack(alignment: .center, spacing: 6) {
             if isCurrentTrack {
                 TrackPlaybackIndicator(isPlaying: model.playback.isPlaying)
             }
@@ -102,6 +99,9 @@ struct TrackCardView: View {
             .buttonStyle(.plain)
             .onContentHover { isHoveringTitle = $0 }
             .help(track.title)
+            if track.access == .preview {
+                TrackPreviewBadge()
+            }
         }
     }
 
