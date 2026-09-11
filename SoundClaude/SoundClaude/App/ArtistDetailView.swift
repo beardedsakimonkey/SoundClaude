@@ -151,6 +151,7 @@ struct ArtistDetailView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text(details.user.username)
                                 .font(.system(size: 36, weight: .semibold))
+                                .opacity(0.9)
                                 .textSelection(.enabled)
                             let location = [details.city, details.country]
                                 .compactMap(nonempty).joined(separator: ", ")
@@ -216,7 +217,9 @@ struct ArtistDetailView: View {
                 if let description = nonempty(details.description) {
                     Divider()
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("About").font(.headline)
+                        Text("About")
+                            .font(.headline)
+                            .opacity(0.96)
                         ExpandableDescriptionText(
                             description: description,
                             onSelectArtist: onSelectArtist

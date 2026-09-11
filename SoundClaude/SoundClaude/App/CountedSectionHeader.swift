@@ -14,5 +14,6 @@ struct CountedSectionHeader: View {
             }
         }
         .font(.headline)
+        .opacity(0.96)
     }
 }

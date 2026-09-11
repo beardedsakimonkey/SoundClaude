@@ -38,7 +38,7 @@ struct FeedView: View {
                                 artworkLoader: model.artworkLoader,
                                 onSelect: onSelectArtist
                             )
-                            .fontWeight(.semibold)
+                            .fontWeight(.medium)
                             .layoutPriority(1)
                             Group {
                                 if item.isRepost {

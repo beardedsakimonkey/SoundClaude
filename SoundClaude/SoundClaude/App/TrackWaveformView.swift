@@ -112,10 +112,10 @@ struct TrackWaveformView: View {
                     ) else { return }
                     bitmap.scaleBy(x: scale, y: scale)
                     let path = waveformPath(amplitudes, size: size)
-                    let background = Color.secondary.opacity(0.3)
+                    let background = Color.secondary.opacity(0.5)
                         .resolve(in: context.environment).cgColor
                     let color = progressColor.resolve(in: context.environment).cgColor
-                    let highlight = Color.white.opacity(0.6)
+                    let highlight = Color.white.opacity(0.9)
                         .resolve(in: context.environment).cgColor
                     let progress = progress
 

@@ -112,6 +112,7 @@ struct TrackDetailView: View {
                             Text(details.track.title)
                                 .font(.system(size: 36, weight: .semibold))
                                 .foregroundStyle(.primary)
+                                .opacity(0.9)
                         }
                         .buttonStyle(.plain)
                         .help("Play this track")
@@ -143,6 +144,7 @@ struct TrackDetailView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Description")
                             .font(.headline)
+                            .opacity(0.96)
                         ExpandableDescriptionText(
                             description: description,
                             onSelectArtist: onSelectArtist
@@ -173,7 +175,9 @@ struct TrackDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .topLeading)
 
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Related tracks").font(.headline)
+                        Text("Related tracks")
+                            .font(.headline)
+                            .opacity(0.96)
                         if let message = model.errorMessage {
                             Label(message, systemImage: "exclamationmark.triangle")
                                 .foregroundStyle(.orange)

@@ -214,6 +214,8 @@ struct TrackCommentsView: View {
                         onSelect: onSelectArtist
                     )
                     .font(.headline)
+                    .fontWeight(.medium)
+                    .opacity(0.85)
                 } else {
                     Label("Unknown user", systemImage: "person.crop.circle")
                         .foregroundStyle(.secondary)
