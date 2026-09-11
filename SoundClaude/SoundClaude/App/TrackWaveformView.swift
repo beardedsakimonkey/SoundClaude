@@ -111,11 +111,17 @@ struct TrackWaveformView: View {
                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
                     ) else { return }
                     bitmap.scaleBy(x: scale, y: scale)
-                    let path = waveformPath(amplitudes, size: size)
-                    let background = Color.secondary.opacity(0.5)
+                    let bars = waveformBars(amplitudes, size: size)
+                    let path = CGMutablePath()
+                    for bar in bars {
+                        path.addRoundedRect(in: bar, cornerWidth: 1, cornerHeight: 1)
+                    }
+                    let background = Color.secondary.opacity(layout == .compact ? 0.3 : 0.5)
                         .resolve(in: context.environment).cgColor
                     let color = progressColor.resolve(in: context.environment).cgColor
                     let highlight = Color.white.opacity(0.9)
+                        .resolve(in: context.environment).cgColor
+                    let shadow = Color.black.opacity(0.9)
                         .resolve(in: context.environment).cgColor
                     let progress = progress
 
@@ -128,8 +134,8 @@ struct TrackWaveformView: View {
                     // boundaries from accumulating partial pixel coverage.
                     bitmap.setShouldAntialias(false)
 
-                    fillGradient(background, in: bitmap, rect: CGRect(origin: .zero, size: size))
-                    fillGradient(color, in: bitmap, rect: CGRect(
+                    fillGradient(background, in: bitmap, bars: bars, rect: CGRect(origin: .zero, size: size))
+                    fillGradient(color, in: bitmap, bars: bars, rect: CGRect(
                         x: 0, y: 0,
                         width: size.width * progress,
                         height: size.height
@@ -145,8 +151,14 @@ struct TrackWaveformView: View {
                         bitmap.saveGState()
                         bitmap.setAlpha(hoverOpacity)
                         bitmap.beginTransparencyLayer(auxiliaryInfo: nil)
-                        fillGradient(color, in: bitmap, rect: hoverRegion)
-                        fillGradient(highlight, in: bitmap, rect: hoverRegion)
+                        if hoverFraction < progress {
+                            // Darken the existing gradient when previewing a backward seek.
+                            bitmap.setFillColor(shadow)
+                            bitmap.fill(hoverRegion)
+                        } else {
+                            fillGradient(color, in: bitmap, bars: bars, rect: hoverRegion)
+                            fillGradient(highlight, in: bitmap, bars: bars, rect: hoverRegion)
+                        }
                         bitmap.endTransparencyLayer()
                         bitmap.restoreGState()
                     }
@@ -254,7 +266,10 @@ struct TrackWaveformView: View {
         }
     }
 
-    private func fillGradient(_ color: CGColor, in bitmap: CGContext, rect: CGRect) {
+    private func fillGradient(
+        _ color: CGColor, in bitmap: CGContext, bars: [CGRect], rect: CGRect
+    ) {
+        guard !rect.isEmpty else { return }
         let colorSpace = CGColorSpace(name: CGColorSpace.linearSRGB)!
         guard let components = color.converted(
             to: colorSpace, intent: .relativeColorimetric, options: nil
@@ -264,14 +279,31 @@ struct TrackWaveformView: View {
         // equivalent to scaling linear RGB by k³. This preserves hue and stays
         // in gamut without a full matrix conversion. OKLab definition:
         // https://bottosson.github.io/posts/oklab/#converting-from-linear-srgb-to-oklab
+        let profile: [(location: CGFloat, brightness: CGFloat, highlight: CGFloat)] = [
+            (0,    0.94, 0.03),
+            (0.08, 1,    0.18),
+            (0.24, 0.93, 0.06),
+            (0.76, 0.93, 0.06),
+            (0.92, 0.77, 0),
+            (1,    0.60, 0)
+        ]
         let locations = (0...32).map { CGFloat($0) / 32 }
         let colors = locations.map { fraction in
-            let brightness = 1 - 0.4 * fraction
+            let upperIndex = profile.firstIndex { $0.location > fraction }
+                ?? (profile.count - 1)
+            let lower = profile[upperIndex - 1]
+            let upper = profile[upperIndex]
+            let t = (fraction - lower.location) / (upper.location - lower.location)
+            let eased = t * t * (3 - 2 * t)
+            let brightness = lower.brightness + (upper.brightness - lower.brightness) * eased
+            let highlight = lower.highlight + (upper.highlight - lower.highlight) * eased
             let factor = brightness * brightness * brightness
+            // Blend a small amount of white into the crest, keeping the
+            // artwork color and the original alpha throughout the surface.
             return CGColor(colorSpace: colorSpace, components: [
-                components[0] * factor,
-                components[1] * factor,
-                components[2] * factor,
+                components[0] * factor * (1 - highlight) + highlight,
+                components[1] * factor * (1 - highlight) + highlight,
+                components[2] * factor * (1 - highlight) + highlight,
                 components[3]
             ])!
         }
@@ -281,14 +313,20 @@ struct TrackWaveformView: View {
 
         bitmap.saveGState()
         bitmap.clip(to: rect)
-        // Bitmap coordinates start at the bottom. Sample the OKLab fade with
-        // closely spaced stops because Core Graphics interpolates in RGB.
-        bitmap.drawLinearGradient(
-            gradient,
-            start: CGPoint(x: 0, y: rect.maxY),
-            end: CGPoint(x: 0, y: rect.minY),
-            options: []
-        )
+        // Reuse the gradient, but fit its full range to each animated bar.
+        // Playback and hover only clip the fill; they do not move the shading.
+        for bar in bars where bar.intersects(rect) {
+            bitmap.saveGState()
+            bitmap.clip(to: bar)
+            // Bitmap coordinates start at the bottom.
+            bitmap.drawLinearGradient(
+                gradient,
+                start: CGPoint(x: bar.midX, y: bar.maxY),
+                end: CGPoint(x: bar.midX, y: bar.minY),
+                options: []
+            )
+            bitmap.restoreGState()
+        }
         bitmap.restoreGState()
     }
 
@@ -350,31 +388,23 @@ struct TrackWaveformView: View {
         })
     }
 
-    private func waveformPath(
+    private func waveformBars(
         _ amplitudes: WaveformAmplitudes,
         size: CGSize
-    ) -> CGPath {
+    ) -> [CGRect] {
         let barWidth: CGFloat = 2
         let step: CGFloat = 4
-        let path = CGMutablePath()
-
-        for (index, amplitude) in amplitudes.values.enumerated() {
+        return amplitudes.values.enumerated().map { index, amplitude in
             // Signed amplitudes let the endpoints cross at the center. Take the
             // absolute value only when drawing, after spring interpolation.
             let height = max(CGFloat(abs(amplitude)) * (size.height - 4), 2)
-            let rect = CGRect(
+            return CGRect(
                 x: CGFloat(index) * step,
                 y: (size.height - height) / 2,
                 width: barWidth,
                 height: height
             )
-            path.addRoundedRect(
-                in: rect,
-                cornerWidth: 1,
-                cornerHeight: 1
-            )
         }
-        return path
     }
 
     private func fraction(at xPosition: CGFloat, width: CGFloat) -> Double {
