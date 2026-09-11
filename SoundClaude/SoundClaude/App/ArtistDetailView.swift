@@ -12,6 +12,7 @@ struct ArtistDetailView: View {
     }
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
 
     let artist: SoundCloudUser
     @ObservedObject var model: AppModel
@@ -101,6 +102,25 @@ struct ArtistDetailView: View {
             }
         }
         .navigationTitle(details?.user.username ?? artist.username)
+        .toolbar {
+            if #available(macOS 26.0, *) {
+                ToolbarSpacer(.flexible, placement: .primaryAction)
+            } else {
+                ToolbarItem(placement: .primaryAction) {
+                    Spacer()
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    openURL(details?.user.permalinkURL ?? artist.permalinkURL)
+                } label: {
+                    Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
+                        .labelStyle(.iconOnly)
+                        .frame(width: 20, height: 20)
+                }
+                .help("Open this artist in your web browser")
+            }
+        }
         .task(id: artist.permalinkURL) { await load() }
         .task(id: artist.permalinkURL) {
             guard headerImage == nil,
@@ -163,10 +183,6 @@ struct ArtistDetailView: View {
                             if canFollowArtist {
                                 followControls
                             }
-                            Link(destination: details.user.permalinkURL) {
-                                Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
-                            }
-                            .help("Open this artist in your web browser")
                         }
                         .padding(headerImage == nil ? 0 : 16)
                         .background {

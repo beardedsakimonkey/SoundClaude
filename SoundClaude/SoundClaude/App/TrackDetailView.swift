@@ -3,6 +3,8 @@ import Foundation
 import SwiftUI
 
 struct TrackDetailView: View {
+    @Environment(\.openURL) private var openURL
+
     let track: SoundCloudTrack
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
@@ -65,6 +67,25 @@ struct TrackDetailView: View {
             }
         }
         .navigationTitle(details?.track.title ?? track.title)
+        .toolbar {
+            if #available(macOS 26.0, *) {
+                ToolbarSpacer(.flexible, placement: .primaryAction)
+            } else {
+                ToolbarItem(placement: .primaryAction) {
+                    Spacer()
+                }
+            }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    openURL(details?.track.permalinkURL ?? track.permalinkURL)
+                } label: {
+                    Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
+                        .labelStyle(.iconOnly)
+                        .frame(width: 20, height: 20)
+                }
+                .help("Open this track in your web browser")
+            }
+        }
         .task(id: track.urn) {
             await load()
         }
@@ -124,11 +145,6 @@ struct TrackDetailView: View {
                         )
                             .font(.title3)
                             .foregroundStyle(.secondary)
-                        Link(destination: details.track.permalinkURL) {
-                            Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
-                        }
-                        .help("Open this track in your web browser")
-
                         HStack(alignment: .top, spacing: 16) {
                             playButton(for: details.track)
                                 .frame(height: TrackWaveformView.Layout.detail.height)
