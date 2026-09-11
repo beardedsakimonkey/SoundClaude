@@ -8,6 +8,7 @@ struct TrackListRow: View {
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
     @State private var isHoveringArtwork = false
     @State private var isHoveringTitle = false
@@ -16,20 +17,41 @@ struct TrackListRow: View {
 
     var body: some View {
         let isCurrentTrack = playback.currentTrack?.urn == track.urn
+        let isPlaybackActive = isCurrentTrack && playback.isPlaybackActive
 
         HStack(spacing: 12) {
-            Button {
-                onSelectTrack(track)
-            } label: {
+            Button(action: playOrPauseTrack) {
                 TrackArtworkView(
                     artworkURL: track.artworkURL,
                     loader: artworkLoader,
                     size: 44
                 )
+                .overlay {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.black.opacity(0.45))
+                        ZStack {
+                            Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .id(isPlaybackActive)
+                                .transition(reduceMotion ? .identity : .scale(scale: 0.01).combined(with: .opacity))
+                        }
+                        .animation(
+                            reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.6),
+                            value: isPlaybackActive
+                        )
+                    }
+                    .opacity(isHovering ? 1 : 0)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                }
             }
-            .buttonStyle(TrackArtworkButtonStyle())
+            .buttonStyle(.plain)
             .onContentHover { isHoveringArtwork = $0 }
-            .accessibilityLabel("Open track: \(track.title)")
+            .help(isPlaybackActive ? "Pause" : "Play")
+            .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     if isCurrentTrack {
@@ -64,7 +86,7 @@ struct TrackListRow: View {
         .contentShape(Rectangle())
         .onTapGesture {
             guard !isHoveringArtwork, !isHoveringTitle, !isHoveringArtist else { return }
-            Task { await onPlayTrack(track) }
+            playOrPauseTrack()
         }
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
@@ -78,7 +100,15 @@ struct TrackListRow: View {
                 .animation(.easeInOut(duration: 0.15), value: isHovering)
         }
         .onContentHover { isHovering = $0 }
-        .accessibilityAction(named: "Play") {
+        .accessibilityAction(named: isPlaybackActive ? "Pause" : "Play") {
+            playOrPauseTrack()
+        }
+    }
+
+    private func playOrPauseTrack() {
+        if playback.currentTrack?.urn == track.urn {
+            playback.togglePlayPause()
+        } else {
             Task { await onPlayTrack(track) }
         }
     }
@@ -93,20 +123,6 @@ struct TrackListRow: View {
     private var duration: String {
         let seconds = max(track.durationMilliseconds, 0) / 1_000
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
-    }
-}
-
-private struct TrackArtworkButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed && isEnabled && !reduceMotion ? 0.92 : 1)
-            .animation(
-                reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.4),
-                value: configuration.isPressed && isEnabled
-            )
     }
 }
 
