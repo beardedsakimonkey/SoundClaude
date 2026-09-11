@@ -642,6 +642,7 @@ actor SoundCloudClient {
     func addTrackComment(
         urn: String,
         body: String,
+        timestampMilliseconds: Int? = nil,
         accessToken: String
     ) async throws -> SoundCloudComment {
         guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -649,7 +650,11 @@ actor SoundCloudClient {
         }
         let url = configuration.apiBaseURL.appending(path: "tracks")
             .appending(path: urn).appending(path: "comments")
-        let payload = try JSONSerialization.data(withJSONObject: ["comment": ["body": body]])
+        var comment: [String: Any] = ["body": body]
+        if let timestampMilliseconds {
+            comment["timestamp"] = timestampMilliseconds
+        }
+        let payload = try JSONSerialization.data(withJSONObject: ["comment": comment])
         let (data, response) = try await authenticatedRequest(
             url: url, accessToken: accessToken, method: "POST", body: payload
         )

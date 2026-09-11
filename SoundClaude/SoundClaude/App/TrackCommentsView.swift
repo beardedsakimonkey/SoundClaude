@@ -10,6 +10,8 @@ struct TrackCommentsView: View {
 
     @State private var draft = ""
     @FocusState private var isCommentFocused: Bool
+    @State private var isCommentHovered = false
+    @State private var commentTimestampMilliseconds: Int?
     @State private var isPosting = false
     @State private var postingErrorMessage: String?
     @State private var comments: [SoundCloudComment] = []
@@ -84,7 +86,7 @@ struct TrackCommentsView: View {
                     // Keep the placeholder outside the native field's focus layout.
                     .overlay(alignment: .leading) {
                         if draft.isEmpty {
-                            Text("Write a comment")
+                            Text(commentPlaceholder)
                                 .foregroundStyle(.tertiary)
                                 .lineLimit(1)
                                 .allowsHitTesting(false)
@@ -92,6 +94,11 @@ struct TrackCommentsView: View {
                         }
                     }
                     .focused($isCommentFocused)
+                    .onChange(of: isCommentFocused) { _, isFocused in
+                        guard isFocused, !isPosting else { return }
+                        commentTimestampMilliseconds = model.playback.currentTrack?.urn == track.urn
+                            ? Int(max(0, model.playback.currentTime) * 1_000) : nil
+                    }
                     .modifier(PreventAutomaticSearchFocus())
                     .onExitCommand { isCommentFocused = false }
                     .onSubmit { Task { await postComment() } }
@@ -120,7 +127,15 @@ struct TrackCommentsView: View {
                 .disabled(isPosting || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding(5)
-            .background(.primary.opacity(0.06), in: Capsule())
+            .background {
+                Capsule()
+                    .fill(.primary.opacity(isCommentFocused || isCommentHovered ? 0.06 : 0))
+                    .animation(
+                        .easeInOut(duration: 0.15),
+                        value: isCommentFocused || isCommentHovered
+                    )
+            }
+            .onHover { isCommentHovered = $0 }
             .overlay {
                 Capsule()
                     .strokeBorder(
@@ -143,16 +158,29 @@ struct TrackCommentsView: View {
         }
     }
 
+    private var commentPlaceholder: String {
+        guard isCommentFocused, let commentTimestampMilliseconds else {
+            return "Write a comment"
+        }
+        let seconds = commentTimestampMilliseconds / 1_000
+        let timestamp = "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
+        return "Write a comment at \(timestamp)"
+    }
+
     private func postComment() async {
         guard !isPosting, !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         isPosting = true
         postingErrorMessage = nil
         defer { isPosting = false }
         do {
-            let comment = try await model.addTrackComment(for: track, body: draft)
+            let comment = try await model.addTrackComment(
+                for: track, body: draft, timestampMilliseconds: commentTimestampMilliseconds
+            )
             comments.removeAll { $0.urn == comment.urn }
             comments.insert(comment, at: 0)
             draft = ""
+            isCommentFocused = false
+            commentTimestampMilliseconds = nil
             onCommentAdded()
         } catch {
             postingErrorMessage = error.localizedDescription
