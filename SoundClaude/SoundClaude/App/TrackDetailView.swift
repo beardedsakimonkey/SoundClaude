@@ -7,6 +7,7 @@ struct TrackDetailView: View {
 
     let track: SoundCloudTrack
     @ObservedObject var model: AppModel
+    @ObservedObject private var likes: LikesController
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
@@ -31,6 +32,7 @@ struct TrackDetailView: View {
     ) {
         self.track = track
         self.model = model
+        _likes = ObservedObject(wrappedValue: model.likes)
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
 
@@ -145,14 +147,17 @@ struct TrackDetailView: View {
                         )
                             .font(.title3)
                             .foregroundStyle(.secondary)
-                        HStack(alignment: .top, spacing: 16) {
-                            playButton(for: details.track)
-                                .frame(height: TrackWaveformView.Layout.detail.height)
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack(spacing: 12) {
+                                playButton(for: details.track)
+                                likeButton(for: details.track)
+                            }
 
-                                if details.track.waveformURL != nil {
-                                    TrackWaveformView(track: details.track, model: model)
-                                }
+                            if details.track.waveformURL != nil {
+                                TrackWaveformView(track: details.track, model: model)
+                            }
                         }
+                        .padding(.top, 8)
                     }
                 }
 
@@ -308,17 +313,9 @@ struct TrackDetailView: View {
     }
 
     private func playButton(for track: SoundCloudTrack) -> some View {
-        Group {
-            if #available(macOS 26.0, *) {
-                playButtonLabel(for: track)
-                    .buttonStyle(SpringGlassButtonStyle())
-            } else {
-                playButtonLabel(for: track)
-                    .buttonStyle(.bordered)
-            }
-        }
-        .buttonBorderShape(.circle)
-        .controlSize(.large)
+        playButtonLabel(for: track)
+            .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
+            .modifier(SpringPressEffect())
     }
 
     private func playButtonLabel(for track: SoundCloudTrack) -> some View {
@@ -333,12 +330,58 @@ struct TrackDetailView: View {
                 Task { await model.play(track) }
             }
         } label: {
-            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                .font(.system(size: 28, weight: .semibold))
-                .frame(width: 44, height: 44)
+            ZStack {
+                Label("Play", systemImage: "play.fill")
+                    .opacity(isPlaying ? 0 : 1)
+                    .accessibilityHidden(isPlaying)
+                Label("Pause", systemImage: "pause.fill")
+                    .opacity(isPlaying ? 1 : 0)
+                    .accessibilityHidden(!isPlaying)
+            }
+                .labelStyle(.titleAndIcon)
+                .font(.title3.weight(.semibold))
+                .padding(.horizontal, 24)
+                .frame(minHeight: 24)
         }
         .help(isPlaying ? "Pause" : "Play")
         .accessibilityLabel(isPlaying ? "Pause" : "Play")
+    }
+
+    private func likeButton(for track: SoundCloudTrack) -> some View {
+        likeButtonLabel(for: track)
+            .buttonStyle(TrackActionButtonStyle(fill: .accentColor.opacity(0.3)))
+            .modifier(SpringPressEffect())
+    }
+
+    private func likeButtonLabel(for track: SoundCloudTrack) -> some View {
+        let isLiked = likes.isLiked(track)
+
+        return Button {
+            Task {
+                do {
+                    try await likes.toggleLike(track)
+                } catch {
+                    model.likeErrorMessage = error.localizedDescription
+                }
+            }
+        } label: {
+            ZStack {
+                Label("Like", systemImage: "heart")
+                    .opacity(isLiked ? 0 : 1)
+                    .accessibilityHidden(isLiked)
+                Label("Unlike", systemImage: "heart.fill")
+                    .opacity(isLiked ? 1 : 0)
+                    .accessibilityHidden(!isLiked)
+            }
+                .labelStyle(.titleAndIcon)
+                .font(.title3.weight(.semibold))
+                .padding(.horizontal, 24)
+                .frame(minHeight: 24)
+        }
+        .disabled(likes.updatingTrackURNs.contains(track.urn))
+        .help(isLiked ? "Unlike track" : "Like track")
+        .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
+        .accessibilityValue(isLiked ? "Liked" : "Not liked")
     }
 
     private func nonempty(_ value: String?) -> String? {
@@ -363,5 +406,20 @@ struct TrackDetailView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+}
+
+private struct TrackActionButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    let fill: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.primary)
+            .padding(.vertical, 10)
+            .background(fill, in: Capsule())
+            .contentShape(Capsule())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.5)
     }
 }

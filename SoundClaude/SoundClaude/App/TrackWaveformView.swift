@@ -6,7 +6,7 @@ struct TrackWaveformView: View {
         case detail
         case compact
 
-        var height: CGFloat { self == .compact ? 60 : 96 }
+        var height: CGFloat { self == .compact ? 60 : 88 }
     }
 
     let track: SoundCloudTrack
@@ -70,10 +70,10 @@ struct TrackWaveformView: View {
                     Label(errorMessage, systemImage: "waveform.slash")
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 96)
+                        .frame(maxWidth: .infinity, minHeight: layout.height)
                 } else {
                     ProgressView("Loading waveform")
-                        .frame(maxWidth: .infinity, minHeight: 96)
+                        .frame(maxWidth: .infinity, minHeight: layout.height)
                 }
             }
         }
