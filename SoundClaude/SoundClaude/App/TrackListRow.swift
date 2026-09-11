@@ -34,6 +34,7 @@ struct TrackListRow: View {
                             Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")
                                 .font(.system(size: 20, weight: .semibold))
                                 .foregroundStyle(.white)
+                                .shadow(color: .black.opacity(0.45), radius: 2, x: 1, y: 1)
                                 .id(isPlaybackActive)
                                 .transition(reduceMotion ? .identity : .scale(scale: 0.01).combined(with: .opacity))
                         }
