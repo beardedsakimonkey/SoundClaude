@@ -358,12 +358,15 @@ struct TrackDetailView: View {
 
     private func likeButton(for track: SoundCloudTrack) -> some View {
         likeButtonLabel(for: track)
-            .buttonStyle(TrackActionButtonStyle(fill: .accentColor.opacity(0.3)))
+            .buttonStyle(TrackActionButtonStyle(
+                fill: likes.isLiked(track) ? .accentColor.opacity(0.3) : .primary.opacity(0.12)
+            ))
             .modifier(SpringPressEffect())
     }
 
     private func likeButtonLabel(for track: SoundCloudTrack) -> some View {
         let isLiked = likes.isLiked(track)
+        let likeCount = track.likesCount?.formatted(.number.notation(.compactName)) ?? "—"
 
         return Button {
             Task {
@@ -375,10 +378,10 @@ struct TrackDetailView: View {
             }
         } label: {
             ZStack {
-                Label("Like", systemImage: "heart")
+                Label(likeCount, systemImage: "heart")
                     .opacity(isLiked ? 0 : 1)
                     .accessibilityHidden(isLiked)
-                Label("Unlike", systemImage: "heart.fill")
+                Label(likeCount, systemImage: "heart.fill")
                     .opacity(isLiked ? 1 : 0)
                     .accessibilityHidden(!isLiked)
             }
