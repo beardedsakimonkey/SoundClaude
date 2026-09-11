@@ -9,7 +9,7 @@ struct PlayerFooterView: View {
         RoundedRectangle(cornerRadius: cornerRadius - contentInset, style: .continuous)
     }
 
-    let model: AppModel
+    @ObservedObject var model: AppModel
     let artworkLoader: ArtworkLoader
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
@@ -20,7 +20,6 @@ struct PlayerFooterView: View {
     @State private var hasPreviousTrack = false
     @State private var isHoveringTitle = false
     @State private var isHoveringArtwork = false
-    @State private var likeErrorMessage: String?
 
     @Bindable private var playback: PlaybackController
     @ObservedObject private var likes: LikesController
@@ -52,12 +51,12 @@ struct PlayerFooterView: View {
         .padding(.horizontal, 2)
         .modifier(PlayerFooterGlass(cornerRadius: cornerRadius))
         .alert("Could not update like", isPresented: Binding(
-            get: { likeErrorMessage != nil },
-            set: { if !$0 { likeErrorMessage = nil } }
+            get: { model.likeErrorMessage != nil },
+            set: { if !$0 { model.likeErrorMessage = nil } }
         )) {
-            Button("OK", role: .cancel) { likeErrorMessage = nil }
+            Button("OK", role: .cancel) { model.likeErrorMessage = nil }
         } message: {
-            Text(likeErrorMessage ?? "Please try again.")
+            Text(model.likeErrorMessage ?? "Please try again.")
         }
     }
 
@@ -111,14 +110,7 @@ struct PlayerFooterView: View {
         } ?? false
 
         return Button {
-            guard let track else { return }
-            Task {
-                do {
-                    try await likes.toggleLike(track)
-                } catch {
-                    likeErrorMessage = error.localizedDescription
-                }
-            }
+            model.toggleCurrentTrackLike()
         } label: {
             Image(systemName: isLiked ? "heart.fill" : "heart")
                 .font(.system(size: 14, weight: .semibold))
@@ -131,8 +123,7 @@ struct PlayerFooterView: View {
         }
         .buttonStyle(.plain)
         .modifier(SpringPressEffect())
-        .keyboardShortcut("l", modifiers: [])
-        .disabled(track == nil || isUpdating || likes.isLoading)
+        .disabled(track == nil || isUpdating)
         .help(isLiked ? "Unlike track (L)" : "Like track (L)")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
         .accessibilityValue(isLiked ? "Liked" : "Not liked")

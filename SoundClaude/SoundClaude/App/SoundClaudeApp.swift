@@ -4,12 +4,14 @@ import SwiftUI
 struct SoundClaudeApp: App {
     @StateObject private var model: AppModel
     @ObservedObject private var auth: AuthController
+    @ObservedObject private var likes: LikesController
     @State private var isShowingKeyboardShortcuts = false
 
     init() {
         let model = AppModel()
         _model = StateObject(wrappedValue: model)
         _auth = ObservedObject(wrappedValue: model.auth)
+        _likes = ObservedObject(wrappedValue: model.likes)
     }
 
     var body: some Scene {
@@ -85,6 +87,14 @@ struct SoundClaudeApp: App {
                 model.playback.cycleRepeatMode()
             }
             .keyboardShortcut("r", modifiers: [])
+
+            Button("Like or Unlike Current Track") {
+                model.toggleCurrentTrackLike()
+            }
+            .keyboardShortcut("l", modifiers: [])
+            .disabled(model.playback.currentTrack.map {
+                likes.updatingTrackURNs.contains($0.urn)
+            } ?? true)
 
             Button("Seek Back 5 Seconds") {
                 model.playback.seek(by: -5)

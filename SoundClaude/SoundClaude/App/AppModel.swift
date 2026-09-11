@@ -19,6 +19,7 @@ final class AppModel: ObservableObject {
     let artworkLoader: ArtworkLoader
 
     @Published private(set) var errorMessage: String?
+    @Published var likeErrorMessage: String?
 
     private let client: SoundCloudClient
     private let configurationError: Error?
@@ -539,6 +540,18 @@ final class AppModel: ObservableObject {
 
     func clearError() {
         errorMessage = nil
+    }
+
+    func toggleCurrentTrackLike() {
+        guard let track = playback.currentTrack,
+              !likes.updatingTrackURNs.contains(track.urn) else { return }
+        Task {
+            do {
+                try await likes.toggleLike(track)
+            } catch {
+                likeErrorMessage = error.localizedDescription
+            }
+        }
     }
 
     func toggleShuffle() {
