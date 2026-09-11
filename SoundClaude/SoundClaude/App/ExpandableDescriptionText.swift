@@ -67,7 +67,7 @@ struct ExpandableDescriptionText: View {
     }
 }
 
-private struct ArtistMentionText: View {
+struct ArtistMentionText: View {
     let onSelectArtist: (SoundCloudUser) -> Void
     private let mentions: ArtistMentions
 
