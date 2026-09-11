@@ -107,12 +107,13 @@ struct SignedInView: View {
         }
     }
 
-    // Apply the clearance inside the navigation stack so every page receives it.
+    // Apply the clearance and fade to each page inside the navigation stack.
     // The scroll views still draw behind the footer, but can scroll their last row above it.
     private var selectedView: some View {
         NavigationStack(path: navigationPath) {
             rootView
                 .safeAreaPadding(.bottom, footerHeight)
+                .mask { bottomFade }
                 .toolbar { navigationToolbar }
                 .navigationDestination(for: Route.self) { route in
                     Group {
@@ -184,8 +185,23 @@ struct SignedInView: View {
                         }
                     }
                     .safeAreaPadding(.bottom, footerHeight)
+                    .mask { bottomFade }
                 }
         }
+    }
+
+    private var bottomFade: some View {
+        VStack(spacing: 0) {
+            Color.black
+            LinearGradient(
+                colors: [.black, .clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 80)
+        }
+        // Preserve artwork that extends behind the toolbar and sidebar.
+        .ignoresSafeArea(edges: [.top, .leading, .trailing])
     }
 
     @ViewBuilder
