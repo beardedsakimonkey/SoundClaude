@@ -61,6 +61,7 @@ struct ExpandableDescriptionText: View {
                     isExpanded.toggle()
                 }
                 .buttonStyle(.link)
+                .opacity(0.9)
                 .accessibilityHint(isExpanded ? "Collapse description" : "Expand description")
             }
         }
