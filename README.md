@@ -1,5 +1,7 @@
 # SoundClaude
 
+<img width="2482" height="1516" alt="CleanShot 2026-09-11 at 10 10 54 AM@2x" src="https://github.com/user-attachments/assets/9d041221-639c-49fa-8512-845ccd292e74" />
+
 > [!NOTE]
 > This app requires a SoundCloud Client ID/Secret to use, which requires an
 > Artist Pro account. [Get an API Key](https://developers.soundcloud.com/docs/api/register-app#2-artist-pro-subscription-required)
