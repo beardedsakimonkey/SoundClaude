@@ -366,6 +366,7 @@ struct ArtistDetailView: View {
                     track: track,
                     playback: model.playback,
                     artworkLoader: model.artworkLoader,
+                    likes: model.likes,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
                     onPlayTrack: { selected in
@@ -406,6 +407,7 @@ struct ArtistDetailView: View {
                     track: track,
                     playback: model.playback,
                     artworkLoader: model.artworkLoader,
+                    likes: model.likes,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
                     onPlayTrack: { selected in
@@ -449,6 +451,7 @@ struct ArtistDetailView: View {
                     track: track,
                     playback: model.playback,
                     artworkLoader: model.artworkLoader,
+                    likes: model.likes,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
                     onPlayTrack: { selected in

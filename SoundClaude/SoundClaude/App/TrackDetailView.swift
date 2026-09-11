@@ -229,6 +229,7 @@ struct TrackDetailView: View {
                     track: relatedTrack,
                     playback: model.playback,
                     artworkLoader: model.artworkLoader,
+                    likes: model.likes,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
                     onPlayTrack: { selected in

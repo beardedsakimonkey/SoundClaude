@@ -4,6 +4,8 @@ struct TrackListRow: View {
     let track: SoundCloudTrack
     let playback: PlaybackController
     let artworkLoader: ArtworkLoader
+    @ObservedObject var likes: LikesController
+    var showsLikedIndicator = true
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
@@ -78,6 +80,13 @@ struct TrackListRow: View {
             }
             .lineLimit(1)
             Spacer()
+            if showsLikedIndicator && likes.isLiked(track) {
+                Image(systemName: "heart.fill")
+                    .font(.caption)
+                    .foregroundStyle(Color.white.opacity(0.7))
+                    .help("Liked")
+                    .accessibilityLabel("Liked")
+            }
             Text(duration)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
