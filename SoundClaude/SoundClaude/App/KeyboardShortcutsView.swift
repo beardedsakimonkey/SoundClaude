@@ -14,8 +14,8 @@ struct KeyboardShortcutsView: View {
         Shortcut(title: "Focus search", keys: ["/"]),
         Shortcut(title: "Seek back 5 seconds", keys: ["←"]),
         Shortcut(title: "Seek forward 5 seconds", keys: ["→"]),
-        Shortcut(title: "Previous track", keys: ["⇧", "←"]),
-        Shortcut(title: "Next track", keys: ["⇧", "→"]),
+        Shortcut(title: "Previous track", keys: ["<"], alternateKeys: ["⇧", "←"]),
+        Shortcut(title: "Next track", keys: [">"], alternateKeys: ["⇧", "→"]),
         Shortcut(title: "Show keyboard shortcuts", keys: ["?"])
     ]
 
@@ -31,17 +31,11 @@ struct KeyboardShortcutsView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         HStack(spacing: 4) {
-                            ForEach(shortcut.keys, id: \.self) { key in
-                                Text(key)
-                                    .font(.system(.callout, design: .monospaced).weight(.medium))
-                                    .frame(minWidth: 24, minHeight: 22)
-                                    .padding(.horizontal, 4)
-                                    .background(.background, in: RoundedRectangle(cornerRadius: 4))
-                                    .overlay {
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .stroke(.tertiary, lineWidth: 1)
-                                    }
-                                    .shadow(color: .black.opacity(0.18), radius: 0, y: 1)
+                            keyCaps(shortcut.keys)
+                            if !shortcut.alternateKeys.isEmpty {
+                                Text("or")
+                                    .foregroundStyle(.secondary)
+                                keyCaps(shortcut.alternateKeys)
                             }
                         }
                     }
@@ -60,11 +54,27 @@ struct KeyboardShortcutsView: View {
         .frame(width: 420)
         .dismissOnOutsideClick()
     }
+
+    private func keyCaps(_ keys: [String]) -> some View {
+        ForEach(keys, id: \.self) { key in
+            Text(key)
+                .font(.system(.callout, design: .monospaced).weight(.medium))
+                .frame(minWidth: 24, minHeight: 22)
+                .padding(.horizontal, 4)
+                .background(.background, in: RoundedRectangle(cornerRadius: 4))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(.tertiary, lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.18), radius: 0, y: 1)
+        }
+    }
 }
 
 private struct Shortcut: Identifiable {
     let title: String
     let keys: [String]
+    var alternateKeys: [String] = []
 
     var id: String { title }
 }

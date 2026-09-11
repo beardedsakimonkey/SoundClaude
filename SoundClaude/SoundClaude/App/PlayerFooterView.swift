@@ -318,6 +318,7 @@ struct PlayerFooterView: View {
             }
             .help("Previous track")
             .accessibilityLabel("Previous track")
+            .keyboardShortcut("<", modifiers: [])
 
             Button(action: playback.togglePlayPause) {
                 ZStack {
@@ -346,6 +347,7 @@ struct PlayerFooterView: View {
             }
             .help("Next track")
             .accessibilityLabel("Next track")
+            .keyboardShortcut(">", modifiers: [])
 
             Button(action: model.toggleShuffle) {
                 Image(systemName: "shuffle")
