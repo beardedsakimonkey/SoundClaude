@@ -148,19 +148,16 @@ struct SidebarView: View {
 
             Spacer(minLength: 0)
 
-            Menu {
-                Button("Log out") {
-                    Task { await onSignOut() }
-                }
+            Button(role: .destructive) {
+                Task { await onSignOut() }
             } label: {
-                Image(systemName: "gearshape")
+                Image(systemName: "rectangle.portrait.and.arrow.right")
                     .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            .help("Settings")
-            .accessibilityLabel("Settings")
+            .buttonStyle(.plain)
+            .help("Sign out")
+            .accessibilityLabel("Sign out")
         }
         .padding(12)
     }
