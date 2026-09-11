@@ -1,5 +1,10 @@
 # SoundClaude
 
+> [!NOTE]
+> This app requires a SoundCloud Client ID/Secret to use, which requires an
+> Artist Pro account. [Get an API Key](https://developers.soundcloud.com/docs/api/register-app#2-artist-pro-subscription-required)
+
+
 SoundClaude is a native macOS SoundCloud client built with SwiftUI, AVPlayer,
 Core Audio, Accelerate, and Metal. It feautres:
 
@@ -44,6 +49,12 @@ To build and run from the command line:
 make
 ```
 
+To run the regression suites:
+
+```
+make test
+```
+
 To configure SourceKit-LSP and refresh its build data:
 
 ```sh
@@ -59,67 +70,3 @@ The source image is `icon.png`. After you replace it with a square PNG, run
 its registration with macOS. Quit and reopen the app to use the updated icon.
 If the Dock or app switcher still shows the old icon, run `killall Dock` to
 restart the Dock and refresh its display.
-
-## Queues and likes
-
-Enter a query in the search field at the top of the sidebar and press Return.
-Search starts with tracks. Switch to Playlists or Users in the results view, and
-use Load More to fetch another page. Playing a track starts a search results queue.
-
-History loads up to 25 distinct recently played tracks from your SoundCloud account,
-newest first. Use Refresh History to update the list. The API does not provide older
-pages. Tracks unavailable for app playback are omitted.
-
-Comments appear below the track description, with related tracks in the right
-column. Click the comment count to scroll to the comments. Comments show authors,
-dates, and track timestamps when available. Select an author to open their profile,
-or use Load More to fetch the next page. Write a comment above the list and select
-Post Comment to publish it. Failed posts keep your draft so you can try again.
-
-Next and Previous use the list that started playback. Feed, artist, repost, playlist, and related
-queues fetch another page when sequential playback reaches the end of the loaded
-tracks. Selecting a known track updates the player before its stream URL resolves.
-The next queued track's waveform and artwork load ahead of time; audio still needs
-stream resolution and buffering. Enabling shuffle immediately shuffles the loaded tracks, with the current
-track first. Track Queue shows this playback order, and Next and Previous follow
-it without reshuffling. Turning shuffle off restores the order from before shuffle
-was enabled. Shuffle does not fetch an entire artist catalog. Likes shuffle uses
-the local library while sync runs in the background, adding new likes at the end.
-
-Open Track Queue with the footer button or Q. It slides up above the footer at the
-bottom right and stays open while you use shuffle and the other playback controls.
-Close it with its close button, Q, or Escape. Drag a row by its handle to change the playback order.
-Moving a track keeps the current track playing and leaves shuffle enabled if it
-is on. The displayed order, including changes made while shuffled, is saved for
-the next launch. Likes refreshes keep this order and add new likes at the end of
-the queue.
-
-The likes cache stores metadata as atomic JSON files in
-`~/Library/Application Support/SoundClaude/Likes/`, separately for each account.
-It contains no audio or resolved stream URLs. The first import saves each page;
-an interrupted import resumes from its saved continuation. Later visits fetch the
-newest pages until they overlap the cache. Local like changes are saved immediately.
-Likes removed on another device can remain cached until a sync reaches the end
-of the remote list, because the API has no incremental change feed. Sign-out clears
-memory and playback state, and retains the account-specific cache for the next login.
-
-The feed cache saves activity metadata in account-specific atomic JSON files in
-`~/Library/Application Support/SoundClaude/Feed/`. Opening Feed restores saved
-items, then refreshes from the newest page until it reaches the saved feed.
-Older pages are saved as you scroll, including the continuation for the next visit.
-Refresh Feed checks for new items on demand. Failed requests keep the saved
-snapshot available. A complete refresh removes entries no longer returned by the
-API; older entries can remain until that part of the feed is refreshed. Sign-out
-clears memory and retains each account's cache. This stores metadata only;
-playback still needs a network connection.
-
-The playlist cache uses the same account-specific atomic JSON storage in
-`~/Library/Application Support/SoundClaude/Playlists/`. The sidebar restores its
-saved list before refreshing. Opening a playlist restores its saved details and
-tracks, then fetches all current pages to detect removals and order changes.
-Complete snapshots stay visible if refresh fails. Initial imports save each page;
-interrupted imports restart from the first page on the next visit. Only playlists
-you open have their tracks cached. Sign-out clears memory and retains the cache.
-This stores metadata only; playback still needs a network connection.
-
-Run the regression suites with `make test`.
