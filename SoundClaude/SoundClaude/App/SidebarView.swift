@@ -41,7 +41,8 @@ struct SidebarView: View {
                         TrackArtworkView(
                             artworkURL: artworkURL,
                             loader: artworkLoader,
-                            size: 24
+                            size: 24,
+                            showsBorder: false
                         )
                     }
                         .lineLimit(1)
