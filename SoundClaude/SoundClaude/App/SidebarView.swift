@@ -24,9 +24,15 @@ struct SidebarView: View {
     private var sidebarList: some View {
         List(selection: $selection) {
             ForEach(SidebarDestination.libraryDestinations) { destination in
-                Label(destination.title, systemImage: destination.systemImage)
+                Label {
+                    Text(destination.title)
+                        .foregroundStyle(selection == destination ? Color("AccentColor") : .primary)
+                } icon: {
+                    Image(systemName: destination.systemImage)
+                        .foregroundStyle(selection == destination ? Color("AccentColor") : .primary)
+                }
                     .tag(destination)
-                    .background(SidebarTypingConfiguration())
+                    .modifier(SidebarRowStyle(isSelected: selection == destination))
             }
             Section("Playlists") {
                 ForEach(playlists.playlists) { playlist in
@@ -37,6 +43,7 @@ struct SidebarView: View {
 
                     Label {
                         Text(playlist.title)
+                            .foregroundStyle(selection == .playlist(playlist) ? Color("AccentColor") : .primary)
                     } icon: {
                         TrackArtworkView(
                             artworkURL: artworkURL,
@@ -49,6 +56,7 @@ struct SidebarView: View {
                         .lineLimit(1)
                         .help(playlist.title)
                         .tag(SidebarDestination.playlist(playlist))
+                        .modifier(SidebarRowStyle(isSelected: selection == .playlist(playlist)))
                 }
                 if playlists.isLoading {
                     ProgressView("Loading playlists")
@@ -165,14 +173,28 @@ struct SidebarView: View {
     }
 }
 
+private struct SidebarRowStyle: ViewModifier {
+    let isSelected: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .listRowBackground(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isSelected ? Color.primary.opacity(0.06) : .clear)
+                    .padding(.horizontal, 8)
+            )
+            .background(SidebarTableConfiguration())
+    }
+}
+
 // Attach inside a row so only the sidebar's enclosing table is configured.
-private struct SidebarTypingConfiguration: NSViewRepresentable {
+private struct SidebarTableConfiguration: NSViewRepresentable {
     func makeNSView(context: Context) -> ConfigurationView {
         ConfigurationView()
     }
 
     func updateNSView(_ nsView: ConfigurationView, context: Context) {
-        nsView.disableTypeSelect()
+        nsView.configureTable()
     }
 
     final class ConfigurationView: NSView {
@@ -180,19 +202,21 @@ private struct SidebarTypingConfiguration: NSViewRepresentable {
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            disableTypeSelect()
+            configureTable()
         }
 
         override func viewDidMoveToSuperview() {
             super.viewDidMoveToSuperview()
-            disableTypeSelect()
+            configureTable()
         }
 
-        func disableTypeSelect() {
+        func configureTable() {
             var ancestor = superview
             while let view = ancestor {
                 if let table = view as? NSTableView {
                     table.allowsTypeSelect = false
+                    // SwiftUI draws the gray row background; keep native keyboard selection.
+                    table.selectionHighlightStyle = .none
                     return
                 }
                 ancestor = view.superview
