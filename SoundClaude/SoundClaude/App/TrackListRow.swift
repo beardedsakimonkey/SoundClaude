@@ -44,7 +44,6 @@ struct TrackListRow: View {
                         )
                     }
                     .opacity(isHovering ? 1 : 0)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
                 }
@@ -99,7 +98,6 @@ struct TrackListRow: View {
         .background {
             RoundedRectangle(cornerRadius: 8)
                 .fill(rowBackground)
-                .animation(.easeInOut(duration: 0.15), value: isHovering)
         }
         .onContentHover { isHovering = $0 }
         .accessibilityAction(named: isPlaybackActive ? "Pause" : "Play") {
