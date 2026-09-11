@@ -156,6 +156,7 @@ struct TrackCommentsView: View {
                     .textSelection(.enabled)
             }
         }
+        .frame(maxWidth: 350, alignment: .leading)
     }
 
     private var commentPlaceholder: String {
