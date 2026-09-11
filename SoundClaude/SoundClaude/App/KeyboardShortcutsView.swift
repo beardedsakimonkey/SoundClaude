@@ -24,8 +24,6 @@ struct KeyboardShortcutsView: View {
             Text("Keyboard Shortcuts")
                 .font(.title2.weight(.semibold))
 
-            Divider()
-
             Grid(alignment: .leading, horizontalSpacing: 32, verticalSpacing: 12) {
                 ForEach(shortcuts) { shortcut in
                     GridRow {
@@ -49,8 +47,6 @@ struct KeyboardShortcutsView: View {
                     }
                 }
             }
-
-            Divider()
 
             HStack {
                 Spacer()

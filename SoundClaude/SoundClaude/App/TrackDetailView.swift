@@ -151,7 +151,6 @@ struct TrackDetailView: View {
                     }
                 }
 
-                Divider()
                 HStack(alignment: .top, spacing: 24) {
                     VStack(alignment: .leading, spacing: 16) {
                         CountedSectionHeader(
