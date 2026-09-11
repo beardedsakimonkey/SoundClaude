@@ -67,30 +67,72 @@ struct TrackCommentsView: View {
 
     private var commentComposer: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TextField("Write a comment…", text: $draft, axis: .vertical)
-                .lineLimit(3...8)
-                .textFieldStyle(.roundedBorder)
-                .focused($isCommentFocused)
-                .modifier(PreventAutomaticSearchFocus())
-                .onExitCommand { isCommentFocused = false }
-                .background {
-                    SearchOutsideClickView(isFocused: isCommentFocused) {
-                        isCommentFocused = false
-                    }
+            HStack(spacing: 8) {
+                if case let .signedIn(user) = model.auth.state {
+                    TrackArtworkView(
+                        artworkURL: user.avatarURL,
+                        loader: model.artworkLoader,
+                        size: 24,
+                        shape: RoundedRectangle(cornerRadius: 12),
+                        showsBorder: false
+                    )
+                    .clipShape(Circle())
                 }
-                .accessibilityLabel("Comment")
-                .disabled(isPosting)
 
-            HStack {
-                if isPosting {
-                    ProgressView().controlSize(.small)
-                    Text("Posting comment…").foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button("Post Comment") {
+                TextField("", text: $draft)
+                    .textFieldStyle(.plain)
+                    // Keep the placeholder outside the native field's focus layout.
+                    .overlay(alignment: .leading) {
+                        if draft.isEmpty {
+                            Text("Write a comment")
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .focused($isCommentFocused)
+                    .modifier(PreventAutomaticSearchFocus())
+                    .onExitCommand { isCommentFocused = false }
+                    .onSubmit { Task { await postComment() } }
+                    .accessibilityLabel("Comment")
+                    .disabled(isPosting)
+
+                Button {
                     Task { await postComment() }
+                } label: {
+                    ZStack {
+                        if isPosting {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                    }
+                    .frame(width: 24, height: 24)
+                    .contentShape(Circle())
                 }
+                .buttonStyle(.plain)
+                .foregroundStyle(.primary)
+                .accessibilityLabel(isPosting ? "Posting comment" : "Send comment")
+                .help("Send comment (Return)")
                 .disabled(isPosting || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(5)
+            .background(.primary.opacity(0.06), in: Capsule())
+            .overlay {
+                Capsule()
+                    .strokeBorder(
+                        .primary.opacity(isCommentFocused ? 0.35 : 0.15),
+                        lineWidth: 1
+                    )
+                    .allowsHitTesting(false)
+            }
+            .background {
+                SearchOutsideClickView(isFocused: isCommentFocused) {
+                    isCommentFocused = false
+                }
             }
 
             if let postingErrorMessage {
