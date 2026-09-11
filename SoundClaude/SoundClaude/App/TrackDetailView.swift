@@ -366,7 +366,7 @@ struct TrackDetailView: View {
 
     private func likeButtonLabel(for track: SoundCloudTrack) -> some View {
         let isLiked = likes.isLiked(track)
-        let likeCount = track.likesCount?.formatted(.number.notation(.compactName)) ?? "—"
+        let likeCount = likes.likeCount(for: track)?.formatted(.number) ?? "—"
 
         return Button {
             Task {

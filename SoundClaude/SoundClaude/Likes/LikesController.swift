@@ -7,6 +7,7 @@ final class LikesController: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var updatingTrackURNs: Set<String> = []
+    @Published private var updatedLikeCounts: [String: Int] = [:]
 
     private let client: SoundCloudClient
     private let auth: AuthController
@@ -55,6 +56,10 @@ final class LikesController: ObservableObject {
         tracks.contains { $0.urn == track.urn }
     }
 
+    func likeCount(for track: SoundCloudTrack) -> Int? {
+        updatedLikeCounts[track.urn] ?? track.likesCount
+    }
+
     func toggleLike(_ track: SoundCloudTrack) async throws {
         await restoreCache()
         guard let accountID, updatingTrackURNs.insert(track.urn).inserted else { return }
@@ -67,6 +72,10 @@ final class LikesController: ObservableObject {
         guard sessionID == session else { return }
         try await client.setTrackLiked(urn: track.urn, isLiked: shouldLike, accessToken: accessToken)
         guard sessionID == session else { return }
+        // Track details can remain cached after the like state changes.
+        if let count = likeCount(for: track) {
+            updatedLikeCounts[track.urn] = max(0, count + (shouldLike ? 1 : -1))
+        }
         if shouldLike {
             unlikedTrackURNs.remove(track.urn)
             localChanges[track.urn] = track
@@ -189,6 +198,7 @@ final class LikesController: ObservableObject {
         accountID = nil
         cache = LikesCache()
         updatingTrackURNs = []
+        updatedLikeCounts = [:]
         localChanges = [:]
         unlikedTrackURNs = []
         isLoading = false

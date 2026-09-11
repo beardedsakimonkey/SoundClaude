@@ -20,7 +20,10 @@ final class SoundCloudClient {
         requestedURLs.append(pageURL)
         return try await fetch(pageURL)
     }
-    func setTrackLiked(urn: String, isLiked: Bool, accessToken: String) async throws {}
+    var setLike: () async throws -> Void = {}
+    func setTrackLiked(urn: String, isLiked: Bool, accessToken: String) async throws {
+        try await setLike()
+    }
 }
 
 enum SoundCloudError: Error { case invalidData }
@@ -214,6 +217,37 @@ struct QueueAndLikesTests {
         let likes = LikesController(client: client, auth: auth, store: store)
         await likes.restoreCache()
         precondition(likes.tracks == baseline.tracks && client.requestedURLs.isEmpty)
+
+        // Counts follow successful toggles even when callers retain the original track.
+        var countedTrack = track(20)
+        countedTrack.likesCount = 1_234
+        precondition(likes.likeCount(for: countedTrack) == 1_234)
+        try await likes.toggleLike(countedTrack)
+        precondition(likes.isLiked(countedTrack) && likes.likeCount(for: countedTrack) == 1_235)
+        try await likes.toggleLike(countedTrack)
+        precondition(!likes.isLiked(countedTrack) && likes.likeCount(for: countedTrack) == 1_234)
+        client.setLike = { throw SoundCloudError.invalidData }
+        do {
+            try await likes.toggleLike(countedTrack)
+            fatalError("Failed like accepted")
+        } catch SoundCloudError.invalidData {}
+        precondition(!likes.isLiked(countedTrack) && likes.likeCount(for: countedTrack) == 1_234)
+        client.setLike = {}
+
+        // Missing counts stay unknown; stale zero counts never become negative.
+        try await likes.toggleLike(track(21))
+        precondition(likes.likeCount(for: track(21)) == nil)
+        try await likes.toggleLike(track(21))
+        var zeroTrack = track(1)
+        zeroTrack.likesCount = 0
+        try await likes.toggleLike(zeroTrack)
+        precondition(likes.likeCount(for: zeroTrack) == 0)
+        try await likes.toggleLike(zeroTrack)
+        precondition(likes.likeCount(for: zeroTrack) == 1)
+        likes.clear()
+        precondition(likes.likeCount(for: zeroTrack) == 0)
+        await likes.restoreCache()
+
         client.fetch = { url in
             precondition(url == nil)
             return SoundCloudTrackPage(tracks: [track(5), track(1), track(2)], nextURL: next)
