@@ -404,7 +404,7 @@ struct TrackDetailView: View {
 
     private func repostButton(for track: SoundCloudTrack) -> some View {
         let isReposted = reposts.isReposted(track)
-        let repostCount = reposts.repostCount(for: track)?.formatted(.number)
+        let repostCount = reposts.repostCount(for: track)
 
         return Button {
             Task {
@@ -416,7 +416,13 @@ struct TrackDetailView: View {
                 }
             }
         } label: {
-            Label(repostCount ?? "Repost", systemImage: "arrow.2.squarepath")
+            Group {
+                if repostCount == 0 {
+                    Image(systemName: "arrow.2.squarepath")
+                } else {
+                    Label(repostCount?.formatted(.number) ?? "Repost", systemImage: "arrow.2.squarepath")
+                }
+            }
                 .foregroundStyle(isReposted ? Color.green : Color.primary)
                 .labelStyle(.titleAndIcon)
                 .font(.title3.weight(.semibold))
