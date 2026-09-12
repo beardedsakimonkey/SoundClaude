@@ -130,7 +130,7 @@ struct PlaylistDetailView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 Text(displayedPlaylist.title)
-                    .font(.system(size: 36, weight: .semibold))
+                    .font(.system(size: 28, weight: .semibold))
                     .textSelection(.enabled)
                 ArtistLink(
                     artist: displayedPlaylist.owner,
