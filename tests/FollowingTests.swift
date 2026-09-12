@@ -10,6 +10,38 @@ struct FollowingTests {
             sessionConfiguration: configuration
         )
         FollowingURLProtocol.respond { request in
+            precondition(request.url?.path == "/users/soundcloud:users:1/related")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems
+            precondition(query?.contains(URLQueryItem(name: "limit", value: "5")) == true)
+            precondition(query?.contains(URLQueryItem(name: "linked_partitioning", value: "true")) == true)
+            return (200, """
+                {"collection":[
+                    {"urn":"soundcloud:users:2","username":"Artist","full_name":"Full Name","avatar_url":"https://example.com/avatar.jpg","permalink_url":"https://soundcloud.com/artist"},
+                    {"urn":"soundcloud:users:2","username":"Duplicate","permalink_url":"https://soundcloud.com/artist"},
+                    {"urn":"soundcloud:users:1","username":"Self","permalink_url":"https://soundcloud.com/self"},
+                    {"username":"No full name","permalink_url":"https://soundcloud.com/another"},
+                    {"username":"Missing permalink"}
+                ],"next_href":null}
+                """)
+        }
+        let related = try await client.relatedArtists(urn: "soundcloud:users:1", accessToken: "test-token")
+        precondition(related.map(\.username) == ["Artist", "No full name"])
+        precondition(related.first?.fullName == "Full Name")
+        precondition(related.first?.avatarURL?.absoluteString == "https://example.com/avatar.jpg")
+        precondition(related.last?.fullName == nil)
+        let restored = try JSONDecoder().decode(SoundCloudUser.self, from: JSONEncoder().encode(related[0]))
+        precondition(restored.fullName == "Full Name")
+        FollowingURLProtocol.respond { _ in (200, #"{"collection":[],"next_href":null}"#) }
+        let emptyRelated = try await client.relatedArtists(urn: "soundcloud:users:1", accessToken: "test-token")
+        precondition(emptyRelated.isEmpty)
+        FollowingURLProtocol.respond { _ in (401, "{}") }
+        do {
+            _ = try await client.relatedArtists(urn: "soundcloud:users:1", accessToken: "test-token")
+            fatalError("Unauthorized related artists response was accepted")
+        } catch SoundCloudError.unauthorized {}
+
+        FollowingURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")
             precondition(request.url?.path == "/users/soundcloud:users:1/web-profiles")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")

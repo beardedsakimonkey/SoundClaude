@@ -340,6 +340,12 @@ final class AppModel: ObservableObject {
         return try await client.artistWebProfiles(urn: urn, accessToken: accessToken)
     }
 
+    func relatedArtists(for artist: SoundCloudUser) async throws -> [SoundCloudUser] {
+        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
+        let accessToken = try await auth.validAccessToken()
+        return try await client.relatedArtists(urn: urn, accessToken: accessToken)
+    }
+
     func isFollowingArtist(_ artist: SoundCloudUser) async throws -> Bool {
         guard let urn = artist.urn else { throw SoundCloudError.invalidData }
         if let followed = followingOverrides[urn] { return followed }

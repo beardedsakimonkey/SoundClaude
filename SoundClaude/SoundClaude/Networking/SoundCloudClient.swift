@@ -340,6 +340,22 @@ actor SoundCloudClient {
             .filter { seen.insert($0.url).inserted }
     }
 
+    func relatedArtists(urn: String, accessToken: String) async throws -> [SoundCloudUser] {
+        let url = configuration.apiBaseURL.appending(path: "users")
+            .appending(path: urn).appending(path: "related")
+            .appending(queryItems: [
+                URLQueryItem(name: "limit", value: "5"),
+                URLQueryItem(name: "linked_partitioning", value: "true"),
+            ])
+        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+        try validate(response: response, data: data)
+        let page = try decoder.decode(RawUserPage.self, from: data)
+        var seen: Set<URL> = []
+        return Array(page.collection.compactMap { $0.normalized() }
+            .filter { $0.urn != urn && seen.insert($0.permalinkURL).inserted }
+            .prefix(5))
+    }
+
     func followedArtistURNs(accessToken: String) async throws -> Set<String> {
         struct Page: Decodable {
             let collection: [RawUser]

@@ -29,6 +29,10 @@ struct ArtistDetailView: View {
     @State private var details: SoundCloudArtistDetails?
     @State private var webProfiles: [SoundCloudWebProfile] = []
     @State private var webProfilesErrorMessage: String?
+    @State private var relatedArtists: [SoundCloudUser] = []
+    @State private var isLoadingRelatedArtists = false
+    @State private var relatedArtistsErrorMessage: String?
+    @State private var hoveredRelatedArtistURL: URL?
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var tracks: [SoundCloudTrack] = []
@@ -129,6 +133,9 @@ struct ArtistDetailView: View {
         }
         .task(id: details?.user.urn) {
             await loadWebProfiles()
+        }
+        .task(id: details?.user.urn) {
+            await loadRelatedArtists()
         }
         .onChange(of: selectedTab) { _, tab in
             guard tab == .reposts, !hasLoadedReposts else { return }
@@ -261,6 +268,7 @@ struct ArtistDetailView: View {
                                 }
                             }
                             profileLinks
+                            relatedArtistsSection
                         }
                         .frame(width: max(0, geometry.size.width - 72) * 0.3, alignment: .leading)
                     }
@@ -306,6 +314,85 @@ struct ArtistDetailView: View {
                     .foregroundStyle(.secondary)
                 Button("Retry profile links") { Task { await loadWebProfiles() } }
             }
+        }
+    }
+
+    private var relatedArtistsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Related")
+                .font(.headline)
+                .opacity(0.96)
+
+            ForEach(relatedArtists, id: \.permalinkURL) { user in
+                Button {
+                    onSelectArtist(user)
+                } label: {
+                    HStack(spacing: 12) {
+                        TrackArtworkView(
+                            artworkURL: user.avatarURL,
+                            loader: model.artworkLoader,
+                            size: 44,
+                            showsBorder: false
+                        )
+                        .clipShape(Circle())
+                        .overlay { Circle().strokeBorder(.white.opacity(0.2), lineWidth: 1) }
+                        .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(user.username)
+                                .font(.body.weight(.semibold))
+                                .underline(hoveredRelatedArtistURL == user.permalinkURL)
+                            if let fullName = nonempty(user.fullName) {
+                                Text(fullName)
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onContentHover { isHovering in
+                    if isHovering {
+                        hoveredRelatedArtistURL = user.permalinkURL
+                    } else if hoveredRelatedArtistURL == user.permalinkURL {
+                        hoveredRelatedArtistURL = nil
+                    }
+                }
+                .help("View artist: \(user.username)")
+            }
+
+            if isLoadingRelatedArtists {
+                ProgressView("Loading related artists")
+                    .controlSize(.small)
+            } else if let relatedArtistsErrorMessage {
+                Text(relatedArtistsErrorMessage)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Button("Retry related artists") { Task { await loadRelatedArtists() } }
+            } else if relatedArtists.isEmpty {
+                Text("No related artists available.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func loadRelatedArtists() async {
+        relatedArtists = []
+        relatedArtistsErrorMessage = nil
+        guard let user = details?.user, user.urn != nil else { return }
+        isLoadingRelatedArtists = true
+        defer { isLoadingRelatedArtists = false }
+        do {
+            let artists = try await model.relatedArtists(for: user)
+            try Task.checkCancellation()
+            relatedArtists = artists
+        } catch {
+            guard !Task.isCancelled else { return }
+            relatedArtistsErrorMessage = "Could not load related artists."
         }
     }
 
