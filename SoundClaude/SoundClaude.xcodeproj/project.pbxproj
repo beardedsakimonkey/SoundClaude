@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C9FA7C0ECE4247239C5F652B /* PlayerArtworkGlass.metal in Sources */ = {isa = PBXBuildFile; fileRef = 8D06FA75D610477E98EECAA2 /* PlayerArtworkGlass.metal */; };
 		A10000000000000000000001 /* SoundClaudeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* SoundClaudeApp.swift */; };
 		A10000000000000000000002 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* AppModel.swift */; };
 		A10000000000000000000004 /* AuthController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* AuthController.swift */; };
@@ -80,6 +81,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		8D06FA75D610477E98EECAA2 /* PlayerArtworkGlass.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = PlayerArtworkGlass.metal; sourceTree = "<group>"; };
 		A20000000000000000000001 /* SoundClaudeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundClaudeApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		A20000000000000000000004 /* AuthController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthController.swift; sourceTree = "<group>"; };
@@ -329,6 +331,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000012 /* AudioVisualizer.metal */,
+				8D06FA75D610477E98EECAA2 /* PlayerArtworkGlass.metal */,
 			);
 			path = Shaders;
 			sourceTree = "<group>";
@@ -513,6 +516,7 @@
 				A1000000000000000000000F /* MetalVisualizerView.swift in Sources */,
 				A10000000000000000000010 /* VisualizerRenderer.swift in Sources */,
 				A10000000000000000000011 /* AudioVisualizer.metal in Sources */,
+				C9FA7C0ECE4247239C5F652B /* PlayerArtworkGlass.metal in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

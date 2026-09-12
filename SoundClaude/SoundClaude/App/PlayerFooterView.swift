@@ -203,7 +203,8 @@ struct PlayerFooterView: View {
             loader: artworkLoader,
             size: artworkThumbnailSize,
             rendition: .square500,
-            shape: artworkShape
+            shape: artworkShape,
+            showsBorder: false
         )
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius - contentInset,
