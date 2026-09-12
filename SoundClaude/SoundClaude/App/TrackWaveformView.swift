@@ -100,7 +100,7 @@ struct TrackWaveformView: View {
                 let amplitudes = barAmplitudes(waveform, width: proxy.size.width)
                 WaveformAnimatedCanvas(
                     amplitudes: amplitudes,
-                    hoverOpacity: isHovering && contentHoverEnabled ? 0.3 : 0
+                    hoverOpacity: showsHoverPreview ? 0.3 : 0
                 ) { context, size, amplitudes, hoverOpacity in
                     guard size.width > 0, size.height > 0 else { return }
                     let scale = context.environment.displayScale
@@ -185,7 +185,14 @@ struct TrackWaveformView: View {
                     reduceMotion ? nil : Animation(WaveformStaggeredSpring()),
                     value: barDirection
                 )
-                .animation(.easeInOut(duration: 0.15), value: isHovering)
+                .animation(
+                    reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.3),
+                    value: showsHoverPreview
+                )
+                .animation(
+                    reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.3),
+                    value: hoverFraction
+                )
                 .animation(
                     reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.3),
                     value: barsAreCollapsed
@@ -379,20 +386,34 @@ struct TrackWaveformView: View {
         collapsesBarsWhenPaused && (!isCurrentTrack || !playback.isPlaybackActive)
     }
 
+    private var showsHoverPreview: Bool {
+        isHovering && contentHoverEnabled
+    }
+
     private func barAmplitudes(
         _ waveform: SoundCloudWaveform?,
         width: CGFloat
     ) -> WaveformAmplitudes {
         // Keep the same bars for every track, including the loading state.
         let barCount = max(Int(width / 4), 1)
-        if barsAreCollapsed {
-            let pausedHeight = layout == .detail ? 10.0 : 6.0
-            let pausedAmplitude = pausedHeight / Double(layout.height - 4)
+        let pausedHeight = layout == .detail ? 10.0 : 6.0
+        let pausedAmplitude = pausedHeight / Double(layout.height - 4)
+        if barsAreCollapsed && !showsHoverPreview {
             return WaveformAmplitudes(values: Array(repeating: pausedAmplitude, count: barCount))
         }
         guard let waveform, !waveform.samples.isEmpty, waveform.height > 0 else {
-            return WaveformAmplitudes(values: Array(repeating: 0, count: barCount))
+            return WaveformAmplitudes(values: Array(
+                repeating: barsAreCollapsed ? pausedAmplitude : 0,
+                count: barCount
+            ))
         }
+        // Measure from the bar centers (x = index * 4 + 1). Normalize the
+        // distance so the nearest bar reveals fully and the farthest stays flat.
+        let pointerIndex = (hoverFraction * Double(width) - 1) / 4
+        let nearestIndex = min(max(pointerIndex.rounded(), 0), Double(barCount - 1))
+        let nearestDistance = abs(pointerIndex - nearestIndex)
+        let farthestDistance = max(abs(pointerIndex), abs(pointerIndex - Double(barCount - 1)))
+        let distanceRange = farthestDistance - nearestDistance
         return WaveformAmplitudes(values: (0..<barCount).map { index in
             let lowerBound = index * waveform.samples.count / barCount
             let upperBound = max(
@@ -400,8 +421,21 @@ struct TrackWaveformView: View {
                 lowerBound + 1
             )
             let sample = waveform.samples[lowerBound..<upperBound].max() ?? 0
-            return min(max(Double(sample) / Double(waveform.height), 0), 1)
-                * barDirection
+            let amplitude = min(max(Double(sample) / Double(waveform.height), 0), 1)
+            if barsAreCollapsed {
+                let distance = abs(Double(index) - pointerIndex)
+                let proximity = distanceRange > 0
+                    ? min(max((farthestDistance - distance) / distanceRange, 0), 1)
+                    : 1
+                // Keep a long, subtle tail and concentrate the height increase
+                // near the pointer with a normalized exponential ease-in.
+                let exponent = 4.0
+                let reveal = (exp(exponent * proximity) - 1) / (exp(exponent) - 1)
+                // Interpolate visible heights, independent of animation direction.
+                let fullAmplitude = max(amplitude, 2 / Double(layout.height - 4))
+                return pausedAmplitude + (fullAmplitude - pausedAmplitude) * reveal
+            }
+            return amplitude * barDirection
         })
     }
 
