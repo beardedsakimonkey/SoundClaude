@@ -123,12 +123,6 @@ struct PlaylistDetailView: View {
         HStack(alignment: .top, spacing: 24) {
             playlistArtwork
             VStack(alignment: .leading, spacing: 10) {
-                Label(
-                    displayedPlaylist.isPrivate ? "Private playlist" : "Playlist",
-                    systemImage: displayedPlaylist.isPrivate ? "lock" : "music.note.list"
-                )
-                .font(.callout)
-                .foregroundStyle(.secondary)
                 Text(displayedPlaylist.title)
                     .font(.system(size: 28, weight: .semibold))
                     .textSelection(.enabled)
@@ -137,6 +131,13 @@ struct PlaylistDetailView: View {
                         artist: displayedPlaylist.owner,
                         artworkLoader: model.artworkLoader,
                         onSelect: onSelectArtist
+                    )
+
+                    Text("·")
+                        .accessibilityHidden(true)
+                    Label(
+                        displayedPlaylist.isPrivate ? "Private playlist" : "Playlist",
+                        systemImage: displayedPlaylist.isPrivate ? "lock" : "music.note.list"
                     )
 
                     RelativeTimestampView(
