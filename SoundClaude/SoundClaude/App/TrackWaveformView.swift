@@ -130,6 +130,7 @@ struct TrackWaveformView: View {
 
                     // Rasterize into a bitmap: Canvas's Core Graphics proxy can
                     // still change path edges when unrelated hover fills change.
+                    bitmap.saveGState()
                     bitmap.addPath(path)
                     bitmap.clip()
                     bitmap.beginTransparencyLayer(auxiliaryInfo: nil)
@@ -166,6 +167,8 @@ struct TrackWaveformView: View {
                         bitmap.restoreGState()
                     }
                     bitmap.endTransparencyLayer()
+                    bitmap.restoreGState()
+                    addGroundReflection(in: bitmap, size: size)
                     guard let image = bitmap.makeImage() else { return }
                     // Preserve the bitmap's pixel size, including any fractional
                     // layout padding, instead of stretching it to the view bounds.
@@ -281,6 +284,47 @@ struct TrackWaveformView: View {
         }
     }
 
+    private func groundHeight(for size: CGSize) -> CGFloat {
+        floor(size.height * 0.32)
+    }
+
+    private func addGroundReflection(in bitmap: CGContext, size: CGSize) {
+        guard let source = bitmap.makeImage(),
+              let fade = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceGray(),
+                colors: [
+                    CGColor(gray: 1, alpha: 0.35),
+                    CGColor(gray: 1, alpha: 0)
+                ] as CFArray,
+                locations: [0, 1]
+              ) else { return }
+
+        // Core Graphics uses bottom-up coordinates. Leave a small gap at the
+        // ground and compress the reflected image below it.
+        let ground = groundHeight(for: size)
+        let reflectionTop = ground - 1
+        let reflectionScale: CGFloat = 0.45
+        let reflectionHeight = (size.height - ground - 2) * reflectionScale
+        bitmap.saveGState()
+        bitmap.clip(to: CGRect(x: 0, y: 0, width: size.width, height: reflectionTop))
+        bitmap.beginTransparencyLayer(auxiliaryInfo: nil)
+        bitmap.saveGState()
+        bitmap.translateBy(x: 0, y: reflectionTop + ground * reflectionScale)
+        bitmap.scaleBy(x: 1, y: -reflectionScale)
+        bitmap.draw(source, in: CGRect(origin: .zero, size: size))
+        bitmap.restoreGState()
+        // Mask the complete reflection so playback and hover fade together.
+        bitmap.setBlendMode(.destinationIn)
+        bitmap.drawLinearGradient(
+            fade,
+            start: CGPoint(x: 0, y: reflectionTop),
+            end: CGPoint(x: 0, y: reflectionTop - reflectionHeight),
+            options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
+        )
+        bitmap.endTransparencyLayer()
+        bitmap.restoreGState()
+    }
+
     private func fillGradient(
         _ color: CGColor, in bitmap: CGContext, bars: [CGRect], rect: CGRect
     ) {
@@ -298,8 +342,7 @@ struct TrackWaveformView: View {
             (0,    0.94, 0.03),
             (0.08, 1,    0.18),
             (0.24, 0.93, 0.06),
-            (0.76, 0.93, 0.06),
-            (0.92, 0.77, 0),
+            (0.97, 0.77, 0),
             (1,    0.60, 0)
         ]
         let locations = (0...32).map { CGFloat($0) / 32 }
@@ -397,7 +440,8 @@ struct TrackWaveformView: View {
         // Keep the same bars for every track, including the loading state.
         let barCount = max(Int(width / 4), 1)
         let pausedHeight = layout == .detail ? 10.0 : 6.0
-        let pausedAmplitude = pausedHeight / Double(layout.height - 4)
+        let availableHeight = layout.height - groundHeight(for: CGSize(width: width, height: layout.height)) - 2
+        let pausedAmplitude = pausedHeight / Double(availableHeight)
         if barsAreCollapsed && !showsHoverPreview {
             return WaveformAmplitudes(values: Array(repeating: pausedAmplitude, count: barCount))
         }
@@ -432,7 +476,7 @@ struct TrackWaveformView: View {
                 let exponent = 4.0
                 let reveal = (exp(exponent * proximity) - 1) / (exp(exponent) - 1)
                 // Interpolate visible heights, independent of animation direction.
-                let fullAmplitude = max(amplitude, 2 / Double(layout.height - 4))
+                let fullAmplitude = max(amplitude, 2 / Double(availableHeight))
                 return pausedAmplitude + (fullAmplitude - pausedAmplitude) * reveal
             }
             return amplitude * barDirection
@@ -445,13 +489,14 @@ struct TrackWaveformView: View {
     ) -> [CGRect] {
         let barWidth: CGFloat = 2
         let step: CGFloat = 4
+        let ground = groundHeight(for: size)
         return amplitudes.values.enumerated().map { index, amplitude in
-            // Signed amplitudes let the endpoints cross at the center. Take the
-            // absolute value only when drawing, after spring interpolation.
-            let height = max(CGFloat(abs(amplitude)) * (size.height - 4), 2)
+            // Signed amplitudes collapse through the ground during track
+            // changes. Take the absolute value after spring interpolation.
+            let height = max(CGFloat(abs(amplitude)) * (size.height - ground - 2), 2)
             return CGRect(
                 x: CGFloat(index) * step,
-                y: (size.height - height) / 2,
+                y: ground,
                 width: barWidth,
                 height: height
             )
