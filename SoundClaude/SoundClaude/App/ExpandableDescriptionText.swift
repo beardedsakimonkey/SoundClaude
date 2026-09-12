@@ -105,6 +105,10 @@ private struct ArtistMentions {
     let text: AttributedString
     let artistsByURL: [URL: SoundCloudUser]
 
+    private static let linkDetector = try! NSDataDetector(
+        types: NSTextCheckingResult.CheckingType.link.rawValue
+    )
+
     // Match profile handles without treating email addresses or URL paths as mentions.
     private static let mentionPattern = try! NSRegularExpression(
         pattern: #"(?<![\p{L}\p{N}_./%+@-])@([A-Za-z0-9_-]+)(?![\p{L}\p{N}_-])"#
@@ -113,18 +117,36 @@ private struct ArtistMentions {
     init(_ description: String) {
         var text = AttributedString(description)
         var artistsByURL: [URL: SoundCloudUser] = [:]
+        let links = Self.linkDetector.matches(
+            in: description,
+            range: NSRange(description.startIndex..., in: description)
+        )
+        for link in links {
+            guard let url = link.url,
+                  let scheme = url.scheme?.lowercased(),
+                  scheme == "http" || scheme == "https",
+                  let linkRange = Range(link.range, in: description),
+                  let attributedRange = Range(linkRange, in: text) else { continue }
+            text[attributedRange].link = url
+        }
+
         let matches = Self.mentionPattern.matches(
             in: description,
             range: NSRange(description.startIndex..., in: description)
         )
         for match in matches {
+            guard !links.contains(where: { NSIntersectionRange($0.range, match.range).length > 0 }) else {
+                continue
+            }
             guard let handleRange = Range(match.range(at: 1), in: description),
                   let mentionRange = Range(match.range, in: description),
                   let attributedRange = Range(mentionRange, in: text) else { continue }
             let handle = String(description[handleRange])
             let url = URL(string: "https://soundcloud.com")!.appendingPathComponent(handle)
-            text[attributedRange].link = url
-            artistsByURL[url] = SoundCloudUser(
+            // Keep mentions separate from web links to the same artist profile.
+            let mentionURL = URL(string: "soundclaude-mention://artist")!.appendingPathComponent(handle)
+            text[attributedRange].link = mentionURL
+            artistsByURL[mentionURL] = SoundCloudUser(
                 urn: nil,
                 username: handle,
                 avatarURL: nil,
