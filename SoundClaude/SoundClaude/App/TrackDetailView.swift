@@ -129,17 +129,10 @@ struct TrackDetailView: View {
                         if details.track.access == .preview {
                             TrackPreviewBadge(font: .callout)
                         }
-                        Button {
-                            Task { await model.play(details.track) }
-                        } label: {
-                            Text(details.track.title)
-                                .font(.system(size: 36, weight: .semibold))
-                                .foregroundStyle(.primary)
-                                .opacity(0.9)
-                        }
-                        .buttonStyle(.plain)
-                        .help("Play this track")
-                        .accessibilityLabel("Play \(details.track.title)")
+                        Text(details.track.title)
+                            .font(.system(size: 36, weight: .semibold))
+                            .foregroundStyle(.primary)
+                            .opacity(0.9)
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             ArtistLink(
                                 artist: details.track.artist,
