@@ -117,7 +117,22 @@ struct TrackWaveformView: View {
                     let bars = waveformBars(amplitudes, size: size)
                     let path = CGMutablePath()
                     for bar in bars {
-                        path.addRoundedRect(in: bar, cornerWidth: 1, cornerHeight: 1)
+                        // Bitmap coordinates start at the bottom. Keep the
+                        // ground edge square and round only the top corners.
+                        let radius = min(1, bar.width / 2, bar.height / 2)
+                        path.move(to: CGPoint(x: bar.minX, y: bar.minY))
+                        path.addLine(to: CGPoint(x: bar.maxX, y: bar.minY))
+                        path.addArc(
+                            tangent1End: CGPoint(x: bar.maxX, y: bar.maxY),
+                            tangent2End: CGPoint(x: bar.midX, y: bar.maxY),
+                            radius: radius
+                        )
+                        path.addArc(
+                            tangent1End: CGPoint(x: bar.minX, y: bar.maxY),
+                            tangent2End: CGPoint(x: bar.minX, y: bar.minY),
+                            radius: radius
+                        )
+                        path.closeSubpath()
                     }
                     let background = Color.secondary.opacity(layout == .compact ? 0.3 : 0.5)
                         .resolve(in: context.environment).cgColor
@@ -293,10 +308,11 @@ struct TrackWaveformView: View {
               let fade = CGGradient(
                 colorsSpace: CGColorSpaceCreateDeviceGray(),
                 colors: [
-                    CGColor(gray: 1, alpha: 0.35),
+                    CGColor(gray: 1, alpha: 0.65),
+                    CGColor(gray: 1, alpha: 0.22),
                     CGColor(gray: 1, alpha: 0)
                 ] as CFArray,
-                locations: [0, 1]
+                locations: [0, 0.5, 1]
               ) else { return }
 
         // Core Graphics uses bottom-up coordinates. Leave a small gap at the
@@ -304,7 +320,7 @@ struct TrackWaveformView: View {
         let ground = groundHeight(for: size)
         let reflectionTop = ground - 1
         let reflectionScale: CGFloat = 0.45
-        let reflectionHeight = (size.height - ground - 2) * reflectionScale
+        let reflectionHeight = min(reflectionTop, (size.height - ground - 2) * reflectionScale)
         bitmap.saveGState()
         bitmap.clip(to: CGRect(x: 0, y: 0, width: size.width, height: reflectionTop))
         bitmap.beginTransparencyLayer(auxiliaryInfo: nil)
@@ -342,8 +358,7 @@ struct TrackWaveformView: View {
             (0,    0.94, 0.03),
             (0.08, 1,    0.18),
             (0.24, 0.93, 0.06),
-            (0.97, 0.77, 0),
-            (1,    0.60, 0)
+            (1,    0.77, 0)
         ]
         let locations = (0...32).map { CGFloat($0) / 32 }
         let colors = locations.map { fraction in
@@ -439,7 +454,7 @@ struct TrackWaveformView: View {
     ) -> WaveformAmplitudes {
         // Keep the same bars for every track, including the loading state.
         let barCount = max(Int(width / 4), 1)
-        let pausedHeight = layout == .detail ? 10.0 : 6.0
+        let pausedHeight = layout == .detail ? 8.0 : 6.0
         let availableHeight = layout.height - groundHeight(for: CGSize(width: width, height: layout.height)) - 2
         let pausedAmplitude = pausedHeight / Double(availableHeight)
         if barsAreCollapsed && !showsHoverPreview {
