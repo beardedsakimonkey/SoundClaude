@@ -78,6 +78,16 @@ struct SoundClaudeApp: App {
             }
             .keyboardShortcut("m", modifiers: [])
 
+            Button("Increase Volume") {
+                model.playback.volume = min(model.playback.volume + 0.05, 1)
+            }
+            .keyboardShortcut(.upArrow, modifiers: [.shift])
+
+            Button("Decrease Volume") {
+                model.playback.volume = max(model.playback.volume - 0.05, 0)
+            }
+            .keyboardShortcut(.downArrow, modifiers: [.shift])
+
             Button("Toggle Shuffle") {
                 model.toggleShuffle()
             }
