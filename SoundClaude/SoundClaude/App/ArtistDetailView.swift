@@ -156,110 +156,112 @@ struct ArtistDetailView: View {
     }
 
     private func detailsView(_ details: SoundCloudArtistDetails) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+        GeometryReader { geometry in
+            ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    HStack(alignment: .top, spacing: 24) {
-                        artistPicture(for: details.user)
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(details.user.username)
-                                .font(.system(size: 36, weight: .semibold))
-                                .opacity(0.9)
-                                .textSelection(.enabled)
-                            let location = [details.city, details.country]
-                                .compactMap(nonempty).joined(separator: ", ")
-                            if !location.isEmpty {
-                                Text(location)
-                                    .font(.title3)
-                                    .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 24) {
+                        HStack(alignment: .top, spacing: 24) {
+                            artistPicture(for: details.user)
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text(details.user.username)
+                                    .font(.system(size: 36, weight: .semibold))
+                                    .opacity(0.9)
+                                    .textSelection(.enabled)
+                                let location = [details.city, details.country]
+                                    .compactMap(nonempty).joined(separator: ", ")
+                                if !location.isEmpty {
+                                    Text(location)
+                                        .font(.title3)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
-                            if canFollowArtist {
-                                followControls
+                            .padding(headerImage == nil ? 0 : 16)
+                            .background {
+                                if headerImage != nil {
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(.thinMaterial)
+                                }
                             }
                         }
-                        .padding(headerImage == nil ? 0 : 16)
-                        .background {
-                            if headerImage != nil {
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(.thinMaterial)
-                            }
-                        }
-                    }
 
-                    HStack(spacing: 24) {
-                        userStatistic(details.followersCount.map { max(0, $0 + followerCountAdjustment) }, list: .followers, user: details.user)
-                        userStatistic(details.followingsCount, list: .following, user: details.user)
-                        statistic(details.trackCount, label: "tracks")
                     }
-                    .padding(headerImage == nil ? 0 : 12)
+                    .padding(24)
+                    .frame(maxWidth: .infinity, minHeight: 260, alignment: .leading)
                     .background {
-                        if headerImage != nil {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(.thinMaterial)
+                        if let headerImage {
+                            GeometryReader { geometry in
+                                Image(nsImage: headerImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: geometry.size.width, height: geometry.size.height)
+                                    .clipped()
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                            }
+                            .padding(.horizontal, 10)
+                            .accessibilityHidden(true)
                         }
                     }
-                }
-                .padding(24)
-                .frame(maxWidth: .infinity, minHeight: 260, alignment: .leading)
-                .background {
-                    if let headerImage {
-                        GeometryReader { geometry in
-                            Image(nsImage: headerImage)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: geometry.size.width, height: geometry.size.height)
-                                .clipped()
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 16)
-                                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
-                        }
-                        .padding(.horizontal, 10)
-                        .accessibilityHidden(true)
-                    }
-                }
-                .environment(\.colorScheme, headerImage == nil ? colorScheme : .dark)
-                .padding(.horizontal, -24)
-                .padding(.top, -24)
+                    .environment(\.colorScheme, headerImage == nil ? colorScheme : .dark)
+                    .padding(.horizontal, -24)
+                    .padding(.top, -24)
 
-                if let description = nonempty(details.description) {
-                    Divider()
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("About")
-                            .font(.headline)
-                            .opacity(0.96)
-                        ExpandableDescriptionText(
-                            description: description,
-                            onSelectArtist: onSelectArtist
+                    HStack {
+                        TabPicker(
+                            title: "Artist content",
+                            options: ContentTab.allCases,
+                            selection: $selectedTab
                         )
-                        .id(artist.permalinkURL)
+                        Spacer(minLength: 16)
+                        if canFollowArtist {
+                            followControls
+                        }
+                    }
+                    if canFollowArtist, let followErrorMessage {
+                        VStack(alignment: .trailing, spacing: 8) {
+                            Text(followErrorMessage)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                            if isFollowing == nil {
+                                Button("Try Again") { Task { await loadFollowStatus() } }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+
+                    HStack(alignment: .top, spacing: 24) {
+                        tabContent
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        VStack(alignment: .leading, spacing: 24) {
+                            HStack(alignment: .top, spacing: 12) {
+                                userStatistic(details.followersCount.map { max(0, $0 + followerCountAdjustment) }, list: .followers, user: details.user)
+                                userStatistic(details.followingsCount, list: .following, user: details.user)
+                                statistic(details.trackCount, label: "Tracks")
+                            }
+
+                            if let description = nonempty(details.description) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("About")
+                                        .font(.headline)
+                                        .opacity(0.96)
+                                    ExpandableDescriptionText(
+                                        description: description,
+                                        onSelectArtist: onSelectArtist
+                                    )
+                                    .id(artist.permalinkURL)
+                                }
+                            }
+                        }
+                        .frame(width: max(0, geometry.size.width - 72) * 0.3, alignment: .leading)
                     }
                 }
-
-                Divider()
-                TabPicker(
-                    title: "Artist content",
-                    options: ContentTab.allCases,
-                    selection: $selectedTab
-                )
-                if let message = model.errorMessage {
-                    Label(message, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                }
-                switch selectedTab {
-                case .tracks:
-                    trackList
-                case .reposts:
-                    repostList
-                case .playlists:
-                    playlistList
-                case .likes:
-                    likesList
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(24)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(24)
         }
     }
 
@@ -269,28 +271,37 @@ struct ArtistDetailView: View {
         return user.urn != account.urn && user.permalinkURL != account.permalinkURL
     }
 
-    private var followControls: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Button {
-                    Task { await toggleFollow() }
-                } label: {
-                    Label(isFollowing == true ? "Unfollow" : "Follow",
-                          systemImage: isFollowing == true ? "person.badge.minus" : "person.badge.plus")
-                }
-                .disabled(isFollowing == nil || isUpdatingFollow)
-                if isUpdatingFollow || (isFollowing == nil && followErrorMessage == nil) {
-                    ProgressView().controlSize(.small)
-                        .accessibilityLabel("Loading follow status")
-                }
+    private var tabContent: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            if let message = model.errorMessage {
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.orange)
             }
-            if let followErrorMessage {
-                Text(followErrorMessage)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                if isFollowing == nil {
-                    Button("Try Again") { Task { await loadFollowStatus() } }
-                }
+            switch selectedTab {
+            case .tracks:
+                trackList
+            case .reposts:
+                repostList
+            case .playlists:
+                playlistList
+            case .likes:
+                likesList
+            }
+        }
+    }
+
+    private var followControls: some View {
+        HStack {
+            Button {
+                Task { await toggleFollow() }
+            } label: {
+                Label(isFollowing == true ? "Unfollow" : "Follow",
+                      systemImage: isFollowing == true ? "person.badge.minus" : "person.badge.plus")
+            }
+            .disabled(isFollowing == nil || isUpdatingFollow)
+            if isUpdatingFollow || (isFollowing == nil && followErrorMessage == nil) {
+                ProgressView().controlSize(.small)
+                    .accessibilityLabel("Loading follow status")
             }
         }
     }
@@ -536,9 +547,7 @@ struct ArtistDetailView: View {
             Button {
                 onSelectUsers(user, list)
             } label: {
-                Text("\(count.formatted()) \(list.title.lowercased())")
-                    .font(.callout)
-                    .underline()
+                statistic(count, label: list.title)
             }
             .buttonStyle(.plain)
             .help("View \(list.title.lowercased()) of \(user.username)")
@@ -548,9 +557,20 @@ struct ArtistDetailView: View {
     @ViewBuilder
     private func statistic(_ count: Int?, label: String) -> some View {
         if let count {
-            Text("\(count.formatted()) \(label)")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(label)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(count.formatted())
+                    .font(.system(size: 28, weight: .semibold))
+                    .opacity(0.9)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(label): \(count.formatted())")
         }
     }
 
