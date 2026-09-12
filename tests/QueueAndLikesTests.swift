@@ -42,6 +42,42 @@ struct QueueAndLikesTests {
     @MainActor
     static func main() async throws {
         let next = URL(string: "https://api.soundcloud.com/tracks?cursor=next")!
+        // Manual additions append once, preserve pagination, and can start an empty queue.
+        var added = TrackQueue(source: .single, tracks: [])
+        precondition(added.add(track(1)))
+        precondition(!added.add(track(1)))
+        precondition(added.relativeTrack(to: nil, offset: 1) == track(1))
+        added = TrackQueue(source: .artist("user:1"), tracks: [track(1), track(2)], nextPageURL: next)
+        added.setShuffle(true, currentURN: "track:1")
+        let originalOrder = added.playbackTracks
+        precondition(added.add(track(3)))
+        precondition(added.playbackTracks == originalOrder + [track(3)])
+        precondition(added.nextPageURL == next)
+        added = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(added))
+        precondition(added.playbackTracks == originalOrder + [track(3)])
+        try added.append(SoundCloudTrackPage(tracks: [track(3), track(4)], nextURL: nil))
+        precondition(added.playbackTracks == originalOrder + [track(3), track(4)])
+
+        // Added tracks survive likes refreshes, reordering, shuffle, and metadata-free saves.
+        var addedLikes = TrackQueue(source: .likes, tracks: [track(1), track(2)])
+        precondition(addedLikes.add(track(3)))
+        addedLikes.replaceLikes([track(4), track(2), track(1)])
+        precondition(addedLikes.tracks == [track(1), track(2), track(3), track(4)])
+        precondition(addedLikes.move(fromOffsets: IndexSet(integer: 2), toOffset: 1))
+        addedLikes.setShuffle(true, currentURN: "track:1")
+        let addedLikesOrder = addedLikes.playbackTracks
+        addedLikes = try JSONDecoder().decode(
+            TrackQueue.self, from: JSONEncoder().encode(addedLikes.withoutLikesMetadata())
+        )
+        addedLikes.replaceLikes([track(4), track(2), track(1)])
+        precondition(addedLikes.playbackTracks == addedLikesOrder)
+        addedLikes.setShuffle(false, currentURN: "track:1")
+        precondition(addedLikes.tracks == [track(1), track(3), track(2), track(4)])
+        addedLikes.replaceLikes([track(3), track(1)])
+        precondition(addedLikes.tracks == [track(1), track(3)])
+        addedLikes.replaceLikes([track(1)])
+        precondition(addedLikes.tracks == [track(1), track(3)])
+
         var queue = TrackQueue(source: .artist("user:1"), tracks: [track(1), track(2)], nextPageURL: next)
         queue.replaceLikes([track(99)])
         precondition(queue.relativeTrack(to: "track:1", offset: 1) == track(2))

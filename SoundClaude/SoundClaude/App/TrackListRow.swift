@@ -6,6 +6,7 @@ struct TrackListRow: View {
     let artworkLoader: ArtworkLoader
     @ObservedObject var likes: LikesController
     var showsLikedIndicator = true
+    let onAddToQueue: (SoundCloudTrack) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
@@ -15,6 +16,7 @@ struct TrackListRow: View {
     @State private var isHoveringArtwork = false
     @State private var isHoveringTitle = false
     @State private var isHoveringArtist = false
+    @State private var isHoveringMenu = false
     @GestureState private var isPressed = false
 
     var body: some View {
@@ -90,12 +92,36 @@ struct TrackListRow: View {
             Text(duration)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
+                .fixedSize()
+                // Keep the duration's width so hover does not change text truncation.
+                .opacity(isHovering ? 0 : 1)
+                .overlay {
+                    Menu {
+                        Button("Add to queue") {
+                            onAddToQueue(track)
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .opacity(isHovering ? 1 : 0)
+                    .allowsHitTesting(isHovering)
+                    .accessibilityHidden(!isHovering)
+                    .accessibilityLabel("More options for \(track.title)")
+                    .help("More options")
+                    .onContentHover { isHoveringMenu = $0 }
+                }
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
         .contentShape(Rectangle())
         .onTapGesture {
-            guard !isHoveringArtwork, !isHoveringTitle, !isHoveringArtist else { return }
+            guard !isHoveringArtwork, !isHoveringTitle, !isHoveringArtist, !isHoveringMenu else { return }
             playOrPauseTrack()
         }
         .simultaneousGesture(

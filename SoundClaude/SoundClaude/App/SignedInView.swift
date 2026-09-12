@@ -255,6 +255,7 @@ struct SignedInView: View {
                 appErrorMessage: model.errorMessage,
                 onSelectArtist: showArtist,
                 onSelectTrack: showTrack,
+                onAddToQueue: model.addToQueue,
                 onPlayTrack: model.playLikedTrack
             )
         }

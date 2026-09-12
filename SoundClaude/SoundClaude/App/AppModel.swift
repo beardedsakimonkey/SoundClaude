@@ -184,6 +184,15 @@ final class AppModel: ObservableObject {
         await loadPlayback(track)
     }
 
+    func addToQueue(_ track: SoundCloudTrack) {
+        queue.replaceLikes(likes.tracks)
+        guard queue.add(track) else { return }
+        queue.setShuffle(playback.isShuffleEnabled, currentURN: playback.currentTrack?.urn)
+        trackSelectionTask?.cancel()
+        saveQueue()
+        prefetchNextTrack()
+    }
+
     func moveQueueTracks(fromOffsets offsets: IndexSet, toOffset destination: Int) {
         queue.replaceLikes(likes.tracks)
         guard queue.move(fromOffsets: offsets, toOffset: destination) else { return }
@@ -199,16 +208,16 @@ final class AppModel: ObservableObject {
     }
 
     private func restorePlayback() async {
-        guard playback.currentTrack == nil, playbackTask == nil,
-              let session = playback.savedSession else { return }
+        guard playback.currentTrack == nil, playbackTask == nil else { return }
         if let data = UserDefaults.standard.data(forKey: queueSettingsKey),
-           let saved = try? JSONDecoder().decode(TrackQueue.self, from: data),
-           saved.source == .likes || saved.tracks.contains(where: { $0.urn == session.track.urn }) {
+           let saved = try? JSONDecoder().decode(TrackQueue.self, from: data) {
             queue = saved
-        } else {
-            queue = TrackQueue(source: .single, tracks: [session.track])
         }
         queue.replaceLikes(likes.tracks)
+        guard let session = playback.savedSession else { return }
+        if queue.source != .likes && !queue.tracks.contains(where: { $0.urn == session.track.urn }) {
+            queue = TrackQueue(source: .single, tracks: [session.track])
+        }
         queue.setShuffle(playback.isShuffleEnabled, currentURN: session.track.urn)
         saveQueue()
         await loadPlayback(session.track, position: session.position, autoplay: false)

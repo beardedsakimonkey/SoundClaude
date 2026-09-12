@@ -230,6 +230,7 @@ struct TrackDetailView: View {
                     playback: model.playback,
                     artworkLoader: model.artworkLoader,
                     likes: model.likes,
+                    onAddToQueue: model.addToQueue,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
                     onPlayTrack: { selected in

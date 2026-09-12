@@ -23,12 +23,26 @@ struct TrackQueue: Codable {
     // Optional so queues saved before eager shuffle still decode.
     private var shuffleEnabled: Bool?
     private var reorderedLikesURNs: [String]?
+    // Keep manually added tracks when a likes queue refreshes or saves without library metadata.
+    private var addedLikesTracks: [SoundCloudTrack]?
 
     init(source: Source, tracks: [SoundCloudTrack], nextPageURL: URL? = nil) {
         self.source = source
         var known = Set<String>()
         self.tracks = tracks.filter { known.insert($0.urn).inserted }
         self.nextPageURL = nextPageURL
+    }
+
+    @discardableResult
+    mutating func add(_ track: SoundCloudTrack) -> Bool {
+        guard !tracks.contains(where: { $0.urn == track.urn }) else { return false }
+        tracks.append(track)
+        if source == .likes {
+            addedLikesTracks = (addedLikesTracks ?? []) + [track]
+            reorderedLikesURNs = tracks.map(\.urn)
+        }
+        updateShuffleOrder()
+        return true
     }
 
     mutating func append(_ page: SoundCloudTrackPage) throws {
@@ -45,7 +59,9 @@ struct TrackQueue: Codable {
 
     mutating func replaceLikes(_ likes: [SoundCloudTrack]) {
         guard source == .likes else { return }
-        tracks = ordered(likes, by: reorderedLikesURNs)
+        let likedURNs = Set(likes.map(\.urn))
+        let additions = (addedLikesTracks ?? []).filter { !likedURNs.contains($0.urn) }
+        tracks = ordered(likes + additions, by: reorderedLikesURNs)
         updateShuffleOrder()
     }
 

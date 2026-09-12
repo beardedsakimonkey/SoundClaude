@@ -16,6 +16,7 @@ struct LikesView: View {
     let appErrorMessage: String?
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
+    let onAddToQueue: (SoundCloudTrack) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
 
     @ObservedObject private var likes: LikesController
@@ -33,6 +34,7 @@ struct LikesView: View {
         appErrorMessage: String?,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
+        onAddToQueue: @escaping (SoundCloudTrack) -> Void,
         onPlayTrack: @escaping (SoundCloudTrack) async -> Void
     ) {
         self.user = user
@@ -41,6 +43,7 @@ struct LikesView: View {
         self.appErrorMessage = appErrorMessage
         self.onSelectArtist = onSelectArtist
         self.onSelectTrack = onSelectTrack
+        self.onAddToQueue = onAddToQueue
         self.onPlayTrack = onPlayTrack
         _likes = ObservedObject(wrappedValue: likes)
         self.playback = playback
@@ -227,6 +230,7 @@ struct LikesView: View {
                             artworkLoader: artworkLoader,
                             likes: likes,
                             showsLikedIndicator: true,
+                            onAddToQueue: onAddToQueue,
                             onSelectTrack: onSelectTrack,
                             onSelectArtist: onSelectArtist,
                             onPlayTrack: onPlayTrack
