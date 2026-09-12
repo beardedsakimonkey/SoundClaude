@@ -133,12 +133,10 @@ struct TrackDetailView: View {
                                 onSelect: onSelectArtist
                             )
 
-                            if let createdAt = creationDate(from: details.createdAt) {
-                                Text("·")
-                                    .accessibilityHidden(true)
-                                Text(createdAt.formatted(.relative(presentation: .numeric, unitsStyle: .wide)))
-                                    .help(createdAt.formatted(date: .abbreviated, time: .shortened))
-                            }
+                            RelativeTimestampView(
+                                timestamp: details.createdAt,
+                                accessibilityPrefix: "Created"
+                            )
                         }
                         .font(.title3)
                         .foregroundStyle(.secondary)
@@ -385,23 +383,6 @@ struct TrackDetailView: View {
         .help(isLiked ? "Unlike track" : "Like track")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
         .accessibilityValue(isLiked ? "Liked" : "Not liked")
-    }
-
-    private func creationDate(from value: String?) -> Date? {
-        guard let value else { return nil }
-
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = iso.date(from: value) { return date }
-
-        iso.formatOptions = [.withInternetDateTime]
-        if let date = iso.date(from: value) { return date }
-
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "yyyy/MM/dd HH:mm:ss Z"
-        return formatter.date(from: value)
     }
 
     private func nonempty(_ value: String?) -> String? {

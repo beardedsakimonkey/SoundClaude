@@ -132,13 +132,20 @@ struct PlaylistDetailView: View {
                 Text(displayedPlaylist.title)
                     .font(.system(size: 28, weight: .semibold))
                     .textSelection(.enabled)
-                ArtistLink(
-                    artist: displayedPlaylist.owner,
-                    artworkLoader: model.artworkLoader,
-                    onSelect: onSelectArtist
-                )
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    ArtistLink(
+                        artist: displayedPlaylist.owner,
+                        artworkLoader: model.artworkLoader,
+                        onSelect: onSelectArtist
+                    )
+
+                    RelativeTimestampView(
+                        timestamp: displayedPlaylist.lastModified,
+                        accessibilityPrefix: "Last updated"
+                    )
+                }
+                .font(.title3)
+                .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(spacing: 12) {

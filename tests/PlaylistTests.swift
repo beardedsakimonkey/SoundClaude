@@ -41,6 +41,22 @@ struct PlaylistTests {
         let partial = try decoder.decode(RawPlaylist.self, from: Data("{\"title\":\"Missing identity\"}".utf8))
         precondition(partial.normalized() == nil)
 
+        for timestamp in ["null", "\"2017/04/10 14:48:03 +0000\"", "\"2026-09-11T12:30:00Z\""] {
+            let json = playlist.replacingOccurrences(
+                of: "\"duration\":0", with: "\"duration\":0,\"last_modified\":\(timestamp)"
+            )
+            let normalized = try decoder.decode(RawPlaylist.self, from: Data(json.utf8)).normalized()!
+            let expected = try decoder.decode(String?.self, from: Data(timestamp.utf8))
+            precondition(normalized.lastModified == expected)
+            let cached = try decoder.decode(SoundCloudPlaylist.self, from: JSONEncoder().encode(normalized))
+            precondition(cached.lastModified == expected)
+        }
+        let undated = try decoder.decode(RawPlaylist.self, from: Data(playlist.utf8)).normalized()!
+        precondition(undated.lastModified == nil)
+        let legacyCache = try JSONEncoder().encode(undated)
+        let cachedUndated = try decoder.decode(SoundCloudPlaylist.self, from: legacyCache)
+        precondition(cachedUndated.lastModified == nil)
+
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [PlaylistURLProtocol.self]
         let client = SoundCloudClient(

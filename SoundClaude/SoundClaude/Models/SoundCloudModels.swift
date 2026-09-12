@@ -197,6 +197,7 @@ struct SoundCloudPlaylist: Codable, Identifiable, Sendable, Hashable {
     let trackCount: Int?
     let durationMilliseconds: Int?
     let isPrivate: Bool
+    var lastModified: String? = nil
 
     var id: String { urn }
 }
@@ -390,12 +391,14 @@ struct RawPlaylist: Decodable {
     let trackCount: Int?
     let duration: Int?
     let sharing: String?
+    let lastModified: String?
 
     enum CodingKeys: String, CodingKey {
         case urn, title, user, description, duration, sharing
         case rawArtworkURL = "artwork_url"
         case permalinkURL = "permalink_url"
         case trackCount = "track_count"
+        case lastModified = "last_modified"
     }
 
     func normalized() -> SoundCloudPlaylist? {
@@ -411,7 +414,8 @@ struct RawPlaylist: Decodable {
             description: description,
             trackCount: trackCount,
             durationMilliseconds: duration,
-            isPrivate: sharing == "private"
+            isPrivate: sharing == "private",
+            lastModified: lastModified
         )
     }
 }
