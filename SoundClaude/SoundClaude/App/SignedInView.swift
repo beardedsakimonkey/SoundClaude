@@ -266,15 +266,14 @@ struct SignedInView: View {
 
     private var navigationButtons: some View {
         HStack(spacing: 8) {
-            if !path.isEmpty {
-                Button {
-                    _ = navigateBack()
-                } label: {
-                    Label("Back", systemImage: "chevron.left")
-                        .frame(width: 16, height: 16)
-                }
-                .help("Go back")
+            Button {
+                _ = navigateBack()
+            } label: {
+                Label("Back", systemImage: "chevron.left")
+                    .frame(width: 16, height: 16)
             }
+            .disabled(path.isEmpty)
+            .help("Go back")
 
             if !forwardPath.isEmpty {
                 Button {
