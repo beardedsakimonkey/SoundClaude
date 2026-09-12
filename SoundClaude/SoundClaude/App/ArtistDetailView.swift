@@ -2,6 +2,12 @@ import AppKit
 import SwiftUI
 
 struct ArtistDetailView: View {
+    private struct HeaderImageButtonStyle: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+        }
+    }
+
     private enum ContentTab: String, CaseIterable, Identifiable {
         case tracks = "Tracks"
         case reposts = "Reposts"
@@ -26,6 +32,7 @@ struct ArtistDetailView: View {
     @State private var followerCountAdjustment = 0
     @State private var headerImage: NSImage?
     @State private var headerImageURL: URL?
+    @State private var isHeaderContentHidden = false
     @State private var details: SoundCloudArtistDetails?
     @State private var webProfiles: [SoundCloudWebProfile] = []
     @State private var webProfilesErrorMessage: String?
@@ -177,7 +184,6 @@ struct ArtistDetailView: View {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text(details.user.username)
                                     .font(.system(size: 36, weight: .semibold))
-                                    .opacity(0.9)
                                     .textSelection(.enabled)
                                 let location = [details.city, details.country]
                                     .compactMap(nonempty).joined(separator: ", ")
@@ -195,26 +201,36 @@ struct ArtistDetailView: View {
                                 }
                             }
                         }
-
+                        .opacity(isHeaderContentHidden ? 0 : 1)
+                        .allowsHitTesting(!isHeaderContentHidden)
+                        .accessibilityHidden(isHeaderContentHidden)
                     }
                     .padding(24)
                     .frame(maxWidth: .infinity, minHeight: 260, alignment: .leading)
                     .background {
                         if let headerImage {
-                            GeometryReader { geometry in
-                                Image(nsImage: headerImage)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: geometry.size.width, height: geometry.size.height)
-                                    .clipped()
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.25)) {
+                                    isHeaderContentHidden.toggle()
+                                }
+                            } label: {
+                                GeometryReader { geometry in
+                                    Image(nsImage: headerImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: geometry.size.width, height: geometry.size.height)
+                                        .clipped()
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                                }
+                                .contentShape(RoundedRectangle(cornerRadius: 16))
                             }
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 16)
-                                    .strokeBorder(.white.opacity(0.2), lineWidth: 1)
-                            }
+                            .buttonStyle(HeaderImageButtonStyle())
                             .padding(.horizontal, 10)
-                            .accessibilityHidden(true)
+                            .accessibilityLabel(isHeaderContentHidden ? "Show artist information" : "Hide artist information")
                         }
                     }
                     .environment(\.colorScheme, headerImage == nil ? colorScheme : .dark)
