@@ -12,7 +12,6 @@ struct ArtistDetailView: View {
     }
 
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.openURL) private var openURL
 
     let artist: SoundCloudUser
     @ObservedObject var model: AppModel
@@ -111,14 +110,8 @@ struct ArtistDetailView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    openURL(details?.user.permalinkURL ?? artist.permalinkURL)
-                } label: {
-                    Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
-                        .labelStyle(.iconOnly)
-                        .frame(width: 20, height: 20)
-                }
-                .help("Open this artist in your web browser")
+                OpenInSoundCloudButton(url: details?.user.permalinkURL ?? artist.permalinkURL)
+                    .help("Open this artist in your web browser")
             }
         }
         .task(id: artist.permalinkURL) { await load() }

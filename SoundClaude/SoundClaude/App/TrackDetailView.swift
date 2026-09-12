@@ -3,7 +3,6 @@ import Foundation
 import SwiftUI
 
 struct TrackDetailView: View {
-    @Environment(\.openURL) private var openURL
 
     let track: SoundCloudTrack
     @ObservedObject var model: AppModel
@@ -78,14 +77,8 @@ struct TrackDetailView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    openURL(details?.track.permalinkURL ?? track.permalinkURL)
-                } label: {
-                    Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
-                        .labelStyle(.iconOnly)
-                        .frame(width: 20, height: 20)
-                }
-                .help("Open this track in your web browser")
+                OpenInSoundCloudButton(url: details?.track.permalinkURL ?? track.permalinkURL)
+                    .help("Open this track in your web browser")
             }
         }
         .task(id: track.urn) {

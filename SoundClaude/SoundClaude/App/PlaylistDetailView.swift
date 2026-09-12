@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct PlaylistDetailView: View {
-    @Environment(\.openURL) private var openURL
-
     let playlist: SoundCloudPlaylist
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
@@ -64,14 +62,8 @@ struct PlaylistDetailView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    openURL(displayedPlaylist.permalinkURL)
-                } label: {
-                    Label("Open in SoundCloud", systemImage: "arrow.up.right.square")
-                        .labelStyle(.iconOnly)
-                        .frame(width: 20, height: 20)
-                }
-                .help("Open this playlist in your web browser")
+                OpenInSoundCloudButton(url: displayedPlaylist.permalinkURL)
+                    .help("Open this playlist in your web browser")
             }
         }
         .task(id: playlist.urn) {

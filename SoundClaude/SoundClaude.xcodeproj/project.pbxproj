@@ -57,6 +57,7 @@
 		A10000000000000000000072 /* ArtistUsersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000072 /* ArtistUsersView.swift */; };
 		A10000000000000000000082 /* TrackCommentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000082 /* TrackCommentsView.swift */; };
 		A1000000000000000000003A /* ArtistLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003A /* ArtistLink.swift */; };
+		B10D6E740000000000000001 /* OpenInSoundCloudButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20D6E740000000000000001 /* OpenInSoundCloudButton.swift */; };
 		A10000000000000000000060 /* ExpandableDescriptionText.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000060 /* ExpandableDescriptionText.swift */; };
 		A1000000000000000000003B /* TrackListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003B /* TrackListRow.swift */; };
 		A10000000000000000000063 /* TrackQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000063 /* TrackQueueView.swift */; };
@@ -136,6 +137,7 @@
 		A20000000000000000000072 /* ArtistUsersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistUsersView.swift; sourceTree = "<group>"; };
 		A20000000000000000000082 /* TrackCommentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackCommentsView.swift; sourceTree = "<group>"; };
 		A2000000000000000000003A /* ArtistLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistLink.swift; sourceTree = "<group>"; };
+		B20D6E740000000000000001 /* OpenInSoundCloudButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInSoundCloudButton.swift; sourceTree = "<group>"; };
 		A20000000000000000000060 /* ExpandableDescriptionText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandableDescriptionText.swift; sourceTree = "<group>"; };
 		A2000000000000000000003B /* TrackListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackListRow.swift; sourceTree = "<group>"; };
 		A20000000000000000000063 /* TrackQueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackQueueView.swift; sourceTree = "<group>"; };
@@ -222,6 +224,7 @@
 				A20000000000000000000072 /* ArtistUsersView.swift */,
 				A20000000000000000000082 /* TrackCommentsView.swift */,
 				A2000000000000000000003A /* ArtistLink.swift */,
+				B20D6E740000000000000001 /* OpenInSoundCloudButton.swift */,
 				A20000000000000000000060 /* ExpandableDescriptionText.swift */,
 				A2000000000000000000003B /* TrackListRow.swift */,
 				A20000000000000000000063 /* TrackQueueView.swift */,
@@ -460,6 +463,7 @@
 				A10000000000000000000072 /* ArtistUsersView.swift in Sources */,
 				A10000000000000000000082 /* TrackCommentsView.swift in Sources */,
 				A1000000000000000000003A /* ArtistLink.swift in Sources */,
+				B10D6E740000000000000001 /* OpenInSoundCloudButton.swift in Sources */,
 				A10000000000000000000060 /* ExpandableDescriptionText.swift in Sources */,
 				A1000000000000000000003B /* TrackListRow.swift in Sources */,
 				A10000000000000000000063 /* TrackQueueView.swift in Sources */,
