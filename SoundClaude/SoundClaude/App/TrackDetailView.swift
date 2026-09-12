@@ -467,6 +467,8 @@ struct TrackDetailView: View {
 
 struct TrackActionButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
 
     let fill: Color
 
@@ -475,7 +477,13 @@ struct TrackActionButtonStyle: ButtonStyle {
             .foregroundStyle(.primary)
             .padding(.vertical, 10)
             .background(fill, in: Capsule())
+            .background {
+                Capsule()
+                    .fill(fill.opacity(isHovering && isEnabled ? 0.7 : 0))
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering && isEnabled)
+            }
             .contentShape(Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.5)
+            .onContentHover { isHovering = $0 }
     }
 }
