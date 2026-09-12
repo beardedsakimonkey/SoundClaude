@@ -111,6 +111,7 @@ struct SoundCloudTrack: Codable, Identifiable, Sendable, Hashable {
     var repostsCount: Int? = nil
     var commentCount: Int? = nil
     var genre: String? = nil
+    var createdAt: String? = nil
 
     var id: String { urn }
     var uploader: String { artist.username }
@@ -532,7 +533,8 @@ struct RawTrack: Decodable {
             likesCount: favoritingsCount,
             repostsCount: repostsCount,
             commentCount: commentCount,
-            genre: genre
+            genre: genre,
+            createdAt: createdAt
         )
     }
 

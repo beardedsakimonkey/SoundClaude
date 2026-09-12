@@ -40,10 +40,19 @@ struct TrackCardView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-                ArtistLink(artist: track.artist, onSelect: onSelectArtist)
-                    .font(.callout)
-                    .foregroundStyle(isCurrentTrack ? Color.orange : Color.secondary)
-                    .lineLimit(1)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                        .foregroundStyle(isCurrentTrack ? Color.orange : Color.secondary)
+
+                    RelativeTimestampView(
+                        timestamp: track.createdAt,
+                        accessibilityPrefix: "Created"
+                    )
+                    .foregroundStyle(.tertiary)
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
 
                 HStack(spacing: 10) {
                     playButton
