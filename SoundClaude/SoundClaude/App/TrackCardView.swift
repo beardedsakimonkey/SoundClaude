@@ -4,11 +4,13 @@ import SwiftUI
 struct TrackCardView: View {
     let track: SoundCloudTrack
     let model: AppModel
+    @ObservedObject private var reposts: RepostsController
     @ObservedObject private var likes: LikesController
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
 
+    @State private var repostErrorMessage: String?
     @State private var isHoveringTitle = false
 
     init(
@@ -20,6 +22,7 @@ struct TrackCardView: View {
     ) {
         self.track = track
         self.model = model
+        _reposts = ObservedObject(wrappedValue: model.reposts)
         _likes = ObservedObject(wrappedValue: model.likes)
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
@@ -83,11 +86,7 @@ struct TrackCardView: View {
 
                 HStack(spacing: 10) {
                     likeButton
-                    Button {} label: {
-                        statistic(track.repostsCount, label: "reposts", systemImage: "arrow.2.squarepath")
-                    }
-                    .buttonStyle(TrackStatisticButtonStyle(color: .green))
-                    .accessibilityLabel("Repost track")
+                    repostButton
                     Spacer(minLength: 0)
                     Text(duration)
                         .monospacedDigit()
@@ -98,6 +97,18 @@ struct TrackCardView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: 140, alignment: .top)
+        }
+        .task {
+            // Retry on click and show any error there, once for the selected card.
+            try? await reposts.load()
+        }
+        .alert("Could not update repost", isPresented: Binding(
+            get: { repostErrorMessage != nil },
+            set: { if !$0 { repostErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { repostErrorMessage = nil }
+        } message: {
+            Text(repostErrorMessage ?? "Please try again.")
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -182,6 +193,27 @@ struct TrackCardView: View {
         .accessibilityValue(isLiked ? "Liked" : "Not liked")
     }
 
+    private var repostButton: some View {
+        let isReposted = reposts.isReposted(track)
+        return Button {
+            Task {
+                do {
+                    try await reposts.toggleRepost(track)
+                } catch is CancellationError {
+                } catch {
+                    repostErrorMessage = error.localizedDescription
+                }
+            }
+        } label: {
+            statistic(reposts.repostCount(for: track), label: "reposts", systemImage: "arrow.2.squarepath")
+        }
+        .buttonStyle(TrackStatisticButtonStyle(color: .green, isSelected: isReposted))
+        .disabled(reposts.isLoading || reposts.updatingTrackURNs.contains(track.urn))
+        .help(isReposted ? "Undo repost" : "Repost track")
+        .accessibilityLabel(isReposted ? "Undo repost" : "Repost track")
+        .accessibilityValue(isReposted ? "Reposted" : "Not reposted")
+    }
+
     private func statistic(_ count: Int?, label: String, systemImage: String) -> some View {
         Label(count?.formatted(.number.notation(.compactName)) ?? "—", systemImage: systemImage)
             .monospacedDigit()
@@ -213,7 +245,7 @@ private struct TrackStatisticButtonStyle: ButtonStyle {
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .background(
-                isSelected ? color.opacity(0.3) : Color.primary.opacity(isHighlighted ? 0.1 : 0.06),
+                isSelected ? color.opacity(0.12) : Color.primary.opacity(isHighlighted ? 0.1 : 0.06),
                 in: Capsule()
             )
             .brightness(isHighlighted ? 0.05 : 0)

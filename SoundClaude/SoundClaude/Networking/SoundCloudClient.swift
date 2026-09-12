@@ -667,6 +667,23 @@ actor SoundCloudClient {
         try validate(response: response, data: data)
     }
 
+    func repostedTracks(accessToken: String, pageURL: URL? = nil) async throws -> SoundCloudTrackPage {
+        let url = pageURL ?? configuration.apiBaseURL.appending(path: "me/reposts/tracks")
+            .appending(queryItems: [
+                URLQueryItem(name: "limit", value: "200"),
+                URLQueryItem(name: "linked_partitioning", value: "true"),
+            ])
+        return try await trackPage(at: url, accessToken: accessToken)
+    }
+
+    func setTrackReposted(urn: String, isReposted: Bool, accessToken: String) async throws {
+        let url = configuration.apiBaseURL.appending(path: "reposts/tracks").appending(path: urn)
+        let (data, response) = try await authenticatedRequest(
+            url: url, accessToken: accessToken, method: isReposted ? "POST" : "DELETE"
+        )
+        try validate(response: response, data: data)
+    }
+
     func setTrackLiked(
         urn: String,
         isLiked: Bool,

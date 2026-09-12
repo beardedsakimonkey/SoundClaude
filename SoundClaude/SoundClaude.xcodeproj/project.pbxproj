@@ -73,6 +73,7 @@
 		A1000000000000000000003D /* PlaylistsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003D /* PlaylistsController.swift */; };
 		A10000000000000000000041 /* PlaylistsCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000041 /* PlaylistsCache.swift */; };
 		A10000000000000000000075 /* FeedController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000075 /* FeedController.swift */; };
+		A10000000000000000000090 /* RepostsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000090 /* RepostsController.swift */; };
 		A10000000000000000000074 /* FeedCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000074 /* FeedCache.swift */; };
 		A1000000000000000000003E /* PlaylistDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003E /* PlaylistDetailView.swift */; };
 		A1000000000000000000003F /* TrackQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003F /* TrackQueue.swift */; };
@@ -155,6 +156,7 @@
 		A2000000000000000000003D /* PlaylistsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistsController.swift; sourceTree = "<group>"; };
 		A20000000000000000000041 /* PlaylistsCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistsCache.swift; sourceTree = "<group>"; };
 		A20000000000000000000075 /* FeedController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedController.swift; sourceTree = "<group>"; };
+		A20000000000000000000090 /* RepostsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepostsController.swift; sourceTree = "<group>"; };
 		A20000000000000000000074 /* FeedCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedCache.swift; sourceTree = "<group>"; };
 		A2000000000000000000003E /* PlaylistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistDetailView.swift; sourceTree = "<group>"; };
 		A2000000000000000000003F /* TrackQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackQueue.swift; sourceTree = "<group>"; };
@@ -222,6 +224,7 @@
 				A2000000000000000000003D /* PlaylistsController.swift */,
 				A20000000000000000000041 /* PlaylistsCache.swift */,
 				A20000000000000000000075 /* FeedController.swift */,
+				A20000000000000000000090 /* RepostsController.swift */,
 				A20000000000000000000074 /* FeedCache.swift */,
 				A2000000000000000000003E /* PlaylistDetailView.swift */,
 				A20000000000000000000039 /* ArtistDetailView.swift */,
@@ -463,6 +466,7 @@
 				A1000000000000000000003D /* PlaylistsController.swift in Sources */,
 				A10000000000000000000041 /* PlaylistsCache.swift in Sources */,
 				A10000000000000000000075 /* FeedController.swift in Sources */,
+				A10000000000000000000090 /* RepostsController.swift in Sources */,
 				A10000000000000000000074 /* FeedCache.swift in Sources */,
 				A1000000000000000000003E /* PlaylistDetailView.swift in Sources */,
 				A10000000000000000000039 /* ArtistDetailView.swift in Sources */,

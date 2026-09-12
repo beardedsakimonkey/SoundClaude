@@ -13,6 +13,7 @@ final class AppModel: ObservableObject {
     let audioTap: AudioTapController
     let playback: PlaybackController
     let auth: AuthController
+    let reposts: RepostsController
     let likes: LikesController
     let playlists: PlaylistsController
     let feed: FeedController
@@ -76,6 +77,7 @@ final class AppModel: ObservableObject {
         self.playback = playback
         self.auth = auth
         self.likes = likes
+        reposts = RepostsController(client: client, auth: auth)
         playlists = PlaylistsController(client: client, auth: auth)
         feed = FeedController(client: client, auth: auth)
         artworkLoader = ArtworkLoader(client: client)
@@ -144,6 +146,7 @@ final class AppModel: ObservableObject {
         followingRequestID = nil
         followingOverrides = [:]
         likes.clear()
+        reposts.clear()
         playlists.clear()
         feed.clear()
         trackDetailsCache.removeAll()
