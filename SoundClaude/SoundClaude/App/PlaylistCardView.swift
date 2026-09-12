@@ -19,7 +19,7 @@ struct PlaylistCardView: View {
     private var isLoading: Bool { playlists.loadingPlaylistURNs.contains(playlist.urn) }
     private var errorMessage: String? { playlists.playlistErrors[playlist.urn] }
     private var artworkURL: URL? {
-        displayedPlaylist.artworkURL ?? tracks.first(where: { $0.artworkURL != nil })?.artworkURL
+        displayedPlaylist.artworkURL ?? tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
     }
     private var waveformTrack: SoundCloudTrack? {
         tracks.first(where: { $0.urn == model.playback.currentTrack?.urn })
@@ -198,7 +198,7 @@ private struct PlaylistTrackRow: View {
         let isCurrentTrack = playback.currentTrack?.urn == track.urn
 
         HStack(spacing: 12) {
-            TrackArtworkView(artworkURL: track.artworkURL, loader: artworkLoader, size: 44)
+            TrackArtworkView(artworkURL: track.displayArtworkURL, loader: artworkLoader, size: 44)
             Text(number.formatted())
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)

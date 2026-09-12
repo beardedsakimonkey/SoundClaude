@@ -24,7 +24,7 @@ struct TrackListRow: View {
         HStack(spacing: 12) {
             Button(action: playOrPauseTrack) {
                 TrackArtworkView(
-                    artworkURL: track.artworkURL,
+                    artworkURL: track.displayArtworkURL,
                     loader: artworkLoader,
                     size: 44,
                 )

@@ -39,7 +39,7 @@ struct SidebarView: View {
                     let contents = playlists.cache.contents[playlist.urn]
                     let artworkURL = contents?.playlist.artworkURL
                         ?? playlist.artworkURL
-                        ?? contents?.tracks.first(where: { $0.artworkURL != nil })?.artworkURL
+                        ?? contents?.tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
 
                     Label {
                         Text(playlist.title)

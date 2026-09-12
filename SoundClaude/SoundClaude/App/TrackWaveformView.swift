@@ -83,10 +83,10 @@ struct TrackWaveformView: View {
         .task(id: [track.urn, track.waveformURL?.absoluteString ?? ""]) {
             await load()
         }
-        .task(id: track.artworkURL) {
+        .task(id: track.displayArtworkURL) {
             artworkAccent = nil
             accentArtworkURL = nil
-            guard let url = track.artworkURL,
+            guard let url = track.displayArtworkURL,
                   let accent = try? await model.artworkLoader.accentColor(for: url),
                   !Task.isCancelled else { return }
             artworkAccent = accent
@@ -343,7 +343,7 @@ struct TrackWaveformView: View {
         let fallback = ArtworkAccent(
             red: blue.redComponent, green: blue.greenComponent, blue: blue.blueComponent
         )
-        let accent = accentArtworkURL == track.artworkURL
+        let accent = accentArtworkURL == track.displayArtworkURL
             ? artworkAccent ?? fallback : fallback
         let contrastedAccent = accent.contrasted(
             isDark: colorScheme == .dark,

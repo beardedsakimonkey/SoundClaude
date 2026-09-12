@@ -29,9 +29,9 @@ struct PlaylistDetailView: View {
 
     private var artworkURL: URL? {
         if let track = currentPlaylistTrack {
-            return track.artworkURL
+            return track.displayArtworkURL
         }
-        return displayedPlaylist.artworkURL ?? tracks.first(where: { $0.artworkURL != nil })?.artworkURL
+        return displayedPlaylist.artworkURL ?? tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
     }
 
     private var artworkTitle: String { currentPlaylistTrack?.title ?? displayedPlaylist.title }

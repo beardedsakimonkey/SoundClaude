@@ -114,6 +114,7 @@ struct SoundCloudTrack: Codable, Identifiable, Sendable, Hashable {
 
     var id: String { urn }
     var uploader: String { artist.username }
+    var displayArtworkURL: URL? { artworkURL ?? artist.avatarURL }
 
     enum Access: String, Codable, Sendable {
         case playable
@@ -467,7 +468,11 @@ struct RawPlaylist: Decodable {
 struct RawTrack: Decodable {
     let urn: String?
     let title: String?
-    let artworkURL: URL?
+    private let rawArtworkURL: String?
+    var artworkURL: URL? {
+        guard let rawArtworkURL, !rawArtworkURL.isEmpty else { return nil }
+        return URL(string: rawArtworkURL)
+    }
     private let rawWaveformURL: String?
     var waveformURL: URL? {
         guard let rawWaveformURL, !rawWaveformURL.isEmpty else { return nil }
@@ -489,7 +494,7 @@ struct RawTrack: Decodable {
     enum CodingKeys: String, CodingKey {
         case urn
         case title
-        case artworkURL = "artwork_url"
+        case rawArtworkURL = "artwork_url"
         case rawWaveformURL = "waveform_url"
         case permalinkURL = "permalink_url"
         case duration

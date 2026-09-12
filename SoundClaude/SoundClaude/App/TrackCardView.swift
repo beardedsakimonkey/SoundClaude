@@ -16,7 +16,7 @@ struct TrackCardView: View {
                 onSelectTrack(track)
             } label: {
                 TrackArtworkView(
-                    artworkURL: track.artworkURL,
+                    artworkURL: track.displayArtworkURL,
                     loader: model.artworkLoader,
                     size: 140,
                     rendition: .square500

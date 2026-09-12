@@ -166,7 +166,7 @@ struct PlayerFooterView: View {
                             axis: (x: 0, y: 1, z: 0),
                             perspective: 0.5
                         )
-                    thumbnail(for: playback.currentTrack?.artworkURL)
+                    thumbnail(for: playback.currentTrack?.displayArtworkURL)
                         .opacity(rotation >= 90 ? 1 : 0)
                         .rotation3DEffect(
                             .degrees(sign * (rotation - 180)),
@@ -192,7 +192,7 @@ struct PlayerFooterView: View {
             .contentShape(artworkShape)
             .onContentHover { isHoveringArtwork = $0 }
             .onChange(of: playback.currentTrack) { oldTrack, _ in
-                previousArtworkURL = oldTrack?.artworkURL
+                previousArtworkURL = oldTrack?.displayArtworkURL
                 hasPreviousTrack = oldTrack != nil
             }
     }

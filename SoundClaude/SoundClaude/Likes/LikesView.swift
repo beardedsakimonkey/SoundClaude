@@ -51,7 +51,7 @@ struct LikesView: View {
             VStack(spacing: 0) {
                 ArtworkVisualizerView(
                     spectrumBuffer: spectrumBuffer,
-                    artworkURL: playback.currentTrack?.artworkURL,
+                    artworkURL: playback.currentTrack?.displayArtworkURL,
                     artworkLoader: artworkLoader
                 )
                     .frame(height: 120)
@@ -288,7 +288,7 @@ private struct LikedTrackGridTile: View {
                     }
                 } label: {
                     TrackArtworkView(
-                        artworkURL: track.artworkURL,
+                        artworkURL: track.displayArtworkURL,
                         loader: artworkLoader,
                         size: geometry.size.width,
                         rendition: .square500,

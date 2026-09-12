@@ -602,7 +602,7 @@ final class AppModel: ObservableObject {
     }
 
     private func prefetchArtwork(for track: SoundCloudTrack) async {
-        guard let url = track.artworkURL else { return }
+        guard let url = track.displayArtworkURL else { return }
         async let thumbnail = try? artworkLoader.data(for: url, rendition: .square500)
         async let accent = try? artworkLoader.data(for: url)
         _ = await (thumbnail, accent)

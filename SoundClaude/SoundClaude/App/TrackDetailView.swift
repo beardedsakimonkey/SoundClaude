@@ -90,7 +90,7 @@ struct TrackDetailView: View {
         .sheet(isPresented: $isShowingArtwork) {
             FullSizeArtworkView(
                 title: details?.track.title ?? track.title,
-                artworkURL: details?.track.artworkURL ?? track.artworkURL,
+                artworkURL: details?.track.displayArtworkURL ?? track.displayArtworkURL,
                 loader: model.artworkLoader,
                 cachedArtwork: $cachedFullSizeArtwork
             )
@@ -100,7 +100,7 @@ struct TrackDetailView: View {
     @ViewBuilder
     private var artworkBackdrop: some View {
         let backdrop = TrackArtworkBackdropView(
-            artworkURL: details?.track.artworkURL ?? track.artworkURL,
+            artworkURL: details?.track.displayArtworkURL ?? track.displayArtworkURL,
             loader: model.artworkLoader
         )
         .frame(height: 410)
@@ -279,7 +279,7 @@ struct TrackDetailView: View {
     @ViewBuilder
     private func artworkView(for track: SoundCloudTrack) -> some View {
         let cornerRadius: CGFloat = 6;
-        if track.artworkURL != nil {
+        if track.displayArtworkURL != nil {
             Button {
                 isShowingArtwork = true
             } label: {
@@ -301,7 +301,7 @@ struct TrackDetailView: View {
 
     private func artworkThumbnail(for track: SoundCloudTrack, cornerRadius: CGFloat) -> some View {
         TrackArtworkView(
-            artworkURL: track.artworkURL,
+            artworkURL: track.displayArtworkURL,
             loader: model.artworkLoader,
             size: 250,
             rendition: .square500,
