@@ -7,6 +7,7 @@ struct SidebarView: View {
     let artworkLoader: ArtworkLoader
     let onSearch: (String) -> Void
     let onSelectProfile: (SoundCloudUser) -> Void
+    let onReselect: () -> Void
     let onSignOut: () async -> Void
 
     @State private var isProfileHovered = false
@@ -31,8 +32,10 @@ struct SidebarView: View {
                     Image(systemName: destination.systemImage)
                         .foregroundStyle(selection == destination ? Color("AccentColor") : .primary)
                 }
+                    .modifier(SidebarRowStyle(isSelected: selection == destination) {
+                        select(destination)
+                    })
                     .tag(destination)
-                    .modifier(SidebarRowStyle(isSelected: selection == destination))
             }
             Section("Playlists") {
                 ForEach(playlists.playlists) { playlist in
@@ -54,8 +57,10 @@ struct SidebarView: View {
                     }
                         .lineLimit(1)
                         .help(playlist.title)
+                        .modifier(SidebarRowStyle(isSelected: selection == .playlist(playlist)) {
+                            select(.playlist(playlist))
+                        })
                         .tag(SidebarDestination.playlist(playlist))
-                        .modifier(SidebarRowStyle(isSelected: selection == .playlist(playlist)))
                 }
                 if playlists.isLoading {
                     ProgressView("Loading playlists")
@@ -130,6 +135,14 @@ struct SidebarView: View {
         }
     }
 
+    private func select(_ destination: SidebarDestination) {
+        if selection == destination {
+            onReselect()
+        } else {
+            selection = destination
+        }
+    }
+
     private var accountHeader: some View {
         HStack(spacing: 8) {
             Button {
@@ -174,9 +187,15 @@ struct SidebarView: View {
 
 private struct SidebarRowStyle: ViewModifier {
     let isSelected: Bool
+    let onSelect: () -> Void
 
     func body(content: Content) -> some View {
-        content
+        Button(action: onSelect) {
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+            .buttonStyle(.plain)
             .listRowBackground(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(isSelected ? Color.primary.opacity(0.06) : .clear)

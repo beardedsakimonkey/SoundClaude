@@ -41,6 +41,7 @@ struct SignedInView: View {
                 artworkLoader: model.artworkLoader,
                 onSearch: showSearch,
                 onSelectProfile: showArtist,
+                onReselect: { navigationHistories[destinationID] = NavigationHistory() },
                 onSignOut: model.signOut
             )
                 .safeAreaPadding(.bottom, footerHeight)
