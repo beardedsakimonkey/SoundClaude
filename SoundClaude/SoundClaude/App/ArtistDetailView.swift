@@ -286,7 +286,9 @@ struct ArtistDetailView: View {
                                 }
                             }
                             profileLinks
-                            relatedArtistsSection
+                            if !relatedArtists.isEmpty {
+                                relatedArtistsSection
+                            }
                         }
                         .frame(width: max(0, geometry.size.width - 72) * 0.3, alignment: .leading)
                     }
@@ -404,10 +406,6 @@ struct ArtistDetailView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Button("Retry related artists") { Task { await loadRelatedArtists() } }
-            } else if relatedArtists.isEmpty {
-                Text("No related artists available.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
             }
         }
     }
