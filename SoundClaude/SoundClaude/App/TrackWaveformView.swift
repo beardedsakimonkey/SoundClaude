@@ -13,6 +13,7 @@ struct TrackWaveformView: View {
     let model: AppModel
     let layout: Layout
     let invertsBarsOnTrackChange: Bool
+    let collapsesBarsWhenPaused: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
 
     private let playback: PlaybackController
@@ -34,12 +35,14 @@ struct TrackWaveformView: View {
         model: AppModel,
         layout: Layout = .detail,
         invertsBarsOnTrackChange: Bool = false,
+        collapsesBarsWhenPaused: Bool = false,
         onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
     ) {
         self.track = track
         self.model = model
         self.layout = layout
         self.invertsBarsOnTrackChange = invertsBarsOnTrackChange
+        self.collapsesBarsWhenPaused = collapsesBarsWhenPaused
         self.onPlayTrack = onPlayTrack
         playback = model.playback
         _waveform = State(initialValue: model.cachedWaveform(for: track))
@@ -183,6 +186,10 @@ struct TrackWaveformView: View {
                     value: barDirection
                 )
                 .animation(.easeInOut(duration: 0.15), value: isHovering)
+                .animation(
+                    reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.3),
+                    value: barsAreCollapsed
+                )
                 .contentShape(Rectangle())
                 .onContinuousHover { phase in
                     switch phase {
@@ -367,12 +374,20 @@ struct TrackWaveformView: View {
         return min(max(displayedCurrentTime / displayedDuration, 0), 1)
     }
 
+    private var barsAreCollapsed: Bool {
+        collapsesBarsWhenPaused && (!isCurrentTrack || !playback.isPlaybackActive)
+    }
+
     private func barAmplitudes(
         _ waveform: SoundCloudWaveform?,
         width: CGFloat
     ) -> WaveformAmplitudes {
         // Keep the same bars for every track, including the loading state.
         let barCount = max(Int(width / 4), 1)
+        if barsAreCollapsed {
+            let pausedAmplitude = 6.0 / Double(layout.height - 4)
+            return WaveformAmplitudes(values: Array(repeating: pausedAmplitude, count: barCount))
+        }
         guard let waveform, !waveform.samples.isEmpty, waveform.height > 0 else {
             return WaveformAmplitudes(values: Array(repeating: 0, count: barCount))
         }

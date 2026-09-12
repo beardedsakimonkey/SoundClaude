@@ -221,7 +221,8 @@ struct PlayerFooterView: View {
                             track: track,
                             model: model,
                             layout: .compact,
-                            invertsBarsOnTrackChange: true
+                            invertsBarsOnTrackChange: true,
+                            collapsesBarsWhenPaused: true
                         )
                     } else {
                         Color.clear
