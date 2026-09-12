@@ -30,12 +30,14 @@ struct ArtistDetailView: View {
     @State private var isUpdatingFollow = false
     @State private var followErrorMessage: String?
     @State private var followerCountAdjustment = 0
+    @State private var hoveredStatistic: String?
     @State private var headerImage: NSImage?
     @State private var headerImageURL: URL?
     @State private var isHeaderContentHidden = false
     @State private var details: SoundCloudArtistDetails?
     @State private var webProfiles: [SoundCloudWebProfile] = []
     @State private var webProfilesErrorMessage: String?
+    @State private var hoveredWebProfileURL: URL?
     @State private var relatedArtists: [SoundCloudUser] = []
     @State private var isLoadingRelatedArtists = false
     @State private var relatedArtistsErrorMessage: String?
@@ -297,32 +299,46 @@ struct ArtistDetailView: View {
 
     private var profileLinks: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ForEach(webProfiles) { profile in
-                Link(destination: profile.url) {
-                    HStack(spacing: 12) {
-                        Group {
-                            if let asset = profile.iconAsset {
-                                Image(asset)
-                                    .resizable()
-                                    .scaledToFit()
-                            } else {
-                                Image(systemName: "globe")
-                                    .resizable()
-                                    .scaledToFit()
+            if !webProfiles.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(webProfiles) { profile in
+                        Link(destination: profile.url) {
+                            HStack(spacing: 12) {
+                                Group {
+                                    if let asset = profile.iconAsset {
+                                        Image(asset)
+                                            .resizable()
+                                            .scaledToFit()
+                                    } else {
+                                        Image(systemName: "globe")
+                                            .resizable()
+                                            .scaledToFit()
+                                    }
+                                }
+                                .frame(width: 18, height: 18)
+                                .accessibilityHidden(true)
+                                Text(profile.title)
+                                    .font(.body.weight(.semibold))
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                            }
+                            .foregroundStyle(hoveredWebProfileURL == profile.url ? .primary : .secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 6)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .onContentHover { isHovering in
+                            if isHovering {
+                                hoveredWebProfileURL = profile.url
+                            } else if hoveredWebProfileURL == profile.url {
+                                hoveredWebProfileURL = nil
                             }
                         }
-                        .frame(width: 18, height: 18)
-                        .accessibilityHidden(true)
-                        Text(profile.title)
-                            .font(.body.weight(.semibold))
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
+                        .help(profile.url.absoluteString)
                     }
-                    .foregroundStyle(.secondary)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .help(profile.url.absoluteString)
+                .padding(.vertical, -6)
             }
             if let webProfilesErrorMessage {
                 Text(webProfilesErrorMessage)
@@ -721,15 +737,22 @@ struct ArtistDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(label)
                     .font(.callout.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(hoveredStatistic == label ? .primary : .secondary)
                 Text(count.formatted())
                     .font(.system(size: 28, weight: .semibold))
-                    .opacity(0.9)
+                    .opacity(hoveredStatistic == label ? 1 : 0.9)
             }
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
+            .onContentHover { isHovering in
+                if isHovering {
+                    hoveredStatistic = label
+                } else if hoveredStatistic == label {
+                    hoveredStatistic = nil
+                }
+            }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(label): \(count.formatted())")
         }
