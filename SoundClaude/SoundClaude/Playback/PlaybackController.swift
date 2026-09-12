@@ -159,6 +159,9 @@ final class PlaybackController {
                     seek(to: 0)
                     play()
                 } else {
+                    shouldPlayWhenReady = false
+                    isPlaying = false
+                    updateNowPlayingInfo()
                     onTrackEnded?()
                 }
             }

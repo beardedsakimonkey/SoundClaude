@@ -81,6 +81,17 @@ struct PlaybackTests {
         try await until { !playback.isLoading && abs(playback.player.currentTime().seconds - 0.75) < 0.05 }
         precondition(!playback.isPlaybackActive)
 
+        // Finishing the last track clears playback intent before advancing the queue.
+        var didEnd = false
+        playback.onTrackEnded = {
+            precondition(!playback.isPlaybackActive)
+            didEnd = true
+        }
+        playback.togglePlayPause()
+        precondition(playback.isPlaybackActive)
+        try await until { didEnd }
+        precondition(!playback.isPlaybackActive && !playback.isPlaying)
+
         // Sign-out invalidates an outstanding source and clears saved metadata.
         let pending = playback.beginLoading(track: track(2))
         playback.clearSession()

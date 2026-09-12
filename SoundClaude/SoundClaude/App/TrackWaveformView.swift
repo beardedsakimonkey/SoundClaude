@@ -35,14 +35,14 @@ struct TrackWaveformView: View {
         model: AppModel,
         layout: Layout = .detail,
         invertsBarsOnTrackChange: Bool = false,
-        collapsesBarsWhenPaused: Bool = false,
+        collapsesBarsWhenPaused: Bool? = nil,
         onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
     ) {
         self.track = track
         self.model = model
         self.layout = layout
         self.invertsBarsOnTrackChange = invertsBarsOnTrackChange
-        self.collapsesBarsWhenPaused = collapsesBarsWhenPaused
+        self.collapsesBarsWhenPaused = collapsesBarsWhenPaused ?? (layout == .detail)
         self.onPlayTrack = onPlayTrack
         playback = model.playback
         _waveform = State(initialValue: model.cachedWaveform(for: track))
