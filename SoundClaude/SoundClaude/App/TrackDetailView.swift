@@ -287,6 +287,7 @@ struct TrackDetailView: View {
             } label: {
                 artworkThumbnail(for: track, cornerRadius: cornerRadius)
                     .artworkExpandIndicator(isHovering: isHoveringArtwork)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             }
             .buttonStyle(.plain)
             .contentShape(RoundedRectangle(cornerRadius: cornerRadius))

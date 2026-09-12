@@ -132,6 +132,7 @@ struct PlaylistDetailView: View {
                 isShowingArtwork = true
             } label: {
                 thumbnail.artworkExpandIndicator(isHovering: isHoveringArtwork)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
             .onContentHover { isHoveringArtwork = $0 }

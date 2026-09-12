@@ -77,14 +77,14 @@ private struct ArtworkExpandIndicator: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .overlay(alignment: .bottomTrailing) {
+            .overlay {
                 if isHovering {
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .padding(7)
-                        .background(.black.opacity(0.65), in: Circle())
-                        .padding(11)
+                    Color.black.opacity(0.5)
+                        .overlay {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.system(size: 48, weight: .regular))
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
                         .transition(.opacity)
                         .accessibilityHidden(true)
                         .allowsHitTesting(false)

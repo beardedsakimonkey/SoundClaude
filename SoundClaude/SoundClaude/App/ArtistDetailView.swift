@@ -341,6 +341,7 @@ struct ArtistDetailView: View {
             } label: {
                 thumbnail
                     .artworkExpandIndicator(isHovering: isHoveringArtwork)
+                    .clipShape(Circle())
             }
             .buttonStyle(.plain)
             .contentShape(Circle())
