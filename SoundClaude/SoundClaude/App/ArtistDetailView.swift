@@ -326,10 +326,11 @@ struct ArtistDetailView: View {
     @ViewBuilder
     private func artistPicture(for user: SoundCloudUser) -> some View {
         let avatarURL = user.avatarURL ?? artist.avatarURL
+        let pictureSize: CGFloat = 180
         let thumbnail = TrackArtworkView(
             artworkURL: avatarURL,
             loader: model.artworkLoader,
-            size: 180,
+            size: pictureSize,
             rendition: .square500
         )
         .clipShape(Circle())
@@ -345,7 +346,9 @@ struct ArtistDetailView: View {
             }
             .buttonStyle(.plain)
             .contentShape(Circle())
-            .onContentHover { isHoveringArtwork = $0 }
+            .onContentHover(in: Circle().path(in: CGRect(
+                x: 0, y: 0, width: pictureSize, height: pictureSize
+            ))) { isHoveringArtwork = $0 }
             .help("View full-size artist picture")
             .accessibilityLabel("View full-size picture of \(user.username)")
         } else {
