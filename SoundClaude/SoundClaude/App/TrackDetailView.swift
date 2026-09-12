@@ -7,6 +7,7 @@ struct TrackDetailView: View {
     let track: SoundCloudTrack
     @ObservedObject var model: AppModel
     @ObservedObject private var likes: LikesController
+    @ObservedObject private var reposts: RepostsController
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
@@ -19,6 +20,7 @@ struct TrackDetailView: View {
     @State private var details: SoundCloudTrackDetails?
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var repostErrorMessage: String?
     @State private var isShowingArtwork = false
     @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
@@ -32,6 +34,7 @@ struct TrackDetailView: View {
         self.track = track
         self.model = model
         _likes = ObservedObject(wrappedValue: model.likes)
+        _reposts = ObservedObject(wrappedValue: model.reposts)
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
 
@@ -86,6 +89,18 @@ struct TrackDetailView: View {
         }
         .task(id: track.urn) {
             if !hasLoadedRelatedTracks { await loadRelatedTracks() }
+        }
+        .task {
+            // Retry on click and show any error there.
+            try? await reposts.load()
+        }
+        .alert("Could not update repost", isPresented: Binding(
+            get: { repostErrorMessage != nil },
+            set: { if !$0 { repostErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { repostErrorMessage = nil }
+        } message: {
+            Text(repostErrorMessage ?? "Please try again.")
         }
         .sheet(isPresented: $isShowingArtwork) {
             FullSizeArtworkView(
@@ -144,6 +159,7 @@ struct TrackDetailView: View {
                             HStack(spacing: 12) {
                                 playButton(for: details.track)
                                 likeButton(for: details.track)
+                                repostButton(for: details.track)
                             }
 
                             if details.track.waveformURL != nil {
@@ -383,6 +399,37 @@ struct TrackDetailView: View {
         .help(isLiked ? "Unlike track" : "Like track")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
         .accessibilityValue(isLiked ? "Liked" : "Not liked")
+    }
+
+    private func repostButton(for track: SoundCloudTrack) -> some View {
+        let isReposted = reposts.isReposted(track)
+        let repostCount = reposts.repostCount(for: track)?.formatted(.number)
+
+        return Button {
+            Task {
+                do {
+                    try await reposts.toggleRepost(track)
+                } catch is CancellationError {
+                } catch {
+                    repostErrorMessage = error.localizedDescription
+                }
+            }
+        } label: {
+            Label(repostCount ?? "Repost", systemImage: "arrow.2.squarepath")
+                .foregroundStyle(isReposted ? Color.green : Color.primary)
+                .labelStyle(.titleAndIcon)
+                .font(.title3.weight(.semibold))
+                .padding(.horizontal, 24)
+                .frame(minHeight: 24)
+        }
+        .buttonStyle(TrackActionButtonStyle(
+            fill: isReposted ? .green.opacity(0.12) : .primary.opacity(0.12)
+        ))
+        .modifier(SpringPressEffect())
+        .disabled(reposts.isLoading || reposts.updatingTrackURNs.contains(track.urn))
+        .help(isReposted ? "Undo repost" : "Repost track")
+        .accessibilityLabel(isReposted ? "Undo repost" : "Repost track")
+        .accessibilityValue(isReposted ? "Reposted" : "Not reposted")
     }
 
     private func nonempty(_ value: String?) -> String? {
