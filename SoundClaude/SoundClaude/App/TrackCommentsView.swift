@@ -236,12 +236,8 @@ struct TrackCommentsView: View {
                         }
                     } label: {
                         Text(timeLabel)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
-                            .background(timestampColor.opacity(0.12), in: Capsule())
-                            .contentShape(Capsule())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(CommentTimestampButtonStyle(color: timestampColor))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(timestampColor)
                     .help("Jump to \(timeLabel)")
@@ -286,5 +282,26 @@ struct TrackCommentsView: View {
             guard !Task.isCancelled else { return }
             errorMessage = error.localizedDescription
         }
+    }
+}
+
+private struct CommentTimestampButtonStyle: ButtonStyle {
+    let color: Color
+
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        let isHighlighted = isHovering && isEnabled
+
+        configuration.label
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(color.opacity(isHighlighted ? 0.24 : 0.12), in: Capsule())
+            .contentShape(Capsule())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.5)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHighlighted)
+            .onContentHover { isHovering = $0 }
     }
 }
