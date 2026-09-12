@@ -367,7 +367,7 @@ struct TrackDetailView: View {
 
     private func likeButtonLabel(for track: SoundCloudTrack) -> some View {
         let isLiked = likes.isLiked(track)
-        let likeCount = likes.likeCount(for: track)?.formatted(.number) ?? "—"
+        let likeCount = likes.likeCount(for: track)?.formatted(.number)
 
         return Button {
             Task {
@@ -379,10 +379,10 @@ struct TrackDetailView: View {
             }
         } label: {
             ZStack {
-                Label(likeCount, systemImage: "heart")
+                Label(likeCount ?? "Like", systemImage: "heart")
                     .opacity(isLiked ? 0 : 1)
                     .accessibilityHidden(isLiked)
-                Label(likeCount, systemImage: "heart.fill")
+                Label(likeCount ?? "Unlike", systemImage: "heart.fill")
                     .opacity(isLiked ? 1 : 0)
                     .accessibilityHidden(!isLiked)
             }
