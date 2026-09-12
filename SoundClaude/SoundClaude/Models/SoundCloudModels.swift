@@ -43,6 +43,48 @@ struct RawUserPage: Decodable {
     }
 }
 
+struct SoundCloudWebProfile: Sendable, Identifiable {
+    let url: URL
+    let title: String
+    let service: String
+
+    var id: URL { url }
+
+    var iconAsset: String? {
+        switch service {
+        case "facebook", "youtube", "spotify", "twitter", "bandcamp", "instagram", "tumblr": "Profile-\(service)"
+        default: nil
+        }
+    }
+}
+
+struct RawWebProfile: Decodable {
+    let url: String?
+    let title: String?
+    let service: String?
+
+    func normalized() -> SoundCloudWebProfile? {
+        guard let rawURL = url?.trimmingCharacters(in: .whitespacesAndNewlines),
+              let url = URL(string: rawURL),
+              ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+              let host = url.host, !host.isEmpty else { return nil }
+        let service = service?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        let title = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let serviceName = switch service {
+        case "youtube": "YouTube"
+        case "facebook": "Facebook"
+        case "spotify": "Spotify"
+        case "instagram": "Instagram"
+        case "twitter": "Twitter"
+        case "tiktok": "TikTok"
+        case "bandcamp": "Bandcamp"
+        case "", "personal", "website": host
+        default: service.capitalized
+        }
+        return SoundCloudWebProfile(url: url, title: title.isEmpty ? serviceName : title, service: service)
+    }
+}
+
 struct SoundCloudArtistDetails: Sendable {
     let user: SoundCloudUser
     let description: String?

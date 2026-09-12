@@ -27,6 +27,8 @@ struct ArtistDetailView: View {
     @State private var headerImage: NSImage?
     @State private var headerImageURL: URL?
     @State private var details: SoundCloudArtistDetails?
+    @State private var webProfiles: [SoundCloudWebProfile] = []
+    @State private var webProfilesErrorMessage: String?
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var tracks: [SoundCloudTrack] = []
@@ -125,6 +127,9 @@ struct ArtistDetailView: View {
         .task(id: details?.user.urn) {
             await loadFollowStatus()
         }
+        .task(id: details?.user.urn) {
+            await loadWebProfiles()
+        }
         .onChange(of: selectedTab) { _, tab in
             guard tab == .reposts, !hasLoadedReposts else { return }
             Task { await loadReposts() }
@@ -160,7 +165,7 @@ struct ArtistDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 24) {
-                        HStack(alignment: .top, spacing: 24) {
+                        HStack(alignment: .center, spacing: 24) {
                             artistPicture(for: details.user)
                             VStack(alignment: .leading, spacing: 10) {
                                 Text(details.user.username)
@@ -255,6 +260,7 @@ struct ArtistDetailView: View {
                                     .id(artist.permalinkURL)
                                 }
                             }
+                            profileLinks
                         }
                         .frame(width: max(0, geometry.size.width - 72) * 0.3, alignment: .leading)
                     }
@@ -262,6 +268,58 @@ struct ArtistDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(24)
             }
+        }
+    }
+
+    private var profileLinks: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ForEach(webProfiles) { profile in
+                Link(destination: profile.url) {
+                    HStack(spacing: 12) {
+                        Group {
+                            if let asset = profile.iconAsset {
+                                Image(asset)
+                                    .resizable()
+                                    .scaledToFit()
+                            } else {
+                                Image(systemName: "globe")
+                                    .resizable()
+                                    .scaledToFit()
+                            }
+                        }
+                        .frame(width: 18, height: 18)
+                        .accessibilityHidden(true)
+                        Text(profile.title)
+                            .font(.body.weight(.semibold))
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                    }
+                    .foregroundStyle(.secondary)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(profile.url.absoluteString)
+            }
+            if let webProfilesErrorMessage {
+                Text(webProfilesErrorMessage)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Button("Retry profile links") { Task { await loadWebProfiles() } }
+            }
+        }
+    }
+
+    private func loadWebProfiles() async {
+        webProfiles = []
+        webProfilesErrorMessage = nil
+        guard let user = details?.user, user.urn != nil else { return }
+        do {
+            let profiles = try await model.artistWebProfiles(for: user)
+            try Task.checkCancellation()
+            webProfiles = profiles
+        } catch {
+            guard !Task.isCancelled else { return }
+            webProfilesErrorMessage = "Could not load profile links."
         }
     }
 

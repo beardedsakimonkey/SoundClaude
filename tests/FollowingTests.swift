@@ -11,6 +11,34 @@ struct FollowingTests {
         )
         FollowingURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")
+            precondition(request.url?.path == "/users/soundcloud:users:1/web-profiles")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            return (200, """
+                [
+                    {"service":"youtube","url":"https://youtube.com/artist","title":"  "},
+                    {"service":"personal","url":"https://example.com","title":"My site"},
+                    {"service":"youtube","url":"https://youtube.com/artist"},
+                    {"url":"javascript:alert(1)"},
+                    {"url":"/relative"},
+                    {"title":"Missing URL"}
+                ]
+                """)
+        }
+        let profiles = try await client.artistWebProfiles(urn: "soundcloud:users:1", accessToken: "test-token")
+        precondition(profiles.map(\.title) == ["YouTube", "My site"])
+        precondition(profiles.first?.iconAsset == "Profile-youtube")
+        precondition(profiles.last?.iconAsset == nil)
+        FollowingURLProtocol.respond { _ in (200, "[]") }
+        let emptyProfiles = try await client.artistWebProfiles(urn: "soundcloud:users:1", accessToken: "test-token")
+        precondition(emptyProfiles.isEmpty)
+        FollowingURLProtocol.respond { _ in (401, "{}") }
+        do {
+            _ = try await client.artistWebProfiles(urn: "soundcloud:users:1", accessToken: "test-token")
+            fatalError("Unauthorized profile response was accepted")
+        } catch SoundCloudError.unauthorized {}
+
+        FollowingURLProtocol.respond { request in
+            precondition(request.httpMethod == "GET")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             precondition(request.url?.path == "/me/followings")
             if request.url?.query == "limit=200" {

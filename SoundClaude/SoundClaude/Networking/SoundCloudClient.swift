@@ -328,6 +328,18 @@ actor SoundCloudClient {
         return details
     }
 
+    func artistWebProfiles(urn: String, accessToken: String) async throws -> [SoundCloudWebProfile] {
+        let url = configuration.apiBaseURL.appending(path: "users")
+            .appending(path: urn).appending(path: "web-profiles")
+            .appending(queryItems: [URLQueryItem(name: "limit", value: "200")])
+        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+        try validate(response: response, data: data)
+        var seen: Set<URL> = []
+        return try decoder.decode([RawWebProfile].self, from: data)
+            .compactMap { $0.normalized() }
+            .filter { seen.insert($0.url).inserted }
+    }
+
     func followedArtistURNs(accessToken: String) async throws -> Set<String> {
         struct Page: Decodable {
             let collection: [RawUser]
