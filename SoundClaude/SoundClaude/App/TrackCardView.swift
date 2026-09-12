@@ -4,11 +4,27 @@ import SwiftUI
 struct TrackCardView: View {
     let track: SoundCloudTrack
     let model: AppModel
+    @ObservedObject private var likes: LikesController
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
 
     @State private var isHoveringTitle = false
+
+    init(
+        track: SoundCloudTrack,
+        model: AppModel,
+        onSelectTrack: @escaping (SoundCloudTrack) -> Void,
+        onSelectArtist: @escaping (SoundCloudUser) -> Void,
+        onPlayTrack: @escaping (SoundCloudTrack) async -> Void
+    ) {
+        self.track = track
+        self.model = model
+        _likes = ObservedObject(wrappedValue: model.likes)
+        self.onSelectTrack = onSelectTrack
+        self.onSelectArtist = onSelectArtist
+        self.onPlayTrack = onPlayTrack
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 20) {
@@ -65,10 +81,13 @@ struct TrackCardView: View {
                     .frame(maxWidth: .infinity)
                 }
 
-                HStack(spacing: 20) {
-                    statistic(track.likesCount, label: "likes", systemImage: "heart")
-                    statistic(track.repostsCount, label: "reposts", systemImage: "arrow.2.squarepath")
-                    statistic(track.commentCount, label: "comments", systemImage: "bubble.right")
+                HStack(spacing: 10) {
+                    likeButton
+                    Button {} label: {
+                        statistic(track.repostsCount, label: "reposts", systemImage: "arrow.2.squarepath")
+                    }
+                    .buttonStyle(TrackStatisticButtonStyle(color: .green))
+                    .accessibilityLabel("Repost track")
                     Spacer(minLength: 0)
                     Text(duration)
                         .monospacedDigit()
@@ -138,6 +157,31 @@ struct TrackCardView: View {
         .accessibilityLabel("\(isPlaying ? "Pause" : "Play") \(track.title)")
     }
 
+    private var likeButton: some View {
+        let isLiked = likes.isLiked(track)
+
+        return Button {
+            Task {
+                do {
+                    try await likes.toggleLike(track)
+                } catch {
+                    model.likeErrorMessage = error.localizedDescription
+                }
+            }
+        } label: {
+            statistic(
+                likes.likeCount(for: track),
+                label: "likes",
+                systemImage: isLiked ? "heart.fill" : "heart"
+            )
+        }
+        .buttonStyle(TrackStatisticButtonStyle(color: .orange, isSelected: isLiked))
+        .disabled(likes.updatingTrackURNs.contains(track.urn))
+        .help(isLiked ? "Unlike track" : "Like track")
+        .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
+        .accessibilityValue(isLiked ? "Liked" : "Not liked")
+    }
+
     private func statistic(_ count: Int?, label: String, systemImage: String) -> some View {
         Label(count?.formatted(.number.notation(.compactName)) ?? "—", systemImage: systemImage)
             .monospacedDigit()
@@ -151,5 +195,30 @@ struct TrackCardView: View {
     private var duration: String {
         let seconds = max(track.durationMilliseconds, 0) / 1_000
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+private struct TrackStatisticButtonStyle: ButtonStyle {
+    let color: Color
+    var isSelected = false
+
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        let isHighlighted = isHovering && isEnabled
+
+        configuration.label
+            .foregroundStyle(isSelected ? color : (isHighlighted ? Color.primary.opacity(0.8) : Color.secondary))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                isSelected ? color.opacity(0.3) : Color.primary.opacity(isHighlighted ? 0.1 : 0.06),
+                in: Capsule()
+            )
+            .brightness(isHighlighted ? 0.05 : 0)
+            .contentShape(Capsule())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.5)
+            .onContentHover { isHovering = $0 }
     }
 }
