@@ -18,6 +18,18 @@ final class SoundCloudClient {
         SoundCloudTrackPage(tracks: [], nextURL: nil)
     }
     var details = makePlaylist(1)
+    var fetchLikes: (URL?) async throws -> SoundCloudPlaylistPage = { _ in
+        SoundCloudPlaylistPage(playlists: [], nextURL: nil)
+    }
+    var likeWrites: [Bool] = []
+    var failLikeWrite = false
+    func likedPlaylists(accessToken: String, pageURL: URL?) async throws -> SoundCloudPlaylistPage {
+        try await fetchLikes(pageURL)
+    }
+    func setPlaylistLiked(urn: String, isLiked: Bool, accessToken: String) async throws {
+        likeWrites.append(isLiked)
+        if failLikeWrite { throw SoundCloudError.invalidData }
+    }
     func playlists(accessToken: String, pageURL: URL?) async throws -> SoundCloudPlaylistPage {
         listRequests.append(pageURL)
         return try await fetchList(pageURL)
@@ -33,11 +45,11 @@ enum SoundCloudError: Error { case invalidData }
 
 let user = SoundCloudUser(urn: "user:1", username: "Test", avatarURL: nil,
                          permalinkURL: URL(string: "https://soundcloud.com/test")!)
-func makePlaylist(_ id: Int) -> SoundCloudPlaylist {
+func makePlaylist(_ id: Int, isPrivate: Bool = true) -> SoundCloudPlaylist {
     SoundCloudPlaylist(urn: "playlist:\(id)", title: "Playlist \(id)", owner: user,
                        artworkURL: nil, permalinkURL: user.permalinkURL,
                        description: "Description", trackCount: 3,
-                       durationMilliseconds: 3000, isPrivate: true)
+                       durationMilliseconds: 3000, isPrivate: isPrivate)
 }
 func track(_ id: Int) -> SoundCloudTrack {
     SoundCloudTrack(urn: "track:\(id)", title: "Track \(id)", artist: user,
@@ -182,6 +194,36 @@ struct PlaylistsCacheTests {
         await controller.load()
         let repaired = try await store.load(accountID: "user:1")
         precondition(repaired?.playlists == [makePlaylist(2)])
+        // Like state must include later pages before choosing POST or DELETE.
+        let publicPlaylist = makePlaylist(42, isPrivate: false)
+        client.fetchLikes = { url in
+            SoundCloudPlaylistPage(playlists: url == nil ? [] : [publicPlaylist],
+                                   nextURL: url == nil ? next : nil)
+        }
+        await controller.loadLikes()
+        precondition(controller.hasLoadedLikes && controller.likedPlaylistURNs == [publicPlaylist.urn])
+        try await controller.toggleLike(publicPlaylist)
+        precondition(client.likeWrites == [false] && controller.likedPlaylistURNs.isEmpty)
+        try await controller.toggleLike(publicPlaylist)
+        precondition(client.likeWrites == [false, true])
+        client.failLikeWrite = true
+        do {
+            try await controller.toggleLike(publicPlaylist)
+            fatalError("Failed like write was accepted")
+        } catch is SoundCloudError {}
+        precondition(controller.likedPlaylistURNs == [publicPlaylist.urn])
+        precondition(controller.updatingLikeURNs.isEmpty)
+        try await controller.toggleLike(makePlaylist(1))
+        precondition(client.likeWrites.count == 3)
+        controller.clear()
+        precondition(controller.likedPlaylistURNs.isEmpty && !controller.hasLoadedLikes)
+        await controller.restoreCache()
+        client.fetchLikes = { _ in throw SoundCloudError.invalidData }
+        await controller.loadLikes()
+        precondition(!controller.hasLoadedLikes && controller.likesErrorMessage != nil)
+        client.fetchLikes = { _ in SoundCloudPlaylistPage(playlists: [], nextURL: nil) }
+        await controller.loadLikes()
+        precondition(controller.hasLoadedLikes && controller.likesErrorMessage == nil)
         print("Playlist cache and sync checks passed")
     }
 }

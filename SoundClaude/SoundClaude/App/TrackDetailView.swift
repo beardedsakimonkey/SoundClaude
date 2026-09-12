@@ -429,7 +429,7 @@ struct TrackDetailView: View {
     }
 }
 
-private struct TrackActionButtonStyle: ButtonStyle {
+struct TrackActionButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var isEnabled
 
     let fill: Color

@@ -65,6 +65,29 @@ struct PlaylistTests {
         let lastPage = try await client.playlists(accessToken: "test-token", pageURL: page.nextURL)
         precondition(lastPage.playlists.isEmpty && lastPage.nextURL == nil)
 
+        PlaylistURLProtocol.respond { request in
+            precondition(request.url?.path == "/me/likes/playlists")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            return (200, "{\"collection\":[\(playlist)],\"next_href\":\"\(nextURL)\"}")
+        }
+        let likedPage = try await client.likedPlaylists(accessToken: "test-token")
+        precondition(likedPage.playlists == page.playlists && likedPage.nextURL == page.nextURL)
+        PlaylistURLProtocol.respond { request in
+            precondition(request.url?.absoluteString == nextURL)
+            return (200, "{\"collection\":[]}")
+        }
+        _ = try await client.likedPlaylists(accessToken: "test-token", pageURL: likedPage.nextURL)
+        for isLiked in [true, false] {
+            PlaylistURLProtocol.respond { request in
+                precondition(request.url?.path == "/likes/playlists/soundcloud:playlists:42")
+                precondition(request.httpMethod == (isLiked ? "POST" : "DELETE"))
+                precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+                return (200, "")
+            }
+            try await client.setPlaylistLiked(urn: "soundcloud:playlists:42", isLiked: isLiked,
+                                              accessToken: "test-token")
+        }
+
         let artistURN = "soundcloud:users:7"
         let artistNextURL = "https://api.soundcloud.com/users/\(artistURN)/playlists?cursor=next"
         PlaylistURLProtocol.respond { request in

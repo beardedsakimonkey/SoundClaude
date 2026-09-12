@@ -17,11 +17,24 @@ struct PlaylistDetailView: View {
     @State private var isShowingArtwork = false
     @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
+    @State private var likeErrorMessage: String?
 
     private var displayedPlaylist: SoundCloudPlaylist { contents?.playlist ?? playlist }
-    private var artworkURL: URL? {
-        displayedPlaylist.artworkURL ?? tracks.first(where: { $0.artworkURL != nil })?.artworkURL
+    private var currentPlaylistTrack: SoundCloudTrack? {
+        guard let track = model.playback.currentTrack,
+              model.queue.source == .playlist(playlist.urn)
+                || tracks.contains(where: { $0.urn == track.urn }) else { return nil }
+        return track
     }
+
+    private var artworkURL: URL? {
+        if let track = currentPlaylistTrack {
+            return track.artworkURL
+        }
+        return displayedPlaylist.artworkURL ?? tracks.first(where: { $0.artworkURL != nil })?.artworkURL
+    }
+
+    private var artworkTitle: String { currentPlaylistTrack?.title ?? displayedPlaylist.title }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -69,9 +82,20 @@ struct PlaylistDetailView: View {
         .task(id: playlist.urn) {
             await load()
         }
+        .task(id: displayedPlaylist.isPrivate) {
+            if !displayedPlaylist.isPrivate { await playlists.loadLikes() }
+        }
+        .alert("Could not update playlist like", isPresented: Binding(
+            get: { likeErrorMessage != nil },
+            set: { if !$0 { likeErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { likeErrorMessage = nil }
+        } message: {
+            Text(likeErrorMessage ?? "Please try again.")
+        }
         .sheet(isPresented: $isShowingArtwork) {
             FullSizeArtworkView(
-                title: displayedPlaylist.title,
+                title: artworkTitle,
                 artworkURL: artworkURL,
                 loader: model.artworkLoader,
                 cachedArtwork: $cachedFullSizeArtwork
@@ -114,7 +138,27 @@ struct PlaylistDetailView: View {
                 )
                     .font(.title3)
                     .foregroundStyle(.secondary)
+
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 12) {
+                        playButton
+                        if !displayedPlaylist.isPrivate { likeButton }
+                    }
+                    if !displayedPlaylist.isPrivate, let error = playlists.likesErrorMessage {
+                        Text(error).font(.caption).foregroundStyle(.secondary)
+                        Button("Retry likes") { Task { await playlists.loadLikes() } }
+                    }
+                    if let track = currentPlaylistTrack {
+                        TrackWaveformView(
+                            track: track,
+                            model: model,
+                            collapsesBarsWhenPaused: true
+                        )
+                    }
+                }
+                .padding(.top, 8)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -136,11 +180,79 @@ struct PlaylistDetailView: View {
             }
             .buttonStyle(.plain)
             .onContentHover { isHoveringArtwork = $0 }
-            .help("View full-size playlist artwork")
-            .accessibilityLabel("View full-size artwork for \(displayedPlaylist.title)")
+            .help("View full-size artwork")
+            .accessibilityLabel("View full-size artwork for \(artworkTitle)")
         } else {
             thumbnail
         }
+    }
+
+    private var playButton: some View {
+        let isPlaying = currentPlaylistTrack != nil && model.playback.isPlaybackActive
+        return Button {
+            if currentPlaylistTrack != nil {
+                model.playback.togglePlayPause()
+            } else if let track = tracks.first {
+                Task {
+                    await model.play(track, queue: TrackQueue(
+                        source: .playlist(playlist.urn), tracks: tracks, nextPageURL: nextPageURL
+                    ))
+                }
+            }
+        } label: {
+            ZStack {
+                Label("Play", systemImage: "play.fill")
+                    .opacity(isPlaying ? 0 : 1)
+                    .accessibilityHidden(isPlaying)
+                Label("Pause", systemImage: "pause.fill")
+                    .opacity(isPlaying ? 1 : 0)
+                    .accessibilityHidden(!isPlaying)
+            }
+            .labelStyle(.titleAndIcon)
+            .font(.title3.weight(.semibold))
+            .padding(.horizontal, 24)
+            .frame(minHeight: 24)
+        }
+        .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
+        .modifier(SpringPressEffect())
+        .disabled(currentPlaylistTrack == nil && tracks.isEmpty)
+        .help(isPlaying ? "Pause playlist" : "Play playlist")
+        .accessibilityLabel(isPlaying ? "Pause playlist" : "Play playlist")
+    }
+
+    private var likeButton: some View {
+        let isLiked = playlists.likedPlaylistURNs.contains(playlist.urn)
+        return Button {
+            Task {
+                do {
+                    try await playlists.toggleLike(displayedPlaylist)
+                } catch {
+                    likeErrorMessage = error.localizedDescription
+                }
+            }
+        } label: {
+            ZStack {
+                Label("Like", systemImage: "heart")
+                    .opacity(isLiked ? 0 : 1)
+                    .accessibilityHidden(isLiked)
+                Label("Unlike", systemImage: "heart.fill")
+                    .foregroundStyle(.orange)
+                    .opacity(isLiked ? 1 : 0)
+                    .accessibilityHidden(!isLiked)
+            }
+            .labelStyle(.titleAndIcon)
+            .font(.title3.weight(.semibold))
+            .padding(.horizontal, 24)
+            .frame(minHeight: 24)
+        }
+        .buttonStyle(TrackActionButtonStyle(
+            fill: isLiked ? .accentColor.opacity(0.12) : .primary.opacity(0.12)
+        ))
+        .modifier(SpringPressEffect())
+        .disabled(!playlists.hasLoadedLikes || playlists.updatingLikeURNs.contains(playlist.urn))
+        .help(isLiked ? "Unlike playlist" : "Like playlist")
+        .accessibilityLabel(isLiked ? "Unlike playlist" : "Like playlist")
+        .accessibilityValue(isLiked ? "Liked" : "Not liked")
     }
 
     private var trackList: some View {

@@ -622,6 +622,23 @@ actor SoundCloudClient {
         )
     }
 
+    func likedPlaylists(accessToken: String, pageURL: URL? = nil) async throws -> SoundCloudPlaylistPage {
+        let url = pageURL ?? configuration.apiBaseURL.appending(path: "me/likes/playlists")
+            .appending(queryItems: [
+                URLQueryItem(name: "limit", value: "200"),
+                URLQueryItem(name: "linked_partitioning", value: "true"),
+            ])
+        return try await playlistPage(at: url, accessToken: accessToken)
+    }
+
+    func setPlaylistLiked(urn: String, isLiked: Bool, accessToken: String) async throws {
+        let url = configuration.apiBaseURL.appending(path: "likes/playlists").appending(path: urn)
+        let (data, response) = try await authenticatedRequest(
+            url: url, accessToken: accessToken, method: isLiked ? "POST" : "DELETE"
+        )
+        try validate(response: response, data: data)
+    }
+
     func setTrackLiked(
         urn: String,
         isLiked: Bool,
