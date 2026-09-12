@@ -141,6 +141,7 @@ struct TrackDetailView: View {
                             .font(.system(size: 36, weight: .semibold))
                             .foregroundStyle(.primary)
                             .opacity(0.9)
+                            .textSelection(.enabled)
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             ArtistLink(
                                 artist: details.track.artist,

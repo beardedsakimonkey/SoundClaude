@@ -42,7 +42,7 @@ struct FeedView: View {
                             .layoutPriority(1)
                             Group {
                                 if item.isRepost {
-                                    Image(systemName: "repeat")
+                                    Image(systemName: "arrow.2.squarepath")
                                         .accessibilityHidden(true)
                                 }
                                 Text(activityLabel(for: item))
