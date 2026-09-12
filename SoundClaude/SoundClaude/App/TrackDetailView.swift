@@ -360,7 +360,7 @@ struct TrackDetailView: View {
     private func likeButton(for track: SoundCloudTrack) -> some View {
         likeButtonLabel(for: track)
             .buttonStyle(TrackActionButtonStyle(
-                fill: likes.isLiked(track) ? .accentColor.opacity(0.3) : .primary.opacity(0.12)
+                fill: likes.isLiked(track) ? .accentColor.opacity(0.12) : .primary.opacity(0.12)
             ))
             .modifier(SpringPressEffect())
     }
@@ -383,6 +383,7 @@ struct TrackDetailView: View {
                     .opacity(isLiked ? 0 : 1)
                     .accessibilityHidden(isLiked)
                 Label(likeCount ?? "Unlike", systemImage: "heart.fill")
+                    .foregroundStyle(.orange)
                     .opacity(isLiked ? 1 : 0)
                     .accessibilityHidden(!isLiked)
             }

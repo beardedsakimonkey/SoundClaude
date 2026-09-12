@@ -176,7 +176,7 @@ struct LikesView: View {
                         playback: playback,
                         artworkLoader: artworkLoader,
                         likes: likes,
-                        showsLikedIndicator: false,
+                        showsLikedIndicator: true,
                         onSelectTrack: onSelectTrack,
                         onSelectArtist: onSelectArtist,
                         onPlayTrack: onPlayTrack
