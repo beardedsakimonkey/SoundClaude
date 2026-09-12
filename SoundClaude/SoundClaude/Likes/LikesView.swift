@@ -324,9 +324,6 @@ private struct LikedTrackGridTile: View {
                     if isCurrentTrack {
                         TrackPlaybackIndicator(isPlaying: playback.isPlaying)
                     }
-                    if track.access == .preview {
-                        TrackPreviewBadge()
-                    }
                     Button {
                         onSelectTrack(track)
                     } label: {
@@ -341,6 +338,9 @@ private struct LikedTrackGridTile: View {
                     .buttonStyle(.plain)
                     .onContentHover { isHoveringTitle = $0 }
                     .help(track.title)
+                    if track.access == .preview {
+                        TrackPreviewBadge()
+                    }
                 }
 
                 ArtistLink(artist: track.artist, onSelect: onSelectArtist)
