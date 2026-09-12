@@ -1,6 +1,6 @@
 # SoundClaude
 
-<img width="2734" height="1694" alt="CleanShot 2026-09-11 at 10 31 55 AM@2x" src="https://github.com/user-attachments/assets/9d87a2af-70ac-4feb-9f0d-cc610e3b5d9a" />
+<img width="3026" height="2116" alt="CleanShot 2026-09-11 at 8 45 08 PM@2x" src="https://github.com/user-attachments/assets/9b7a47e7-3c6a-49db-95ba-a9b67e4cec93" />
 
 > [!NOTE]
 > This app requires a SoundCloud Client ID/Secret to use, which requires an
