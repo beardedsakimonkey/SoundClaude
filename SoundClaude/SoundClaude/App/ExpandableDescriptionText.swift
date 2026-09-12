@@ -18,9 +18,19 @@ struct ExpandableDescriptionText: View {
         self.description = ArtistMentionText(description, onSelectArtist: onSelectArtist)
     }
 
+    @ViewBuilder
+    private var selectableDescription: some View {
+        // Native text selection can draw outside the fade mask when activated.
+        if isTruncated {
+            description.textSelection(.disabled)
+        } else {
+            description.textSelection(.enabled)
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            description
+            selectableDescription
                 .lineLimit(isExpanded ? nil : collapsedLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -41,6 +51,7 @@ struct ExpandableDescriptionText: View {
                                 proxy.size.height
                             } action: { fullHeight = $0 }
                     }
+                    .textSelection(.disabled)
                     .hidden()
                     .accessibilityHidden(true)
                 }
@@ -80,7 +91,6 @@ struct ArtistMentionText: View {
     var body: some View {
         Text(mentions.text)
             .opacity(0.9)
-            .textSelection(.enabled)
             .environment(\.openURL, OpenURLAction { url in
                 guard let artist = mentions.artistsByURL[url] else {
                     return .systemAction
