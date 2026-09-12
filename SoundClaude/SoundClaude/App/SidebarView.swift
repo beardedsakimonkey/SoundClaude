@@ -92,8 +92,17 @@ struct SidebarView: View {
                 .keyboardShortcut("/", modifiers: [])
                 .accessibilityLabel("Focus search")
                 .help("Focus search (/)")
-                TextField("Search", text: $searchText)
+                TextField("", text: $searchText)
                     .textFieldStyle(.plain)
+                    .overlay(alignment: .leading) {
+                        // Keep the placeholder in place when native text editing starts.
+                        if searchText.isEmpty {
+                            Text("Search")
+                                .foregroundStyle(.placeholder)
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
+                        }
+                    }
                     .focused($isSearchFocused)
                     .modifier(PreventAutomaticSearchFocus())
                     .onExitCommand {
