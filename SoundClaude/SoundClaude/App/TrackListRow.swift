@@ -170,7 +170,10 @@ struct TrackPreviewBadge: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
-            .background(.quaternary, in: Capsule())
+            .overlay {
+                Capsule()
+                    .strokeBorder(.tertiary, lineWidth: 1)
+            }
             .fixedSize()
             .help("Only a preview of this track is available.")
             .accessibilityLabel("Preview only")
