@@ -6,8 +6,7 @@ struct SignedInView: View {
     @ObservedObject private var model: AppModel
     @State private var selectedDestination: SidebarDestination?
     private let selectionStore = SidebarSelectionStore()
-    @State private var path: [Route] = []
-    @State private var forwardPath: [Route] = []
+    @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
     @State private var isShowingQueue = false
     @State private var isHoveringQueue = false
     @State private var footerHeight: CGFloat = 0
@@ -17,6 +16,20 @@ struct SignedInView: View {
         self.user = user
         _model = ObservedObject(wrappedValue: model)
         _selectedDestination = State(initialValue: SidebarSelectionStore().restore(for: user))
+    }
+
+    private var destinationID: SidebarDestination.ID {
+        (selectedDestination ?? .liked).id
+    }
+
+    private var path: [Route] {
+        get { navigationHistories[destinationID, default: NavigationHistory()].path }
+        nonmutating set { navigationHistories[destinationID, default: NavigationHistory()].path = newValue }
+    }
+
+    private var forwardPath: [Route] {
+        get { navigationHistories[destinationID, default: NavigationHistory()].forwardPath }
+        nonmutating set { navigationHistories[destinationID, default: NavigationHistory()].forwardPath = newValue }
     }
 
     var body: some View {
@@ -188,6 +201,7 @@ struct SignedInView: View {
                     .mask { bottomFade }
                 }
         }
+        .id(destinationID)
     }
 
     private var bottomFade: some View {
@@ -349,8 +363,6 @@ struct SignedInView: View {
             get: { selectedDestination },
             set: { destination in
                 guard let destination else { return }
-                path.removeAll()
-                forwardPath.removeAll()
                 selectedDestination = destination
                 selectionStore.save(destination, for: user)
             }
@@ -358,9 +370,12 @@ struct SignedInView: View {
     }
 
     private var navigationPath: Binding<[Route]> {
-        Binding(
-            get: { path },
+        // Bind to this section so a departing stack cannot change another section's history.
+        let destinationID = destinationID
+        return Binding(
+            get: { navigationHistories[destinationID, default: NavigationHistory()].path },
             set: { newPath in
+                guard self.destinationID == destinationID else { return }
                 let oldPath = path
                 guard newPath != oldPath else { return }
 
@@ -376,6 +391,11 @@ struct SignedInView: View {
             }
         )
     }
+}
+
+private struct NavigationHistory {
+    var path: [Route] = []
+    var forwardPath: [Route] = []
 }
 
 private struct QueueBlurModifier: AnimatableModifier {
