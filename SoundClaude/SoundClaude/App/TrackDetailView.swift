@@ -280,31 +280,33 @@ struct TrackDetailView: View {
 
     @ViewBuilder
     private func artworkView(for track: SoundCloudTrack) -> some View {
+        let cornerRadius: CGFloat = 6;
         if track.artworkURL != nil {
             Button {
                 isShowingArtwork = true
             } label: {
-                artworkThumbnail(for: track)
+                artworkThumbnail(for: track, cornerRadius: cornerRadius)
                     .artworkExpandIndicator(isHovering: isHoveringArtwork)
             }
             .buttonStyle(.plain)
-            .contentShape(RoundedRectangle(cornerRadius: 6))
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
             .onContentHover { isHoveringArtwork = $0 }
             .help("View full-size artwork")
             .accessibilityLabel(
                 "View full-size artwork for \(track.title)"
             )
         } else {
-            artworkThumbnail(for: track)
+            artworkThumbnail(for: track, cornerRadius: cornerRadius)
         }
     }
 
-    private func artworkThumbnail(for track: SoundCloudTrack) -> some View {
+    private func artworkThumbnail(for track: SoundCloudTrack, cornerRadius: CGFloat) -> some View {
         TrackArtworkView(
             artworkURL: track.artworkURL,
             loader: model.artworkLoader,
             size: 250,
-            rendition: .square500
+            rendition: .square500,
+            shape: RoundedRectangle(cornerRadius: cornerRadius)
         )
     }
 

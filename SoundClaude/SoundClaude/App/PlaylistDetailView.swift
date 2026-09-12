@@ -124,7 +124,8 @@ struct PlaylistDetailView: View {
             artworkURL: artworkURL,
             loader: model.artworkLoader,
             size: 250,
-            rendition: .square500
+            rendition: .square500,
+            shape: RoundedRectangle(cornerRadius: 6)
         )
         if artworkURL != nil {
             Button {

@@ -26,11 +26,11 @@ struct TrackListRow: View {
                 TrackArtworkView(
                     artworkURL: track.artworkURL,
                     loader: artworkLoader,
-                    size: 44
+                    size: 44,
                 )
                 .overlay {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: 3)
                             .fill(.black.opacity(0.45))
                         ZStack {
                             Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")

@@ -16,7 +16,7 @@ struct TrackArtworkView: View {
         loader: ArtworkLoader,
         size: CGFloat,
         rendition: ArtworkLoader.Rendition = .source,
-        shape: RoundedRectangle = RoundedRectangle(cornerRadius: 6),
+        shape: RoundedRectangle = RoundedRectangle(cornerRadius: 3),
         showsBorder: Bool = true
     ) {
         self.artworkURL = artworkURL
