@@ -187,7 +187,7 @@ struct TrackWaveformView: View {
                 )
                 .animation(.easeInOut(duration: 0.15), value: isHovering)
                 .animation(
-                    reduceMotion ? nil : .spring(duration: 0.45, bounce: 0.3),
+                    reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.3),
                     value: barsAreCollapsed
                 )
                 .contentShape(Rectangle())
@@ -240,6 +240,7 @@ struct TrackWaveformView: View {
                 }
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
+                .offset(y: -4)
             }
         }
         // Keep a visible focus ring for keyboard navigation without focusing on click.
