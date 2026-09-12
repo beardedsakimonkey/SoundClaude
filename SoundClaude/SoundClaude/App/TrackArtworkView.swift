@@ -8,8 +8,10 @@ struct TrackArtworkView: View {
     let rendition: ArtworkLoader.Rendition
     let shape: RoundedRectangle
     let showsBorder: Bool
+    let animatesChanges: Bool
 
     @State private var image: NSImage?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
         artworkURL: URL?,
@@ -17,7 +19,8 @@ struct TrackArtworkView: View {
         size: CGFloat,
         rendition: ArtworkLoader.Rendition = .source,
         shape: RoundedRectangle = RoundedRectangle(cornerRadius: 3),
-        showsBorder: Bool = true
+        showsBorder: Bool = true,
+        animatesChanges: Bool = false
     ) {
         self.artworkURL = artworkURL
         self.loader = loader
@@ -25,6 +28,7 @@ struct TrackArtworkView: View {
         self.rendition = rendition
         self.shape = shape
         self.showsBorder = showsBorder
+        self.animatesChanges = animatesChanges
     }
 
     var body: some View {
@@ -36,6 +40,9 @@ struct TrackArtworkView: View {
                     .resizable()
                     .interpolation(.high)
                     .scaledToFill()
+                    .id(ObjectIdentifier(image))
+                    .transition(.opacity)
+                    .zIndex(1)
             } else {
                 Image(systemName: "music.note")
                     .font(.system(size: size * 0.4, weight: .medium))
@@ -52,16 +59,20 @@ struct TrackArtworkView: View {
         }
         .accessibilityHidden(true)
         .task(id: artworkURL) {
-            image = nil
-            guard let artworkURL,
-                  let data = try? await loader.data(
-                      for: artworkURL,
-                      rendition: rendition
-                  ),
-                  !Task.isCancelled else {
-                return
+            if !animatesChanges {
+                image = nil
             }
-            image = NSImage(data: data)
+            let nextImage: NSImage?
+            if let artworkURL,
+               let data = try? await loader.data(for: artworkURL, rendition: rendition) {
+                nextImage = NSImage(data: data)
+            } else {
+                nextImage = nil
+            }
+            guard !Task.isCancelled else { return }
+            withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
+                image = nextImage
+            }
         }
     }
 }

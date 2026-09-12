@@ -107,7 +107,8 @@ struct PlaylistDetailView: View {
     private var artworkBackdrop: some View {
         let backdrop = TrackArtworkBackdropView(
             artworkURL: artworkURL,
-            loader: model.artworkLoader
+            loader: model.artworkLoader,
+            animatesChanges: true
         )
         .frame(height: 410)
 
@@ -162,29 +163,27 @@ struct PlaylistDetailView: View {
         }
     }
 
-    @ViewBuilder
     private var playlistArtwork: some View {
         let thumbnail = TrackArtworkView(
             artworkURL: artworkURL,
             loader: model.artworkLoader,
             size: 250,
             rendition: .square500,
-            shape: RoundedRectangle(cornerRadius: 6)
+            shape: RoundedRectangle(cornerRadius: 6),
+            animatesChanges: true
         )
-        if artworkURL != nil {
-            Button {
-                isShowingArtwork = true
-            } label: {
-                thumbnail.artworkExpandIndicator(isHovering: isHoveringArtwork)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
-            .buttonStyle(.plain)
-            .onContentHover { isHoveringArtwork = $0 }
-            .help("View full-size artwork")
-            .accessibilityLabel("View full-size artwork for \(artworkTitle)")
-        } else {
-            thumbnail
+        return Button {
+            isShowingArtwork = true
+        } label: {
+            thumbnail.artworkExpandIndicator(isHovering: isHoveringArtwork && artworkURL != nil)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
         }
+        .buttonStyle(.plain)
+        .disabled(artworkURL == nil)
+        .onContentHover { isHoveringArtwork = $0 }
+        .help("View full-size artwork")
+        .accessibilityLabel("View full-size artwork for \(artworkTitle)")
+        .accessibilityHidden(artworkURL == nil)
     }
 
     private var playButton: some View {
