@@ -23,23 +23,11 @@ struct SidebarSelectionTests {
             precondition(reopened.restore(for: otherUser) == .liked)
         }
 
-        func playlist(title: String) -> SoundCloudPlaylist {
-            SoundCloudPlaylist(
-                urn: "soundcloud:playlists:123", title: title, owner: user,
-                artworkURL: nil, permalinkURL: user.permalinkURL,
-                description: nil, trackCount: 5, durationMilliseconds: nil,
-                isPrivate: true
-            )
-        }
-        let original = playlist(title: "Saved playlist")
-        store.save(.playlist(original), for: user)
+        // A playlist saved by an older version must fall back to a library root.
+        let key = "sidebar.selection.\(user.urn!)"
+        defaults.set(Data(#"{"playlist":{"_0":{"urn":"soundcloud:playlists:123","title":"Saved playlist"}}}"#.utf8), forKey: key)
         let reopened = SidebarSelectionStore(defaults: UserDefaults(suiteName: suite)!)
-        guard case let .playlist(restored) = reopened.restore(for: user) else {
-            fatalError("Expected the saved playlist before the library loads")
-        }
-        precondition(restored == original)
-        let refreshed = SidebarDestination.playlist(playlist(title: "Renamed playlist"))
-        precondition(Set([SidebarDestination.playlist(restored)]).contains(refreshed))
+        precondition(reopened.restore(for: user) == .liked)
 
         // Invalid settings must not prevent startup.
         for key in defaults.dictionaryRepresentation().keys where key.hasPrefix("sidebar.selection.") {

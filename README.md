@@ -20,7 +20,7 @@ Core Audio, Accelerate, and Metal. It feautres:
 - queues from the feed, likes, artist tracks and reposts, playlists, and related tracks
 - account-specific likes metadata cached in Application Support; new likes sync when Likes opens
 - account-specific playlist metadata and opened playlist tracks cached locally
-- last sidebar selection restored for each account, including playlists
+- last library selection restored for each account; sidebar playlists open in the current navigation stack
 - sidebar search for tracks, playlists, and users, with paged results and track queues
 - a private Core Audio process tap for this app only
 - a fixed-capacity atomic PCM ring and fixed spectrum snapshot

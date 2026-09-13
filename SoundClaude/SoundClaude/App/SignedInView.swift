@@ -40,6 +40,7 @@ struct SignedInView: View {
                 user: user,
                 artworkLoader: model.artworkLoader,
                 onSearch: showSearch,
+                onSelectPlaylist: showPlaylist,
                 onSelectProfile: showArtist,
                 onReselect: { navigationHistories[destinationID] = NavigationHistory() },
                 onSignOut: model.signOut
@@ -236,15 +237,6 @@ struct SignedInView: View {
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist
             )
-        case let .playlist(playlist):
-            PlaylistDetailView(
-                playlist: playlist,
-                model: model,
-                onSelectTrack: showTrack,
-                onSelectArtist: showArtist,
-                playlists: model.playlists
-            )
-            .id(playlist.urn)
         case .liked, .none:
             LikesView(
                 user: user,

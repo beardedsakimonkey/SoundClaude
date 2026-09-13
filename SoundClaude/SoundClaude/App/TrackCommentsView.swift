@@ -254,7 +254,7 @@ struct TrackCommentsView: View {
 
             ArtistMentionText(comment.body, onSelectArtist: onSelectArtist)
                 .textSelection(.enabled)
-                .foregroundStyle(.primary.opacity(0.75))
+                .foregroundStyle(.primary.opacity(0.9))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -301,7 +301,6 @@ private struct CommentTimestampButtonStyle: ButtonStyle {
             .background(color.opacity(isHighlighted ? 0.24 : 0.12), in: Capsule())
             .contentShape(Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.5)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHighlighted)
             .onContentHover { isHovering = $0 }
     }
 }

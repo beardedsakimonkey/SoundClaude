@@ -4,7 +4,6 @@ enum SidebarDestination: Codable, Hashable, Identifiable {
     case feed
     case liked
     case history
-    case playlist(SoundCloudPlaylist)
 
     static let libraryDestinations: [Self] = [.feed, .liked, .history]
 
@@ -13,15 +12,7 @@ enum SidebarDestination: Codable, Hashable, Identifiable {
         case .feed: "feed"
         case .liked: "liked"
         case .history: "history"
-        case let .playlist(playlist): "playlist:\(playlist.urn)"
         }
-    }
-
-    // Keep the restored row selected when playlist metadata changes on refresh.
-    static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
     }
 
     var title: String {
@@ -32,8 +23,6 @@ enum SidebarDestination: Codable, Hashable, Identifiable {
             "Likes"
         case .history:
             "History"
-        case let .playlist(playlist):
-            playlist.title
         }
     }
 
@@ -45,8 +34,6 @@ enum SidebarDestination: Codable, Hashable, Identifiable {
             "heart"
         case .history:
             "clock.arrow.circlepath"
-        case .playlist:
-            "music.note.list"
         }
     }
 }

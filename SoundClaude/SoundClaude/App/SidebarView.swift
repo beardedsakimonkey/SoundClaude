@@ -6,6 +6,7 @@ struct SidebarView: View {
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
     let onSearch: (String) -> Void
+    let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectProfile: (SoundCloudUser) -> Void
     let onReselect: () -> Void
     let onSignOut: () async -> Void
@@ -46,7 +47,7 @@ struct SidebarView: View {
 
                     Label {
                         Text(playlist.title)
-                            .foregroundStyle(selection == .playlist(playlist) ? Color("AccentColor") : .primary)
+                            .foregroundStyle(.primary)
                     } icon: {
                         TrackArtworkView(
                             artworkURL: artworkURL,
@@ -57,10 +58,10 @@ struct SidebarView: View {
                     }
                         .lineLimit(1)
                         .help(playlist.title)
-                        .modifier(SidebarRowStyle(isSelected: selection == .playlist(playlist)) {
-                            select(.playlist(playlist))
+                        .modifier(SidebarRowStyle(isSelected: false) {
+                            onSelectPlaylist(playlist)
                         })
-                        .tag(SidebarDestination.playlist(playlist))
+                        .selectionDisabled()
                 }
                 if playlists.isLoading {
                     ProgressView("Loading playlists")
