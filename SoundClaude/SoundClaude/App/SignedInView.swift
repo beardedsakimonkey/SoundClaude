@@ -264,24 +264,13 @@ struct SignedInView: View {
     // Each stack page owns its toolbar; pushed pages replace the parent toolbar.
     @ToolbarContentBuilder
     private var navigationToolbar: some ToolbarContent {
-        if #available(macOS 26.0, *) {
-            ToolbarItem(placement: .navigation) {
-                navigationButtons
-                    .buttonStyle(.glass)
-                    .buttonBorderShape(.circle)
-            }
-            .sharedBackgroundVisibility(.hidden)
-        } else {
-            ToolbarItem(placement: .navigation) {
-                navigationButtons
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.circle)
-            }
+        ToolbarItem(placement: .navigation) {
+            navigationButtons
         }
     }
 
     private var navigationButtons: some View {
-        HStack(spacing: 8) {
+        ControlGroup {
             Button {
                 _ = navigateBack()
             } label: {
@@ -291,15 +280,14 @@ struct SignedInView: View {
             .disabled(path.isEmpty)
             .help("Go back")
 
-            if !forwardPath.isEmpty {
-                Button {
-                    _ = navigateForward()
-                } label: {
-                    Label("Forward", systemImage: "chevron.right")
-                        .frame(width: 16, height: 16)
-                }
-                .help("Go forward")
+            Button {
+                _ = navigateForward()
+            } label: {
+                Label("Forward", systemImage: "chevron.right")
+                    .frame(width: 16, height: 16)
             }
+            .disabled(forwardPath.isEmpty)
+            .help("Go forward")
         }
         .labelStyle(.iconOnly)
     }
