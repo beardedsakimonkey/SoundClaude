@@ -274,10 +274,16 @@ struct PlayerFooterView: View {
                         .frame(width: 24, alignment: .leading)
                     }
 
-                    Slider(value: $playback.volume, in: 0...1)
+                    Slider(value: Binding(
+                        get: { displayedVolume },
+                        set: {
+                            playback.volume = $0
+                            playback.isMuted = false
+                        }
+                    ), in: 0...1)
                         .frame(width: 110)
                         .accessibilityLabel("Volume")
-                        .accessibilityValue("\(Int(playback.volume * 100)) percent")
+                        .accessibilityValue("\(Int(displayedVolume * 100)) percent")
                 }
             }
             .buttonStyle(.borderless)
@@ -289,6 +295,10 @@ struct PlayerFooterView: View {
             }
 
         }
+    }
+
+    private var displayedVolume: Float {
+        playback.isMuted ? 0 : playback.volume
     }
 
     private var volumeIcon: String {
