@@ -5,7 +5,8 @@ struct TrackListRow: View {
     let playback: PlaybackController
     let artworkLoader: ArtworkLoader
     @ObservedObject var likes: LikesController
-    var showsLikedIndicator = true
+    var showsArtist = true
+    var trackNumber: Int? = nil
     let onAddToQueue: (SoundCloudTrack) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
@@ -56,6 +57,12 @@ struct TrackListRow: View {
             .onContentHover { isHoveringArtwork = $0 }
             .help(isPlaybackActive ? "Pause" : "Play")
             .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
+            if let trackNumber {
+                Text(trackNumber.formatted())
+                    .font(.callout.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 20, alignment: .trailing)
+            }
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Button {
@@ -78,14 +85,16 @@ struct TrackListRow: View {
                         TrackPreviewBadge()
                     }
                 }
-                ArtistLink(artist: track.artist, onSelect: onSelectArtist)
-                    .font(.caption)
-                    .foregroundStyle(isCurrentTrack ? Color.orange : Color.secondary)
-                    .onContentHover { isHoveringArtist = $0 }
+                if showsArtist {
+                    ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                        .font(.caption)
+                        .foregroundStyle(isCurrentTrack ? Color.orange : Color.secondary)
+                        .onContentHover { isHoveringArtist = $0 }
+                }
             }
             .lineLimit(1)
             Spacer()
-            if showsLikedIndicator && likes.isLiked(track) {
+            if likes.isLiked(track) {
                 Image(systemName: "heart.fill")
                     .font(.caption)
                     .foregroundStyle(Color.white.opacity(0.7))

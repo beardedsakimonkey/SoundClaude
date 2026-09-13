@@ -140,12 +140,16 @@ struct PlaylistCardView: View {
 
     private func trackRows(limit: Int) -> some View {
         ForEach(Array(tracks.prefix(limit).enumerated()), id: \.element.urn) { index, track in
-            PlaylistTrackRow(
+            TrackListRow(
                 track: track,
-                number: index + 1,
                 playback: model.playback,
                 artworkLoader: model.artworkLoader,
+                likes: model.likes,
+                showsArtist: false,
+                trackNumber: index + 1,
+                onAddToQueue: model.addToQueue,
                 onSelectTrack: onSelectTrack,
+                onSelectArtist: onSelectArtist,
                 onPlayTrack: play
             )
         }
@@ -179,84 +183,5 @@ struct PlaylistCardView: View {
             tracks: tracks,
             nextPageURL: contents?.nextPageURL
         ))
-    }
-}
-
-private struct PlaylistTrackRow: View {
-    let track: SoundCloudTrack
-    let number: Int
-    let playback: PlaybackController
-    let artworkLoader: ArtworkLoader
-    let onSelectTrack: (SoundCloudTrack) -> Void
-    let onPlayTrack: (SoundCloudTrack) async -> Void
-
-    @State private var isHovering = false
-    @State private var isHoveringTitle = false
-    @GestureState private var isPressed = false
-
-    var body: some View {
-        let isCurrentTrack = playback.currentTrack?.urn == track.urn
-
-        HStack(spacing: 12) {
-            TrackArtworkView(artworkURL: track.displayArtworkURL, loader: artworkLoader, size: 44)
-            Text(number.formatted())
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(minWidth: 20, alignment: .trailing)
-            Button {
-                onSelectTrack(track)
-            } label: {
-                HStack(spacing: 12) {
-                    if isCurrentTrack {
-                        TrackPlaybackIndicator(isPlaying: playback.isPlaying)
-                    }
-                    Text(track.title)
-                        .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
-                        .underline(isHoveringTitle)
-                        .lineLimit(1)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .onContentHover { isHoveringTitle = $0 }
-            .help("Open track: \(track.title)")
-            .accessibilityLabel("Open track: \(track.title)")
-            if track.access == .preview {
-                TrackPreviewBadge()
-            }
-            Spacer(minLength: 0)
-            Text(duration)
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 8)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            guard !isHoveringTitle else { return }
-            Task { await onPlayTrack(track) }
-        }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .updating($isPressed) { _, pressed, _ in
-                    pressed = true
-                }
-        )
-        .background {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isPressed
-                    ? Color.primary.opacity(0.12)
-                    : Color.primary.opacity(isHovering ? 0.06 : 0))
-                .animation(.easeInOut(duration: 0.15), value: isHovering)
-        }
-        .onContentHover { isHovering = $0 }
-        .accessibilityAction(named: "Play") {
-            Task { await onPlayTrack(track) }
-        }
-    }
-
-    private var duration: String {
-        let seconds = max(track.durationMilliseconds, 0) / 1_000
-        return String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 }
