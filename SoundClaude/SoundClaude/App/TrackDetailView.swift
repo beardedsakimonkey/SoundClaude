@@ -116,9 +116,22 @@ struct TrackDetailView: View {
     private var artworkBackdrop: some View {
         let backdrop = TrackArtworkBackdropView(
             artworkURL: details?.track.displayArtworkURL ?? track.displayArtworkURL,
-            loader: model.artworkLoader
+            loader: model.artworkLoader,
+            fadesToBottom: false
         )
-        .frame(height: 410)
+        .frame(height: 600)
+        .mask {
+            LinearGradient(
+                stops: [
+                    .init(color: .black, location: 0),
+                    .init(color: .black, location: 0.25),
+                    .init(color: .black.opacity(0.5), location: 0.65),
+                    .init(color: .clear, location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
 
         if #available(macOS 26.0, *) {
             backdrop.backgroundExtensionEffect()
