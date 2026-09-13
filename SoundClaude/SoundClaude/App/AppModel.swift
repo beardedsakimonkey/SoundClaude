@@ -193,6 +193,14 @@ final class AppModel: ObservableObject {
         prefetchNextTrack()
     }
 
+    func clearQueue() {
+        trackSelectionTask?.cancel()
+        queue = TrackQueue(source: .single, tracks: [])
+        queue.setShuffle(playback.isShuffleEnabled, currentURN: nil)
+        saveQueue()
+        prefetchNextTrack()
+    }
+
     func moveQueueTracks(fromOffsets offsets: IndexSet, toOffset destination: Int) {
         queue.replaceLikes(likes.tracks)
         guard queue.move(fromOffsets: offsets, toOffset: destination) else { return }
@@ -215,7 +223,8 @@ final class AppModel: ObservableObject {
         }
         queue.replaceLikes(likes.tracks)
         guard let session = playback.savedSession else { return }
-        if queue.source != .likes && !queue.tracks.contains(where: { $0.urn == session.track.urn }) {
+        if queue.source != .likes && !queue.tracks.isEmpty
+            && !queue.tracks.contains(where: { $0.urn == session.track.urn }) {
             queue = TrackQueue(source: .single, tracks: [session.track])
         }
         queue.setShuffle(playback.isShuffleEnabled, currentURN: session.track.urn)
