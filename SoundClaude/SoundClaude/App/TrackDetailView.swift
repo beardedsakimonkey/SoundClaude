@@ -307,9 +307,41 @@ struct TrackDetailView: View {
         }
     }
 
-    @ViewBuilder
     private func artworkView(for track: SoundCloudTrack) -> some View {
-        let cornerRadius: CGFloat = 6;
+        let cornerRadius: CGFloat = 6
+        let reflectionHeight: CGFloat = 112.5
+
+        return VStack(spacing: 1) {
+            artworkControl(for: track, cornerRadius: cornerRadius)
+
+            artworkThumbnail(for: track, cornerRadius: cornerRadius)
+                .scaleEffect(x: 1, y: -1)
+                .frame(height: reflectionHeight, alignment: .top)
+                .clipped()
+                .mask {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black.opacity(0.45), location: 0),
+                            .init(color: .black.opacity(0.24), location: 0.1),
+                            .init(color: .black.opacity(0.12), location: 0.2),
+                            .init(color: .black.opacity(0.055), location: 0.32),
+                            .init(color: .black.opacity(0.02), location: 0.48),
+                            .init(color: .black.opacity(0.005), location: 0.65),
+                            .init(color: .clear, location: 0.85)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                // Reserve space for the visible reflection; let its faint tail overflow.
+                .frame(height: 32, alignment: .top)
+        }
+    }
+
+    @ViewBuilder
+    private func artworkControl(for track: SoundCloudTrack, cornerRadius: CGFloat) -> some View {
         if track.displayArtworkURL != nil {
             Button {
                 isShowingArtwork = true
