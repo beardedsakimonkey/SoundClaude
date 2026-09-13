@@ -77,6 +77,17 @@ struct TrackArtworkView: View {
     }
 }
 
+struct ArtworkButtonStyle<ArtworkShape: Shape>: ButtonStyle {
+    let isHovering: Bool
+    let shape: ArtworkShape
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .artworkExpandIndicator(isHovering: isHovering)
+            .clipShape(shape)
+    }
+}
+
 extension View {
     func artworkExpandIndicator(isHovering: Bool) -> some View {
         modifier(ArtworkExpandIndicator(isHovering: isHovering))

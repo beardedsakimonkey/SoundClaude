@@ -4,7 +4,7 @@ struct ExpandableDescriptionText: View {
     private let description: ArtistMentionText
 
     private let collapsedLineLimit = 5
-    private let opacity = 0.8
+    private let opacity = 0.9
 
     @State private var isExpanded = false
     @State private var collapsedHeight: CGFloat = 0

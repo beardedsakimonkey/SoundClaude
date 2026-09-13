@@ -315,10 +315,11 @@ struct TrackDetailView: View {
                 isShowingArtwork = true
             } label: {
                 artworkThumbnail(for: track, cornerRadius: cornerRadius)
-                    .artworkExpandIndicator(isHovering: isHoveringArtwork)
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ArtworkButtonStyle(
+                isHovering: isHoveringArtwork,
+                shape: RoundedRectangle(cornerRadius: cornerRadius)
+            ))
             .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
             .onContentHover { isHoveringArtwork = $0 }
             .help("View full-size artwork")

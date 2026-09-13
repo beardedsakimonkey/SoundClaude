@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 struct ArtistDetailView: View {
-    private struct HeaderImageButtonStyle: ButtonStyle {
+    private struct ImageButtonStyle: ButtonStyle {
         func makeBody(configuration: Configuration) -> some View {
             configuration.label
         }
@@ -243,7 +243,7 @@ struct ArtistDetailView: View {
                                 }
                                 .contentShape(RoundedRectangle(cornerRadius: 16))
                             }
-                            .buttonStyle(HeaderImageButtonStyle())
+                            .buttonStyle(ImageButtonStyle())
                             .padding(.horizontal, 10)
                             .accessibilityLabel(isHeaderContentHidden ? "Show artist information" : "Hide artist information")
                         }
@@ -540,10 +540,8 @@ struct ArtistDetailView: View {
                 isShowingArtwork = true
             } label: {
                 thumbnail
-                    .artworkExpandIndicator(isHovering: isHoveringArtwork)
-                    .clipShape(Circle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ArtworkButtonStyle(isHovering: isHoveringArtwork, shape: Circle()))
             .contentShape(Circle())
             .onContentHover(in: Circle().path(in: CGRect(
                 x: 0, y: 0, width: pictureSize, height: pictureSize
