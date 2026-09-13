@@ -321,19 +321,22 @@ private struct LikedTrackGridTile: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    if isCurrentTrack {
-                        TrackPlaybackIndicator(isPlaying: playback.isPlaying)
-                    }
                     Button {
                         onSelectTrack(track)
                     } label: {
-                        Text(track.title)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
-                            .underline(isHoveringTitle)
-                            .multilineTextAlignment(.leading)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        HStack(spacing: 6) {
+                            if isCurrentTrack {
+                                TrackPlaybackIndicator(isPlaying: playback.isPlaying)
+                            }
+                            Text(track.title)
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
+                                .underline(isHoveringTitle)
+                                .multilineTextAlignment(.leading)
+                                .lineLimit(1)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .onContentHover { isHoveringTitle = $0 }

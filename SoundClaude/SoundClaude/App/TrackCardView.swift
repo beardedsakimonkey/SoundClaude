@@ -122,18 +122,21 @@ struct TrackCardView: View {
 
     private var trackTitle: some View {
         HStack(alignment: .center, spacing: 6) {
-            if isCurrentTrack {
-                TrackPlaybackIndicator(isPlaying: model.playback.isPlaying)
-            }
             Button {
                 onSelectTrack(track)
             } label: {
-                Text(track.title)
-                    .font(.title2.weight(.semibold))
-                    .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
-                    .underline(isHoveringTitle)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    if isCurrentTrack {
+                        TrackPlaybackIndicator(isPlaying: model.playback.isPlaying)
+                    }
+                    Text(track.title)
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
+                        .underline(isHoveringTitle)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(1)
+                }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .onContentHover { isHoveringTitle = $0 }

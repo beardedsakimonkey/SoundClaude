@@ -58,15 +58,18 @@ struct TrackListRow: View {
             .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    if isCurrentTrack {
-                        TrackPlaybackIndicator(isPlaying: playback.isPlaying)
-                    }
                     Button {
                         onSelectTrack(track)
                     } label: {
-                        Text(track.title)
-                            .underline(isHoveringTitle)
-                            .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
+                        HStack(spacing: 6) {
+                            if isCurrentTrack {
+                                TrackPlaybackIndicator(isPlaying: playback.isPlaying)
+                            }
+                            Text(track.title)
+                                .underline(isHoveringTitle)
+                                .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
+                        }
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .opacity(0.9)

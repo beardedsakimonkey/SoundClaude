@@ -203,16 +203,19 @@ private struct PlaylistTrackRow: View {
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 20, alignment: .trailing)
-            if isCurrentTrack {
-                TrackPlaybackIndicator(isPlaying: playback.isPlaying)
-            }
             Button {
                 onSelectTrack(track)
             } label: {
-                Text(track.title)
-                    .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
-                    .underline(isHoveringTitle)
-                    .lineLimit(1)
+                HStack(spacing: 12) {
+                    if isCurrentTrack {
+                        TrackPlaybackIndicator(isPlaying: playback.isPlaying)
+                    }
+                    Text(track.title)
+                        .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
+                        .underline(isHoveringTitle)
+                        .lineLimit(1)
+                }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .onContentHover { isHoveringTitle = $0 }
