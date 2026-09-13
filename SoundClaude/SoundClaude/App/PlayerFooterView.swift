@@ -182,12 +182,10 @@ struct PlayerFooterView: View {
                     startVelocity: 450
                 )
             }
-            .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.05 : 1)
             .animation(
                 reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
                 value: isHoveringArtwork
             )
-            // Keep the hover area fixed while the thumbnail scales.
             .frame(width: artworkThumbnailSize, height: artworkThumbnailSize)
             .contentShape(artworkShape)
             .onContentHover { isHoveringArtwork = $0 }
@@ -206,6 +204,8 @@ struct PlayerFooterView: View {
             shape: artworkShape,
             showsBorder: false
         )
+        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.15 : 1)
+        .clipShape(artworkShape)
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius - contentInset,
             isHovering: isHoveringArtwork && !reduceMotion
