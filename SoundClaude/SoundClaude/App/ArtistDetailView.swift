@@ -404,11 +404,26 @@ struct ArtistDetailView: View {
                             Text(user.username)
                                 .font(.body.weight(.semibold))
                                 .underline(hoveredRelatedArtistURL == user.permalinkURL)
-                            if let fullName = nonempty(user.fullName) {
-                                Text(fullName)
-                                    .font(.callout)
-                                    .foregroundStyle(.secondary)
+                            HStack(spacing: 12) {
+                                if let count = user.followersCount {
+                                    HStack(spacing: 3) {
+                                        Image(systemName: "person.fill")
+                                        Text(count.formatted())
+                                    }
+                                    .accessibilityElement(children: .ignore)
+                                    .accessibilityLabel("\(count.formatted()) followers")
+                                }
+                                if let count = user.trackCount {
+                                    HStack(spacing: 3) {
+                                        Image(systemName: "waveform")
+                                        Text(count.formatted())
+                                    }
+                                    .accessibilityElement(children: .ignore)
+                                    .accessibilityLabel("\(count.formatted()) tracks")
+                                }
                             }
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                         }
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .leading)
