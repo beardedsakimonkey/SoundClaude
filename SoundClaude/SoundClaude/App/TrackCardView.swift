@@ -61,7 +61,7 @@ struct TrackCardView: View {
 
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     ArtistLink(artist: track.artist, onSelect: onSelectArtist)
-                        .foregroundStyle(isCurrentTrack ? Color.orange : Color.secondary)
+                        .foregroundStyle(Color.secondary)
 
                     RelativeTimestampView(
                         timestamp: track.createdAt,
