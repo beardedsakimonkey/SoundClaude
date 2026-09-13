@@ -12,7 +12,6 @@ struct LikesView: View {
 
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
-    let spectrumBuffer: OpaquePointer
     let appErrorMessage: String?
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
@@ -30,7 +29,6 @@ struct LikesView: View {
         likes: LikesController,
         playback: PlaybackController,
         artworkLoader: ArtworkLoader,
-        spectrumBuffer: OpaquePointer,
         appErrorMessage: String?,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
@@ -39,7 +37,6 @@ struct LikesView: View {
     ) {
         self.user = user
         self.artworkLoader = artworkLoader
-        self.spectrumBuffer = spectrumBuffer
         self.appErrorMessage = appErrorMessage
         self.onSelectArtist = onSelectArtist
         self.onSelectTrack = onSelectTrack
@@ -52,13 +49,6 @@ struct LikesView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                ArtworkVisualizerView(
-                    spectrumBuffer: spectrumBuffer,
-                    artworkURL: playback.currentTrack?.displayArtworkURL,
-                    artworkLoader: artworkLoader
-                )
-                    .frame(height: 120)
-                Divider()
                 header
                 errorBanner
                 trackList

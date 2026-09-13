@@ -14,6 +14,7 @@ struct PlayerFooterView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
     @Binding var isShowingQueue: Bool
+    @Binding var isShowingVisualizer: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var previousArtworkURL: URL?
@@ -27,11 +28,13 @@ struct PlayerFooterView: View {
     init(
         model: AppModel,
         isShowingQueue: Binding<Bool>,
+        isShowingVisualizer: Binding<Bool>,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onSelectArtist: @escaping (SoundCloudUser) -> Void
     ) {
         self.model = model
         _isShowingQueue = isShowingQueue
+        _isShowingVisualizer = isShowingVisualizer
         self.artworkLoader = model.artworkLoader
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
@@ -261,6 +264,22 @@ struct PlayerFooterView: View {
                 .accessibilityLabel(isShowingQueue ? "Hide track queue" : "Show track queue")
                 .accessibilityValue(isShowingQueue ? "Open" : "Closed")
 
+                Button {
+                    isShowingVisualizer.toggle()
+                } label: {
+                    Image(systemName: "waveform.path")
+                        .font(.system(size: 14))
+                        .foregroundStyle(isShowingVisualizer ? Color.orange : Color.primary)
+                        .frame(width: 32, height: 32)
+                        .modifier(PlayerFooterButtonBackground(color: .orange, isActive: isShowingVisualizer))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .modifier(SpringPressEffect())
+                .help(isShowingVisualizer ? "Hide visualizer" : "Show visualizer")
+                .accessibilityLabel(isShowingVisualizer ? "Hide visualizer" : "Show visualizer")
+                .accessibilityValue(isShowingVisualizer ? "Open" : "Closed")
+
                 HStack(spacing: 4) {
                     Button(action: playback.toggleMute) {
                         Group {
@@ -453,6 +472,7 @@ private struct PlayerFooterGlass: ViewModifier {
     PlayerFooterView(
         model: AppModel(),
         isShowingQueue: .constant(false),
+        isShowingVisualizer: .constant(false),
         onSelectTrack: { _ in },
         onSelectArtist: { _ in }
     )

@@ -7,6 +7,7 @@ struct SignedInView: View {
     @State private var selectedDestination: SidebarDestination?
     private let selectionStore = SidebarSelectionStore()
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
+    @State private var isShowingVisualizer = false
     @State private var isShowingQueue = false
     @State private var isHoveringQueue = false
     @State private var footerHeight: CGFloat = 0
@@ -55,12 +56,23 @@ struct SignedInView: View {
             selectedView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .allowsHitTesting(!isShowingVisualizer)
+        .accessibilityHidden(isShowingVisualizer)
         .environment(\.contentHoverEnabled, !isShowingQueue || !isHoveringQueue)
         .overlay {
             GeometryReader { geometry in
                 let availableHeight = max(0, geometry.size.height - footerHeight)
 
                 ZStack(alignment: .bottomTrailing) {
+                    if isShowingVisualizer {
+                        VisualizerView(
+                            playback: model.playback,
+                            spectrumBuffer: model.analyzer.spectrumBuffer,
+                            artworkLoader: model.artworkLoader
+                        )
+                        .frame(width: geometry.size.width, height: availableHeight)
+                    }
+
                     if isShowingQueue {
                         TrackQueueView(
                             model: model,
@@ -102,6 +114,7 @@ struct SignedInView: View {
             PlayerFooterView(
                 model: model,
                 isShowingQueue: $isShowingQueue,
+                isShowingVisualizer: $isShowingVisualizer,
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist
             )
@@ -243,7 +256,6 @@ struct SignedInView: View {
                 likes: model.likes,
                 playback: model.playback,
                 artworkLoader: model.artworkLoader,
-                spectrumBuffer: model.analyzer.spectrumBuffer,
                 appErrorMessage: model.errorMessage,
                 onSelectArtist: showArtist,
                 onSelectTrack: showTrack,
@@ -298,6 +310,7 @@ struct SignedInView: View {
     }
 
     private func showTrack(_ track: SoundCloudTrack) {
+        isShowingVisualizer = false
         isShowingQueue = false
         if case let .track(current) = path.last,
            current.urn == track.urn { return }
@@ -311,6 +324,7 @@ struct SignedInView: View {
     }
 
     private func showArtist(_ artist: SoundCloudUser) {
+        isShowingVisualizer = false
         if case let .artist(current) = path.last,
            current.permalinkURL == artist.permalinkURL { return }
         forwardPath.removeAll()
@@ -323,6 +337,11 @@ struct SignedInView: View {
     }
 
     private func navigateBack() -> Bool {
+        if isShowingVisualizer {
+            isShowingVisualizer = false
+            return true
+        }
+
         guard let route = path.popLast() else {
             return false
         }

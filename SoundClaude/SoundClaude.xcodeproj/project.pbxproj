@@ -79,6 +79,7 @@
 		A1000000000000000000003F /* TrackQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003F /* TrackQueue.swift */; };
 		A10000000000000000000040 /* LikesCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000040 /* LikesCache.swift */; };
 		53FD266F04FB426AA01E2B0A /* PlayerArtworkGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4925E94F504F440FA2B06DBF /* PlayerArtworkGlass.swift */; };
+		D74B0EAE0000000000000001 /* VisualizerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D74B0EAE0000000000000002 /* VisualizerView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -162,6 +163,7 @@
 		A2000000000000000000003F /* TrackQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackQueue.swift; sourceTree = "<group>"; };
 		A20000000000000000000040 /* LikesCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikesCache.swift; sourceTree = "<group>"; };
 		4925E94F504F440FA2B06DBF /* PlayerArtworkGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerArtworkGlass.swift; sourceTree = "<group>"; };
+		D74B0EAE0000000000000002 /* VisualizerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -324,6 +326,7 @@
 		A4000000000000000000000A /* Visualizer */ = {
 			isa = PBXGroup;
 			children = (
+				D74B0EAE0000000000000002 /* VisualizerView.swift */,
 				A20000000000000000000010 /* MetalVisualizerView.swift */,
 				A20000000000000000000011 /* VisualizerRenderer.swift */,
 			);
@@ -517,6 +520,7 @@
 				A1000000000000000000000C /* ProcessTap.swift in Sources */,
 				A1000000000000000000000D /* SpectrumAnalyzer.swift in Sources */,
 				A1000000000000000000000E /* PCMRingBuffer.c in Sources */,
+				D74B0EAE0000000000000001 /* VisualizerView.swift in Sources */,
 				A1000000000000000000000F /* MetalVisualizerView.swift in Sources */,
 				A10000000000000000000010 /* VisualizerRenderer.swift in Sources */,
 				A10000000000000000000011 /* AudioVisualizer.metal in Sources */,
