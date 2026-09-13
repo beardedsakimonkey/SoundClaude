@@ -385,60 +385,67 @@ struct ArtistDetailView: View {
                 .font(.headline)
                 .opacity(0.96)
 
-            ForEach(relatedArtists, id: \.permalinkURL) { user in
-                Button {
-                    onSelectArtist(user)
-                } label: {
-                    HStack(spacing: 12) {
-                        TrackArtworkView(
-                            artworkURL: user.avatarURL,
-                            loader: model.artworkLoader,
-                            size: 44,
-                            showsBorder: false
-                        )
-                        .clipShape(Circle())
-                        .overlay { Circle().strokeBorder(.white.opacity(0.2), lineWidth: 1) }
-                        .accessibilityHidden(true)
+            VStack(spacing: 0) {
+                ForEach(relatedArtists, id: \.permalinkURL) { user in
+                    Button {
+                        onSelectArtist(user)
+                    } label: {
+                        HStack(spacing: 12) {
+                            TrackArtworkView(
+                                artworkURL: user.avatarURL,
+                                loader: model.artworkLoader,
+                                size: 44,
+                                showsBorder: false
+                            )
+                            .clipShape(Circle())
+                            .overlay { Circle().strokeBorder(.white.opacity(0.2), lineWidth: 1) }
+                            .accessibilityHidden(true)
 
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(user.username)
-                                .font(.body.weight(.semibold))
-                                .underline(hoveredRelatedArtistURL == user.permalinkURL)
-                            HStack(spacing: 12) {
-                                if let count = user.followersCount {
-                                    HStack(spacing: 3) {
-                                        Image(systemName: "person.fill")
-                                        Text(count.formatted())
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(user.username)
+                                    .font(.body.weight(.semibold))
+                                HStack(spacing: 12) {
+                                    if let count = user.followersCount {
+                                        HStack(spacing: 3) {
+                                            Image(systemName: "person.fill")
+                                            Text(count.formatted())
+                                        }
+                                        .accessibilityElement(children: .ignore)
+                                        .accessibilityLabel("\(count.formatted()) followers")
                                     }
-                                    .accessibilityElement(children: .ignore)
-                                    .accessibilityLabel("\(count.formatted()) followers")
-                                }
-                                if let count = user.trackCount {
-                                    HStack(spacing: 3) {
-                                        Image(systemName: "waveform")
-                                        Text(count.formatted())
+                                    if let count = user.trackCount {
+                                        HStack(spacing: 3) {
+                                            Image(systemName: "waveform")
+                                            Text(count.formatted())
+                                        }
+                                        .accessibilityElement(children: .ignore)
+                                        .accessibilityLabel("\(count.formatted()) tracks")
                                     }
-                                    .accessibilityElement(children: .ignore)
-                                    .accessibilityLabel("\(count.formatted()) tracks")
                                 }
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
                             }
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                        .background {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(.white.opacity(hoveredRelatedArtistURL == user.permalinkURL ? 0.08 : 0))
+                                .animation(.easeInOut(duration: 0.15), value: hoveredRelatedArtistURL == user.permalinkURL)
+                        }
+                        .contentShape(Rectangle())
                     }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .onContentHover { isHovering in
-                    if isHovering {
-                        hoveredRelatedArtistURL = user.permalinkURL
-                    } else if hoveredRelatedArtistURL == user.permalinkURL {
-                        hoveredRelatedArtistURL = nil
+                    .buttonStyle(.plain)
+                    .onContentHover { isHovering in
+                        if isHovering {
+                            hoveredRelatedArtistURL = user.permalinkURL
+                        } else if hoveredRelatedArtistURL == user.permalinkURL {
+                            hoveredRelatedArtistURL = nil
+                        }
                     }
+                    .help("View artist: \(user.username)")
                 }
-                .help("View artist: \(user.username)")
             }
 
             if isLoadingRelatedArtists {
