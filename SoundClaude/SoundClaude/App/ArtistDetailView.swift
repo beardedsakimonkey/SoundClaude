@@ -163,7 +163,7 @@ struct ArtistDetailView: View {
     @ViewBuilder
     private var artworkBackdrop: some View {
         let backdrop = TrackArtworkBackdropView(
-            artworkURL: headerImageURL,
+            artworkURL: headerImageURL ?? details?.user.avatarURL ?? artist.avatarURL,
             loader: model.artworkLoader,
             fadesToBottom: false,
             cachedImage: headerImage
