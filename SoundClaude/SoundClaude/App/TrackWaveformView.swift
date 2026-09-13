@@ -98,6 +98,12 @@ struct TrackWaveformView: View {
         VStack(spacing: 4) {
             GeometryReader { proxy in
                 let amplitudes = barAmplitudes(waveform, width: proxy.size.width)
+                // Read observed state before entering Canvas. Direct observation
+                // in its renderer can redraw with target bar heights while the
+                // animatable view is still interpolating them.
+                let renderedProgress = progress
+                let renderedProgressColor = progressColor
+                let renderedHoverFraction = hoverFraction
                 WaveformAnimatedCanvas(
                     amplitudes: amplitudes,
                     hoverOpacity: showsHoverPreview ? 0.3 : 0
@@ -136,12 +142,12 @@ struct TrackWaveformView: View {
                     }
                     let background = Color.secondary.opacity(layout == .compact ? 0.3 : 0.5)
                         .resolve(in: context.environment).cgColor
-                    let color = progressColor.resolve(in: context.environment).cgColor
+                    let color = renderedProgressColor.resolve(in: context.environment).cgColor
                     let highlight = Color.white.opacity(0.9)
                         .resolve(in: context.environment).cgColor
                     let shadow = Color.black.opacity(0.9)
                         .resolve(in: context.environment).cgColor
-                    let progress = progress
+                    let progress = renderedProgress
 
                     // Rasterize into a bitmap: Canvas's Core Graphics proxy can
                     // still change path edges when unrelated hover fills change.
@@ -162,15 +168,15 @@ struct TrackWaveformView: View {
 
                     if hoverOpacity > 0 {
                         let hoverRegion = CGRect(
-                            x: size.width * min(progress, hoverFraction),
+                            x: size.width * min(progress, renderedHoverFraction),
                             y: 0,
-                            width: size.width * abs(hoverFraction - progress),
+                            width: size.width * abs(renderedHoverFraction - progress),
                             height: size.height
                         )
                         bitmap.saveGState()
                         bitmap.setAlpha(hoverOpacity)
                         bitmap.beginTransparencyLayer(auxiliaryInfo: nil)
-                        if hoverFraction < progress {
+                        if renderedHoverFraction < progress {
                             // Darken the existing gradient when previewing a backward seek.
                             bitmap.setFillColor(shadow)
                             bitmap.fill(hoverRegion)
