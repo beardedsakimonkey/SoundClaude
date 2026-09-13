@@ -28,6 +28,7 @@ final class AppModel: ObservableObject {
     private var playbackRequestID: UUID?
     private var trackSelectionTask: Task<Void, Never>?
     private var queuePrefetchTask: Task<Void, Never>?
+    private var shuffleQueueTask: Task<Void, Never>?
     private var prefetchedTrack: SoundCloudTrack?
     private var likesObservation: AnyCancellable?
     private var followingTask: Task<Set<String>, Error>?
@@ -130,6 +131,7 @@ final class AppModel: ObservableObject {
     }
 
     func signOut() async {
+        shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
         playbackTask?.cancel()
         queuePrefetchTask?.cancel()
@@ -163,6 +165,7 @@ final class AppModel: ObservableObject {
         // Detail and waveform controls retain an existing list when possible.
         if !queue.tracks.contains(where: { $0.urn == track.urn }),
            !(queue.source == .likes && likes.isLiked(track)) {
+            shuffleQueueTask?.cancel()
             queue = TrackQueue(source: .single, tracks: [track])
             queue.setShuffle(playback.isShuffleEnabled, currentURN: track.urn)
         }
@@ -175,13 +178,41 @@ final class AppModel: ObservableObject {
         await play(track, queue: TrackQueue(source: .likes, tracks: []))
     }
 
-    func play(_ track: SoundCloudTrack, queue: TrackQueue) async {
+    func play(_ track: SoundCloudTrack, queue: TrackQueue, loadRemainingTracks: Bool = false) async {
+        shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
         self.queue = queue
         self.queue.replaceLikes(likes.tracks)
         self.queue.setShuffle(playback.isShuffleEnabled, currentURN: track.urn)
         saveQueue()
+        if loadRemainingTracks {
+            loadRemainingShuffleTracks()
+        }
         await loadPlayback(track)
+    }
+
+    private func loadRemainingShuffleTracks() {
+        shuffleQueueTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                while queue.nextPageURL != nil {
+                    try Task.checkCancellation()
+                    let page = try await nextQueuePage()
+                    try Task.checkCancellation()
+                    try queue.append(page)
+                    if queue.nextPageURL == nil {
+                        // Shuffle once all pages are loaded, keeping the playing track first.
+                        queue.setShuffle(false, currentURN: nil)
+                        queue.setShuffle(playback.isShuffleEnabled, currentURN: playback.currentTrack?.urn)
+                    }
+                    saveQueue()
+                    prefetchNextTrack()
+                }
+            } catch {
+                guard !Task.isCancelled, !(error is CancellationError) else { return }
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     func addToQueue(_ track: SoundCloudTrack) {
@@ -194,6 +225,7 @@ final class AppModel: ObservableObject {
     }
 
     func clearQueue() {
+        shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
         queue = TrackQueue(source: .single, tracks: [])
         queue.setShuffle(playback.isShuffleEnabled, currentURN: nil)
@@ -204,6 +236,7 @@ final class AppModel: ObservableObject {
     func moveQueueTracks(fromOffsets offsets: IndexSet, toOffset destination: Int) {
         queue.replaceLikes(likes.tracks)
         guard queue.move(fromOffsets: offsets, toOffset: destination) else { return }
+        shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
         saveQueue()
         prefetchNextTrack()
@@ -588,6 +621,7 @@ final class AppModel: ObservableObject {
     }
 
     func toggleShuffle() {
+        shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
         playback.toggleShuffle()
         queue.replaceLikes(likes.tracks)

@@ -28,6 +28,7 @@ struct ArtistDetailView: View {
 
     @State private var isFollowing: Bool?
     @State private var isUpdatingFollow = false
+    @State private var isShufflingTracks = false
     @State private var followErrorMessage: String?
     @State private var followerCountAdjustment = 0
     @State private var hoveredStatistic: String?
@@ -130,6 +131,9 @@ struct ArtistDetailView: View {
             }
         }
         .task(id: artist.permalinkURL) { await load() }
+        .task(id: isShufflingTracks) {
+            if isShufflingTracks { await shuffleTracks() }
+        }
         .task(id: artist.permalinkURL) {
             guard headerImage == nil,
                   let header = try? await model.artistHeader(for: artist),
@@ -259,6 +263,17 @@ struct ArtistDetailView: View {
                             selection: $selectedTab
                         )
                         Spacer(minLength: 16)
+                        Button {
+                            isShufflingTracks = true
+                        } label: {
+                            Label("Shuffle", systemImage: "shuffle")
+                        }
+                        .disabled(tracks.isEmpty || isShufflingTracks)
+                        .help("Shuffle this artist’s tracks")
+                        if isShufflingTracks {
+                            ProgressView().controlSize(.small)
+                                .accessibilityLabel("Starting shuffle playback")
+                        }
                         if canFollowArtist {
                             followControls
                         }
@@ -476,6 +491,18 @@ struct ArtistDetailView: View {
                 likesList
             }
         }
+    }
+
+    private func shuffleTracks() async {
+        defer { isShufflingTracks = false }
+        guard !Task.isCancelled, let urn = details?.user.urn,
+              let track = tracks.randomElement() else { return }
+        if !model.playback.isShuffleEnabled {
+            model.toggleShuffle()
+        }
+        await model.play(track, queue: TrackQueue(
+            source: .artist(urn), tracks: tracks, nextPageURL: nextPageURL
+        ), loadRemainingTracks: true)
     }
 
     private var followControls: some View {

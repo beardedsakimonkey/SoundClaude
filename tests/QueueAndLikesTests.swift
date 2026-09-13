@@ -58,6 +58,20 @@ struct QueueAndLikesTests {
         try added.append(SoundCloudTrackPage(tracks: [track(3), track(4)], nextURL: nil))
         precondition(added.playbackTracks == originalOrder + [track(3), track(4)])
 
+        // Background shuffle pages retain the current track, including after Next.
+        var artistShuffle = TrackQueue(source: .artist("user:1"),
+                                       tracks: [track(1), track(2)], nextPageURL: next)
+        artistShuffle.setShuffle(true, currentURN: "track:1")
+        try artistShuffle.append(SoundCloudTrackPage(tracks: [track(2), track(3), track(4)], nextURL: nil))
+        artistShuffle.setShuffle(false, currentURN: nil)
+        artistShuffle.setShuffle(true, currentURN: "track:2")
+        precondition(artistShuffle.playbackTracks.first == track(2))
+        precondition(artistShuffle.playbackTracks.count == 4)
+        precondition(Set(artistShuffle.playbackTracks.map(\.urn)) == Set((1...4).map { track($0).urn }))
+        precondition(artistShuffle.nextPageURL == nil)
+        artistShuffle.setShuffle(false, currentURN: "track:2")
+        precondition(artistShuffle.playbackTracks == (1...4).map(track))
+
         // Added tracks survive likes refreshes, reordering, shuffle, and metadata-free saves.
         var addedLikes = TrackQueue(source: .likes, tracks: [track(1), track(2)])
         precondition(addedLikes.add(track(3)))
