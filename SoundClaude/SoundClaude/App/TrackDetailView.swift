@@ -152,6 +152,8 @@ struct TrackDetailView: View {
                         }
                         Text(details.track.title)
                             .font(.system(size: 36, weight: .semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
                             .foregroundStyle(.primary)
                             .opacity(0.9)
                             .textSelection(.enabled)
@@ -418,7 +420,8 @@ struct TrackDetailView: View {
 
     private func likeButtonLabel(for track: SoundCloudTrack) -> some View {
         let isLiked = likes.isLiked(track)
-        let likeCount = likes.likeCount(for: track)?.formatted(.number)
+        let likeCount = likes.likeCount(for: track)
+        let hasCount = (likeCount ?? 0) != 0
 
         return Button {
             Task {
@@ -430,17 +433,30 @@ struct TrackDetailView: View {
             }
         } label: {
             ZStack {
-                Label(likeCount ?? "Like", systemImage: "heart")
+                Group {
+                    if let likeCount, likeCount != 0 {
+                        Label(likeCount.formatted(.number), systemImage: "heart")
+                    } else {
+                        Image(systemName: "heart")
+                    }
+                }
                     .opacity(isLiked ? 0 : 1)
                     .accessibilityHidden(isLiked)
-                Label(likeCount ?? "Unlike", systemImage: "heart.fill")
+                Group {
+                    if let likeCount, likeCount != 0 {
+                        Label(likeCount.formatted(.number), systemImage: "heart.fill")
+                    } else {
+                        Image(systemName: "heart.fill")
+                    }
+                }
                     .foregroundStyle(.orange)
                     .opacity(isLiked ? 1 : 0)
                     .accessibilityHidden(!isLiked)
             }
                 .labelStyle(.titleAndIcon)
                 .font(.title3.weight(.semibold))
-                .padding(.horizontal, 24)
+                .padding(.horizontal, hasCount ? 24 : 0)
+                .frame(width: hasCount ? nil : 44)
                 .frame(minHeight: 24)
         }
         .disabled(likes.updatingTrackURNs.contains(track.urn))
@@ -452,6 +468,7 @@ struct TrackDetailView: View {
     private func repostButton(for track: SoundCloudTrack) -> some View {
         let isReposted = reposts.isReposted(track)
         let repostCount = reposts.repostCount(for: track)
+        let hasCount = (repostCount ?? 0) != 0
 
         return Button {
             Task {
@@ -464,16 +481,17 @@ struct TrackDetailView: View {
             }
         } label: {
             Group {
-                if repostCount == 0 {
-                    Image(systemName: "arrow.2.squarepath")
+                if let repostCount, repostCount != 0 {
+                    Label(repostCount.formatted(.number), systemImage: "arrow.2.squarepath")
                 } else {
-                    Label(repostCount?.formatted(.number) ?? "Repost", systemImage: "arrow.2.squarepath")
+                    Image(systemName: "arrow.2.squarepath")
                 }
             }
                 .foregroundStyle(isReposted ? Color.green : Color.primary)
                 .labelStyle(.titleAndIcon)
                 .font(.title3.weight(.semibold))
-                .padding(.horizontal, 24)
+                .padding(.horizontal, hasCount ? 24 : 0)
+                .frame(width: hasCount ? nil : 44)
                 .frame(minHeight: 24)
         }
         .buttonStyle(TrackActionButtonStyle(
