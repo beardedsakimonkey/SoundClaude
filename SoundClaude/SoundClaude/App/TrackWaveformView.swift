@@ -6,7 +6,7 @@ struct TrackWaveformView: View {
         case detail
         case compact
 
-        var height: CGFloat { self == .compact ? 60 : 88 }
+        var height: CGFloat { self == .compact ? 60 : 100 }
         var reflectionHeight: CGFloat { self == .detail ? floor(height * 0.32) : 0 }
 
         func availableBarHeight(for height: CGFloat) -> CGFloat {

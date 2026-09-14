@@ -204,10 +204,8 @@ struct ArtistDetailView: View {
                                 Text(details.user.username)
                                     .font(.system(size: 36, weight: .semibold))
                                     .textSelection(.enabled)
-                                let location = [details.city, details.country]
-                                    .compactMap(nonempty).joined(separator: ", ")
-                                if !location.isEmpty {
-                                    Text(location)
+                                if let fullName = nonempty(details.user.fullName) {
+                                    Text(fullName)
                                         .font(.title3)
                                         .foregroundStyle(.secondary)
                                 }
