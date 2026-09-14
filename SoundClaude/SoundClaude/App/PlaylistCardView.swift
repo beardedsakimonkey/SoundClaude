@@ -103,7 +103,7 @@ struct PlaylistCardView: View {
                     trackRows(limit: tracks.count)
                 }
             }
-            .frame(height: CGFloat(min(tracks.count, 8)) * 56)
+            .frame(height: CGFloat(min(tracks.count, 8)) * 40)
         } else {
             VStack(spacing: 0) {
                 trackRows(limit: 5)
@@ -146,6 +146,7 @@ struct PlaylistCardView: View {
                 artworkLoader: model.artworkLoader,
                 likes: model.likes,
                 showsArtist: false,
+                isCompact: true,
                 trackNumber: index + 1,
                 onAddToQueue: model.addToQueue,
                 onSelectTrack: onSelectTrack,

@@ -6,6 +6,7 @@ struct TrackListRow: View {
     let artworkLoader: ArtworkLoader
     @ObservedObject var likes: LikesController
     var showsArtist = true
+    var isCompact = false
     var trackNumber: Int? = nil
     let onAddToQueue: (SoundCloudTrack) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
@@ -29,7 +30,7 @@ struct TrackListRow: View {
                 TrackArtworkView(
                     artworkURL: track.displayArtworkURL,
                     loader: artworkLoader,
-                    size: 44,
+                    size: isCompact ? 32 : 44,
                 )
                 .overlay {
                     ZStack {
@@ -37,7 +38,7 @@ struct TrackListRow: View {
                             .fill(.black.opacity(0.45))
                         ZStack {
                             Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")
-                                .font(.system(size: 20, weight: .semibold))
+                                .font(.system(size: isCompact ? 16 : 20, weight: .semibold))
                                 .foregroundStyle(.white)
                                 .opacity(0.9)
                                 .id(isPlaybackActive)
@@ -135,7 +136,7 @@ struct TrackListRow: View {
                     .onContentHover { isHoveringMenu = $0 }
                 }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, isCompact ? 4 : 6)
         .padding(.horizontal, 8)
         .contentShape(Rectangle())
         .onTapGesture {
