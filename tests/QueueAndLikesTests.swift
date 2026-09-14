@@ -58,6 +58,31 @@ struct QueueAndLikesTests {
         try added.append(SoundCloudTrackPage(tracks: [track(3), track(4)], nextURL: nil))
         precondition(added.playbackTracks == originalOrder + [track(3), track(4)])
 
+        // Manual additions play next in normal and shuffled queues, including saved likes.
+        for shuffled in [false, true] {
+            var playNext = TrackQueue(source: .likes, tracks: (1...4).map(track), nextPageURL: next)
+            playNext.setShuffle(shuffled, currentURN: "track:2")
+            let before = playNext.playbackTracks
+            precondition(playNext.add(track(5), after: "track:2"))
+            precondition(playNext.relativeTrack(to: "track:2", offset: 1) == track(5))
+            precondition(playNext.playbackTracks.filter { $0 != track(5) } == before)
+            precondition(playNext.nextPageURL == next)
+            precondition(!playNext.add(track(2), after: "track:2"))
+            precondition(!playNext.add(track(5), after: "track:2"))
+            precondition(playNext.add(track(1), after: "track:2"))
+            precondition(playNext.relativeTrack(to: "track:2", offset: 1) == track(1))
+            precondition(playNext.tracks.count == 5)
+            let expected = playNext.playbackTracks
+            playNext = try JSONDecoder().decode(
+                TrackQueue.self, from: JSONEncoder().encode(playNext.withoutLikesMetadata())
+            )
+            playNext.replaceLikes((1...4).map(track))
+            precondition(playNext.playbackTracks == expected)
+        }
+        var missingCurrent = TrackQueue(source: .single, tracks: [track(1)])
+        precondition(missingCurrent.add(track(2), after: "track:99"))
+        precondition(missingCurrent.playbackTracks == [track(1), track(2)])
+
         // Background shuffle pages retain the current track, including after Next.
         var artistShuffle = TrackQueue(source: .artist("user:1"),
                                        tracks: [track(1), track(2)], nextPageURL: next)

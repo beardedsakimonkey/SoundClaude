@@ -217,8 +217,9 @@ final class AppModel: ObservableObject {
 
     func addToQueue(_ track: SoundCloudTrack) {
         queue.replaceLikes(likes.tracks)
-        guard queue.add(track) else { return }
         queue.setShuffle(playback.isShuffleEnabled, currentURN: playback.currentTrack?.urn)
+        guard queue.add(track, after: playback.currentTrack?.urn) else { return }
+        shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
         saveQueue()
         prefetchNextTrack()

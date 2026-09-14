@@ -34,15 +34,24 @@ struct TrackQueue: Codable {
     }
 
     @discardableResult
-    mutating func add(_ track: SoundCloudTrack) -> Bool {
-        guard !tracks.contains(where: { $0.urn == track.urn }) else { return false }
-        tracks.append(track)
-        if source == .likes {
-            addedLikesTracks = (addedLikesTracks ?? []) + [track]
-            reorderedLikesURNs = tracks.map(\.urn)
+    mutating func add(_ track: SoundCloudTrack, after currentURN: String? = nil) -> Bool {
+        guard track.urn != currentURN else { return false }
+        let isNew = !tracks.contains { $0.urn == track.urn }
+        if isNew {
+            tracks.append(track)
+            if source == .likes {
+                addedLikesTracks = (addedLikesTracks ?? []) + [track]
+                reorderedLikesURNs = tracks.map(\.urn)
+            }
+            updateShuffleOrder()
         }
-        updateShuffleOrder()
-        return true
+        let order = playbackTracks
+        if let currentIndex = order.firstIndex(where: { $0.urn == currentURN }),
+           let addedIndex = order.firstIndex(where: { $0.urn == track.urn }) {
+            let moved = move(fromOffsets: IndexSet(integer: addedIndex), toOffset: currentIndex + 1)
+            return isNew || moved
+        }
+        return isNew
     }
 
     mutating func append(_ page: SoundCloudTrackPage) throws {
