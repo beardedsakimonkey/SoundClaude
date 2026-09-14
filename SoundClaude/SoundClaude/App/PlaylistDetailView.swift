@@ -221,7 +221,6 @@ struct PlaylistDetailView: View {
             .frame(minHeight: 24)
         }
         .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
-        .modifier(SpringPressEffect())
         .disabled(currentPlaylistTrack == nil && tracks.isEmpty)
         .help(isPlaying ? "Pause playlist" : "Play playlist")
         .accessibilityLabel(isPlaying ? "Pause playlist" : "Play playlist")
@@ -255,7 +254,6 @@ struct PlaylistDetailView: View {
         .buttonStyle(TrackActionButtonStyle(
             fill: isLiked ? .accentColor.opacity(0.12) : .primary.opacity(0.12)
         ))
-        .modifier(SpringPressEffect())
         .disabled(!playlists.hasLoadedLikes || playlists.updatingLikeURNs.contains(playlist.urn))
         .help(isLiked ? "Unlike playlist" : "Like playlist")
         .accessibilityLabel(isLiked ? "Unlike playlist" : "Like playlist")

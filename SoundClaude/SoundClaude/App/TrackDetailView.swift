@@ -395,7 +395,6 @@ struct TrackDetailView: View {
     private func playButton(for track: SoundCloudTrack) -> some View {
         playButtonLabel(for: track)
             .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
-            .modifier(SpringPressEffect())
     }
 
     private func playButtonLabel(for track: SoundCloudTrack) -> some View {
@@ -432,7 +431,6 @@ struct TrackDetailView: View {
             .buttonStyle(TrackActionButtonStyle(
                 fill: likes.isLiked(track) ? .accentColor.opacity(0.12) : .primary.opacity(0.12)
             ))
-            .modifier(SpringPressEffect())
     }
 
     private func likeButtonLabel(for track: SoundCloudTrack) -> some View {
@@ -514,7 +512,6 @@ struct TrackDetailView: View {
         .buttonStyle(TrackActionButtonStyle(
             fill: isReposted ? .green.opacity(0.12) : .primary.opacity(0.12)
         ))
-        .modifier(SpringPressEffect())
         .disabled(reposts.isLoading || reposts.updatingTrackURNs.contains(track.urn))
         .help(isReposted ? "Undo repost" : "Repost track")
         .accessibilityLabel(isReposted ? "Undo repost" : "Repost track")
@@ -563,8 +560,14 @@ struct TrackActionButtonStyle: ButtonStyle {
                     .fill(fill.opacity(isHovering && isEnabled ? 0.7 : 0))
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering && isEnabled)
             }
-            .contentShape(Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.5)
+            .scaleEffect(configuration.isPressed && isEnabled && !reduceMotion ? 0.86 : 1)
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.65),
+                value: configuration.isPressed && isEnabled
+            )
+            // Keep the click area at its original size while the label scales.
+            .contentShape(Capsule())
             .onContentHover { isHovering = $0 }
     }
 }
