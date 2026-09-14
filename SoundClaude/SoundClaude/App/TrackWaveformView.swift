@@ -463,7 +463,7 @@ struct TrackWaveformView: View {
     ) -> WaveformAmplitudes {
         // Keep the same bars for every track, including the loading state.
         let barCount = max(Int(width / 4), 1)
-        let pausedHeight = layout == .detail ? 8.0 : 6.0
+        let pausedHeight = 4.0
         let availableHeight = layout.height - layout.reflectionHeight - 2
         let pausedAmplitude = pausedHeight / Double(availableHeight)
         if barsAreCollapsed && !showsHoverPreview {
