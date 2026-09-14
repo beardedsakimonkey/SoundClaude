@@ -7,6 +7,7 @@ struct ExpandableDescriptionText: View {
     private let opacity = 0.9
 
     @State private var isExpanded = false
+    @State private var isHoveringToggle = false
     @State private var collapsedHeight: CGFloat = 0
     @State private var fullHeight: CGFloat = 0
 
@@ -73,7 +74,9 @@ struct ExpandableDescriptionText: View {
                 }
                 .buttonStyle(.link)
                 .fontWeight(.semibold)
-                .opacity(0.9)
+                .brightness(isHoveringToggle ? 0.1 : 0)
+                .opacity(isHoveringToggle ? 1 : 0.9)
+                .onContentHover { isHoveringToggle = $0 }
                 .accessibilityHint(isExpanded ? "Collapse description" : "Expand description")
             }
         }

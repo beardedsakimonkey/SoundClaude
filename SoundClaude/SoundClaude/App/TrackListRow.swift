@@ -114,13 +114,19 @@ struct TrackListRow: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis")
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 28)
-                            .contentShape(Rectangle())
+                            .frame(width: 28, height: 28)
+                            .contentShape(Circle())
                     }
-                    .menuStyle(.borderlessButton)
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
                     .menuIndicator(.hidden)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .fixedSize()
+                    .background {
+                        Circle()
+                            .fill(Color.primary.opacity(isHoveringMenu ? 0.1 : 0))
+                            .frame(width: 28, height: 28)
+                    }
+                    .contentShape(Circle())
                     .opacity(isHovering ? 1 : 0)
                     .allowsHitTesting(isHovering)
                     .accessibilityHidden(!isHovering)
