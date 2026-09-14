@@ -92,11 +92,7 @@ struct TrackQueueView: View {
                     List {
                         ForEach(tracks) { track in
                             HStack(spacing: 0) {
-                                Image(systemName: "line.3.horizontal")
-                                    .foregroundStyle(.tertiary)
-                                    .frame(width: 28, height: 56)
-                                    .contentShape(Rectangle())
-                                    .help("Drag to reorder")
+                                QueueDragHandle()
                                     .accessibilityLabel("Reorder \(track.title)")
                                 TrackListRow(
                                     track: track,
@@ -139,5 +135,19 @@ struct TrackQueueView: View {
         }
         .padding(16)
         .onExitCommand(perform: onDismiss)
+    }
+}
+
+private struct QueueDragHandle: View {
+    @State private var isHovered = false
+
+    var body: some View {
+        Image(systemName: "line.3.horizontal")
+            .foregroundStyle(isHovered ? .primary : .secondary)
+            .frame(width: 28, height: 56)
+            .contentShape(Rectangle())
+            .onHover { isHovered = $0 }
+            .onDisappear { isHovered = false }
+            .help("Drag to reorder")
     }
 }
