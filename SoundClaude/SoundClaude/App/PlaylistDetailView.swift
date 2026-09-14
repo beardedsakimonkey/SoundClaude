@@ -16,6 +16,7 @@ struct PlaylistDetailView: View {
     private var hasLoadedTracks: Bool { contents?.hasLoadedPage == true }
     private var isLoading: Bool { playlists.loadingPlaylistURNs.contains(playlist.urn) }
     private var errorMessage: String? { playlists.playlistErrors[playlist.urn] }
+    @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
     @State private var isShowingArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var likeErrorMessage: String?
@@ -52,10 +53,14 @@ struct PlaylistDetailView: View {
                             onSelectArtist: onSelectArtist
                         )
                     }
-                    CountedSectionHeader(
-                        title: "Tracks",
-                        count: displayedPlaylist.trackCount ?? tracks.count
-                    )
+                    HStack {
+                        CountedSectionHeader(
+                            title: "Tracks",
+                            count: displayedPlaylist.trackCount ?? tracks.count
+                        )
+                        Spacer()
+                        TrackLayoutPicker(trackLayout: $trackLayout)
+                    }
                     if let message = model.errorMessage {
                         Label(message, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(.orange)
@@ -295,24 +300,39 @@ struct PlaylistDetailView: View {
 
     private var trackList: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
-            ForEach(tracks) { track in
-                TrackListRow(
-                    track: track,
-                    playback: model.playback,
-                    analyzer: model.analyzer,
-                    artworkLoader: model.artworkLoader,
-                    likes: model.likes,
-                    onAddToQueue: model.addToQueue,
-                    onSelectTrack: onSelectTrack,
-                    onSelectArtist: onSelectArtist,
-                    onPlayTrack: { selected in
-                        await model.play(selected, queue: TrackQueue(
-                            source: .playlist(playlist.urn),
-                            tracks: tracks,
-                            nextPageURL: nextPageURL
-                        ))
+            if trackLayout == .grid {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 160), spacing: 20, alignment: .top)],
+                    alignment: .leading,
+                    spacing: 24
+                ) {
+                    ForEach(tracks) { track in
+                        TrackGridTile(
+                            track: track,
+                            playback: model.playback,
+                            analyzer: model.analyzer,
+                            artworkLoader: model.artworkLoader,
+                            onSelectTrack: onSelectTrack,
+                            onSelectArtist: onSelectArtist,
+                            onPlayTrack: playTrack
+                        )
                     }
-                )
+                }
+                .padding(.bottom, 16)
+            } else {
+                ForEach(tracks) { track in
+                    TrackListRow(
+                        track: track,
+                        playback: model.playback,
+                        analyzer: model.analyzer,
+                        artworkLoader: model.artworkLoader,
+                        likes: model.likes,
+                        onAddToQueue: model.addToQueue,
+                        onSelectTrack: onSelectTrack,
+                        onSelectArtist: onSelectArtist,
+                        onPlayTrack: playTrack
+                    )
+                }
             }
             if let errorMessage {
                 Text(errorMessage).foregroundStyle(.secondary)
@@ -332,6 +352,14 @@ struct PlaylistDetailView: View {
                 )
             }
         }
+    }
+
+    private func playTrack(_ track: SoundCloudTrack) async {
+        await model.play(track, queue: TrackQueue(
+            source: .playlist(playlist.urn),
+            tracks: tracks,
+            nextPageURL: nextPageURL
+        ))
     }
 
     private func load() async {
