@@ -162,6 +162,7 @@ struct PlaylistDetailView: View {
                         TrackWaveformView(
                             track: track,
                             model: model,
+                            invertsBarsOnTrackChange: true,
                             collapsesBarsWhenPaused: true
                         )
                     }
