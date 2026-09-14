@@ -12,6 +12,7 @@ struct TrackCardView: View {
 
     @State private var repostErrorMessage: String?
     @State private var isHoveringTitle = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
         track: SoundCloudTrack,
@@ -137,6 +138,10 @@ struct TrackCardView: View {
                         .lineLimit(1)
                 }
                 .contentShape(Rectangle())
+                .animation(
+                    reduceMotion ? nil : .easeInOut(duration: 0.2),
+                    value: isCurrentTrack
+                )
             }
             .buttonStyle(.plain)
             .onContentHover { isHoveringTitle = $0 }

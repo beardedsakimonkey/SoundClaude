@@ -79,6 +79,10 @@ struct TrackListRow: View {
                                 .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
                         }
                         .contentShape(Rectangle())
+                        .animation(
+                            reduceMotion ? nil : .easeInOut(duration: 0.2),
+                            value: isCurrentTrack
+                        )
                     }
                     .buttonStyle(.plain)
                     .opacity(0.9)

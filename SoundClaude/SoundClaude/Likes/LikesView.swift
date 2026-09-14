@@ -269,6 +269,7 @@ private struct LikedTrackGridTile: View {
 
     @State private var isHoveringArtwork = false
     @State private var isHoveringTitle = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isCurrentTrack: Bool {
         playback.currentTrack?.urn == track.urn
@@ -332,6 +333,10 @@ private struct LikedTrackGridTile: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .contentShape(Rectangle())
+                        .animation(
+                            reduceMotion ? nil : .easeInOut(duration: 0.2),
+                            value: isCurrentTrack
+                        )
                     }
                     .buttonStyle(.plain)
                     .onContentHover { isHoveringTitle = $0 }
