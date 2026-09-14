@@ -380,7 +380,7 @@ struct TrackDetailView: View {
             shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
             showsBorder: false
         )
-        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.1 : 1)
+        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius,

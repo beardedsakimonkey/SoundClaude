@@ -12,6 +12,7 @@ struct KeyboardShortcutsView: View {
         Shortcut(title: "Toggle shuffle", keys: ["S"]),
         Shortcut(title: "Cycle repeat", keys: ["R"]),
         Shortcut(title: "Toggle track queue", keys: ["Q"]),
+        Shortcut(title: "Toggle visualizer", keys: ["V"]),
         Shortcut(title: "Focus current track", keys: ["F"]),
         Shortcut(title: "Focus search", keys: ["/"]),
         Shortcut(title: "Seek back 5 seconds", keys: ["←"]),

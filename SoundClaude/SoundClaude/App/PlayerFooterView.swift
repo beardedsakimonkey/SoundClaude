@@ -276,7 +276,8 @@ struct PlayerFooterView: View {
                 }
                 .buttonStyle(.plain)
                 .modifier(SpringPressEffect())
-                .help(isShowingVisualizer ? "Hide visualizer" : "Show visualizer")
+                .keyboardShortcut("v", modifiers: [])
+                .help(isShowingVisualizer ? "Hide visualizer (V)" : "Show visualizer (V)")
                 .accessibilityLabel(isShowingVisualizer ? "Hide visualizer" : "Show visualizer")
                 .accessibilityValue(isShowingVisualizer ? "Open" : "Closed")
 
