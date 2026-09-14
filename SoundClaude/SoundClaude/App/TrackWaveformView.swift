@@ -22,6 +22,7 @@ struct TrackWaveformView: View {
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
 
     private let playback: PlaybackController
+    @State private var gradientCache = WaveformGradientCache()
     @State private var waveform: SoundCloudWaveform?
     @State private var waveformTrackURN: String?
     @State private var barDirection: Double = 1
@@ -375,50 +376,7 @@ struct TrackWaveformView: View {
             bitmap.fill(rect)
             return
         }
-        let colorSpace = CGColorSpace(name: CGColorSpace.linearSRGB)!
-        guard let components = color.converted(
-            to: colorSpace, intent: .relativeColorimetric, options: nil
-        )?.components, components.count == 4 else { return }
-
-        let base = WaveformOKLab(linearRGB: SIMD3(
-            Double(components[0]), Double(components[1]), Double(components[2])
-        )).value
-        // Build the shaded stops and interpolate them in OKLab, including
-        // the white crest. Keep alpha constant throughout the surface.
-        let profile: [(location: CGFloat, brightness: CGFloat, highlight: CGFloat)] = [
-            (0,    0.98, 0.08),
-            (0.08, 1,    0.30),
-            (0.24, 0.98, 0.12),
-            (1,    0.87, 0.03)
-        ]
-        let stops = profile.map { stop in
-            base * Double(stop.brightness * (1 - stop.highlight))
-                + SIMD3<Double>(Double(stop.highlight), 0, 0)
-        }
-        // Core Graphics interpolates in RGB. Sample the OKLab curve densely
-        // and include the exact profile stops to preserve each crest.
-        let locations = Array(Set((0...64).map { CGFloat($0) / 64 }
-            + profile.map(\.location))).sorted()
-        let colors = locations.map { fraction in
-            let upperIndex = profile.firstIndex { $0.location > fraction }
-                ?? (profile.count - 1)
-            let lower = profile[upperIndex - 1]
-            let upper = profile[upperIndex]
-            let t = (fraction - lower.location) / (upper.location - lower.location)
-            let eased = t * t * (3 - 2 * t)
-            let lab = stops[upperIndex - 1]
-                + (stops[upperIndex] - stops[upperIndex - 1]) * Double(eased)
-            let rgb = WaveformOKLab(value: lab).linearRGB
-            return CGColor(colorSpace: colorSpace, components: [
-                CGFloat(min(max(rgb.x, 0), 1)),
-                CGFloat(min(max(rgb.y, 0), 1)),
-                CGFloat(min(max(rgb.z, 0), 1)),
-                components[3]
-            ])!
-        }
-        guard let gradient = CGGradient(
-            colorsSpace: colorSpace, colors: colors as CFArray, locations: locations
-        ) else { return }
+        guard let gradient = gradientCache.gradient(for: color) else { return }
 
         bitmap.saveGState()
         bitmap.clip(to: rect)
@@ -701,6 +659,72 @@ private struct WaveformAmplitudes: VectorArithmetic {
                 index < rhs.values.count ? rhs.values[index] : 0
             )
         })
+    }
+}
+
+// Each view retains a small palette across animation frames. Key by resolved
+// CGColor so artwork, appearance, contrast, and alpha changes get fresh shading.
+private final class WaveformGradientCache {
+    private var entries: [(color: CGColor, gradient: CGGradient)] = []
+
+    func gradient(for color: CGColor) -> CGGradient? {
+        if let entry = entries.first(where: { $0.color == color }) {
+            return entry.gradient
+        }
+        guard let gradient = makeGradient(for: color) else { return nil }
+        if entries.count == 8 {
+            entries.removeFirst()
+        }
+        entries.append((color, gradient))
+        return gradient
+    }
+
+    private func makeGradient(for color: CGColor) -> CGGradient? {
+        let colorSpace = CGColorSpace(name: CGColorSpace.linearSRGB)!
+        guard let components = color.converted(
+            to: colorSpace, intent: .relativeColorimetric, options: nil
+        )?.components, components.count == 4 else { return nil }
+
+        let base = WaveformOKLab(linearRGB: SIMD3(
+            Double(components[0]), Double(components[1]), Double(components[2])
+        )).value
+        // Build the shaded stops and interpolate them in OKLab, including
+        // the white crest. Keep alpha constant throughout the surface.
+        let profile: [(location: CGFloat, brightness: CGFloat, highlight: CGFloat)] = [
+            (0,    0.98, 0.08),
+            (0.08, 1,    0.30),
+            (0.24, 0.98, 0.12),
+            (1,    0.87, 0.03)
+        ]
+        let stops = profile.map { stop in
+            base * Double(stop.brightness * (1 - stop.highlight))
+                + SIMD3<Double>(Double(stop.highlight), 0, 0)
+        }
+        // Core Graphics interpolates in RGB. Sample the OKLab curve densely
+        // and include the exact profile stops to preserve each crest.
+        let locations = Array(Set((0...64).map { CGFloat($0) / 64 }
+            + profile.map(\.location))).sorted()
+        let colors = locations.map { fraction in
+            let upperIndex = profile.firstIndex { $0.location > fraction }
+                ?? (profile.count - 1)
+            let lower = profile[upperIndex - 1]
+            let upper = profile[upperIndex]
+            let t = (fraction - lower.location) / (upper.location - lower.location)
+            let eased = t * t * (3 - 2 * t)
+            let lab = stops[upperIndex - 1]
+                + (stops[upperIndex] - stops[upperIndex - 1]) * Double(eased)
+            let rgb = WaveformOKLab(value: lab).linearRGB
+            return CGColor(colorSpace: colorSpace, components: [
+                CGFloat(min(max(rgb.x, 0), 1)),
+                CGFloat(min(max(rgb.y, 0), 1)),
+                CGFloat(min(max(rgb.z, 0), 1)),
+                components[3]
+            ])!
+        }
+        return CGGradient(
+            colorsSpace: colorSpace, colors: colors as CFArray, locations: locations
+        )
+
     }
 }
 
