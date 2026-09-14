@@ -128,7 +128,11 @@ struct TrackCardView: View {
             } label: {
                 HStack(spacing: 6) {
                     if isCurrentTrack {
-                        TrackPlaybackIndicator(isPlaying: model.playback.isPlaying, analyzer: model.analyzer)
+                        TrackPlaybackIndicator(
+                            isPlaying: model.playback.isPlaying,
+                            isLoading: model.playback.isLoading,
+                            analyzer: model.analyzer
+                        )
                     }
                     Text(track.title)
                         .font(.title2.weight(.semibold))

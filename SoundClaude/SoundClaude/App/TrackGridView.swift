@@ -101,7 +101,11 @@ struct TrackGridTile: View {
                     } label: {
                         HStack(spacing: 6) {
                             if isCurrentTrack {
-                                TrackPlaybackIndicator(isPlaying: playback.isPlaying, analyzer: analyzer)
+                                TrackPlaybackIndicator(
+                                    isPlaying: playback.isPlaying,
+                                    isLoading: playback.isLoading,
+                                    analyzer: analyzer
+                                )
                             }
                             Text(track.title)
                                 .font(.body.weight(.semibold))
