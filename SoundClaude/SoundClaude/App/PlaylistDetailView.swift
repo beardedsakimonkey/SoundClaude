@@ -151,6 +151,7 @@ struct PlaylistDetailView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(spacing: 12) {
                         playButton
+                        trackNavigationButtons
                         if !displayedPlaylist.isPrivate { likeButton }
                     }
                     if !displayedPlaylist.isPrivate, let error = playlists.likesErrorMessage {
@@ -224,6 +225,28 @@ struct PlaylistDetailView: View {
         .disabled(currentPlaylistTrack == nil && tracks.isEmpty)
         .help(isPlaying ? "Pause playlist" : "Play playlist")
         .accessibilityLabel(isPlaying ? "Pause playlist" : "Play playlist")
+    }
+
+    private var trackNavigationButtons: some View {
+        Group {
+            Button(action: model.playback.previous) {
+                Label("Previous track", systemImage: "backward.fill")
+                    .frame(width: 44, height: 24)
+            }
+            .help("Previous track")
+            .accessibilityLabel("Previous track")
+
+            Button(action: model.playback.next) {
+                Label("Next track", systemImage: "forward.fill")
+                    .frame(width: 44, height: 24)
+            }
+            .help("Next track")
+            .accessibilityLabel("Next track")
+        }
+        .labelStyle(.iconOnly)
+        .font(.title3.weight(.semibold))
+        .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
+        .disabled(currentPlaylistTrack == nil)
     }
 
     private var likeButton: some View {
