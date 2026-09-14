@@ -42,15 +42,37 @@ struct LikesView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                header
-                errorBanner
-                trackList
+        ZStack(alignment: .top) {
+            backdrop
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+
+            ScrollView {
+                VStack(spacing: 0) {
+                    header
+                    errorBanner
+                    trackList
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task { await likes.loadLikedTracks() }
+    }
+
+    @ViewBuilder
+    private var backdrop: some View {
+        let gradient = LinearGradient(
+            colors: [.orange.opacity(0.3), .clear],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 300)
+
+        if #available(macOS 26.0, *) {
+            gradient.backgroundExtensionEffect()
+        } else {
+            gradient
+        }
     }
 
     private var header: some View {
