@@ -153,7 +153,8 @@ struct PlaylistDetailView: View {
 
                     RelativeTimestampView(
                         timestamp: displayedPlaylist.lastModified,
-                        accessibilityPrefix: "Last updated"
+                        accessibilityPrefix: "Last updated",
+                        prefix: "Updated"
                     )
                 }
                 .font(.title3)

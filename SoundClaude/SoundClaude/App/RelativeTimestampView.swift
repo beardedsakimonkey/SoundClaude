@@ -4,13 +4,14 @@ import SwiftUI
 struct RelativeTimestampView: View {
     let timestamp: String?
     let accessibilityPrefix: String
+    var prefix: String? = nil
 
     var body: some View {
         if let date = parsedDate {
             let relativeTime = date.formatted(.relative(presentation: .numeric, unitsStyle: .wide))
             Text("·")
                 .accessibilityHidden(true)
-            Text(relativeTime)
+            Text(prefix.map { "\($0) \(relativeTime)" } ?? relativeTime)
                 .help(date.formatted(date: .abbreviated, time: .shortened))
                 .accessibilityLabel("\(accessibilityPrefix) \(relativeTime)")
         }
