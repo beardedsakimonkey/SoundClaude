@@ -184,6 +184,7 @@ struct TrackDetailView: View {
                         if details.track.waveformURL != nil {
                             Spacer(minLength: 6)
                             TrackWaveformView(track: details.track, model: model)
+                                .offset(y: -5)
                         }
                     }
                     // Put the waveform ground at the artwork's bottom edge.
