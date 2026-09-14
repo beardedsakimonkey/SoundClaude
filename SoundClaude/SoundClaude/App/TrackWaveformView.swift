@@ -232,6 +232,11 @@ struct TrackWaveformView: View {
                     reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.3),
                     value: barsAreCollapsed
                 )
+                .opacity(shouldDimBars ? 0.5 : 1)
+                .animation(
+                    reduceMotion ? nil : .easeInOut(duration: 0.3),
+                    value: shouldDimBars
+                )
                 .contentShape(Rectangle())
                 .onContinuousHover { phase in
                     switch phase {
@@ -448,6 +453,10 @@ struct TrackWaveformView: View {
 
     private var isCurrentTrack: Bool {
         playback.currentTrack?.urn == track.urn
+    }
+
+    private var shouldDimBars: Bool {
+        (isCurrentTrack && playback.isLoading) || !isCurrentTrack
     }
 
     private var displayedCurrentTime: Double {
