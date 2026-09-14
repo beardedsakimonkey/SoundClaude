@@ -244,7 +244,7 @@ struct TrackCommentsView: View {
                     .accessibilityLabel("Jump to \(timeLabel) in \(track.title)")
                 }
                 if let createdAt = comment.createdAt {
-                    Text(createdAt.formatted(.relative(presentation: .numeric, unitsStyle: .wide)))
+                    Text(createdAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .help(createdAt.formatted(date: .abbreviated, time: .shortened))
