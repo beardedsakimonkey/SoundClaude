@@ -104,6 +104,11 @@ struct TrackWaveformView: View {
         HStack(spacing: 8) {
             GeometryReader { proxy in
                 let amplitudes = barAmplitudes(waveform, width: proxy.size.width)
+                let trackChangeAnimation = reduceMotion ? nil : Animation(
+                    WaveformStaggeredSpring(
+                        reversesStagger: isCurrentTrack && playback.trackChangeDirection == .backward
+                    )
+                )
                 // Read observed state before entering Canvas. Direct observation
                 // in its renderer can redraw with target bar heights while the
                 // animatable view is still interpolating them.
@@ -215,11 +220,11 @@ struct TrackWaveformView: View {
                 // Resampling during window resizing must not start or extend a spring.
                 .animation(nil, value: proxy.size)
                 .animation(
-                    reduceMotion ? nil : Animation(WaveformStaggeredSpring()),
+                    trackChangeAnimation,
                     value: waveform
                 )
                 .animation(
-                    reduceMotion ? nil : Animation(WaveformStaggeredSpring()),
+                    trackChangeAnimation,
                     value: barDirection
                 )
                 .animation(
@@ -603,6 +608,7 @@ private struct WaveformLoadingOpacity: ViewModifier {
 }
 
 private struct WaveformStaggeredSpring: CustomAnimation {
+    let reversesStagger: Bool
     private let spring = Spring(duration: 0.45, bounce: 0.3)
     private let staggerDuration: TimeInterval = 0.2
 
@@ -617,9 +623,10 @@ private struct WaveformStaggeredSpring: CustomAnimation {
         }
 
         // Spread the delay across the width so resizing does not change its duration.
-        let lastIndex = max(bars.first.values.count - 1, 1)
+        let lastIndex = max(bars.first.values.count - 1, 0)
         bars.first.values = bars.first.values.enumerated().map { index, amplitude in
-            let delay = staggerDuration * Double(index) / Double(lastIndex)
+            let staggerIndex = reversesStagger ? lastIndex - index : index
+            let delay = staggerDuration * Double(staggerIndex) / Double(max(lastIndex, 1))
             guard time > delay else { return 0 }
             return spring.value(target: amplitude, time: time - delay)
         }
