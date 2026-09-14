@@ -56,23 +56,25 @@ struct SignedInView: View {
             selectedView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .toolbar(isShowingVisualizer ? .hidden : .automatic, for: .windowToolbar)
         .allowsHitTesting(!isShowingVisualizer)
         .accessibilityHidden(isShowingVisualizer)
         .environment(\.contentHoverEnabled, !isShowingQueue || !isHoveringQueue)
+        .overlay {
+            if isShowingVisualizer {
+                VisualizerView(
+                    playback: model.playback,
+                    spectrumBuffer: model.analyzer.spectrumBuffer,
+                    artworkLoader: model.artworkLoader
+                )
+                .ignoresSafeArea()
+            }
+        }
         .overlay {
             GeometryReader { geometry in
                 let availableHeight = max(0, geometry.size.height - footerHeight)
 
                 ZStack(alignment: .bottomTrailing) {
-                    if isShowingVisualizer {
-                        VisualizerView(
-                            playback: model.playback,
-                            spectrumBuffer: model.analyzer.spectrumBuffer,
-                            artworkLoader: model.artworkLoader
-                        )
-                        .frame(width: geometry.size.width, height: availableHeight)
-                    }
-
                     if isShowingQueue {
                         TrackQueueView(
                             model: model,
