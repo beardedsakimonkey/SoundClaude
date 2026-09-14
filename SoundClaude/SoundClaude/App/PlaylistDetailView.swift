@@ -109,9 +109,22 @@ struct PlaylistDetailView: View {
         let backdrop = TrackArtworkBackdropView(
             artworkURL: artworkURL,
             loader: model.artworkLoader,
+            fadesToBottom: false,
             animatesChanges: true
         )
-        .frame(height: 410)
+        .frame(height: 600)
+        .mask {
+            LinearGradient(
+                stops: [
+                    .init(color: .black, location: 0),
+                    .init(color: .black, location: 0.25),
+                    .init(color: .black.opacity(0.5), location: 0.65),
+                    .init(color: .clear, location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
 
         if #available(macOS 26.0, *) {
             backdrop.backgroundExtensionEffect()
