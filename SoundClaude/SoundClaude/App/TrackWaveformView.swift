@@ -234,7 +234,10 @@ struct TrackWaveformView: View {
                     reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.3),
                     value: barsAreCollapsed
                 )
-                .opacity(shouldDimBars ? 0.5 : 1)
+                .modifier(WaveformLoadingOpacity(
+                    isPulsing: shouldPulseBars,
+                    idleOpacity: shouldDimBars ? 0.5 : 1
+                ))
                 .animation(
                     reduceMotion ? nil : .easeInOut(duration: 0.3),
                     value: shouldDimBars
@@ -422,6 +425,10 @@ struct TrackWaveformView: View {
         (isCurrentTrack && playback.isLoading) || !isCurrentTrack
     }
 
+    private var shouldPulseBars: Bool {
+        isCurrentTrack && playback.isLoading && !reduceMotion
+    }
+
     private var displayedCurrentTime: Double {
         isCurrentTrack ? playback.currentTime : 0
     }
@@ -578,6 +585,20 @@ struct TrackWaveformView: View {
         }
         waveformTrackURN = track.urn
         waveform = loadedWaveform
+    }
+}
+
+private struct WaveformLoadingOpacity: ViewModifier {
+    let isPulsing: Bool
+    let idleOpacity: Double
+
+    func body(content: Content) -> some View {
+        // Pause frame updates outside loading, and resume on every new load.
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !isPulsing)) { context in
+            let phase = context.date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: 1.6) / 1.6
+            content.opacity(isPulsing ? 0.35 + 0.4 * abs(sin(phase * .pi)) : idleOpacity)
+        }
     }
 }
 
