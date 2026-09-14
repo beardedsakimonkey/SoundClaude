@@ -266,6 +266,7 @@ struct PlaylistDetailView: View {
                 TrackListRow(
                     track: track,
                     playback: model.playback,
+                    analyzer: model.analyzer,
                     artworkLoader: model.artworkLoader,
                     likes: model.likes,
                     onAddToQueue: model.addToQueue,

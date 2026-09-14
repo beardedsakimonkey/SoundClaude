@@ -257,6 +257,7 @@ struct SignedInView: View {
                 user: user,
                 likes: model.likes,
                 playback: model.playback,
+                analyzer: model.analyzer,
                 artworkLoader: model.artworkLoader,
                 appErrorMessage: model.errorMessage,
                 onSelectArtist: showArtist,

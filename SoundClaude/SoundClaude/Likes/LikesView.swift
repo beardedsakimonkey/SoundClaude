@@ -23,11 +23,13 @@ struct LikesView: View {
     @AppStorage("likesTrackLayout") private var trackLayout = TrackLayout.list
     @FocusState private var isSearchFocused: Bool
     private let playback: PlaybackController
+    private let analyzer: SpectrumAnalyzer
 
     init(
         user: SoundCloudUser,
         likes: LikesController,
         playback: PlaybackController,
+        analyzer: SpectrumAnalyzer,
         artworkLoader: ArtworkLoader,
         appErrorMessage: String?,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
@@ -44,6 +46,7 @@ struct LikesView: View {
         self.onPlayTrack = onPlayTrack
         _likes = ObservedObject(wrappedValue: likes)
         self.playback = playback
+        self.analyzer = analyzer
     }
 
     var body: some View {
@@ -204,6 +207,7 @@ struct LikesView: View {
                             LikedTrackGridTile(
                                 track: track,
                                 playback: playback,
+                                analyzer: analyzer,
                                 artworkLoader: artworkLoader,
                                 onSelectTrack: onSelectTrack,
                                 onSelectArtist: onSelectArtist,
@@ -217,6 +221,7 @@ struct LikesView: View {
                         TrackListRow(
                             track: track,
                             playback: playback,
+                            analyzer: analyzer,
                             artworkLoader: artworkLoader,
                             likes: likes,
                             onAddToQueue: onAddToQueue,
@@ -256,6 +261,7 @@ struct LikesView: View {
 private struct LikedTrackGridTile: View {
     let track: SoundCloudTrack
     let playback: PlaybackController
+    let analyzer: SpectrumAnalyzer
     let artworkLoader: ArtworkLoader
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
@@ -315,7 +321,7 @@ private struct LikedTrackGridTile: View {
                     } label: {
                         HStack(spacing: 6) {
                             if isCurrentTrack {
-                                TrackPlaybackIndicator(isPlaying: playback.isPlaying)
+                                TrackPlaybackIndicator(isPlaying: playback.isPlaying, analyzer: analyzer)
                             }
                             Text(track.title)
                                 .font(.body.weight(.semibold))

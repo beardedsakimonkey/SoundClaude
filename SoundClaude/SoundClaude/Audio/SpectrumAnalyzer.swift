@@ -65,6 +65,22 @@ final class SpectrumAnalyzer: @unchecked Sendable {
         SCSpectrumBufferDestroy(spectrumBuffer)
     }
 
+    /// Average the smoothed spectrum into low, middle, and high frequency levels.
+    func playbackIndicatorLevels() -> [Float]? {
+        var snapshot = [Float](repeating: 0, count: Self.bandCount)
+        let didRead = snapshot.withUnsafeMutableBufferPointer { pointer in
+            SCSpectrumBufferRead(spectrumBuffer, pointer.baseAddress, nil)
+        }
+        guard didRead else { return nil }
+
+        return (0..<3).map { index in
+            let lower = index * Self.bandCount / 3
+            let upper = (index + 1) * Self.bandCount / 3
+            let average = snapshot[lower..<upper].reduce(0, +) / Float(upper - lower)
+            return min(1, max(0, average))
+        }
+    }
+
     func start(sampleRate: Double) {
         queue.async { [weak self] in
             guard let self else { return }

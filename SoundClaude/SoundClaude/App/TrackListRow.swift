@@ -3,6 +3,7 @@ import SwiftUI
 struct TrackListRow: View {
     let track: SoundCloudTrack
     let playback: PlaybackController
+    let analyzer: SpectrumAnalyzer
     let artworkLoader: ArtworkLoader
     @ObservedObject var likes: LikesController
     var showsArtist = true
@@ -71,7 +72,7 @@ struct TrackListRow: View {
                     } label: {
                         HStack(spacing: 6) {
                             if isCurrentTrack {
-                                TrackPlaybackIndicator(isPlaying: playback.isPlaying)
+                                TrackPlaybackIndicator(isPlaying: playback.isPlaying, analyzer: analyzer)
                             }
                             Text(track.title)
                                 .underline(isHoveringTitle)
