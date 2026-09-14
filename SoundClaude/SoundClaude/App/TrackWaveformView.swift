@@ -17,6 +17,7 @@ struct TrackWaveformView: View {
     let track: SoundCloudTrack
     let model: AppModel
     let layout: Layout
+    let height: CGFloat
     let invertsBarsOnTrackChange: Bool
     let collapsesBarsWhenPaused: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
@@ -40,6 +41,7 @@ struct TrackWaveformView: View {
         track: SoundCloudTrack,
         model: AppModel,
         layout: Layout = .detail,
+        height: CGFloat? = nil,
         invertsBarsOnTrackChange: Bool = false,
         collapsesBarsWhenPaused: Bool? = nil,
         onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
@@ -47,6 +49,7 @@ struct TrackWaveformView: View {
         self.track = track
         self.model = model
         self.layout = layout
+        self.height = height ?? layout.height
         self.invertsBarsOnTrackChange = invertsBarsOnTrackChange
         self.collapsesBarsWhenPaused = collapsesBarsWhenPaused ?? (layout == .detail)
         self.onPlayTrack = onPlayTrack
@@ -79,10 +82,10 @@ struct TrackWaveformView: View {
                     Label(errorMessage, systemImage: "waveform.slash")
                         .font(.callout)
                         .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: layout.height)
+                        .frame(maxWidth: .infinity, minHeight: height)
                 } else {
                     ProgressView("Loading waveform")
-                        .frame(maxWidth: .infinity, minHeight: layout.height)
+                        .frame(maxWidth: .infinity, minHeight: height)
                 }
             }
         }
@@ -287,7 +290,7 @@ struct TrackWaveformView: View {
                         : "Click to play from this position."
                 )
             }
-            .frame(height: layout.height)
+            .frame(height: height)
 
             if layout == .detail {
                 let reflectionHeight = layout.reflectionHeight
@@ -295,7 +298,7 @@ struct TrackWaveformView: View {
                     Text(format(seconds: displayedCurrentTime))
                         .bold()
                         .padding(.bottom, 2)
-                        .frame(height: layout.height - reflectionHeight, alignment: .bottom)
+                        .frame(height: height - reflectionHeight, alignment: .bottom)
                     Text(format(seconds: displayedDuration))
                         .opacity(0.6)
                         .padding(.top, 2)
@@ -465,7 +468,7 @@ struct TrackWaveformView: View {
         // Keep the same bars for every track, including the loading state.
         let barCount = max(Int(width / 4), 1)
         let pausedHeight = 4.0
-        let availableHeight = layout.availableBarHeight(for: layout.height)
+        let availableHeight = layout.availableBarHeight(for: height)
         let pausedAmplitude = pausedHeight / Double(availableHeight)
         if barsAreCollapsed && !showsHoverPreview {
             return WaveformAmplitudes(values: Array(repeating: pausedAmplitude, count: barCount))

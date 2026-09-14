@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PlayerFooterView: View {
     private let artworkThumbnailSize: CGFloat = 72
+    private let waveformHeight: CGFloat = 50
     private let cornerRadius: CGFloat = 18
     private let contentInset: CGFloat = 6
 
@@ -225,12 +226,13 @@ struct PlayerFooterView: View {
                             track: track,
                             model: model,
                             layout: .compact,
+                            height: waveformHeight,
                             invertsBarsOnTrackChange: true,
                             collapsesBarsWhenPaused: true
                         )
                     } else {
                         Color.clear
-                            .frame(height: TrackWaveformView.Layout.compact.height)
+                            .frame(height: waveformHeight)
                             .accessibilityHidden(true)
                     }
 
