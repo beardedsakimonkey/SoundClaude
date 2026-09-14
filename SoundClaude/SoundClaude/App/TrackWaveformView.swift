@@ -95,7 +95,7 @@ struct TrackWaveformView: View {
     }
 
     private func waveformView(_ waveform: SoundCloudWaveform?) -> some View {
-        VStack(spacing: 4) {
+        HStack(spacing: 8) {
             GeometryReader { proxy in
                 let amplitudes = barAmplitudes(waveform, width: proxy.size.width)
                 // Read observed state before entering Canvas. Direct observation
@@ -264,14 +264,20 @@ struct TrackWaveformView: View {
             .frame(height: layout.height)
 
             if layout == .detail {
-                HStack {
+                let reflectionHeight = groundHeight(for: CGSize(width: 0, height: layout.height))
+                VStack(alignment: .trailing, spacing: 0) {
                     Text(format(seconds: displayedCurrentTime))
-                    Spacer()
+                        .bold()
+                        .padding(.bottom, 2)
+                        .frame(height: layout.height - reflectionHeight, alignment: .bottom)
                     Text(format(seconds: displayedDuration))
+                        .opacity(0.6)
+                        .padding(.top, 2)
+                        .frame(height: reflectionHeight, alignment: .top)
                 }
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
-                .offset(y: -4)
+                .fixedSize(horizontal: true, vertical: false)
             }
         }
         // Keep a visible focus ring for keyboard navigation without focusing on click.
