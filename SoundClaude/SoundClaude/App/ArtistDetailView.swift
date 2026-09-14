@@ -216,7 +216,7 @@ struct ArtistDetailView: View {
                             .background {
                                 if headerImage != nil {
                                     RoundedRectangle(cornerRadius: 16)
-                                        .fill(.thinMaterial)
+                                        .fill(.ultraThinMaterial)
                                 }
                             }
                         }
