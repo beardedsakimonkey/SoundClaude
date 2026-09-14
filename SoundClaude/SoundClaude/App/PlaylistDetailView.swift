@@ -186,7 +186,7 @@ struct PlaylistDetailView: View {
                         invertsBarsOnTrackChange: true,
                         collapsesBarsWhenPaused: true
                     )
-                    .offset(y: -5)
+                    .offset(y: -2)
                 }
             }
             // Match the track detail header's waveform ground and reflection.
