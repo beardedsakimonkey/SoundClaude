@@ -331,3 +331,91 @@ struct TrackArtworkBackdropView: View {
         }
     }
 }
+
+// Shared artwork treatment for track and playlist detail headers.
+struct DetailArtworkView: View {
+    let artworkURL: URL?
+    let title: String
+    let loader: ArtworkLoader
+    let size: CGFloat
+    var animatesChanges = false
+    let onShowArtwork: () -> Void
+
+    private let cornerRadius: CGFloat = 6
+    private var reflectionHeight: CGFloat { size * 0.45 }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHoveringArtwork = false
+
+    var body: some View {
+        VStack(spacing: 1) {
+            artworkControl
+
+            artworkThumbnail
+                .scaleEffect(x: 1, y: -1)
+                .frame(height: reflectionHeight, alignment: .top)
+                .clipped()
+                .mask {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black.opacity(0.45), location: 0),
+                            .init(color: .black.opacity(0.24), location: 0.1),
+                            .init(color: .black.opacity(0.12), location: 0.2),
+                            .init(color: .black.opacity(0.055), location: 0.32),
+                            .init(color: .black.opacity(0.02), location: 0.48),
+                            .init(color: .black.opacity(0.005), location: 0.65),
+                            .init(color: .clear, location: 0.85)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                // Reserve space for the visible reflection; let its faint tail overflow.
+                .frame(height: 32, alignment: .top)
+        }
+    }
+
+    @ViewBuilder
+    private var artworkControl: some View {
+        if artworkURL != nil {
+            Button {
+                onShowArtwork()
+            } label: {
+                artworkThumbnail
+            }
+            .buttonStyle(.plain)
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .onContentHover { isHoveringArtwork = $0 }
+            .help("View full-size artwork")
+            .accessibilityLabel(
+                "View full-size artwork for \(title)"
+            )
+        } else {
+            artworkThumbnail
+        }
+    }
+
+    private var artworkThumbnail: some View {
+        TrackArtworkView(
+            artworkURL: artworkURL,
+            loader: loader,
+            size: size,
+            rendition: .square500,
+            shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
+            showsBorder: false,
+            animatesChanges: animatesChanges
+        )
+        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .modifier(PlayerArtworkGlass(
+            cornerRadius: cornerRadius,
+            isHovering: isHoveringArtwork && !reduceMotion
+        ))
+        .animation(
+            reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
+            value: isHoveringArtwork
+        )
+    }
+}

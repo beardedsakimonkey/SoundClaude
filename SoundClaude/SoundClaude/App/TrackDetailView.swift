@@ -12,8 +12,6 @@ struct TrackDetailView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     @State private var relatedTracks: [SoundCloudTrack] = []
     @State private var nextPageURL: URL?
     @State private var loadedPageURLs: Set<URL> = []
@@ -25,7 +23,6 @@ struct TrackDetailView: View {
     @State private var errorMessage: String?
     @State private var repostErrorMessage: String?
     @State private var isShowingArtwork = false
-    @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
     init(
@@ -147,7 +144,13 @@ struct TrackDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 HStack(alignment: .top, spacing: 24) {
-                    artworkView(for: details.track)
+                    DetailArtworkView(
+                        artworkURL: details.track.displayArtworkURL,
+                        title: details.track.title,
+                        loader: model.artworkLoader,
+                        size: artworkSize,
+                        onShowArtwork: { isShowingArtwork = true }
+                    )
 
                     VStack(alignment: .leading, spacing: 10) {
                         if details.track.access == .preview {
@@ -317,80 +320,6 @@ struct TrackDetailView: View {
             guard !Task.isCancelled else { return }
             relatedTracksErrorMessage = error.localizedDescription
         }
-    }
-
-    private func artworkView(for track: SoundCloudTrack) -> some View {
-        let cornerRadius: CGFloat = 6
-        let reflectionHeight: CGFloat = 112.5
-
-        return VStack(spacing: 1) {
-            artworkControl(for: track, cornerRadius: cornerRadius)
-
-            artworkThumbnail(for: track, cornerRadius: cornerRadius)
-                .scaleEffect(x: 1, y: -1)
-                .frame(height: reflectionHeight, alignment: .top)
-                .clipped()
-                .mask {
-                    LinearGradient(
-                        stops: [
-                            .init(color: .black.opacity(0.45), location: 0),
-                            .init(color: .black.opacity(0.24), location: 0.1),
-                            .init(color: .black.opacity(0.12), location: 0.2),
-                            .init(color: .black.opacity(0.055), location: 0.32),
-                            .init(color: .black.opacity(0.02), location: 0.48),
-                            .init(color: .black.opacity(0.005), location: 0.65),
-                            .init(color: .clear, location: 0.85)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                }
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-                // Reserve space for the visible reflection; let its faint tail overflow.
-                .frame(height: 32, alignment: .top)
-        }
-    }
-
-    @ViewBuilder
-    private func artworkControl(for track: SoundCloudTrack, cornerRadius: CGFloat) -> some View {
-        if track.displayArtworkURL != nil {
-            Button {
-                isShowingArtwork = true
-            } label: {
-                artworkThumbnail(for: track, cornerRadius: cornerRadius)
-            }
-            .buttonStyle(.plain)
-            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .onContentHover { isHoveringArtwork = $0 }
-            .help("View full-size artwork")
-            .accessibilityLabel(
-                "View full-size artwork for \(track.title)"
-            )
-        } else {
-            artworkThumbnail(for: track, cornerRadius: cornerRadius)
-        }
-    }
-
-    private func artworkThumbnail(for track: SoundCloudTrack, cornerRadius: CGFloat) -> some View {
-        TrackArtworkView(
-            artworkURL: track.displayArtworkURL,
-            loader: model.artworkLoader,
-            size: artworkSize,
-            rendition: .square500,
-            shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
-            showsBorder: false
-        )
-        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .modifier(PlayerArtworkGlass(
-            cornerRadius: cornerRadius,
-            isHovering: isHoveringArtwork && !reduceMotion
-        ))
-        .animation(
-            reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
-            value: isHoveringArtwork
-        )
     }
 
     private func playButton(for track: SoundCloudTrack) -> some View {

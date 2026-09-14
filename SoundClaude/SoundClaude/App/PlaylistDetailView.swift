@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct PlaylistDetailView: View {
+    private let artworkSize: CGFloat = 250
+
     let playlist: SoundCloudPlaylist
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
@@ -15,7 +17,6 @@ struct PlaylistDetailView: View {
     private var isLoading: Bool { playlists.loadingPlaylistURNs.contains(playlist.urn) }
     private var errorMessage: String? { playlists.playlistErrors[playlist.urn] }
     @State private var isShowingArtwork = false
-    @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var likeErrorMessage: String?
 
@@ -158,42 +159,39 @@ struct PlaylistDetailView: View {
                         Text(error).font(.caption).foregroundStyle(.secondary)
                         Button("Retry likes") { Task { await playlists.loadLikes() } }
                     }
-                    if let track = currentPlaylistTrack {
-                        TrackWaveformView(
-                            track: track,
-                            model: model,
-                            invertsBarsOnTrackChange: true,
-                            collapsesBarsWhenPaused: true
-                        )
-                    }
                 }
                 .padding(.top, 8)
+
+                if let track = currentPlaylistTrack {
+                    Spacer(minLength: 6)
+                    TrackWaveformView(
+                        track: track,
+                        model: model,
+                        invertsBarsOnTrackChange: true,
+                        collapsesBarsWhenPaused: true
+                    )
+                    .offset(y: -5)
+                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            // Match the track detail header's waveform ground and reflection.
+            .frame(
+                maxWidth: .infinity,
+                minHeight: currentPlaylistTrack != nil
+                    ? artworkSize + TrackWaveformView.Layout.detail.reflectionHeight : nil,
+                alignment: .topLeading
+            )
         }
     }
 
     private var playlistArtwork: some View {
-        let thumbnail = TrackArtworkView(
+        DetailArtworkView(
             artworkURL: artworkURL,
+            title: artworkTitle,
             loader: model.artworkLoader,
-            size: 250,
-            rendition: .square500,
-            shape: RoundedRectangle(cornerRadius: 6),
-            animatesChanges: true
+            size: artworkSize,
+            animatesChanges: true,
+            onShowArtwork: { isShowingArtwork = true }
         )
-        return Button {
-            isShowingArtwork = true
-        } label: {
-            thumbnail.artworkExpandIndicator(isHovering: isHoveringArtwork && artworkURL != nil)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-        }
-        .buttonStyle(.plain)
-        .disabled(artworkURL == nil)
-        .onContentHover { isHoveringArtwork = $0 }
-        .help("View full-size artwork")
-        .accessibilityLabel("View full-size artwork for \(artworkTitle)")
-        .accessibilityHidden(artworkURL == nil)
     }
 
     private var playButton: some View {
