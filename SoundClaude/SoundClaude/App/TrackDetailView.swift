@@ -12,6 +12,8 @@ struct TrackDetailView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var relatedTracks: [SoundCloudTrack] = []
     @State private var nextPageURL: URL?
     @State private var loadedPageURLs: Set<URL> = []
@@ -356,11 +358,8 @@ struct TrackDetailView: View {
             } label: {
                 artworkThumbnail(for: track, cornerRadius: cornerRadius)
             }
-            .buttonStyle(ArtworkButtonStyle(
-                isHovering: isHoveringArtwork,
-                shape: RoundedRectangle(cornerRadius: cornerRadius)
-            ))
-            .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+            .buttonStyle(.plain)
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .onContentHover { isHoveringArtwork = $0 }
             .help("View full-size artwork")
             .accessibilityLabel(
@@ -377,7 +376,18 @@ struct TrackDetailView: View {
             loader: model.artworkLoader,
             size: artworkSize,
             rendition: .square500,
-            shape: RoundedRectangle(cornerRadius: cornerRadius)
+            shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
+            showsBorder: false
+        )
+        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.1 : 1)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .modifier(PlayerArtworkGlass(
+            cornerRadius: cornerRadius,
+            isHovering: isHoveringArtwork && !reduceMotion
+        ))
+        .animation(
+            reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
+            value: isHoveringArtwork
         )
     }
 
