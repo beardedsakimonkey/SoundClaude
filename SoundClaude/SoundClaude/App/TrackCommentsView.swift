@@ -67,6 +67,10 @@ struct TrackCommentsView: View {
         }
     }
 
+    private var showsComposerControls: Bool {
+        isCommentHovered || isCommentFocused || isPosting
+    }
+
     private var commentComposer: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
@@ -125,6 +129,10 @@ struct TrackCommentsView: View {
                 .accessibilityLabel(isPosting ? "Posting comment" : "Send comment")
                 .help("Send comment (Return)")
                 .disabled(isPosting || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .opacity(showsComposerControls ? 1 : 0)
+                .allowsHitTesting(showsComposerControls)
+                .accessibilityHidden(!showsComposerControls)
+                .animation(.easeInOut(duration: 0.15), value: showsComposerControls)
             }
             .padding(5)
             .background {
@@ -135,20 +143,24 @@ struct TrackCommentsView: View {
                         value: isCommentFocused || isCommentHovered
                     )
             }
+            .contentShape(Capsule())
             .onHover { isCommentHovered = $0 }
             .overlay {
                 Capsule()
                     .strokeBorder(
-                        .primary.opacity(isCommentFocused ? 0.35 : 0.15),
+                        .primary.opacity(showsComposerControls ? (isCommentFocused ? 0.35 : 0.15) : 0),
                         lineWidth: 1
                     )
                     .allowsHitTesting(false)
+                    .animation(.easeInOut(duration: 0.15), value: showsComposerControls)
             }
             .background {
                 SearchOutsideClickView(isFocused: isCommentFocused) {
                     isCommentFocused = false
                 }
             }
+            // Align the avatar with the rows while keeping the capsule's inset.
+            .padding(.leading, -5)
 
             if let postingErrorMessage {
                 Text(postingErrorMessage)
