@@ -408,7 +408,7 @@ struct ArtistDetailView: View {
                                     if let count = user.followersCount {
                                         HStack(spacing: 3) {
                                             Image(systemName: "person.fill")
-                                            Text(count.formatted())
+                                            Text(count.formatted(.number.notation(.compactName).precision(.fractionLength(0))).uppercased())
                                         }
                                         .accessibilityElement(children: .ignore)
                                         .accessibilityLabel("\(count.formatted()) followers")
@@ -416,7 +416,7 @@ struct ArtistDetailView: View {
                                     if let count = user.trackCount {
                                         HStack(spacing: 3) {
                                             Image(systemName: "waveform")
-                                            Text(count.formatted())
+                                            Text(count.formatted(.number.notation(.compactName).precision(.fractionLength(0))).uppercased())
                                         }
                                         .accessibilityElement(children: .ignore)
                                         .accessibilityLabel("\(count.formatted()) tracks")
@@ -799,7 +799,7 @@ struct ArtistDetailView: View {
                 Text(label)
                     .font(.callout.weight(.semibold))
                     .foregroundStyle(hoveredStatistic == label ? .primary : .secondary)
-                Text(count.formatted())
+                Text(count.formatted(.number.notation(.compactName).precision(.fractionLength(0))).uppercased())
                     .font(.system(size: 28, weight: .semibold))
                     .opacity(hoveredStatistic == label ? 1 : 0.9)
             }
