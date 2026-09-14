@@ -7,7 +7,11 @@ struct TrackWaveformView: View {
         case compact
 
         var height: CGFloat { self == .compact ? 60 : 88 }
-        var reflectionHeight: CGFloat { floor(height * 0.32) }
+        var reflectionHeight: CGFloat { self == .detail ? floor(height * 0.32) : 0 }
+
+        func availableBarHeight(for height: CGFloat) -> CGFloat {
+            self == .compact ? height - 4 : height - reflectionHeight - 2
+        }
     }
 
     let track: SoundCloudTrack
@@ -124,6 +128,10 @@ struct TrackWaveformView: View {
                     let bars = waveformBars(amplitudes, size: size)
                     let path = CGMutablePath()
                     for bar in bars {
+                        if layout == .compact {
+                            path.addRoundedRect(in: bar, cornerWidth: 1, cornerHeight: 1)
+                            continue
+                        }
                         // Bitmap coordinates start at the bottom. Keep the
                         // ground edge square and round only the top corners.
                         let radius = min(1, bar.width / 2, bar.height / 2)
@@ -190,7 +198,9 @@ struct TrackWaveformView: View {
                     }
                     bitmap.endTransparencyLayer()
                     bitmap.restoreGState()
-                    addGroundReflection(in: bitmap, size: size)
+                    if layout == .detail {
+                        addGroundReflection(in: bitmap, size: size)
+                    }
                     guard let image = bitmap.makeImage() else { return }
                     // Preserve the bitmap's pixel size, including any fractional
                     // layout padding, instead of stretching it to the view bounds.
@@ -363,7 +373,14 @@ struct TrackWaveformView: View {
         // equivalent to scaling linear RGB by k³. This preserves hue and stays
         // in gamut without a full matrix conversion. OKLab definition:
         // https://bottosson.github.io/posts/oklab/#converting-from-linear-srgb-to-oklab
-        let profile: [(location: CGFloat, brightness: CGFloat, highlight: CGFloat)] = [
+        let profile: [(location: CGFloat, brightness: CGFloat, highlight: CGFloat)] = layout == .compact ? [
+            (0,    0.94, 0.03),
+            (0.08, 1,    0.18),
+            (0.24, 0.93, 0.06),
+            (0.76, 0.93, 0.06),
+            (0.92, 0.77, 0),
+            (1,    0.60, 0)
+        ] : [
             (0,    0.94, 0.03),
             (0.08, 1,    0.18),
             (0.24, 0.93, 0.06),
@@ -464,7 +481,7 @@ struct TrackWaveformView: View {
         // Keep the same bars for every track, including the loading state.
         let barCount = max(Int(width / 4), 1)
         let pausedHeight = 4.0
-        let availableHeight = layout.height - layout.reflectionHeight - 2
+        let availableHeight = layout.availableBarHeight(for: layout.height)
         let pausedAmplitude = pausedHeight / Double(availableHeight)
         if barsAreCollapsed && !showsHoverPreview {
             return WaveformAmplitudes(values: Array(repeating: pausedAmplitude, count: barCount))
@@ -513,14 +530,14 @@ struct TrackWaveformView: View {
     ) -> [CGRect] {
         let barWidth: CGFloat = 2
         let step: CGFloat = 4
-        let ground = layout.reflectionHeight
+        let availableHeight = layout.availableBarHeight(for: size.height)
         return amplitudes.values.enumerated().map { index, amplitude in
-            // Signed amplitudes collapse through the ground during track
-            // changes. Take the absolute value after spring interpolation.
-            let height = max(CGFloat(abs(amplitude)) * (size.height - ground - 2), 2)
+            // Signed amplitudes collapse during track changes. Take the
+            // absolute value after spring interpolation.
+            let height = max(CGFloat(abs(amplitude)) * availableHeight, 2)
             return CGRect(
                 x: CGFloat(index) * step,
-                y: ground,
+                y: layout == .compact ? (size.height - height) / 2 : layout.reflectionHeight,
                 width: barWidth,
                 height: height
             )
