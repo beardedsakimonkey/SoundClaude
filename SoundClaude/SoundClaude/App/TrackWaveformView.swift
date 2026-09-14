@@ -151,7 +151,8 @@ struct TrackWaveformView: View {
                     }
                     let background = Color.secondary.opacity(layout == .compact ? 0.3 : 0.5)
                         .resolve(in: context.environment).cgColor
-                    let color = renderedProgressColor.resolve(in: context.environment).cgColor
+                    let color = renderedProgressColor.opacity(layout == .compact ? 0.7 : 1)
+                        .resolve(in: context.environment).cgColor
                     let highlight = Color.white.opacity(0.9)
                         .resolve(in: context.environment).cgColor
                     let shadow = Color.black.opacity(0.9)
@@ -168,8 +169,8 @@ struct TrackWaveformView: View {
                     // boundaries from accumulating partial pixel coverage.
                     bitmap.setShouldAntialias(false)
 
-                    fillGradient(background, in: bitmap, bars: bars, rect: CGRect(origin: .zero, size: size))
-                    fillGradient(color, in: bitmap, bars: bars, rect: CGRect(
+                    fillBars(background, in: bitmap, bars: bars, rect: CGRect(origin: .zero, size: size))
+                    fillBars(color, in: bitmap, bars: bars, rect: CGRect(
                         x: 0, y: 0,
                         width: size.width * progress,
                         height: size.height
@@ -186,12 +187,12 @@ struct TrackWaveformView: View {
                         bitmap.setAlpha(hoverOpacity)
                         bitmap.beginTransparencyLayer(auxiliaryInfo: nil)
                         if renderedHoverFraction < progress {
-                            // Darken the existing gradient when previewing a backward seek.
+                            // Darken the existing fill when previewing a backward seek.
                             bitmap.setFillColor(shadow)
                             bitmap.fill(hoverRegion)
                         } else {
-                            fillGradient(color, in: bitmap, bars: bars, rect: hoverRegion)
-                            fillGradient(highlight, in: bitmap, bars: bars, rect: hoverRegion)
+                            fillBars(color, in: bitmap, bars: bars, rect: hoverRegion)
+                            fillBars(highlight, in: bitmap, bars: bars, rect: hoverRegion)
                         }
                         bitmap.endTransparencyLayer()
                         bitmap.restoreGState()
@@ -365,33 +366,39 @@ struct TrackWaveformView: View {
         bitmap.restoreGState()
     }
 
-    private func fillGradient(
+    private func fillBars(
         _ color: CGColor, in bitmap: CGContext, bars: [CGRect], rect: CGRect
     ) {
         guard !rect.isEmpty else { return }
+        if layout == .compact {
+            bitmap.setFillColor(color)
+            bitmap.fill(rect)
+            return
+        }
         let colorSpace = CGColorSpace(name: CGColorSpace.linearSRGB)!
         guard let components = color.converted(
             to: colorSpace, intent: .relativeColorimetric, options: nil
         )?.components, components.count == 4 else { return }
 
-        // For a fade toward black, scaling all OKLab coordinates by k is
-        // equivalent to scaling linear RGB by k³. This preserves hue and stays
-        // in gamut without a full matrix conversion. OKLab definition:
-        // https://bottosson.github.io/posts/oklab/#converting-from-linear-srgb-to-oklab
-        let profile: [(location: CGFloat, brightness: CGFloat, highlight: CGFloat)] = layout == .compact ? [
-            (0,    0.94, 0.03),
-            (0.08, 1,    0.18),
-            (0.24, 0.93, 0.06),
-            (0.76, 0.93, 0.06),
-            (0.92, 0.77, 0),
-            (1,    0.60, 0)
-        ] : [
-            (0,    0.94, 0.03),
-            (0.08, 1,    0.18),
-            (0.24, 0.93, 0.06),
-            (1,    0.77, 0)
+        let base = WaveformOKLab(linearRGB: SIMD3(
+            Double(components[0]), Double(components[1]), Double(components[2])
+        )).value
+        // Build the shaded stops and interpolate them in OKLab, including
+        // the white crest. Keep alpha constant throughout the surface.
+        let profile: [(location: CGFloat, brightness: CGFloat, highlight: CGFloat)] = [
+            (0,    0.98, 0.08),
+            (0.08, 1,    0.30),
+            (0.24, 0.98, 0.12),
+            (1,    0.87, 0.03)
         ]
-        let locations = (0...32).map { CGFloat($0) / 32 }
+        let stops = profile.map { stop in
+            base * Double(stop.brightness * (1 - stop.highlight))
+                + SIMD3<Double>(Double(stop.highlight), 0, 0)
+        }
+        // Core Graphics interpolates in RGB. Sample the OKLab curve densely
+        // and include the exact profile stops to preserve each crest.
+        let locations = Array(Set((0...64).map { CGFloat($0) / 64 }
+            + profile.map(\.location))).sorted()
         let colors = locations.map { fraction in
             let upperIndex = profile.firstIndex { $0.location > fraction }
                 ?? (profile.count - 1)
@@ -399,15 +406,13 @@ struct TrackWaveformView: View {
             let upper = profile[upperIndex]
             let t = (fraction - lower.location) / (upper.location - lower.location)
             let eased = t * t * (3 - 2 * t)
-            let brightness = lower.brightness + (upper.brightness - lower.brightness) * eased
-            let highlight = lower.highlight + (upper.highlight - lower.highlight) * eased
-            let factor = brightness * brightness * brightness
-            // Blend a small amount of white into the crest, keeping the
-            // artwork color and the original alpha throughout the surface.
+            let lab = stops[upperIndex - 1]
+                + (stops[upperIndex] - stops[upperIndex - 1]) * Double(eased)
+            let rgb = WaveformOKLab(value: lab).linearRGB
             return CGColor(colorSpace: colorSpace, components: [
-                components[0] * factor * (1 - highlight) + highlight,
-                components[1] * factor * (1 - highlight) + highlight,
-                components[2] * factor * (1 - highlight) + highlight,
+                CGFloat(min(max(rgb.x, 0), 1)),
+                CGFloat(min(max(rgb.y, 0), 1)),
+                CGFloat(min(max(rgb.z, 0), 1)),
                 components[3]
             ])!
         }
@@ -696,5 +701,40 @@ private struct WaveformAmplitudes: VectorArithmetic {
                 index < rhs.values.count ? rhs.values[index] : 0
             )
         })
+    }
+}
+
+// OKLab conversion matrices:
+// https://bottosson.github.io/posts/oklab/#converting-from-linear-srgb-to-oklab
+private struct WaveformOKLab {
+    let value: SIMD3<Double>
+
+    init(value: SIMD3<Double>) {
+        self.value = value
+    }
+
+    init(linearRGB rgb: SIMD3<Double>) {
+        let l = cbrt(0.4122214708 * rgb.x + 0.5363325363 * rgb.y + 0.0514459929 * rgb.z)
+        let m = cbrt(0.2119034982 * rgb.x + 0.6806995451 * rgb.y + 0.1073969566 * rgb.z)
+        let s = cbrt(0.0883024619 * rgb.x + 0.2817188376 * rgb.y + 0.6299787005 * rgb.z)
+        value = SIMD3(
+            0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+            1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+            0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+        )
+    }
+
+    var linearRGB: SIMD3<Double> {
+        let roots = SIMD3(
+            value.x + 0.3963377774 * value.y + 0.2158037573 * value.z,
+            value.x - 0.1055613458 * value.y - 0.0638541728 * value.z,
+            value.x - 0.0894841775 * value.y - 1.2914855480 * value.z
+        )
+        let cubes = roots * roots * roots
+        return SIMD3(
+            4.0767416621 * cubes.x - 3.3077115913 * cubes.y + 0.2309699292 * cubes.z,
+            -1.2684380046 * cubes.x + 2.6097574011 * cubes.y - 0.3413193965 * cubes.z,
+            -0.0041960863 * cubes.x - 0.7034186147 * cubes.y + 1.7076147010 * cubes.z
+        )
     }
 }
