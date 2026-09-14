@@ -66,7 +66,7 @@ struct LikesView: View {
             startPoint: .top,
             endPoint: .bottom
         )
-        .frame(height: 300)
+        .frame(height: 150)
 
         if #available(macOS 26.0, *) {
             gradient.backgroundExtensionEffect()

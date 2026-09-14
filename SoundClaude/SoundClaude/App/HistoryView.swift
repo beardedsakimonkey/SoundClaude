@@ -12,7 +12,11 @@ struct HistoryView: View {
     @State private var reloadID = UUID()
 
     var body: some View {
-        Group {
+        ZStack(alignment: .top) {
+            backdrop
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+
             if !hasLoaded, errorMessage == nil {
                 ProgressView("Loading history")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -20,8 +24,25 @@ struct HistoryView: View {
                 historyContent
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("History")
         .task(id: reloadID) { await load() }
+    }
+
+    @ViewBuilder
+    private var backdrop: some View {
+        let gradient = LinearGradient(
+            colors: [.purple.opacity(0.3), .clear],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 150)
+
+        if #available(macOS 26.0, *) {
+            gradient.backgroundExtensionEffect()
+        } else {
+            gradient
+        }
     }
 
     private var historyContent: some View {

@@ -12,7 +12,11 @@ struct FeedView: View {
     private var nextPageURL: URL? { feed.cache.nextPageURL }
 
     var body: some View {
-        Group {
+        ZStack(alignment: .top) {
+            backdrop
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+
             if !feed.cache.hasLoadedPage, feed.errorMessage == nil {
                 ProgressView("Loading feed")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -20,8 +24,25 @@ struct FeedView: View {
                 feedContent
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Feed")
         .task { await feed.load() }
+    }
+
+    @ViewBuilder
+    private var backdrop: some View {
+        let gradient = LinearGradient(
+            colors: [.blue.opacity(0.3), .clear],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 150)
+
+        if #available(macOS 26.0, *) {
+            gradient.backgroundExtensionEffect()
+        } else {
+            gradient
+        }
     }
 
     private var feedContent: some View {
