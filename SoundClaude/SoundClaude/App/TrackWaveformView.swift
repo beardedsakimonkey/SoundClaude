@@ -7,6 +7,7 @@ struct TrackWaveformView: View {
         case compact
 
         var height: CGFloat { self == .compact ? 60 : 88 }
+        var reflectionHeight: CGFloat { floor(height * 0.32) }
     }
 
     let track: SoundCloudTrack
@@ -264,7 +265,7 @@ struct TrackWaveformView: View {
             .frame(height: layout.height)
 
             if layout == .detail {
-                let reflectionHeight = groundHeight(for: CGSize(width: 0, height: layout.height))
+                let reflectionHeight = layout.reflectionHeight
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(format(seconds: displayedCurrentTime))
                         .bold()
@@ -311,10 +312,6 @@ struct TrackWaveformView: View {
         }
     }
 
-    private func groundHeight(for size: CGSize) -> CGFloat {
-        floor(size.height * 0.32)
-    }
-
     private func addGroundReflection(in bitmap: CGContext, size: CGSize) {
         guard let source = bitmap.makeImage(),
               let fade = CGGradient(
@@ -329,7 +326,7 @@ struct TrackWaveformView: View {
 
         // Core Graphics uses bottom-up coordinates. Leave a small gap at the
         // ground and compress the reflected image below it.
-        let ground = groundHeight(for: size)
+        let ground = layout.reflectionHeight
         let reflectionTop = ground - 1
         let reflectionScale: CGFloat = 0.45
         let reflectionHeight = min(reflectionTop, (size.height - ground - 2) * reflectionScale)
@@ -467,7 +464,7 @@ struct TrackWaveformView: View {
         // Keep the same bars for every track, including the loading state.
         let barCount = max(Int(width / 4), 1)
         let pausedHeight = layout == .detail ? 8.0 : 6.0
-        let availableHeight = layout.height - groundHeight(for: CGSize(width: width, height: layout.height)) - 2
+        let availableHeight = layout.height - layout.reflectionHeight - 2
         let pausedAmplitude = pausedHeight / Double(availableHeight)
         if barsAreCollapsed && !showsHoverPreview {
             return WaveformAmplitudes(values: Array(repeating: pausedAmplitude, count: barCount))
@@ -516,7 +513,7 @@ struct TrackWaveformView: View {
     ) -> [CGRect] {
         let barWidth: CGFloat = 2
         let step: CGFloat = 4
-        let ground = groundHeight(for: size)
+        let ground = layout.reflectionHeight
         return amplitudes.values.enumerated().map { index, amplitude in
             // Signed amplitudes collapse through the ground during track
             // changes. Take the absolute value after spring interpolation.

@@ -3,6 +3,7 @@ import Foundation
 import SwiftUI
 
 struct TrackDetailView: View {
+    private let artworkSize: CGFloat = 250
 
     let track: SoundCloudTrack
     @ObservedObject var model: AppModel
@@ -171,19 +172,24 @@ struct TrackDetailView: View {
                         }
                         .font(.title3)
                         .foregroundStyle(.secondary)
-                        VStack(alignment: .leading, spacing: 16) {
-                            HStack(spacing: 12) {
-                                playButton(for: details.track)
-                                likeButton(for: details.track)
-                                repostButton(for: details.track)
-                            }
-
-                            if details.track.waveformURL != nil {
-                                TrackWaveformView(track: details.track, model: model)
-                            }
+                        HStack(spacing: 12) {
+                            playButton(for: details.track)
+                            likeButton(for: details.track)
+                            repostButton(for: details.track)
                         }
                         .padding(.top, 8)
+
+                        if details.track.waveformURL != nil {
+                            Spacer(minLength: 6)
+                            TrackWaveformView(track: details.track, model: model)
+                        }
                     }
+                    // Put the waveform ground at the artwork's bottom edge.
+                    .frame(
+                        minHeight: details.track.waveformURL != nil
+                            ? artworkSize + TrackWaveformView.Layout.detail.reflectionHeight : nil,
+                        alignment: .topLeading
+                    )
                 }
 
                 if let description = nonempty(details.description) {
@@ -369,7 +375,7 @@ struct TrackDetailView: View {
         TrackArtworkView(
             artworkURL: track.displayArtworkURL,
             loader: model.artworkLoader,
-            size: 250,
+            size: artworkSize,
             rendition: .square500,
             shape: RoundedRectangle(cornerRadius: cornerRadius)
         )
