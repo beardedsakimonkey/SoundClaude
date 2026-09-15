@@ -49,6 +49,12 @@ final class PlaybackController {
     private(set) var currentTrack: SoundCloudTrack?
     private(set) var isPlaying = false
     private(set) var isLoading = false
+    private var isWaitingForPlayback = false
+
+    var isBuffering: Bool {
+        currentTrack != nil && errorMessage == nil && !isLoading
+            && (isSeekInProgress || (shouldPlayWhenReady && isWaitingForPlayback))
+    }
     private(set) var currentTime: Double = 0
     private(set) var duration: Double = 0
     private(set) var errorMessage: String?
@@ -91,7 +97,7 @@ final class PlaybackController {
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var seekTarget: Double?
-    @ObservationIgnored private var isSeekInProgress = false
+    private var isSeekInProgress = false
     @ObservationIgnored private var loadingRequestID: UUID?
     private struct Preparation {
         let id: UUID
@@ -182,6 +188,7 @@ final class PlaybackController {
             Task { @MainActor [weak self] in
                 guard let self, self.player === player else { return }
                 isPlaying = player.timeControlStatus == .playing
+                isWaitingForPlayback = player.timeControlStatus == .waitingToPlayAtSpecifiedRate
                 updateNowPlayingInfo()
             }
         }
@@ -213,6 +220,7 @@ final class PlaybackController {
         if let timeObserver { player.removeTimeObserver(timeObserver) }
         player.replaceCurrentItem(with: nil)
         player = prepared
+        isWaitingForPlayback = false
         player.cancelPendingPrerolls()
         player.volume = volume
         player.isMuted = isMuted
@@ -254,6 +262,7 @@ final class PlaybackController {
         isSeekInProgress = false
         isLoading = false
         isPlaying = false
+        isWaitingForPlayback = false
         errorMessage = nil
         defaults.removeObject(forKey: SettingsKey.session)
         updateNowPlayingInfo()
@@ -298,6 +307,7 @@ final class PlaybackController {
         shouldPlayWhenReady = autoplay
         isLoading = true
         isPlaying = false
+        isWaitingForPlayback = false
         updateNowPlayingInfo(elapsedTime: currentTime)
         saveSession()
         updateRemoteCommandAvailability()

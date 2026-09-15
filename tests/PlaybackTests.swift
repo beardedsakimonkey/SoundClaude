@@ -1,6 +1,21 @@
 import AVFoundation
 import Foundation
 
+// Drive AVPlayer's waiting state without relying on network timing.
+private final class BufferingTestPlayer: AVPlayer {
+    private var simulatedStatus: AVPlayer.TimeControlStatus?
+
+    override var timeControlStatus: AVPlayer.TimeControlStatus {
+        simulatedStatus ?? super.timeControlStatus
+    }
+
+    func simulateStatus(_ status: AVPlayer.TimeControlStatus?) {
+        willChangeValue(forKey: "timeControlStatus")
+        simulatedStatus = status
+        didChangeValue(forKey: "timeControlStatus")
+    }
+}
+
 // Hold stream resolution between beginLoading and load. A local silent file
 // tests AVPlayer readiness without credentials, network access, or audio output.
 @main
@@ -12,7 +27,7 @@ struct PlaybackTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         var preparedPlayers: [AVPlayer] = []
         let playback = PlaybackController(defaults: defaults) { url in
-            let player = AVPlayer(url: url)
+            let player = BufferingTestPlayer(url: url)
             preparedPlayers.append(player)
             return player
         }
@@ -127,6 +142,29 @@ struct PlaybackTests {
         precondition(playback.player.currentItem === preparedItem)
         try await until { !playback.isLoading }
         precondition(playback.currentTime == 0 && !playback.isPlaybackActive)
+
+        // A pending seek pulses even while paused, then clears on completion.
+        playback.seek(to: 0.5)
+        precondition(playback.isBuffering && !playback.isLoading)
+        try await until { !playback.isBuffering }
+        precondition(abs(playback.currentTime - 0.5) < 0.05)
+        precondition(!playback.isPlaybackActive)
+
+        // Buffering after readiness pulses until playback resumes. Pausing
+        // clears the indicator even before the player's status callback.
+        let bufferingPlayer = preparedPlayer as! BufferingTestPlayer
+        playback.togglePlayPause()
+        bufferingPlayer.simulateStatus(.waitingToPlayAtSpecifiedRate)
+        try await until { playback.isBuffering }
+        precondition(!playback.isLoading)
+        playback.pause()
+        precondition(!playback.isBuffering)
+        playback.togglePlayPause()
+        try await until { playback.isBuffering }
+        bufferingPlayer.simulateStatus(.playing)
+        try await until { !playback.isBuffering && playback.isPlaying }
+        playback.pause()
+        bufferingPlayer.simulateStatus(nil)
 
         // Queue edits drop an obsolete player and retain only the new next track.
         playback.prefetch(track(3)) { source }

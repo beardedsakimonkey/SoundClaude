@@ -430,11 +430,11 @@ struct TrackWaveformView: View {
     }
 
     private var shouldDimBars: Bool {
-        (isCurrentTrack && playback.isLoading) || !isCurrentTrack
+        (isCurrentTrack && (playback.isLoading || playback.isBuffering)) || !isCurrentTrack
     }
 
     private var shouldPulseBars: Bool {
-        isCurrentTrack && playback.isLoading && !reduceMotion
+        isCurrentTrack && (playback.isLoading || playback.isBuffering) && !reduceMotion
     }
 
     private var displayedCurrentTime: Double {
