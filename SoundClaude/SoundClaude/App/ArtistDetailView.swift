@@ -324,6 +324,14 @@ struct ArtistDetailView: View {
                                     .id(artist.permalinkURL)
                                 }
                             }
+                            let location = [details.city, details.country]
+                                .compactMap { nonempty($0) }
+                                .joined(separator: ", ")
+                            if !location.isEmpty {
+                                Label(location, systemImage: "mappin.and.ellipse")
+                                    .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                            }
                             profileLinks
                             if !relatedArtists.isEmpty {
                                 relatedArtistsSection
