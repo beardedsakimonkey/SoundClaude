@@ -51,6 +51,14 @@ To build and run from the command line:
 make
 ```
 
+To build the app with the Release configuration:
+
+```sh
+make release
+```
+
+The app is saved to `SoundClaude/DerivedData/Build/Products/Release/SoundClaude.app`.
+
 To run the regression suites:
 
 ```

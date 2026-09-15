@@ -7,7 +7,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := run
 
-.PHONY: build run lsp icon test test-focus
+.PHONY: build release run lsp icon test test-focus
 
 build:
 	xcodebuild \
@@ -16,6 +16,9 @@ build:
 		-configuration $(CONFIGURATION) \
 		-derivedDataPath $(DERIVED_DATA_PATH) \
 		build
+
+release:
+	$(MAKE) build CONFIGURATION=Release
 
 run: build
 	open "$(APP)"
