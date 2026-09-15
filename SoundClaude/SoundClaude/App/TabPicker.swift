@@ -8,6 +8,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var underlineNamespace
+    @State private var hoveredOption: Selection?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -19,7 +20,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                 } label: {
                     Text(option.rawValue)
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                        .foregroundStyle(isSelected || hoveredOption == option ? Color.primary : Color.secondary)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 14)
                         .overlay(alignment: .bottom) {
@@ -30,6 +31,13 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .onContentHover { isHovering in
+                    if isHovering {
+                        hoveredOption = option
+                    } else if hoveredOption == option {
+                        hoveredOption = nil
+                    }
+                }
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             }
         }
