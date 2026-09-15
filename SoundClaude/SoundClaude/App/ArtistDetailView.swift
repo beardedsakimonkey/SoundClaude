@@ -320,7 +320,15 @@ struct ArtistDetailView: View {
                             HStack(alignment: .top, spacing: 12) {
                                 userStatistic(details.followersCount.map { max(0, $0 + followerCountAdjustment) }, list: .followers, user: details.user)
                                 userStatistic(details.followingsCount, list: .following, user: details.user)
-                                statistic(details.trackCount, label: "Tracks")
+                                if let trackCount = details.trackCount {
+                                    Button {
+                                        selectedTab = .tracks
+                                    } label: {
+                                        statistic(trackCount, label: "Tracks")
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("View tracks by \(details.user.username)")
+                                }
                             }
 
                             if let description = nonempty(details.description) {
