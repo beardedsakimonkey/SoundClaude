@@ -6,9 +6,10 @@ struct TrackPlaybackIndicator: View {
     let analyzer: SpectrumAnalyzer
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
     @State private var levels: [Float] = [0, 0, 0]
 
-    private var isAnimating: Bool { (isPlaying || isLoading) && !reduceMotion }
+    private var isAnimating: Bool { (isPlaying || isLoading) && !reduceMotion && !contentAnimationsPaused }
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !isAnimating)) { context in

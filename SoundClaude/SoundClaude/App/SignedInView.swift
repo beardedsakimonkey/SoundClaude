@@ -39,6 +39,9 @@ struct SignedInView: View {
             navigationView
                 .frame(width: geometry.size.width, height: geometry.size.height)
         }
+        // Preserve page and scroll state, but suppress page drawing and frame timelines.
+        .opacity(isShowingVisualizer ? 0 : 1)
+        .environment(\.contentAnimationsPaused, isShowingVisualizer)
         .toolbar(isShowingVisualizer ? .hidden : .automatic, for: .windowToolbar)
         .allowsHitTesting(!isShowingVisualizer)
         .accessibilityHidden(isShowingVisualizer)
@@ -51,6 +54,12 @@ struct SignedInView: View {
                     artworkLoader: model.artworkLoader
                 )
                 .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { isShowingVisualizer = false }
+                .accessibilityAction(named: "Close visualizer") {
+                    isShowingVisualizer = false
+                }
+                .background { visualizerShortcuts }
             }
         }
         .overlay {
@@ -58,7 +67,7 @@ struct SignedInView: View {
                 let availableHeight = max(0, geometry.size.height - footerHeight)
 
                 ZStack(alignment: .bottomTrailing) {
-                    if isShowingQueue {
+                    if isShowingQueue && !isShowingVisualizer {
                         TrackQueueView(
                             model: model,
                             onSelectTrack: showTrack,
@@ -96,19 +105,21 @@ struct SignedInView: View {
             .clipped()
         }
         .overlay(alignment: .bottom) {
-            PlayerFooterView(
-                model: model,
-                isShowingQueue: $isShowingQueue,
-                isShowingVisualizer: $isShowingVisualizer,
-                onSelectTrack: showTrack,
-                onSelectArtist: showArtist
-            )
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(8)
-            .onGeometryChange(for: CGFloat.self) { geometry in
-                geometry.size.height
-            } action: { height in
-                footerHeight = height
+            if !isShowingVisualizer {
+                PlayerFooterView(
+                    model: model,
+                    isShowingQueue: $isShowingQueue,
+                    isShowingVisualizer: $isShowingVisualizer,
+                    onSelectTrack: showTrack,
+                    onSelectArtist: showArtist
+                )
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(8)
+                .onGeometryChange(for: CGFloat.self) { geometry in
+                    geometry.size.height
+                } action: { height in
+                    footerHeight = height
+                }
             }
         }
         .environment(\.searchGenre, showGenreSearch)
@@ -118,6 +129,31 @@ struct SignedInView: View {
                 onForward: navigateForward
             )
         }
+    }
+
+    // The footer owns these shortcuts in normal mode. Keep them available when it is absent.
+    private var visualizerShortcuts: some View {
+        Group {
+            Button("Close visualizer") { isShowingVisualizer = false }
+                .keyboardShortcut("v", modifiers: [])
+            Button("Close visualizer") { isShowingVisualizer = false }
+                .keyboardShortcut(.cancelAction)
+            Button("Previous track", action: model.playback.previous)
+                .keyboardShortcut("<", modifiers: [])
+            Button("Next track", action: model.playback.next)
+                .keyboardShortcut(">", modifiers: [])
+            Button("Focus current track") {
+                if let track = model.playback.currentTrack { showTrack(track) }
+            }
+            .keyboardShortcut("f", modifiers: [])
+            Button("Show track queue") {
+                isShowingVisualizer = false
+                isShowingQueue = true
+            }
+            .keyboardShortcut("q", modifiers: [])
+        }
+        .hidden()
+        .accessibilityHidden(true)
     }
 
     private var navigationView: some View {
@@ -430,4 +466,9 @@ private enum Route: Hashable {
     case track(SoundCloudTrack)
     case artist(SoundCloudUser)
     case artistUsers(SoundCloudUser, ArtistUserList)
+}
+
+// Hidden pages retain their state without running continuous animation timelines.
+extension EnvironmentValues {
+    @Entry var contentAnimationsPaused = false
 }
