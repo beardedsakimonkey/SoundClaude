@@ -544,7 +544,7 @@ struct ArtistDetailView: View {
         }
     }
 
-    private func tabTitle(_ tab: ContentTab) -> String {
+    private func tabTitle(_ tab: ContentTab) -> Text {
         let user = details?.user ?? artist
         let count: Int? = switch tab {
         case .tracks: user.trackCount
@@ -552,8 +552,11 @@ struct ArtistDetailView: View {
         case .playlists: user.playlistCount
         case .likes: user.publicFavoritesCount
         }
-        guard let count else { return tab.rawValue }
-        return "\(tab.rawValue) (\(count.formatted()))"
+        let title = Text(tab.rawValue)
+            .font(.body.weight(.semibold))
+        guard let count else { return title }
+        return title + Text(" (\(count.formatted()))")
+            .font(.body.weight(.regular))
     }
 
     private func shuffleTracks() async {
