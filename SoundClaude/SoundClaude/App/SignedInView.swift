@@ -57,7 +57,6 @@ struct SignedInView: View {
                 )
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
-                .onTapGesture { isShowingVisualizer = false }
                 .accessibilityAction(named: "Close visualizer") {
                     isShowingVisualizer = false
                 }

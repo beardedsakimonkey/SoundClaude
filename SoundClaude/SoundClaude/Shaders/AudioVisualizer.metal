@@ -56,11 +56,12 @@ fragment float4 visualizerFragment(
     );
     float cap = fill * exp(-280.0 * abs(y - height));
 
-    float3 accent = accentColor.rgb;
     float alpha = saturate(
         fill * (0.10 + amplitude * 0.58)
-        + cap * (0.20 + amplitude * 0.80)
+        + cap * (0.20 + amplitude * 9.80)
     );
+    float3 accent = accentColor.rgb;
+
     // Core Animation composites the drawable using premultiplied alpha.
     return float4(accent * alpha, alpha);
 }
