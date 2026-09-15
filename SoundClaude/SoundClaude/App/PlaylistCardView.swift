@@ -11,6 +11,7 @@ struct PlaylistCardView: View {
     @State private var hasRequestedTracks = false
     @State private var isExpanded = false
     @State private var isHoveringTitle = false
+    @State private var isHoveringTrackToggle = false
     @State private var selectedTrackURN: String?
 
     private var contents: PlaylistContents? { playlists.cache.contents[playlist.urn] }
@@ -115,9 +116,10 @@ struct PlaylistCardView: View {
                 isExpanded.toggle()
             }
             .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(isHoveringTrackToggle ? Color.primary : Color.secondary)
             .font(.callout)
             .padding(.vertical, 8)
+            .onContentHover { isHoveringTrackToggle = $0 }
             .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
         }
 
