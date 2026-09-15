@@ -66,8 +66,8 @@ struct TrackWaveformView: View {
                 if layout == .compact {
                     waveformView(waveform)
                         .overlay {
-                            if waveform == nil {
-                                Text(errorMessage ?? "Loading waveform…")
+                            if waveform == nil, let errorMessage {
+                                Text(errorMessage)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                     .padding(.horizontal, 4)
