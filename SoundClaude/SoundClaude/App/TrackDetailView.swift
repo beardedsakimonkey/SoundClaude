@@ -357,18 +357,11 @@ struct TrackDetailView: View {
     }
 
     private func likeButton(for track: SoundCloudTrack) -> some View {
-        likeButtonLabel(for: track)
-            .buttonStyle(TrackActionButtonStyle(
-                fill: likes.isLiked(track) ? .accentColor.opacity(0.12) : .primary.opacity(0.12)
-            ))
-    }
-
-    private func likeButtonLabel(for track: SoundCloudTrack) -> some View {
-        let isLiked = likes.isLiked(track)
-        let likeCount = likes.likeCount(for: track)
-        let hasCount = (likeCount ?? 0) != 0
-
-        return Button {
+        DetailLikeButton(
+            isLiked: likes.isLiked(track),
+            likeCount: likes.likeCount(for: track),
+            subject: "track"
+        ) {
             Task {
                 do {
                     try await likes.toggleLike(track)
@@ -376,38 +369,8 @@ struct TrackDetailView: View {
                     model.likeErrorMessage = error.localizedDescription
                 }
             }
-        } label: {
-            ZStack {
-                Group {
-                    if let likeCount, likeCount != 0 {
-                        Label(likeCount.formatted(.number), systemImage: "heart")
-                    } else {
-                        Image(systemName: "heart")
-                    }
-                }
-                    .opacity(isLiked ? 0 : 1)
-                    .accessibilityHidden(isLiked)
-                Group {
-                    if let likeCount, likeCount != 0 {
-                        Label(likeCount.formatted(.number), systemImage: "heart.fill")
-                    } else {
-                        Image(systemName: "heart.fill")
-                    }
-                }
-                    .foregroundStyle(.orange)
-                    .opacity(isLiked ? 1 : 0)
-                    .accessibilityHidden(!isLiked)
-            }
-                .labelStyle(.titleAndIcon)
-                .font(.title3.weight(.semibold))
-                .padding(.horizontal, hasCount ? 24 : 0)
-                .frame(width: hasCount ? nil : 44)
-                .frame(minHeight: 24)
         }
         .disabled(likes.updatingTrackURNs.contains(track.urn))
-        .help(isLiked ? "Unlike track" : "Like track")
-        .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
-        .accessibilityValue(isLiked ? "Liked" : "Not liked")
     }
 
     private func repostButton(for track: SoundCloudTrack) -> some View {

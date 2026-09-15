@@ -143,8 +143,8 @@ struct PlaylistDetailView: View {
             playlistArtwork
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Image(systemName: displayedPlaylist.isPrivate ? "lock" : "music.note.list")
-                        .accessibilityLabel(displayedPlaylist.isPrivate ? "Private playlist" : "Playlist")
+                    Image(systemName: "music.note.list")
+                        .accessibilityLabel("Playlist")
                     Text(displayedPlaylist.title)
                         .textSelection(.enabled)
                 }
@@ -161,6 +161,16 @@ struct PlaylistDetailView: View {
                         accessibilityPrefix: "Last updated",
                         prefix: "Updated"
                     )
+
+                    if displayedPlaylist.isPrivate {
+                        Text("·")
+                            .accessibilityHidden(true)
+                        Label("Private", systemImage: "lock.fill")
+                            .labelStyle(.titleAndIcon)
+                            .foregroundStyle(.secondary)
+                            .fixedSize()
+                            .accessibilityLabel("Private playlist")
+                    }
                 }
                 .font(.title3)
                 .foregroundStyle(.secondary)
@@ -265,8 +275,10 @@ struct PlaylistDetailView: View {
     }
 
     private var likeButton: some View {
-        let isLiked = playlists.likedPlaylistURNs.contains(playlist.urn)
-        return Button {
+        DetailLikeButton(
+            isLiked: playlists.likedPlaylistURNs.contains(playlist.urn),
+            subject: "playlist"
+        ) {
             Task {
                 do {
                     try await playlists.toggleLike(displayedPlaylist)
@@ -274,28 +286,8 @@ struct PlaylistDetailView: View {
                     likeErrorMessage = error.localizedDescription
                 }
             }
-        } label: {
-            ZStack {
-                Label("Like", systemImage: "heart")
-                    .opacity(isLiked ? 0 : 1)
-                    .accessibilityHidden(isLiked)
-                Label("Unlike", systemImage: "heart.fill")
-                    .foregroundStyle(.orange)
-                    .opacity(isLiked ? 1 : 0)
-                    .accessibilityHidden(!isLiked)
-            }
-            .labelStyle(.titleAndIcon)
-            .font(.title3.weight(.semibold))
-            .padding(.horizontal, 24)
-            .frame(minHeight: 24)
         }
-        .buttonStyle(TrackActionButtonStyle(
-            fill: isLiked ? .accentColor.opacity(0.12) : .primary.opacity(0.12)
-        ))
         .disabled(!playlists.hasLoadedLikes || playlists.updatingLikeURNs.contains(playlist.urn))
-        .help(isLiked ? "Unlike playlist" : "Like playlist")
-        .accessibilityLabel(isLiked ? "Unlike playlist" : "Like playlist")
-        .accessibilityValue(isLiked ? "Liked" : "Not liked")
     }
 
     private var trackList: some View {
