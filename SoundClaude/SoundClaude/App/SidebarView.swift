@@ -336,6 +336,7 @@ private struct CreatePlaylistView: View {
         .padding(24)
         .frame(width: 420)
         .interactiveDismissDisabled(isCreating)
+        .dismissOnOutsideClick(isEnabled: !isCreating)
         .onAppear { isTitleFocused = true }
     }
 }

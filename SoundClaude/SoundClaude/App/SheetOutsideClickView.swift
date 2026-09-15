@@ -4,17 +4,20 @@ import SwiftUI
 extension View {
     /// Dismisses a sheet when the user clicks outside it in its parent window.
     /// Apply this modifier to the sheet's content.
-    func dismissOnOutsideClick() -> some View {
-        modifier(SheetOutsideClickDismissal())
+    func dismissOnOutsideClick(isEnabled: Bool = true) -> some View {
+        modifier(SheetOutsideClickDismissal(isEnabled: isEnabled))
     }
 }
 
 private struct SheetOutsideClickDismissal: ViewModifier {
+    let isEnabled: Bool
     @Environment(\.dismiss) private var dismiss
 
     func body(content: Content) -> some View {
         content.background {
-            SheetOutsideClickView { dismiss() }
+            if isEnabled {
+                SheetOutsideClickView { dismiss() }
+            }
         }
     }
 }
