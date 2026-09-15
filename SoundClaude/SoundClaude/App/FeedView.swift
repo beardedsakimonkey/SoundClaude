@@ -60,6 +60,7 @@ struct FeedView: View {
                                 onSelect: onSelectArtist
                             )
                             .fontWeight(.medium)
+                            .foregroundStyle(.primary.opacity(0.8))
                             .layoutPriority(1)
                             Group {
                                 if item.isRepost {

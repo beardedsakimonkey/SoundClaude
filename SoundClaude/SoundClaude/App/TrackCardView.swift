@@ -85,6 +85,8 @@ struct TrackCardView: View {
                     .frame(maxWidth: .infinity)
                 }
 
+                Spacer(minLength: 0)
+
                 HStack(spacing: 10) {
                     likeButton
                     repostButton
