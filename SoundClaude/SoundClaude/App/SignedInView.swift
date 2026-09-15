@@ -238,7 +238,7 @@ struct SignedInView: View {
     @ViewBuilder
     private var rootView: some View {
         switch selectedDestination {
-        case .feed:
+        case .feed, .none:
             FeedView(
                 model: model,
                 onSelectPlaylist: showPlaylist,
@@ -252,7 +252,7 @@ struct SignedInView: View {
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist
             )
-        case .liked, .none:
+        case .liked:
             LikesView(
                 user: user,
                 likes: model.likes,
