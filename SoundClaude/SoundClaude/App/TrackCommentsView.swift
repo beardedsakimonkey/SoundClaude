@@ -45,12 +45,6 @@ struct TrackCommentsView: View {
             } else if nextPageURL != nil {
                 Button("Load More") { Task { await loadPage() } }
                     .frame(maxWidth: .infinity)
-            } else if hasLoaded, comments.isEmpty {
-                ContentUnavailableView(
-                    "No comments",
-                    systemImage: "bubble.left.and.bubble.right",
-                    description: Text("There are no comments to show for this track.")
-                )
             }
         }
         .task {
