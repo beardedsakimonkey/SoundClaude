@@ -119,7 +119,6 @@ struct PlayerFooterView: View {
             Image(systemName: isLiked ? "heart.fill" : "heart")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(isLiked ? Color.orange : Color.primary)
-                .opacity(0.9)
                 .frame(width: 32, height: 32)
                 .modifier(PlayerFooterButtonBackground(color: .orange, isActive: isLiked))
                 .padding(.horizontal, 6)
@@ -293,6 +292,7 @@ struct PlayerFooterView: View {
                             }
                         }
                         .symbolRenderingMode(.hierarchical)
+                        .opacity(0.9)
                         .frame(width: 24, alignment: .leading)
                     }
 
@@ -387,7 +387,6 @@ struct PlayerFooterView: View {
                 Image(systemName: "shuffle")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(playback.isShuffleEnabled ? Color.green : Color.primary)
-                    .opacity(0.9)
                     .frame(width: 32, height: 32)
                     .modifier(PlayerFooterButtonBackground(color: .green, isActive: playback.isShuffleEnabled))
                     .contentShape(Circle())
@@ -400,7 +399,6 @@ struct PlayerFooterView: View {
                 Image(systemName: playback.repeatMode == .one ? "repeat.1" : "repeat")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(playback.repeatMode != .off ? Color.cyan : Color.primary)
-                    .opacity(0.9)
                     .frame(width: 32, height: 32)
                     .modifier(PlayerFooterButtonBackground(color: .cyan, isActive: playback.repeatMode != .off))
                     .contentShape(Circle())
@@ -427,6 +425,7 @@ private struct PlayerFooterButtonBackground: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .opacity(0.9)
             .background {
                 Circle()
                     .fill(isActive ? color.opacity(0.12) : Color(white: 0.5).opacity(isHovering && isEnabled ? 0.12 : 0))
