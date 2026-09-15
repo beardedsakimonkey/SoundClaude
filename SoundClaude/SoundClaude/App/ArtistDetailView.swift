@@ -8,6 +8,18 @@ struct ArtistDetailView: View {
         }
     }
 
+    private struct ArtistPictureButtonStyle: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .overlay {
+                    Circle()
+                        .fill(.black.opacity(configuration.isPressed ? 0.25 : 0))
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+        }
+    }
+
     private enum ContentTab: String, CaseIterable, Identifiable {
         case tracks = "Tracks"
         case reposts = "Reposts"
@@ -18,6 +30,7 @@ struct ArtistDetailView: View {
     }
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let artist: SoundCloudUser
     @ObservedObject var model: AppModel
@@ -579,8 +592,16 @@ struct ArtistDetailView: View {
             size: pictureSize,
             rendition: .square500
         )
+        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.12 : 1)
         .clipShape(Circle())
-        .overlay { Circle().strokeBorder(.white.opacity(0.2), lineWidth: 1) }
+        .modifier(PlayerArtworkGlass(
+            cornerRadius: pictureSize / 2,
+            isHovering: isHoveringArtwork && !reduceMotion
+        ))
+        .animation(
+            reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
+            value: isHoveringArtwork
+        )
 
         if avatarURL != nil {
             Button {
@@ -588,7 +609,7 @@ struct ArtistDetailView: View {
             } label: {
                 thumbnail
             }
-            .buttonStyle(ArtworkButtonStyle(isHovering: isHoveringArtwork, shape: Circle()))
+            .buttonStyle(ArtistPictureButtonStyle())
             .contentShape(Circle())
             .onContentHover(in: Circle().path(in: CGRect(
                 x: 0, y: 0, width: pictureSize, height: pictureSize
