@@ -299,6 +299,8 @@ final class AppModel: ObservableObject {
             }
             do {
                 try Task.checkCancellation()
+                if await playback.loadPrefetched(requestID: requestID) { return }
+                try Task.checkCancellation()
                 let accessToken = try await auth.validAccessToken()
                 try Task.checkCancellation()
                 let source = try await client.resolvePlayback(
@@ -640,6 +642,12 @@ final class AppModel: ObservableObject {
         let candidate = currentURN == nil || needsPage ? nil
             : resolvedQueue.relativeTrack(to: currentURN, offset: 1)
         let next = candidate?.urn == currentURN ? nil : candidate
+        playback.prefetch(next) { [auth, client] in
+            guard let next else { throw CancellationError() }
+            let accessToken = try await auth.validAccessToken()
+            try Task.checkCancellation()
+            return try await client.resolvePlayback(track: next, accessToken: accessToken)
+        }
         guard next != prefetchedTrack else { return }
         queuePrefetchTask?.cancel()
         prefetchedTrack = next

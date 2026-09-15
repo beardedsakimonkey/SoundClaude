@@ -10,7 +10,12 @@ struct PlaybackTests {
         let suite = "SoundClaude.PlaybackTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
-        let playback = PlaybackController(defaults: defaults)
+        var preparedPlayers: [AVPlayer] = []
+        let playback = PlaybackController(defaults: defaults) { url in
+            let player = AVPlayer(url: url)
+            preparedPlayers.append(player)
+            return player
+        }
         let user = SoundCloudUser(
             urn: "user:1", username: "Test", avatarURL: nil,
             permalinkURL: URL(string: "https://soundcloud.com/test")!
@@ -92,6 +97,108 @@ struct PlaybackTests {
         try await until { didEnd }
         precondition(!playback.isPlaybackActive && !playback.isPlaying)
 
+        // Preparation readies audio without changing the selected track or position.
+        let beforePrefetch = playback.beginLoading(track: track(1), autoplay: false)
+        playback.load(source: source, requestID: beforePrefetch)
+        try await until { !playback.isLoading }
+        var resolutions = 0
+        playback.prefetch(track(2)) {
+            resolutions += 1
+            return source
+        }
+        try await until { preparedPlayers.last?.currentItem?.status == .readyToPlay }
+        let preparedPlayer = preparedPlayers.last!
+        let preparedItem = preparedPlayer.currentItem!
+        precondition(preparedPlayer.isMuted && preparedPlayer.rate == 0)
+        precondition(playback.currentTrack == track(1))
+        precondition(playback.savedSession?.track == track(1))
+        precondition(!playback.isPlaybackActive && playback.player.rate == 0)
+        playback.prefetch(track(2)) {
+            fatalError("An unchanged next track must share preparation")
+        }
+        playback.volume = 0.37
+        let preparedSelection = playback.beginLoading(track: track(2), autoplay: false)
+        precondition(!playback.isLoading)
+        precondition(playback.player === preparedPlayer)
+        precondition(playback.player.isMuted == playback.isMuted)
+        precondition(playback.player.volume == 0.37)
+        let reused = await playback.loadPrefetched(requestID: preparedSelection)
+        precondition(reused && resolutions == 1)
+        precondition(playback.player.currentItem === preparedItem)
+        try await until { !playback.isLoading }
+        precondition(playback.currentTime == 0 && !playback.isPlaybackActive)
+
+        // Queue edits drop an obsolete player and retain only the new next track.
+        playback.prefetch(track(3)) { source }
+        try await until { preparedPlayers.count == 2 }
+        let discardedPlayer = preparedPlayers.last!
+        playback.prefetch(track(4)) { source }
+        precondition(discardedPlayer.currentItem == nil)
+        try await until { preparedPlayers.count == 3 }
+        let clearedPlayer = preparedPlayers.last!
+        playback.prefetch(nil) { fatalError("An empty queue must not resolve audio") }
+        precondition(clearedPlayer.currentItem == nil)
+
+        // Next can consume an in-flight resolution even while the following
+        // track is prepared. Pause and seek still apply before attachment.
+        var releaseResolution: CheckedContinuation<Void, Never>?
+        playback.prefetch(track(3)) {
+            resolutions += 1
+            await withCheckedContinuation { releaseResolution = $0 }
+            return source
+        }
+        try await until { releaseResolution != nil }
+        let inFlight = playback.beginLoading(track: track(3))
+        playback.prefetch(track(4)) { source }
+        playback.pause()
+        playback.seek(to: 0.5)
+        releaseResolution?.resume()
+        let sharedResolution = await playback.loadPrefetched(requestID: inFlight)
+        precondition(sharedResolution)
+        try await until { !playback.isLoading && abs(playback.player.currentTime().seconds - 0.5) < 0.05 }
+        precondition(resolutions == 2 && !playback.isPlaybackActive)
+        try await until { preparedPlayers.count == 5 }
+
+        // An unfinished preparation cannot attach after a second skip.
+        playback.prefetch(track(5)) {
+            await withCheckedContinuation { releaseResolution = $0 }
+            return source
+        }
+        releaseResolution = nil
+        try await until { releaseResolution != nil }
+        let skipped = playback.beginLoading(track: track(5))
+        let skippedLoad = Task { await playback.loadPrefetched(requestID: skipped) }
+        await Task.yield()
+        let latest = playback.beginLoading(track: track(6), autoplay: false)
+        releaseResolution?.resume()
+        let ignoredSkip = await skippedLoad.value
+        precondition(ignoredSkip)
+        precondition(playback.currentTrack == track(6) && playback.player.currentItem == nil)
+        let latestHasPreparation = await playback.loadPrefetched(requestID: latest)
+        precondition(!latestHasPreparation)
+        playback.load(source: source, requestID: latest)
+        try await until { !playback.isLoading }
+
+        // Failed preparation falls back to normal resolution without a UI error.
+        playback.prefetch(track(7)) { throw CancellationError() }
+        let failedPreparation = playback.beginLoading(track: track(7), autoplay: false)
+        let failedHasPreparation = await playback.loadPrefetched(requestID: failedPreparation)
+        precondition(!failedHasPreparation)
+        precondition(playback.isLoading && playback.errorMessage == nil)
+        playback.load(source: source, requestID: failedPreparation)
+        try await until { !playback.isLoading }
+
+        // A standby player cannot start itself when the current track ends.
+        let countBeforeEnd = preparedPlayers.count
+        playback.prefetch(track(8)) { source }
+        try await until { preparedPlayers.count == countBeforeEnd + 1 }
+        let standbyAtEnd = preparedPlayers.last!
+        didEnd = false
+        playback.togglePlayPause()
+        try await until { didEnd }
+        precondition(playback.currentTrack == track(7))
+        precondition(standbyAtEnd.rate == 0)
+
         // Sign-out invalidates an outstanding source and clears saved metadata.
         let pending = playback.beginLoading(track: track(2))
         playback.clearSession()
@@ -100,6 +207,24 @@ struct PlaybackTests {
         precondition(playback.currentTrack == nil && playback.player.currentItem == nil)
         precondition(!playback.isLoading && !playback.isPlaybackActive)
         precondition(playback.savedSession == nil && playback.errorMessage == nil)
+        precondition(standbyAtEnd.currentItem == nil)
+
+        // A late background response cannot create a player after sign-out.
+        releaseResolution = nil
+        playback.prefetch(track(9)) {
+            await withCheckedContinuation { releaseResolution = $0 }
+            return source
+        }
+        try await until { releaseResolution != nil }
+        let countBeforeSignOut = preparedPlayers.count
+        let signingOut = playback.beginLoading(track: track(9))
+        let signedOutLoad = Task { await playback.loadPrefetched(requestID: signingOut) }
+        await Task.yield()
+        playback.clearSession()
+        releaseResolution?.resume()
+        let ignoredSignOut = await signedOutLoad.value
+        precondition(ignoredSignOut && preparedPlayers.count == countBeforeSignOut)
+        precondition(playback.currentTrack == nil)
         print("Playback tests passed")
     }
 

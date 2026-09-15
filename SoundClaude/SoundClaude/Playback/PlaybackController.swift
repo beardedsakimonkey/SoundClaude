@@ -79,7 +79,8 @@ final class PlaybackController {
     }
 
     @ObservationIgnored private let defaults: UserDefaults
-    let player: AVPlayer
+    @ObservationIgnored private let makePrefetchPlayer: @MainActor (URL) -> AVPlayer
+    @ObservationIgnored private(set) var player: AVPlayer
     @ObservationIgnored var onReadyToPlay: (() -> Void)?
     @ObservationIgnored var onTrackEnded: (() -> Void)?
     @ObservationIgnored var onNext: (() -> Void)?
@@ -92,14 +93,28 @@ final class PlaybackController {
     @ObservationIgnored private var seekTarget: Double?
     @ObservationIgnored private var isSeekInProgress = false
     @ObservationIgnored private var loadingRequestID: UUID?
+    private struct Preparation {
+        let id: UUID
+        let track: SoundCloudTrack
+        let task: Task<AVPlayer, Error>
+        var player: AVPlayer?
+    }
+
+    @ObservationIgnored private var preparationObservation: NSKeyValueObservation?
+    @ObservationIgnored private var nextPreparation: Preparation?
+    @ObservationIgnored private var loadingPreparation: Preparation?
     private var shouldPlayWhenReady = false
     @ObservationIgnored private var hasNotifiedReady = false
     @ObservationIgnored private var lastSaveTime = Date.distantPast
     private let remoteCommandCenter = MPRemoteCommandCenter.shared()
     @ObservationIgnored private var remoteCommandTargets: [RemoteCommandTarget] = []
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        makePrefetchPlayer: @escaping @MainActor (URL) -> AVPlayer = { AVPlayer(url: $0) }
+    ) {
         self.defaults = defaults
+        self.makePrefetchPlayer = makePrefetchPlayer
         defaults.register(defaults: [
             SettingsKey.volume: Float(1),
             SettingsKey.isMuted: false,
@@ -114,37 +129,7 @@ final class PlaybackController {
         player.volume = volume
         player.isMuted = isMuted
         player.preventsDisplaySleepDuringVideoPlayback = false
-        playerStatusObservation = player.observe(
-            \.timeControlStatus,
-            options: [.initial, .new]
-        ) { [weak self] player, _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                isPlaying = player.timeControlStatus == .playing
-                updateNowPlayingInfo()
-            }
-        }
-        timeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 0.25, preferredTimescale: 600),
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if seekTarget == nil, let item = player.currentItem, item.status != .failed {
-                    let seconds = player.currentTime().seconds
-                    currentTime = seconds.isFinite ? seconds : 0
-                }
-                let itemDuration = player.currentItem?.duration.seconds ?? 0
-                let updatedDuration = itemDuration.isFinite && itemDuration > 0
-                    ? itemDuration : duration
-                if duration != updatedDuration {
-                    duration = updatedDuration
-                }
-                if Date().timeIntervalSince(lastSaveTime) >= 5 {
-                    saveSession()
-                }
-            }
-        }
+        observePlayer()
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
             object: nil,
@@ -171,6 +156,9 @@ final class PlaybackController {
     }
 
     deinit {
+        nextPreparation?.task.cancel()
+        loadingPreparation?.task.cancel()
+        preparationObservation?.invalidate()
         itemStatusObservation?.invalidate()
         playerStatusObservation?.invalidate()
         if let timeObserver {
@@ -184,6 +172,52 @@ final class PlaybackController {
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
         MPNowPlayingInfoCenter.default().playbackState = .stopped
+    }
+
+    private func observePlayer() {
+        playerStatusObservation = player.observe(
+            \.timeControlStatus,
+            options: [.initial, .new]
+        ) { [weak self] player, _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.player === player else { return }
+                isPlaying = player.timeControlStatus == .playing
+                updateNowPlayingInfo()
+            }
+        }
+        timeObserver = player.addPeriodicTimeObserver(
+            forInterval: CMTime(seconds: 0.25, preferredTimescale: 600),
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if seekTarget == nil, let item = player.currentItem, item.status != .failed {
+                    let seconds = player.currentTime().seconds
+                    currentTime = seconds.isFinite ? seconds : 0
+                }
+                let itemDuration = player.currentItem?.duration.seconds ?? 0
+                let updatedDuration = itemDuration.isFinite && itemDuration > 0
+                    ? itemDuration : duration
+                if duration != updatedDuration {
+                    duration = updatedDuration
+                }
+                if Date().timeIntervalSince(lastSaveTime) >= 5 {
+                    saveSession()
+                }
+            }
+        }
+    }
+
+    private func replacePlayer(with prepared: AVPlayer) {
+        playerStatusObservation?.invalidate()
+        if let timeObserver { player.removeTimeObserver(timeObserver) }
+        player.replaceCurrentItem(with: nil)
+        player = prepared
+        player.cancelPendingPrerolls()
+        player.volume = volume
+        player.isMuted = isMuted
+        player.preventsDisplaySleepDuringVideoPlayback = false
+        observePlayer()
     }
 
     var savedSession: SavedPlayback? {
@@ -206,6 +240,9 @@ final class PlaybackController {
 
     func clearSession() {
         pause()
+        discardNextPreparation()
+        loadingPreparation?.task.cancel()
+        loadingPreparation = nil
         itemStatusObservation?.invalidate()
         itemStatusObservation = nil
         loadingRequestID = nil
@@ -233,6 +270,18 @@ final class PlaybackController {
         pause()
         itemStatusObservation?.invalidate()
         itemStatusObservation = nil
+        loadingPreparation?.task.cancel()
+        loadingPreparation = nil
+        if let next = nextPreparation,
+           matches(next, track: track),
+           next.player?.currentItem?.status != .failed {
+            preparationObservation?.invalidate()
+            preparationObservation = nil
+            loadingPreparation = next
+            nextPreparation = nil
+        } else {
+            discardNextPreparation()
+        }
         player.replaceCurrentItem(with: nil)
         let requestID = UUID()
         loadingRequestID = requestID
@@ -252,40 +301,139 @@ final class PlaybackController {
         updateNowPlayingInfo(elapsedTime: currentTime)
         saveSession()
         updateRemoteCommandAvailability()
+        if let prepared = loadingPreparation?.player {
+            loadingPreparation = nil
+            load(prepared: prepared, requestID: requestID)
+        }
         return requestID
+    }
+
+    /// Prepare one silent standby player, then reuse it when Next selects its track.
+    func prefetch(
+        _ track: SoundCloudTrack?,
+        resolve: @escaping @MainActor () async throws -> PlaybackSource
+    ) {
+        if let track, let next = nextPreparation,
+           matches(next, track: track), next.player?.currentItem?.status != .failed { return }
+        discardNextPreparation()
+        guard let track else { return }
+        let id = UUID()
+        let makePlayer = makePrefetchPlayer
+        let task = Task { @MainActor [weak self] in
+            let source = try await resolve()
+            try Task.checkCancellation()
+            let prepared = makePlayer(source.url)
+            prepared.isMuted = true
+            prepared.preventsDisplaySleepDuringVideoPlayback = false
+            if let self, nextPreparation?.id == id {
+                nextPreparation?.player = prepared
+                prepareBuffer(for: prepared, id: id)
+            }
+            return prepared
+        }
+        nextPreparation = Preparation(id: id, track: track, task: task)
+    }
+
+    /// Share an unfinished resolution with Next; failures fall back to a fresh request.
+    func loadPrefetched(requestID: UUID) async -> Bool {
+        guard loadingRequestID == requestID else { return true }
+        guard let preparation = loadingPreparation else { return false }
+        defer {
+            if loadingPreparation?.id == preparation.id { loadingPreparation = nil }
+        }
+        do {
+            let prepared = try await preparation.task.value
+            guard !Task.isCancelled, loadingRequestID == requestID else { return true }
+            guard prepared.currentItem?.status != .failed else { return false }
+            load(prepared: prepared, requestID: requestID)
+            return true
+        } catch {
+            return Task.isCancelled || loadingRequestID != requestID
+        }
+    }
+
+    private func matches(_ preparation: Preparation, track: SoundCloudTrack) -> Bool {
+        preparation.track.urn == track.urn
+            && preparation.track.secretToken == track.secretToken
+    }
+
+    private func discardNextPreparation() {
+        preparationObservation?.invalidate()
+        preparationObservation = nil
+        nextPreparation?.task.cancel()
+        nextPreparation?.player?.cancelPendingPrerolls()
+        nextPreparation?.player?.replaceCurrentItem(with: nil)
+        nextPreparation = nil
+    }
+
+    private func prepareBuffer(for prepared: AVPlayer, id: UUID) {
+        preparationObservation = prepared.currentItem?.observe(
+            \.status, options: [.initial, .new]
+        ) { [weak self, weak prepared] _, _ in
+            Task { @MainActor [weak self, weak prepared] in
+                guard let self, let prepared, nextPreparation?.id == id,
+                      prepared.currentItem?.status == .readyToPlay else { return }
+                preparationObservation?.invalidate()
+                preparationObservation = nil
+                prepared.preroll(atRate: 1) { _ in }
+            }
+        }
+    }
+
+    private func load(prepared: AVPlayer, requestID: UUID) {
+        guard loadingRequestID == requestID, let item = prepared.currentItem else { return }
+        replacePlayer(with: prepared)
+        // A fresh standby player is already at the start. Preserve its preroll
+        // instead of issuing a redundant seek before playback.
+        if seekTarget == 0, prepared.currentTime().seconds == 0 {
+            seekTarget = nil
+        }
+        load(item: item, requestID: requestID)
     }
 
     func load(source: PlaybackSource, requestID: UUID) {
         guard loadingRequestID == requestID else { return }
+        load(item: AVPlayerItem(url: source.url), requestID: requestID)
+    }
+
+    private func load(item: AVPlayerItem, requestID: UUID) {
+        guard loadingRequestID == requestID else { return }
         loadingRequestID = nil
-        let item = AVPlayerItem(url: source.url)
-        player.replaceCurrentItem(with: item)
+        if player.currentItem !== item {
+            player.replaceCurrentItem(with: item)
+        }
         saveSession()
         updateRemoteCommandAvailability()
         itemStatusObservation = item.observe(
             \.status,
-            options: [.initial, .new]
+            options: [.new]
         ) { [weak self, weak item] _, _ in
             Task { @MainActor [weak self, weak item] in
-                guard let self, let item, item === player.currentItem else {
-                    return
-                }
-                switch item.status {
-                case .readyToPlay:
-                    isLoading = false
-                    seekIfNeeded()
-                    playIfReady()
-                case .failed:
-                    isLoading = false
-                    shouldPlayWhenReady = false
-                    errorMessage = item.error?.localizedDescription
-                        ?? "The track could not be played."
-                case .unknown:
-                    break
-                @unknown default:
-                    break
-                }
+                guard let self, let item else { return }
+                updateItemStatus(item)
             }
+        }
+        // A prepared item can already be ready. Avoid a loading flash while
+        // waiting for an asynchronous observation callback.
+        updateItemStatus(item)
+    }
+
+    private func updateItemStatus(_ item: AVPlayerItem) {
+        guard item === player.currentItem else { return }
+        switch item.status {
+        case .readyToPlay:
+            isLoading = false
+            seekIfNeeded()
+            playIfReady()
+        case .failed:
+            isLoading = false
+            shouldPlayWhenReady = false
+            errorMessage = item.error?.localizedDescription
+                ?? "The track could not be played."
+        case .unknown:
+            break
+        @unknown default:
+            break
         }
     }
 
