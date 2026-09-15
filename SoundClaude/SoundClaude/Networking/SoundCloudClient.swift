@@ -631,6 +631,14 @@ actor SoundCloudClient {
         return playlist
     }
 
+    func deletePlaylist(urn: String, accessToken: String) async throws {
+        let url = configuration.apiBaseURL.appending(path: "playlists").appending(path: urn)
+        let (data, response) = try await authenticatedRequest(
+            url: url, accessToken: accessToken, method: "DELETE"
+        )
+        try validate(response: response, data: data)
+    }
+
     func playlist(urn: String, accessToken: String) async throws -> SoundCloudPlaylist {
         let url = configuration.apiBaseURL.appending(path: "playlists")
             .appending(path: urn)

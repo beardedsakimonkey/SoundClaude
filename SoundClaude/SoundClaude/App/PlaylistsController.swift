@@ -130,6 +130,27 @@ final class PlaylistsController: ObservableObject {
         return playlist
     }
 
+    func deletePlaylist(_ playlist: SoundCloudPlaylist) async throws {
+        await restoreCache()
+        let session = sessionID
+        guard let accountID else { throw CancellationError() }
+        let token = try await accessToken(session: session)
+        try await client.deletePlaylist(urn: playlist.urn, accessToken: token)
+        try checkSession(session)
+        // Finish existing refreshes before removing the playlist from the cache.
+        if let syncTask { await syncTask.value }
+        if let task = playlistTasks[playlist.urn] { await task.value }
+        if let likesTask { await likesTask.value }
+        try checkSession(session)
+        cache.playlists.removeAll { $0.urn == playlist.urn }
+        cache.contents.removeValue(forKey: playlist.urn)
+        playlistErrors.removeValue(forKey: playlist.urn)
+        likedPlaylistURNs.remove(playlist.urn)
+        // Deletion succeeded remotely; a disk failure must not invite another DELETE.
+        try? await save(accountID: accountID, session: session)
+        try checkSession(session)
+    }
+
     /// Restore immediately, then refresh all pages to detect edits and reordering.
     func loadPlaylist(_ playlist: SoundCloudPlaylist) async {
         await restoreCache()

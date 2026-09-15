@@ -9,6 +9,12 @@ final class AuthController {
 
 @MainActor
 final class SoundCloudClient {
+    var failDeletion = false
+    var deletedURNs: [String] = []
+    func deletePlaylist(urn: String, accessToken: String) async throws {
+        if failDeletion { throw SoundCloudError.invalidData }
+        deletedURNs.append(urn)
+    }
     var failCreation = false
     func createPlaylist(title: String, description: String, isPrivate: Bool, accessToken: String) async throws -> SoundCloudPlaylist {
         if failCreation { throw SoundCloudError.invalidData }
@@ -241,6 +247,21 @@ struct PlaylistsCacheTests {
             fatalError("Failed creation was accepted")
         } catch is SoundCloudError {}
         precondition(controller.playlists == beforeFailedCreation)
+        client.failDeletion = true
+        do {
+            try await controller.deletePlaylist(created)
+            fatalError("Failed deletion was accepted")
+        } catch is SoundCloudError {}
+        precondition(controller.playlists == beforeFailedCreation)
+        precondition(controller.cache.contents[created.urn] != nil)
+        client.failDeletion = false
+        try await controller.deletePlaylist(created)
+        precondition(client.deletedURNs == [created.urn])
+        precondition(!controller.playlists.contains(where: { $0.urn == created.urn }))
+        precondition(controller.cache.contents[created.urn] == nil)
+        let afterDeletion = try await store.load(accountID: "user:1")
+        precondition(afterDeletion?.playlists == controller.playlists)
+        precondition(afterDeletion?.contents[created.urn] == nil)
         print("Playlist cache and sync checks passed")
     }
 }

@@ -20,6 +20,16 @@ struct PlaylistDetailView: View {
     @State private var isShowingArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var likeErrorMessage: String?
+    @Environment(\.dismiss) private var dismiss
+    @State private var isConfirmingDeletion = false
+    @State private var isDeleting = false
+    @State private var deleteErrorMessage: String?
+
+    private var isOwnedByCurrentUser: Bool {
+        guard case let .signedIn(user) = model.auth.state,
+              let urn = user.urn else { return false }
+        return displayedPlaylist.owner.urn == urn
+    }
 
     private var displayedPlaylist: SoundCloudPlaylist { contents?.playlist ?? playlist }
     private var currentPlaylistTrack: SoundCloudTrack? {
@@ -80,6 +90,20 @@ struct PlaylistDetailView: View {
                     Spacer()
                 }
             }
+            if isOwnedByCurrentUser {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button("Delete Playlist…", systemImage: "trash", role: .destructive) {
+                            isConfirmingDeletion = true
+                        }
+                    } label: {
+                        Label("Playlist actions", systemImage: "ellipsis")
+                    }
+                    .menuIndicator(.hidden)
+                    .disabled(isDeleting)
+                    .help("Playlist actions")
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 OpenInSoundCloudButton(url: displayedPlaylist.permalinkURL)
                     .help("Open this playlist in your web browser")
@@ -98,6 +122,32 @@ struct PlaylistDetailView: View {
             Button("OK", role: .cancel) { likeErrorMessage = nil }
         } message: {
             Text(likeErrorMessage ?? "Please try again.")
+        }
+        .confirmationDialog("Delete \(displayedPlaylist.title)?", isPresented: $isConfirmingDeletion,
+                            titleVisibility: .visible) {
+            Button("Delete Playlist", role: .destructive) {
+                isDeleting = true
+                Task {
+                    defer { isDeleting = false }
+                    do {
+                        try await playlists.deletePlaylist(displayedPlaylist)
+                        dismiss()
+                    } catch {
+                        deleteErrorMessage = error.localizedDescription
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will permanently delete the playlist from SoundCloud.")
+        }
+        .alert("Could not delete playlist", isPresented: Binding(
+            get: { deleteErrorMessage != nil },
+            set: { if !$0 { deleteErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { deleteErrorMessage = nil }
+        } message: {
+            Text(deleteErrorMessage ?? "Please try again.")
         }
         .sheet(isPresented: $isShowingArtwork) {
             FullSizeArtworkView(

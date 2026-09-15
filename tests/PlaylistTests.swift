@@ -216,6 +216,18 @@ struct PlaylistTests {
             _ = try await client.playlist(urn: details.urn, accessToken: "test-token")
             fatalError("Unauthorized response was accepted")
         } catch SoundCloudError.unauthorized {}
+        PlaylistURLProtocol.respond { request in
+            precondition(request.url?.path == "/playlists/soundcloud:playlists:42")
+            precondition(request.httpMethod == "DELETE")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            return (200, "")
+        }
+        try await client.deletePlaylist(urn: "soundcloud:playlists:42", accessToken: "test-token")
+        PlaylistURLProtocol.respond { _ in (401, "{}") }
+        do {
+            try await client.deletePlaylist(urn: "soundcloud:playlists:42", accessToken: "test-token")
+            fatalError("Unauthorized deletion was accepted")
+        } catch SoundCloudError.unauthorized {}
         print("Playlist decoding and API checks passed")
     }
 }
