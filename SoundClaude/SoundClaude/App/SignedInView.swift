@@ -8,6 +8,8 @@ struct SignedInView: View {
     private let selectionStore = SidebarSelectionStore()
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
     @State private var isShowingVisualizer = false
+    @State private var isVisualizerPresented = false
+    @State private var visualizerFadeOpacity = 0.0
     @State private var isShowingQueue = false
     @State private var isHoveringQueue = false
     @State private var footerHeight: CGFloat = 0
@@ -40,14 +42,14 @@ struct SignedInView: View {
                 .frame(width: geometry.size.width, height: geometry.size.height)
         }
         // Preserve page and scroll state, but suppress page drawing and frame timelines.
-        .opacity(isShowingVisualizer ? 0 : 1)
-        .environment(\.contentAnimationsPaused, isShowingVisualizer)
-        .toolbar(isShowingVisualizer ? .hidden : .automatic, for: .windowToolbar)
-        .allowsHitTesting(!isShowingVisualizer)
-        .accessibilityHidden(isShowingVisualizer)
+        .opacity(isVisualizerPresented ? 0 : 1)
+        .environment(\.contentAnimationsPaused, isVisualizerPresented)
+        .toolbar(isVisualizerPresented ? .hidden : .automatic, for: .windowToolbar)
+        .allowsHitTesting(!isVisualizerPresented)
+        .accessibilityHidden(isVisualizerPresented)
         .environment(\.contentHoverEnabled, !isShowingQueue || !isHoveringQueue)
         .overlay {
-            if isShowingVisualizer {
+            if isVisualizerPresented {
                 VisualizerView(
                     playback: model.playback,
                     spectrumBuffer: model.analyzer.spectrumBuffer,
@@ -67,7 +69,7 @@ struct SignedInView: View {
                 let availableHeight = max(0, geometry.size.height - footerHeight)
 
                 ZStack(alignment: .bottomTrailing) {
-                    if isShowingQueue && !isShowingVisualizer {
+                    if isShowingQueue && !isVisualizerPresented {
                         TrackQueueView(
                             model: model,
                             onSelectTrack: showTrack,
@@ -105,7 +107,7 @@ struct SignedInView: View {
             .clipped()
         }
         .overlay(alignment: .bottom) {
-            if !isShowingVisualizer {
+            if !isVisualizerPresented {
                 PlayerFooterView(
                     model: model,
                     isShowingQueue: $isShowingQueue,
@@ -122,12 +124,55 @@ struct SignedInView: View {
                 }
             }
         }
+        .overlay {
+            Color(nsColor: .windowBackgroundColor)
+                .ignoresSafeArea()
+                .opacity(visualizerFadeOpacity)
+                .allowsHitTesting(visualizerFadeOpacity > 0)
+                .accessibilityHidden(true)
+        }
+        .task(id: isShowingVisualizer) {
+            await transitionVisualizer()
+        }
         .environment(\.searchGenre, showGenreSearch)
         .background {
             NavigationBackEventView(
                 onBack: navigateBack,
                 onForward: navigateForward
             )
+        }
+    }
+
+    @MainActor
+    private func transitionVisualizer() async {
+        if reduceMotion {
+            isVisualizerPresented = isShowingVisualizer
+            visualizerFadeOpacity = 0
+            return
+        }
+
+        do {
+            if isVisualizerPresented != isShowingVisualizer {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    visualizerFadeOpacity = 1
+                }
+                try await Task.sleep(for: .milliseconds(220))
+                try Task.checkCancellation()
+
+                // Swap content only while covered, without animating its layout.
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    isVisualizerPresented = isShowingVisualizer
+                }
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            try Task.checkCancellation()
+            withAnimation(.easeInOut(duration: 0.22)) {
+                visualizerFadeOpacity = 0
+            }
+        } catch {
+            // A new request takes over the fade from its current opacity.
         }
     }
 

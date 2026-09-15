@@ -29,9 +29,12 @@ fragment float4 visualizerFragment(
     const float barWidth = 8.0;
     const float barSpacing = 2.0;
     const float barStride = barWidth + barSpacing;
-    float x = uv.x * viewWidth - 16.0;
+    float centeredX = (uv.x - 0.5) * viewWidth;
+    float x = abs(centeredX);
+    float y = abs(uv.y - 0.5);
     float bandPosition = x / barStride;
-    float horizontalEdgeWidth = fwidth(x);
+    // Take derivatives before mirroring to keep edge smoothing stable at the center.
+    float horizontalEdgeWidth = fwidth(centeredX);
     float verticalEdgeWidth = fwidth(uv.y);
     float pointsPerUV = horizontalEdgeWidth / verticalEdgeWidth;
     if (bandPosition < 0.0 || bandPosition >= 64.0) {
@@ -40,18 +43,18 @@ fragment float4 visualizerFragment(
     uint bandIndex = (uint)bandPosition;
     float amplitude = saturate(bands[bandIndex]);
     float barPosition = fract(bandPosition) * barStride;
-    float height = 0.035 + amplitude * 0.86;
-    // Measure both axes in points so the top stays circular at any aspect ratio.
+    float height = (0.035 + amplitude * 0.86) * 0.5;
+    // Measure both axes in points so the mirrored ends stay circular at any aspect ratio.
     float radius = barWidth * 0.5;
     float2 capPosition = float2(
         barPosition - barStride * 0.5,
-        max((uv.y - height) * pointsPerUV + radius, 0.0)
+        max((y - height) * pointsPerUV + radius, 0.0)
     );
     float distance = length(capPosition) - radius;
     float fill = 1.0 - smoothstep(
         -horizontalEdgeWidth * 0.5, horizontalEdgeWidth * 0.5, distance
     );
-    float cap = fill * exp(-140.0 * abs(uv.y - height));
+    float cap = fill * exp(-280.0 * abs(y - height));
 
     float3 accent = accentColor.rgb;
     float alpha = saturate(
