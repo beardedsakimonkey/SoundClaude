@@ -271,7 +271,8 @@ struct ArtistDetailView: View {
                         TabPicker(
                             title: "Artist content",
                             options: ContentTab.allCases,
-                            selection: $selectedTab
+                            selection: $selectedTab,
+                            optionTitle: tabTitle
                         )
                         Spacer(minLength: 16)
                         Button {
@@ -541,6 +542,18 @@ struct ArtistDetailView: View {
                 likesList
             }
         }
+    }
+
+    private func tabTitle(_ tab: ContentTab) -> String {
+        let user = details?.user ?? artist
+        let count: Int? = switch tab {
+        case .tracks: user.trackCount
+        case .reposts: user.repostsCount
+        case .playlists: user.playlistCount
+        case .likes: user.publicFavoritesCount
+        }
+        guard let count else { return tab.rawValue }
+        return "\(tab.rawValue) (\(count.formatted()))"
     }
 
     private func shuffleTracks() async {

@@ -5,6 +5,19 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
     let title: String
     let options: [Selection]
     @Binding var selection: Selection
+    let optionTitle: (Selection) -> String
+
+    init(
+        title: String,
+        options: [Selection],
+        selection: Binding<Selection>,
+        optionTitle: @escaping (Selection) -> String = { $0.rawValue }
+    ) {
+        self.title = title
+        self.options = options
+        self._selection = selection
+        self.optionTitle = optionTitle
+    }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var underlineNamespace
@@ -18,7 +31,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                 Button {
                     selection = option
                 } label: {
-                    Text(option.rawValue)
+                    Text(optionTitle(option))
                         .font(.body.weight(.semibold))
                         .foregroundStyle(isSelected || hoveredOption == option ? Color.primary : Color.secondary)
                         .padding(.horizontal, 20)

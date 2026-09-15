@@ -8,6 +8,9 @@ struct SoundCloudUser: Codable, Sendable, Hashable {
     var followersCount: Int? = nil
     var fullName: String? = nil
     var trackCount: Int? = nil
+    var repostsCount: Int? = nil
+    var playlistCount: Int? = nil
+    var publicFavoritesCount: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case urn
@@ -17,6 +20,9 @@ struct SoundCloudUser: Codable, Sendable, Hashable {
         case fullName = "full_name"
         case followersCount = "followers_count"
         case trackCount = "track_count"
+        case repostsCount = "reposts_count"
+        case playlistCount = "playlist_count"
+        case publicFavoritesCount = "public_favorites_count"
     }
 }
 
@@ -579,6 +585,9 @@ struct RawUser: Decodable {
     let followersCount: Int?
     let followingsCount: Int?
     let trackCount: Int?
+    let repostsCount: Int?
+    let playlistCount: Int?
+    let publicFavoritesCount: Int?
 
     enum CodingKeys: String, CodingKey {
         case urn, description, city, country
@@ -586,6 +595,9 @@ struct RawUser: Decodable {
         case followersCount = "followers_count"
         case followingsCount = "followings_count"
         case trackCount = "track_count"
+        case repostsCount = "reposts_count"
+        case playlistCount = "playlist_count"
+        case publicFavoritesCount = "public_favorites_count"
         case username
         case avatarURL = "avatar_url"
         case permalinkURL = "permalink_url"
@@ -600,7 +612,10 @@ struct RawUser: Decodable {
             permalinkURL: permalinkURL,
             followersCount: followersCount,
             fullName: fullName,
-            trackCount: trackCount
+            trackCount: trackCount,
+            repostsCount: repostsCount,
+            playlistCount: playlistCount,
+            publicFavoritesCount: publicFavoritesCount
         )
     }
 
