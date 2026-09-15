@@ -123,17 +123,6 @@ struct TrackWaveformView: View {
                     hoverOpacity: showsHoverPreview ? 0.3 : 0
                 ) { context, size, amplitudes, hoverOpacity in
                     guard size.width > 0, size.height > 0 else { return }
-                    let scale = context.environment.displayScale
-                    guard let bitmap = CGContext(
-                        data: nil,
-                        width: Int(ceil(size.width * scale)),
-                        height: Int(ceil(size.height * scale)),
-                        bitsPerComponent: 8,
-                        bytesPerRow: 0,
-                        space: CGColorSpace(name: CGColorSpace.sRGB)!,
-                        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-                    ) else { return }
-                    bitmap.scaleBy(x: scale, y: scale)
                     let bars = waveformBars(amplitudes, size: size)
                     let path = CGMutablePath()
                     for bar in bars {
@@ -141,7 +130,7 @@ struct TrackWaveformView: View {
                             path.addRoundedRect(in: bar, cornerWidth: 1, cornerHeight: 1)
                             continue
                         }
-                        // Bitmap coordinates start at the bottom. Keep the
+                        // Bar coordinates start at the bottom. Keep the
                         // ground edge square and round only the top corners.
                         let radius = min(1, bar.width / 2, bar.height / 2)
                         path.move(to: CGPoint(x: bar.minX, y: bar.minY))
@@ -168,57 +157,52 @@ struct TrackWaveformView: View {
                         .resolve(in: context.environment).cgColor
                     let progress = renderedProgress
 
-                    // Rasterize into a bitmap: Canvas's Core Graphics proxy can
-                    // still change path edges when unrelated hover fills change.
-                    bitmap.saveGState()
-                    bitmap.addPath(path)
-                    bitmap.clip()
-                    bitmap.beginTransparencyLayer(auxiliaryInfo: nil)
-                    // Only the bar outline needs antialiasing. Keep the color
-                    // boundaries from accumulating partial pixel coverage.
-                    bitmap.setShouldAntialias(false)
+                    // Clip once outside the color layer so progress and hover
+                    // cannot change antialiasing along the bar outline.
+                    let drawBars: (inout GraphicsContext) -> Void = { drawing in
+                        drawing.clip(to: Path(path))
+                        drawing.drawLayer { layer in
+                            layer.withCGContext { cg in
+                                cg.setShouldAntialias(false)
+                                fillBars(background, in: cg, bars: bars, rect: CGRect(origin: .zero, size: size))
+                                fillBars(color, in: cg, bars: bars, rect: CGRect(
+                                    x: 0, y: 0,
+                                    width: size.width * progress,
+                                    height: size.height
+                                ))
 
-                    fillBars(background, in: bitmap, bars: bars, rect: CGRect(origin: .zero, size: size))
-                    fillBars(color, in: bitmap, bars: bars, rect: CGRect(
-                        x: 0, y: 0,
-                        width: size.width * progress,
-                        height: size.height
-                    ))
-
-                    if hoverOpacity > 0 {
-                        let hoverRegion = CGRect(
-                            x: size.width * min(progress, renderedHoverFraction),
-                            y: 0,
-                            width: size.width * abs(renderedHoverFraction - progress),
-                            height: size.height
-                        )
-                        bitmap.saveGState()
-                        bitmap.setAlpha(hoverOpacity)
-                        bitmap.beginTransparencyLayer(auxiliaryInfo: nil)
-                        if renderedHoverFraction < progress {
-                            // Darken the existing fill when previewing a backward seek.
-                            bitmap.setFillColor(shadow)
-                            bitmap.fill(hoverRegion)
-                        } else {
-                            fillBars(color, in: bitmap, bars: bars, rect: hoverRegion)
-                            fillBars(highlight, in: bitmap, bars: bars, rect: hoverRegion)
+                                if hoverOpacity > 0 {
+                                    let hoverRegion = CGRect(
+                                        x: size.width * min(progress, renderedHoverFraction),
+                                        y: 0,
+                                        width: size.width * abs(renderedHoverFraction - progress),
+                                        height: size.height
+                                    )
+                                    cg.saveGState()
+                                    cg.setAlpha(hoverOpacity)
+                                    cg.beginTransparencyLayer(auxiliaryInfo: nil)
+                                    if renderedHoverFraction < progress {
+                                        cg.setFillColor(shadow)
+                                        cg.fill(hoverRegion)
+                                    } else {
+                                        fillBars(color, in: cg, bars: bars, rect: hoverRegion)
+                                        fillBars(highlight, in: cg, bars: bars, rect: hoverRegion)
+                                    }
+                                    cg.endTransparencyLayer()
+                                    cg.restoreGState()
+                                }
+                            }
                         }
-                        bitmap.endTransparencyLayer()
-                        bitmap.restoreGState()
                     }
-                    bitmap.endTransparencyLayer()
-                    bitmap.restoreGState()
+                    // Canvas records drawing commands. No CPU bitmap allocation
+                    // or image snapshot is needed for animated bar heights.
+                    context.translateBy(x: 0, y: size.height)
+                    context.scaleBy(x: 1, y: -1)
+                    var main = context
+                    drawBars(&main)
                     if layout == .detail {
-                        addGroundReflection(in: bitmap, size: size)
+                        addGroundReflection(in: &context, size: size, drawBars: drawBars)
                     }
-                    guard let image = bitmap.makeImage() else { return }
-                    // Preserve the bitmap's pixel size, including any fractional
-                    // layout padding, instead of stretching it to the view bounds.
-                    context.draw(
-                        Image(decorative: image, scale: scale),
-                        at: .zero,
-                        anchor: .topLeading
-                    )
                 }
                 // Resampling during window resizing must not start or extend a spring.
                 .animation(nil, value: proxy.size)
@@ -340,72 +324,68 @@ struct TrackWaveformView: View {
         }
     }
 
-    private func addGroundReflection(in bitmap: CGContext, size: CGSize) {
-        guard let source = bitmap.makeImage(),
-              let fade = CGGradient(
-                colorsSpace: CGColorSpaceCreateDeviceGray(),
-                colors: [
-                    CGColor(gray: 1, alpha: 0.65),
-                    CGColor(gray: 1, alpha: 0.22),
-                    CGColor(gray: 1, alpha: 0)
-                ] as CFArray,
-                locations: [0, 0.5, 1]
-              ) else { return }
-
-        // Core Graphics uses bottom-up coordinates. Leave a small gap at the
-        // ground and compress the reflected image below it.
+    private func addGroundReflection(
+        in context: inout GraphicsContext,
+        size: CGSize,
+        drawBars: (inout GraphicsContext) -> Void
+    ) {
         let ground = layout.reflectionHeight
         let reflectionTop = ground - 1
         let reflectionScale: CGFloat = 0.45
         let reflectionHeight = min(reflectionTop, (size.height - ground - 2) * reflectionScale)
-        bitmap.saveGState()
-        bitmap.clip(to: CGRect(x: 0, y: 0, width: size.width, height: reflectionTop))
-        bitmap.beginTransparencyLayer(auxiliaryInfo: nil)
-        bitmap.saveGState()
-        bitmap.translateBy(x: 0, y: reflectionTop + ground * reflectionScale)
-        bitmap.scaleBy(x: 1, y: -reflectionScale)
-        bitmap.draw(source, in: CGRect(origin: .zero, size: size))
-        bitmap.restoreGState()
-        // Mask the complete reflection so playback and hover fade together.
-        bitmap.setBlendMode(.destinationIn)
-        bitmap.drawLinearGradient(
-            fade,
-            start: CGPoint(x: 0, y: reflectionTop),
-            end: CGPoint(x: 0, y: reflectionTop - reflectionHeight),
-            options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
-        )
-        bitmap.endTransparencyLayer()
-        bitmap.restoreGState()
+        guard reflectionHeight > 0 else { return }
+        context.clip(to: Path(CGRect(x: 0, y: 0, width: size.width, height: reflectionTop)))
+        context.drawLayer { reflection in
+            var bars = reflection
+            bars.translateBy(x: 0, y: reflectionTop + ground * reflectionScale)
+            bars.scaleBy(x: 1, y: -reflectionScale)
+            drawBars(&bars)
+
+            // Fade the complete reflection, including progress and hover.
+            reflection.blendMode = .destinationIn
+            reflection.fill(
+                Path(CGRect(x: 0, y: 0, width: size.width, height: reflectionTop)),
+                with: .linearGradient(
+                    Gradient(stops: [
+                        .init(color: .white.opacity(0.65), location: 0),
+                        .init(color: .white.opacity(0.22), location: 0.5),
+                        .init(color: .white.opacity(0), location: 1)
+                    ]),
+                    startPoint: CGPoint(x: 0, y: reflectionTop),
+                    endPoint: CGPoint(x: 0, y: reflectionTop - reflectionHeight)
+                )
+            )
+        }
     }
 
     private func fillBars(
-        _ color: CGColor, in bitmap: CGContext, bars: [CGRect], rect: CGRect
+        _ color: CGColor, in context: CGContext, bars: [CGRect], rect: CGRect
     ) {
         guard !rect.isEmpty else { return }
         if layout == .compact {
-            bitmap.setFillColor(color)
-            bitmap.fill(rect)
+            context.setFillColor(color)
+            context.fill(rect)
             return
         }
         guard let gradient = gradientCache.gradient(for: color) else { return }
 
-        bitmap.saveGState()
-        bitmap.clip(to: rect)
+        context.saveGState()
+        context.clip(to: rect)
         // Reuse the gradient, but fit its full range to each animated bar.
         // Playback and hover only clip the fill; they do not move the shading.
         for bar in bars where bar.intersects(rect) {
-            bitmap.saveGState()
-            bitmap.clip(to: bar)
-            // Bitmap coordinates start at the bottom.
-            bitmap.drawLinearGradient(
+            context.saveGState()
+            context.clip(to: bar)
+            // Bar coordinates start at the bottom.
+            context.drawLinearGradient(
                 gradient,
                 start: CGPoint(x: bar.midX, y: bar.maxY),
                 end: CGPoint(x: bar.midX, y: bar.minY),
                 options: []
             )
-            bitmap.restoreGState()
+            context.restoreGState()
         }
-        bitmap.restoreGState()
+        context.restoreGState()
     }
 
     private var progressColor: Color {
