@@ -54,3 +54,22 @@ struct TrackPlaybackIndicator: View {
         levels = snapshot
     }
 }
+
+/// Recompute the title and badge layout from one interpolated inset each frame.
+/// Disable child animations so they cannot interpolate their positions separately.
+struct TrackPlaybackTitleInset: AnimatableModifier {
+    var inset: CGFloat
+
+    var animatableData: CGFloat {
+        get { inset }
+        set { inset = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.leading, inset)
+            .transaction { transaction in
+                transaction.animation = nil
+            }
+    }
+}

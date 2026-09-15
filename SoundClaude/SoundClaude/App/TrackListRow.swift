@@ -70,23 +70,10 @@ struct TrackListRow: View {
                     Button {
                         onSelectTrack(track)
                     } label: {
-                        HStack(spacing: 6) {
-                            if isCurrentTrack {
-                                TrackPlaybackIndicator(
-                                    isPlaying: playback.isPlaying,
-                                    isLoading: playback.isLoading,
-                                    analyzer: analyzer
-                                )
-                            }
-                            Text(track.title)
-                                .underline(isHoveringTitle)
-                                .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
-                        }
-                        .contentShape(Rectangle())
-                        .animation(
-                            reduceMotion ? nil : .easeInOut(duration: 0.2),
-                            value: isCurrentTrack
-                        )
+                        Text(track.title)
+                            .underline(isHoveringTitle)
+                            .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .opacity(0.9)
@@ -95,6 +82,21 @@ struct TrackListRow: View {
                         TrackPreviewBadge()
                     }
                 }
+                .modifier(TrackPlaybackTitleInset(inset: isCurrentTrack ? 16 : 0))
+                .overlay(alignment: .leading) {
+                    if isCurrentTrack {
+                        TrackPlaybackIndicator(
+                            isPlaying: playback.isPlaying,
+                            isLoading: playback.isLoading,
+                            analyzer: analyzer
+                        )
+                        .opacity(0.9)
+                    }
+                }
+                .animation(
+                    reduceMotion ? nil : .easeInOut(duration: 0.2),
+                    value: isCurrentTrack
+                )
                 if showsArtist {
                     ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                         .font(.caption)

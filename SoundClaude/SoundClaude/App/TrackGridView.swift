@@ -99,27 +99,14 @@ struct TrackGridTile: View {
                     Button {
                         onSelectTrack(track)
                     } label: {
-                        HStack(spacing: 6) {
-                            if isCurrentTrack {
-                                TrackPlaybackIndicator(
-                                    isPlaying: playback.isPlaying,
-                                    isLoading: playback.isLoading,
-                                    analyzer: analyzer
-                                )
-                            }
-                            Text(track.title)
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
-                                .underline(isHoveringTitle)
-                                .multilineTextAlignment(.leading)
-                                .lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        .contentShape(Rectangle())
-                        .animation(
-                            reduceMotion ? nil : .easeInOut(duration: 0.2),
-                            value: isCurrentTrack
-                        )
+                        Text(track.title)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
+                            .underline(isHoveringTitle)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .onContentHover { isHoveringTitle = $0 }
@@ -128,6 +115,20 @@ struct TrackGridTile: View {
                         TrackPreviewBadge()
                     }
                 }
+                .modifier(TrackPlaybackTitleInset(inset: isCurrentTrack ? 16 : 0))
+                .overlay(alignment: .leading) {
+                    if isCurrentTrack {
+                        TrackPlaybackIndicator(
+                            isPlaying: playback.isPlaying,
+                            isLoading: playback.isLoading,
+                            analyzer: analyzer
+                        )
+                    }
+                }
+                .animation(
+                    reduceMotion ? nil : .easeInOut(duration: 0.2),
+                    value: isCurrentTrack
+                )
 
                 ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                     .font(.caption)
