@@ -556,19 +556,27 @@ struct ArtistDetailView: View {
     }
 
     private var followControls: some View {
-        HStack {
-            Button {
-                Task { await toggleFollow() }
-            } label: {
-                Label(isFollowing == true ? "Unfollow" : "Follow",
-                      systemImage: isFollowing == true ? "person.badge.minus" : "person.badge.plus")
-            }
-            .disabled(isFollowing == nil || isUpdatingFollow)
-            if isUpdatingFollow || (isFollowing == nil && followErrorMessage == nil) {
-                ProgressView().controlSize(.small)
-                    .accessibilityLabel("Loading follow status")
+        let isLoadingFollow = isUpdatingFollow || (isFollowing == nil && followErrorMessage == nil)
+
+        return Button {
+            Task { await toggleFollow() }
+        } label: {
+            Label {
+                Text(isFollowing == true ? "Unfollow" : "Follow")
+            } icon: {
+                Image(systemName: isFollowing == true ? "person.badge.minus" : "person.badge.plus")
+                    .opacity(isLoadingFollow ? 0 : 1)
+                    .overlay {
+                        if isLoadingFollow {
+                            ProgressView()
+                                .controlSize(.mini)
+                                .accessibilityHidden(true)
+                        }
+                    }
             }
         }
+        .disabled(isFollowing == nil || isUpdatingFollow)
+        .accessibilityValue(isLoadingFollow ? "Loading follow status" : "")
     }
 
     private func loadFollowStatus() async {
