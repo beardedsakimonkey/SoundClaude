@@ -5,18 +5,18 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
     let title: String
     let options: [Selection]
     @Binding var selection: Selection
-    let optionTitle: (Selection) -> Text
+    let optionCount: (Selection) -> Int?
 
     init(
         title: String,
         options: [Selection],
         selection: Binding<Selection>,
-        optionTitle: @escaping (Selection) -> Text = { Text($0.rawValue) }
+        optionCount: @escaping (Selection) -> Int? = { _ in nil }
     ) {
         self.title = title
         self.options = options
         self._selection = selection
-        self.optionTitle = optionTitle
+        self.optionCount = optionCount
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -31,7 +31,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                 Button {
                     selection = option
                 } label: {
-                    optionTitle(option)
+                    optionTitle(option, isEmphasized: isSelected || hoveredOption == option)
                         .foregroundStyle(isSelected || hoveredOption == option ? Color.primary : Color.secondary)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 14)
@@ -63,5 +63,13 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
+    }
+
+    private func optionTitle(_ option: Selection, isEmphasized: Bool) -> Text {
+        let title = Text(option.rawValue)
+        guard let count = optionCount(option) else { return title }
+        return title + Text(" (\(count.formatted()))")
+            .font(.body.weight(.regular))
+            .foregroundStyle(isEmphasized ? .secondary : .tertiary)
     }
 }

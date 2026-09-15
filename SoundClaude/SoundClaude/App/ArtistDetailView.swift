@@ -272,8 +272,9 @@ struct ArtistDetailView: View {
                             title: "Artist content",
                             options: ContentTab.allCases,
                             selection: $selectedTab,
-                            optionTitle: tabTitle
+                            optionCount: tabCount
                         )
+                        .font(.body.weight(.semibold))
                         Spacer(minLength: 16)
                         Button {
                             isShufflingTracks = true
@@ -544,19 +545,14 @@ struct ArtistDetailView: View {
         }
     }
 
-    private func tabTitle(_ tab: ContentTab) -> Text {
+    private func tabCount(_ tab: ContentTab) -> Int? {
         let user = details?.user ?? artist
-        let count: Int? = switch tab {
+        return switch tab {
         case .tracks: user.trackCount
         case .reposts: user.repostsCount
         case .playlists: user.playlistCount
         case .likes: user.publicFavoritesCount
         }
-        let title = Text(tab.rawValue)
-            .font(.body.weight(.semibold))
-        guard let count else { return title }
-        return title + Text(" (\(count.formatted()))")
-            .font(.body.weight(.regular))
     }
 
     private func shuffleTracks() async {
