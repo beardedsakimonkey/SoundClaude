@@ -277,14 +277,23 @@ struct ArtistDetailView: View {
                         Button {
                             isShufflingTracks = true
                         } label: {
-                            Label("Shuffle", systemImage: "shuffle")
+                            Label {
+                                Text("Shuffle")
+                            } icon: {
+                                Image(systemName: "shuffle")
+                                    .opacity(isShufflingTracks ? 0 : 1)
+                                    .overlay {
+                                        if isShufflingTracks {
+                                            ProgressView()
+                                                .controlSize(.mini)
+                                                .accessibilityHidden(true)
+                                        }
+                                    }
+                            }
                         }
                         .disabled(tracks.isEmpty || isShufflingTracks)
                         .help("Shuffle this artist’s tracks")
-                        if isShufflingTracks {
-                            ProgressView().controlSize(.small)
-                                .accessibilityLabel("Starting shuffle playback")
-                        }
+                        .accessibilityValue(isShufflingTracks ? "Starting shuffle playback" : "")
                         if canFollowArtist {
                             followControls
                         }
