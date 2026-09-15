@@ -32,6 +32,7 @@ struct TrackWaveformView: View {
     @State private var accentArtworkURL: URL?
     @State private var hoverFraction: Double = 0
     @State private var isHovering = false
+    @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
@@ -63,7 +64,13 @@ struct TrackWaveformView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Group {
-                if layout == .compact {
+                if contentAnimationsPaused {
+                    // Opacity alone leaves playback observation and Canvas work active.
+                    // Keep layout and loaded state, but remove the drawing subtree
+                    // (including its progress labels) while the visualizer covers it.
+                    Color.clear
+                        .frame(height: height)
+                } else if layout == .compact {
                     waveformView(waveform)
                         .overlay {
                             if waveform == nil, let errorMessage {
