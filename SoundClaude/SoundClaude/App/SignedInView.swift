@@ -34,27 +34,10 @@ struct SignedInView: View {
     }
 
     var body: some View {
-        NavigationSplitView {
-            SidebarView(
-                selection: sidebarSelection,
-                playlists: model.playlists,
-                user: user,
-                artworkLoader: model.artworkLoader,
-                onSearch: showSearch,
-                onSelectPlaylist: showPlaylist,
-                onSelectProfile: showArtist,
-                onReselect: { navigationHistories[destinationID] = NavigationHistory() },
-                onSignOut: model.signOut
-            )
-                .safeAreaPadding(.bottom, footerHeight)
-                .navigationSplitViewColumnWidth(
-                    min: 180,
-                    ideal: 220,
-                    max: 280
-                )
-        } detail: {
-            selectedView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Keep overlays anchored to the window when a pushed page changes the split view's layout.
+        GeometryReader { geometry in
+            navigationView
+                .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .toolbar(isShowingVisualizer ? .hidden : .automatic, for: .windowToolbar)
         .allowsHitTesting(!isShowingVisualizer)
@@ -134,6 +117,31 @@ struct SignedInView: View {
                 onBack: navigateBack,
                 onForward: navigateForward
             )
+        }
+    }
+
+    private var navigationView: some View {
+        NavigationSplitView {
+            SidebarView(
+                selection: sidebarSelection,
+                playlists: model.playlists,
+                user: user,
+                artworkLoader: model.artworkLoader,
+                onSearch: showSearch,
+                onSelectPlaylist: showPlaylist,
+                onSelectProfile: showArtist,
+                onReselect: { navigationHistories[destinationID] = NavigationHistory() },
+                onSignOut: model.signOut
+            )
+                .safeAreaPadding(.bottom, footerHeight)
+                .navigationSplitViewColumnWidth(
+                    min: 180,
+                    ideal: 220,
+                    max: 280
+                )
+        } detail: {
+            selectedView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
