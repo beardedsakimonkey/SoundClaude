@@ -9,6 +9,11 @@ final class AuthController {
 
 @MainActor
 final class SoundCloudClient {
+    var failCreation = false
+    func createPlaylist(title: String, description: String, isPrivate: Bool, accessToken: String) async throws -> SoundCloudPlaylist {
+        if failCreation { throw SoundCloudError.invalidData }
+        return makePlaylist(99, isPrivate: isPrivate)
+    }
     var listRequests: [URL?] = []
     var trackRequests: [URL?] = []
     var fetchList: (URL?) async throws -> SoundCloudPlaylistPage = { _ in
@@ -224,6 +229,18 @@ struct PlaylistsCacheTests {
         client.fetchLikes = { _ in SoundCloudPlaylistPage(playlists: [], nextURL: nil) }
         await controller.loadLikes()
         precondition(controller.hasLoadedLikes && controller.likesErrorMessage == nil)
+        let created = try await controller.createPlaylist(title: "New", description: "", isPrivate: true)
+        precondition(controller.playlists.first == created)
+        precondition(controller.cache.contents[created.urn]?.isComplete == true)
+        let afterCreation = try await store.load(accountID: "user:1")
+        precondition(afterCreation?.playlists.first == created)
+        let beforeFailedCreation = controller.playlists
+        client.failCreation = true
+        do {
+            _ = try await controller.createPlaylist(title: "New", description: "", isPrivate: true)
+            fatalError("Failed creation was accepted")
+        } catch is SoundCloudError {}
+        precondition(controller.playlists == beforeFailedCreation)
         print("Playlist cache and sync checks passed")
     }
 }

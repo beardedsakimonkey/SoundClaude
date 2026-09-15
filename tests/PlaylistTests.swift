@@ -104,6 +104,42 @@ struct PlaylistTests {
                                               accessToken: "test-token")
         }
 
+        for isPrivate in [true, false] {
+            PlaylistURLProtocol.respond { request in
+                precondition(request.url?.path == "/playlists")
+                precondition(request.httpMethod == "POST")
+                precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+                precondition(request.value(forHTTPHeaderField: "Content-Type") == "application/json; charset=utf-8")
+                var body = request.httpBody ?? Data()
+                if let stream = request.httpBodyStream {
+                    stream.open()
+                    defer { stream.close() }
+                    var buffer = [UInt8](repeating: 0, count: 1024)
+                    while stream.hasBytesAvailable {
+                        let count = stream.read(&buffer, maxLength: buffer.count)
+                        precondition(count >= 0)
+                        if count == 0 { break }
+                        body.append(contentsOf: buffer.prefix(count))
+                    }
+                }
+                let payload = try! JSONSerialization.jsonObject(with: body) as! [String: [String: Any]]
+                precondition(payload["playlist"]?["title"] as? String == "Mix 🎶 & friends")
+                precondition(payload["playlist"]?["description"] as? String == "A new mix")
+                precondition(payload["playlist"]?["sharing"] as? String == (isPrivate ? "private" : "public"))
+                precondition((payload["playlist"]?["tracks"] as? [Any])?.isEmpty == true)
+                return (201, playlist)
+            }
+            let created = try await client.createPlaylist(
+                title: "Mix 🎶 & friends", description: "A new mix", isPrivate: isPrivate, accessToken: "test-token"
+            )
+            precondition(created.urn == "soundcloud:playlists:42")
+        }
+        PlaylistURLProtocol.respond { _ in (401, "{}") }
+        do {
+            _ = try await client.createPlaylist(title: "Mix", description: "", isPrivate: true, accessToken: "test-token")
+            fatalError("Unauthorized creation was accepted")
+        } catch SoundCloudError.unauthorized {}
+
         let artistURN = "soundcloud:users:7"
         let artistNextURL = "https://api.soundcloud.com/users/\(artistURN)/playlists?cursor=next"
         PlaylistURLProtocol.respond { request in

@@ -609,6 +609,28 @@ actor SoundCloudClient {
         )
     }
 
+    func createPlaylist(
+        title: String, description: String, isPrivate: Bool, accessToken: String
+    ) async throws -> SoundCloudPlaylist {
+        let body = try JSONSerialization.data(withJSONObject: [
+            "playlist": [
+                "title": title,
+                "description": description,
+                "sharing": isPrivate ? "private" : "public",
+                "tracks": []
+            ] as [String: Any]
+        ])
+        let (data, response) = try await authenticatedRequest(
+            url: configuration.apiBaseURL.appending(path: "playlists"),
+            accessToken: accessToken, method: "POST", body: body
+        )
+        try validate(response: response, data: data)
+        guard let playlist = try decoder.decode(RawPlaylist.self, from: data).normalized() else {
+            throw SoundCloudError.invalidData
+        }
+        return playlist
+    }
+
     func playlist(urn: String, accessToken: String) async throws -> SoundCloudPlaylist {
         let url = configuration.apiBaseURL.appending(path: "playlists")
             .appending(path: urn)

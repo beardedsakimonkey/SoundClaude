@@ -11,6 +11,7 @@ struct SidebarView: View {
     let onReselect: () -> Void
     let onSignOut: () async -> Void
 
+    @State private var isShowingCreatePlaylist = false
     @State private var isProfileHovered = false
     @State private var searchText = ""
     @FocusState private var isSearchFocused: Bool
@@ -21,6 +22,9 @@ struct SidebarView: View {
             sidebarList
         }
         .navigationTitle("SoundClaude")
+        .sheet(isPresented: $isShowingCreatePlaylist) {
+            CreatePlaylistView(playlists: playlists, onCreated: onSelectPlaylist)
+        }
     }
 
     private var sidebarList: some View {
@@ -38,7 +42,14 @@ struct SidebarView: View {
                     })
                     .tag(destination)
             }
-            Section("Playlists") {
+            Section {
+                Label("New playlist", systemImage: "plus")
+                    .modifier(SidebarRowStyle(isSelected: false) {
+                        isShowingCreatePlaylist = true
+                    })
+                    .opacity(0.7)
+                    .selectionDisabled()
+
                 ForEach(playlists.playlists) { playlist in
                     let contents = playlists.cache.contents[playlist.urn]
                     let artworkURL = contents?.playlist.artworkURL
@@ -77,6 +88,8 @@ struct SidebarView: View {
                     Text("No playlists")
                         .foregroundStyle(.secondary)
                 }
+            } header: {
+                Text("Playlists")
             }
         }
         .task { await playlists.load() }
@@ -250,5 +263,79 @@ private struct SidebarTableConfiguration: NSViewRepresentable {
                 ancestor = view.superview
             }
         }
+    }
+}
+
+private struct CreatePlaylistView: View {
+    @ObservedObject var playlists: PlaylistsController
+    let onCreated: (SoundCloudPlaylist) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var title = ""
+    @State private var description = ""
+    @State private var isPrivate = true
+    @State private var isCreating = false
+    @State private var errorMessage: String?
+    @FocusState private var isTitleFocused: Bool
+
+    private var trimmedTitle: String { title.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Create playlist")
+                .font(.title2.bold())
+            Form {
+                TextField("Title", text: $title)
+                    .focused($isTitleFocused)
+                TextField("Description", text: $description, axis: .vertical)
+                    .lineLimit(3...5)
+                Picker("Visibility", selection: $isPrivate) {
+                    Text("Private").tag(true)
+                    Text("Public").tag(false)
+                }
+            }
+            .disabled(isCreating)
+            if let errorMessage {
+                Text(errorMessage)
+                    .foregroundStyle(.red)
+                    .font(.callout)
+                    .textSelection(.enabled)
+            }
+            HStack {
+                if isCreating {
+                    ProgressView().controlSize(.small)
+                    Text("Creating playlist…").foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(isCreating)
+                Button("Create") {
+                    isCreating = true
+                    errorMessage = nil
+                    Task { @MainActor in
+                        defer { isCreating = false }
+                        do {
+                            let playlist = try await playlists.createPlaylist(
+                                title: trimmedTitle,
+                                description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+                                isPrivate: isPrivate
+                            )
+                            dismiss()
+                            onCreated(playlist)
+                        } catch is CancellationError {
+                            dismiss()
+                        } catch {
+                            errorMessage = error.localizedDescription
+                        }
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(trimmedTitle.isEmpty || isCreating)
+            }
+        }
+        .padding(24)
+        .frame(width: 420)
+        .interactiveDismissDisabled(isCreating)
+        .onAppear { isTitleFocused = true }
     }
 }
