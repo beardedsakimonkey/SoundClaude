@@ -22,7 +22,9 @@ fragment float4 visualizerFragment(
     RasterData input [[stage_in]],
     constant float *bands [[buffer(0)]],
     constant float &viewWidth [[buffer(1)]],
-    constant float4 &accentColor [[buffer(2)]]
+    constant float4 &accentColor [[buffer(2)]],
+    constant float &elapsedTime [[buffer(3)]],
+    texture2d<float> artwork [[texture(0)]]
 ) {
     float2 uv = input.uv;
     // Use points so bar width and spacing stay fixed across window sizes and displays.
@@ -54,13 +56,35 @@ fragment float4 visualizerFragment(
     float fill = 1.0 - smoothstep(
         -horizontalEdgeWidth * 0.5, horizontalEdgeWidth * 0.5, distance
     );
-    float cap = fill * exp(-280.0 * abs(y - height));
+    float cap = fill * exp(-480.0 * abs(y - height));
 
     float alpha = saturate(
-        fill * (0.10 + amplitude * 0.58)
-        + cap * (0.20 + amplitude * 9.80)
+        fill * (0.0 + amplitude * 0.68)
+        + cap * (amplitude * 9.0)
     );
+    float column = float(bandIndex) + (centeredX < 0.0 ? 64.0 : 0.0);
+    float phase = fract(sin(column * 127.1 + 311.7) * 43758.5453);
+    float speed = mix(1.2, 2.4, fract(sin(column * 269.5 + 183.3) * 43758.5453));
+    float pulse = 0.5 + 0.5 * sin(elapsedTime * speed + phase * 6.28);
+    alpha *= mix(0.45, 1.0, pulse);
+
+    if (uv.y < 0.5) {
+        float reflectionFade = 1.0 - smoothstep(0.0, 0.5, y);
+        alpha *= 0.45 * reflectionFade;
+    }
     float3 accent = accentColor.rgb;
+    // Fill the upper half with artwork, then mirror the same image below it.
+    float2 artworkUV = float2(uv.x, 1.0 - 2.0 * y);
+    float viewAspect = viewWidth / (pointsPerUV * 0.5);
+    float artworkAspect = float(artwork.get_width()) / float(artwork.get_height());
+    float2 cropScale = float2(
+        min(viewAspect / artworkAspect, 1.0),
+        min(artworkAspect / viewAspect, 1.0)
+    );
+    artworkUV = (artworkUV - 0.5) * cropScale + 0.5;
+    constexpr sampler artworkSampler(coord::normalized, address::clamp_to_edge, filter::linear);
+    float3 artworkColor = artwork.sample(artworkSampler, artworkUV).rgb;
+    accent = mix(accent, artworkColor, accentColor.a);
 
     // Core Animation composites the drawable using premultiplied alpha.
     return float4(accent * alpha, alpha);

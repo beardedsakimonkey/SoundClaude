@@ -1,4 +1,5 @@
 import MetalKit
+import ImageIO
 import SwiftUI
 
 private final class TransparentMetalView: MTKView {
@@ -11,19 +12,28 @@ struct ArtworkVisualizerView: View {
     let artworkLoader: ArtworkLoader
 
     @State private var artworkAccent: ArtworkAccent?
+    @State private var artworkImage: CGImage?
     @State private var accentArtworkURL: URL?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     var body: some View {
-        MetalVisualizerView(spectrumBuffer: spectrumBuffer, accent: accent)
+        MetalVisualizerView(
+            spectrumBuffer: spectrumBuffer,
+            accent: accent,
+            artworkImage: accentArtworkURL == artworkURL ? artworkImage : nil
+        )
             .task(id: artworkURL) {
                 artworkAccent = nil
+                artworkImage = nil
                 accentArtworkURL = nil
                 guard let url = artworkURL,
-                      let color = try? await artworkLoader.accentColor(for: url),
+                      let data = try? await artworkLoader.data(for: url, rendition: .square1080),
                       !Task.isCancelled else { return }
-                artworkAccent = color
+                artworkAccent = ArtworkAccent.extract(from: data)
+                if let source = CGImageSourceCreateWithData(data as CFData, nil) {
+                    artworkImage = CGImageSourceCreateImageAtIndex(source, 0, nil)
+                }
                 accentArtworkURL = url
             }
     }
@@ -45,6 +55,7 @@ struct ArtworkVisualizerView: View {
 struct MetalVisualizerView: NSViewRepresentable {
     let spectrumBuffer: OpaquePointer
     let accent: ArtworkAccent
+    let artworkImage: CGImage?
 
     final class Coordinator {
         var renderer: VisualizerRenderer?
@@ -77,11 +88,13 @@ struct MetalVisualizerView: NSViewRepresentable {
             accent: accent
         )
         context.coordinator.renderer = renderer
+        renderer?.updateArtwork(artworkImage)
         view.delegate = renderer
         return view
     }
 
     func updateNSView(_ view: MTKView, context: Context) {
         context.coordinator.renderer?.accent = accent
+        context.coordinator.renderer?.updateArtwork(artworkImage)
     }
 }
