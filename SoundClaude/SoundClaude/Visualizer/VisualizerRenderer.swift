@@ -60,8 +60,26 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         artworkImage = image
         artworkTexture = nil
         guard let image else { return }
+        // Grayscale images can load as single-channel textures, which the shader
+        // reads as red. Convert to sRGB RGBA so every artwork supplies RGB.
+        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(
+                data: nil, width: image.width, height: image.height,
+                bitsPerComponent: 8, bytesPerRow: image.width * 4,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                    | CGBitmapInfo.byteOrder32Big.rawValue
+              ) else {
+            NSLog("[Visualizer] Cannot create artwork bitmap context")
+            return
+        }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        guard let rgbaImage = context.makeImage() else {
+            NSLog("[Visualizer] Cannot create RGBA artwork image")
+            return
+        }
         do {
-            artworkTexture = try textureLoader.newTexture(cgImage: image, options: [
+            artworkTexture = try textureLoader.newTexture(cgImage: rgbaImage, options: [
                 .SRGB: false,
                 .origin: MTKTextureLoader.Origin.topLeft
             ])

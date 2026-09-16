@@ -100,9 +100,9 @@ fragment float4 visualizerFragment(
     // artworkColor = mix(artworkColor, screenedArtwork, saturate(pulse - 0.5) * pulse);
 
     // Texture sampling supplies encoded sRGB; blend in OKLab, then encode again.
-    float3 color = (mix((accent), (artworkColor), 0.75));
+    float3 color = (mix((accent), (artworkColor), 0.4));
 
-    color *= (1.5 - leftToRight*leftToRight*.5);
+    color *= (1. - leftToRight*leftToRight*.4);
 
     // Core Animation composites the drawable using premultiplied alpha.
     return float4(color * alpha, alpha);
