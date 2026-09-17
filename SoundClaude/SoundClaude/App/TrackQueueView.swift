@@ -7,8 +7,6 @@ struct TrackQueueView: View {
     let onDismiss: () -> Void
 
     @ObservedObject private var likes: LikesController
-    @State private var isClearHovered = false
-    @State private var isCloseHovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
@@ -42,42 +40,10 @@ struct TrackQueueView: View {
                 Spacer()
 
                 if !tracks.isEmpty {
-                    Button(action: model.clearQueue) {
-                        Text("Clear")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8)
-                            .frame(height: 28)
-                            .background {
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.primary.opacity(isClearHovered ? 0.08 : 0))
-                            }
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .onHover { isClearHovered = $0 }
-                    .onDisappear { isClearHovered = false }
-                    .help("Clear track queue")
-                    .accessibilityLabel("Clear track queue")
+                    QueueClearButton(action: model.clearQueue)
                 }
 
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 28, height: 28)
-                        .background {
-                            Circle()
-                                .fill(Color.primary.opacity(isCloseHovered ? 0.08 : 0))
-                        }
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .onHover { isCloseHovered = $0 }
-                .onDisappear { isCloseHovered = false }
-                .keyboardShortcut(.cancelAction)
-                .help("Close track queue (Esc)")
-                .accessibilityLabel("Close track queue")
+                QueueCloseButton(action: onDismiss)
             }
 
             if tracks.isEmpty {
@@ -135,6 +101,56 @@ struct TrackQueueView: View {
         }
         .padding(16)
         .onExitCommand(perform: onDismiss)
+    }
+}
+
+private struct QueueClearButton: View {
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Text("Clear")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 8)
+                .frame(height: 28)
+                .background {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.primary.opacity(isHovered ? 0.08 : 0))
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .onDisappear { isHovered = false }
+        .help("Clear track queue")
+        .accessibilityLabel("Clear track queue")
+    }
+}
+
+private struct QueueCloseButton: View {
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(width: 28, height: 28)
+                .background {
+                    Circle()
+                        .fill(Color.primary.opacity(isHovered ? 0.08 : 0))
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .onDisappear { isHovered = false }
+        .keyboardShortcut(.cancelAction)
+        .help("Close track queue (Esc)")
+        .accessibilityLabel("Close track queue")
     }
 }
 
