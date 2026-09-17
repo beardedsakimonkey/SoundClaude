@@ -7,7 +7,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := run
 
-.PHONY: build release run lsp icon test test-focus
+.PHONY: build release run lsp icon test test-focus test-queue-drag
 
 build:
 	xcodebuild \
@@ -147,3 +147,14 @@ test:
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
 		tests/HistoryTests.swift
 	/tmp/soundclaude-tests/history
+
+# Queue drag regression opens a temporary window and posts mouse events.
+test-queue-drag:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/queue-drag \
+		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
+		SoundClaude/SoundClaude/App/TrackQueueView.swift \
+		SoundClaude/SoundClaude/App/TrackQueueDragDrop.swift \
+		SoundClaude/SoundClaude/App/TrackPlaybackIndicator.swift \
+		tests/QueueDragTests.swift
+	/tmp/soundclaude-tests/queue-drag

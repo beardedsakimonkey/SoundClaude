@@ -7,7 +7,6 @@ struct TrackQueueView: View {
     let onDismiss: () -> Void
 
     @ObservedObject private var likes: LikesController
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
         model: AppModel,
@@ -54,48 +53,29 @@ struct TrackQueueView: View {
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollViewReader { proxy in
-                    List {
-                        ForEach(tracks) { track in
-                            HStack(spacing: 0) {
-                                QueueDragHandle()
-                                    .accessibilityLabel("Reorder \(track.title)")
-                                TrackListRow(
-                                    track: track,
-                                    playback: model.playback,
-                                    analyzer: model.analyzer,
-                                    artworkLoader: model.artworkLoader,
-                                    likes: model.likes,
-                                    onAddToQueue: model.addToQueue,
-                                    onSelectTrack: { selected in
-                                        onDismiss()
-                                        onSelectTrack(selected)
-                                    },
-                                    onSelectArtist: { artist in
-                                        onDismiss()
-                                        onSelectArtist(artist)
-                                    },
-                                    onPlayTrack: { await model.play($0) }
-                                )
-                            }
-                            .listRowInsets(EdgeInsets())
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .id(track.urn)
-                        }
-                        .onMove(perform: model.moveQueueTracks)
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .animation(
-                        reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85),
-                        value: tracks.map(\.urn)
+                TrackQueueList(
+                    tracks: tracks,
+                    currentTrackURN: model.playback.currentTrack?.urn,
+                    onMove: model.moveQueueTracks,
+                    onDismiss: onDismiss
+                ) { track in
+                    TrackListRow(
+                        track: track,
+                        playback: model.playback,
+                        analyzer: model.analyzer,
+                        artworkLoader: model.artworkLoader,
+                        likes: model.likes,
+                        onAddToQueue: model.addToQueue,
+                        onSelectTrack: { selected in
+                            onDismiss()
+                            onSelectTrack(selected)
+                        },
+                        onSelectArtist: { artist in
+                            onDismiss()
+                            onSelectArtist(artist)
+                        },
+                        onPlayTrack: { await model.play($0) }
                     )
-                    .onAppear {
-                        if let urn = model.playback.currentTrack?.urn {
-                            proxy.scrollTo(urn, anchor: .center)
-                        }
-                    }
                 }
             }
         }
@@ -151,19 +131,5 @@ private struct QueueCloseButton: View {
         .keyboardShortcut(.cancelAction)
         .help("Close track queue (Esc)")
         .accessibilityLabel("Close track queue")
-    }
-}
-
-private struct QueueDragHandle: View {
-    @State private var isHovered = false
-
-    var body: some View {
-        Image(systemName: "line.3.horizontal")
-            .foregroundStyle(isHovered ? .primary : .secondary)
-            .frame(width: 28, height: 56)
-            .contentShape(Rectangle())
-            .onHover { isHovered = $0 }
-            .onDisappear { isHovered = false }
-            .help("Drag to reorder")
     }
 }

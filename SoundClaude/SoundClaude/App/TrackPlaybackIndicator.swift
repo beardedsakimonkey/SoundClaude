@@ -57,7 +57,8 @@ struct TrackPlaybackIndicator: View {
 }
 
 /// Recompute the title and badge layout from one interpolated inset each frame.
-/// Disable child animations so they cannot interpolate their positions separately.
+/// Disable child interpolation only when the inset changes. Row movement must
+/// keep its animation when the inset stays the same.
 struct TrackPlaybackTitleInset: AnimatableModifier {
     var inset: CGFloat
 
@@ -69,7 +70,7 @@ struct TrackPlaybackTitleInset: AnimatableModifier {
     func body(content: Content) -> some View {
         content
             .padding(.leading, inset)
-            .transaction { transaction in
+            .transaction(value: inset) { transaction in
                 transaction.animation = nil
             }
     }
