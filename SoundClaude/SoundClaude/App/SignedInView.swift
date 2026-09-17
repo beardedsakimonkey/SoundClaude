@@ -79,7 +79,7 @@ struct SignedInView: View {
                             width: max(0, min(560, geometry.size.width - 28)),
                             height: max(0, min(520, availableHeight - 28))
                         )
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 16))
                         .overlay {
                             RoundedRectangle(cornerRadius: 16)
                                 .strokeBorder(.primary.opacity(0.12), lineWidth: 1)
@@ -93,10 +93,6 @@ struct SignedInView: View {
                         .transition(
                             .move(edge: .bottom)
                                 .combined(with: .opacity)
-                                .combined(with: .modifier(
-                                    active: QueueBlurModifier(radius: 12),
-                                    identity: QueueBlurModifier(radius: 0)
-                                ))
                         )
                     }
                 }
