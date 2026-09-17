@@ -156,7 +156,7 @@ struct TrackWaveformView: View {
                     }
                     let background = Color.secondary.opacity(layout == .compact ? 0.3 : 0.5)
                         .resolve(in: context.environment).cgColor
-                    let color = renderedProgressColor.opacity(layout == .compact ? 0.7 : 1)
+                    let color = renderedProgressColor.opacity(layout == .compact ? 0.8 : 1)
                         .resolve(in: context.environment).cgColor
                     let highlight = Color.white.opacity(0.9)
                         .resolve(in: context.environment).cgColor

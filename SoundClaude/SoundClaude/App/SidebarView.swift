@@ -43,7 +43,7 @@ struct SidebarView: View {
                     .tag(destination)
             }
             Section {
-                Label("New playlist", systemImage: "plus")
+                Label("New", systemImage: "plus")
                     .modifier(SidebarRowStyle(isSelected: false) {
                         isShowingCreatePlaylist = true
                     })
