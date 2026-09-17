@@ -98,18 +98,14 @@ struct PlaylistCardView: View {
 
     @ViewBuilder
     private var trackList: some View {
-        if isExpanded {
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    trackRows(limit: tracks.count)
-                }
-            }
-            .frame(height: CGFloat(min(tracks.count, 8)) * 40)
-        } else {
-            VStack(spacing: 0) {
-                trackRows(limit: 5)
+        // Keep the row hierarchy stable so toggling preserves loaded artwork.
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                trackRows(limit: isExpanded ? tracks.count : 5)
             }
         }
+        .frame(height: CGFloat(min(tracks.count, isExpanded ? 8 : 5)) * 40)
+        .scrollDisabled(!isExpanded)
 
         if isExpanded || trackCount > 5 {
             Button(isExpanded ? "View fewer tracks" : "View \(trackCount) tracks") {
