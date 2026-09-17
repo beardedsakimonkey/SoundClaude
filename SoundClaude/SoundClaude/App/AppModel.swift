@@ -530,6 +530,11 @@ final class AppModel: ObservableObject {
         )
     }
 
+    func station(urn: String) async throws -> SoundCloudStation {
+        let accessToken = try await auth.validAccessToken()
+        return try await client.station(urn: urn, accessToken: accessToken)
+    }
+
     func playlistDetails(for playlist: SoundCloudPlaylist) async throws -> SoundCloudPlaylist {
         let accessToken = try await auth.validAccessToken()
         return try await client.playlist(urn: playlist.urn, accessToken: accessToken)
@@ -733,7 +738,7 @@ final class AppModel: ObservableObject {
             return try await client.playlistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
         case let .related(urn):
             return try await client.relatedTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
-        case .history, .likes, .single:
+        case .history, .likes, .single, .station:
             return SoundCloudTrackPage(tracks: [], nextURL: nil)
         }
     }

@@ -174,6 +174,51 @@ struct PlaylistTests {
              "permalink_url":"https://soundcloud.com/owner/track","access":"playable",
              "user":{"username":"Owner","permalink_url":"https://soundcloud.com/owner"}}
             """
+        let stationURN = "soundcloud:system-playlists:artist-stations:42"
+        for field in ["", ",\"station_urn\":null", ",\"station_urn\":\"\(stationURN)\""] {
+            let json = "{\"username\":\"Owner\",\"permalink_url\":\"https://soundcloud.com/owner\"\(field)}"
+            let user = try decoder.decode(RawUser.self, from: Data(json.utf8)).normalized()!
+            precondition(user.stationURN == (field.contains(stationURN) ? stationURN : nil))
+            let cached = try decoder.decode(SoundCloudUser.self, from: JSONEncoder().encode(user))
+            precondition(cached.stationURN == user.stationURN)
+            let direct = try decoder.decode(SoundCloudUser.self, from: Data(json.utf8))
+            precondition(direct.stationURN == user.stationURN)
+        }
+        PlaylistURLProtocol.respond { request in
+            precondition(request.httpMethod == "GET")
+            precondition(request.url?.path == "/system-playlists/\(stationURN)")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            precondition(query.contains(URLQueryItem(name: "access", value: "playable,preview")))
+            let preview = track.replacingOccurrences(of: "tracks:1", with: "tracks:2")
+                .replacingOccurrences(of: "playable", with: "preview")
+            let blocked = track.replacingOccurrences(of: "playable", with: "blocked")
+            return (200, "{\"tracks\":[\(track),\(preview),\(blocked),{}]}")
+        }
+        let stationTracks = try await client.stationTracks(urn: stationURN, accessToken: "test-token")
+        precondition(stationTracks.map(\.urn) == ["soundcloud:tracks:1", "soundcloud:tracks:2"])
+        PlaylistURLProtocol.respond { _ in
+            (200, """
+            {"title":"Artist station","description":"Similar tracks",
+             "permalink_url":"https://soundcloud.com/discover/sets/artist-stations:42",
+             "last_updated":"2026-09-17T12:00:00Z","track_count":1,"tracks":[\(track)]}
+            """)
+        }
+        let station = try await client.station(urn: stationURN, accessToken: "test-token")
+        precondition(station.title == "Artist station")
+        precondition(station.description == "Similar tracks")
+        precondition(station.permalinkURL?.path == "/discover/sets/artist-stations:42")
+        precondition(station.lastUpdated == "2026-09-17T12:00:00Z")
+        precondition(station.trackCount == 1 && station.tracks.map(\.urn) == ["soundcloud:tracks:1"])
+        PlaylistURLProtocol.respond { _ in (200, "{\"tracks\":[]}") }
+        let emptyStation = try await client.stationTracks(urn: stationURN, accessToken: "test-token")
+        precondition(emptyStation.isEmpty)
+        PlaylistURLProtocol.respond { _ in (404, "{}") }
+        do {
+            _ = try await client.stationTracks(urn: stationURN, accessToken: "test-token")
+            fatalError("Missing station was accepted")
+        } catch SoundCloudError.api {}
+
         let tracksURL = "https://api.soundcloud.com/playlists/soundcloud:playlists:42/tracks?cursor=next"
         PlaylistURLProtocol.respond { request in
             precondition(request.url?.path == "/playlists/soundcloud:playlists:42/tracks")

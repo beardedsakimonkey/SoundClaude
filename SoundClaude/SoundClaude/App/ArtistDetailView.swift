@@ -38,6 +38,7 @@ struct ArtistDetailView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectUsers: (SoundCloudUser, ArtistUserList) -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
+    let onSelectStation: (String) -> Void
 
     @State private var isFollowing: Bool?
     @State private var isUpdatingFollow = false
@@ -93,7 +94,8 @@ struct ArtistDetailView: View {
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
         onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void,
-        onSelectUsers: @escaping (SoundCloudUser, ArtistUserList) -> Void
+        onSelectUsers: @escaping (SoundCloudUser, ArtistUserList) -> Void,
+        onSelectStation: @escaping (String) -> Void
     ) {
         self.artist = artist
         self.model = model
@@ -101,6 +103,7 @@ struct ArtistDetailView: View {
         self.onSelectArtist = onSelectArtist
         self.onSelectUsers = onSelectUsers
         self.onSelectPlaylist = onSelectPlaylist
+        self.onSelectStation = onSelectStation
         let cached = model.cachedArtistDetails(for: artist)
         _details = State(initialValue: cached)
         _isLoading = State(initialValue: cached == nil)
@@ -296,6 +299,9 @@ struct ArtistDetailView: View {
                         .disabled(tracks.isEmpty || isShufflingTracks)
                         .help("Shuffle this artist’s tracks")
                         .accessibilityValue(isShufflingTracks ? "Starting shuffle playback" : "")
+                        if nonempty(details.user.stationURN) != nil {
+                            stationButton
+                        }
                         if canFollowArtist {
                             followControls
                         }
@@ -561,6 +567,14 @@ struct ArtistDetailView: View {
         case .playlists: user.playlistCount
         case .likes: user.publicFavoritesCount
         }
+    }
+
+    private var stationButton: some View {
+        Button("Station", systemImage: "dot.radiowaves.left.and.right") {
+            guard let urn = nonempty(details?.user.stationURN) else { return }
+            onSelectStation(urn)
+        }
+        .help("Open this artist’s station")
     }
 
     private func shuffleTracks() async {

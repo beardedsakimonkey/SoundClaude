@@ -159,33 +159,8 @@ struct PlaylistDetailView: View {
         }
     }
 
-    @ViewBuilder
     private var artworkBackdrop: some View {
-        let backdrop = TrackArtworkBackdropView(
-            artworkURL: artworkURL,
-            loader: model.artworkLoader,
-            fadesToBottom: false,
-            animatesChanges: true
-        )
-        .frame(height: 600)
-        .mask {
-            LinearGradient(
-                stops: [
-                    .init(color: .black, location: 0),
-                    .init(color: .black, location: 0.25),
-                    .init(color: .black.opacity(0.5), location: 0.65),
-                    .init(color: .clear, location: 1)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        }
-
-        if #available(macOS 26.0, *) {
-            backdrop.backgroundExtensionEffect()
-        } else {
-            backdrop
-        }
+        TrackCollectionBackdrop(artworkURL: artworkURL, loader: model.artworkLoader)
     }
 
     private var header: some View {
@@ -342,40 +317,11 @@ struct PlaylistDetailView: View {
 
     private var trackList: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
-            if trackLayout == .grid {
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 160), spacing: 20, alignment: .top)],
-                    alignment: .leading,
-                    spacing: 24
-                ) {
-                    ForEach(tracks) { track in
-                        TrackGridTile(
-                            track: track,
-                            playback: model.playback,
-                            analyzer: model.analyzer,
-                            artworkLoader: model.artworkLoader,
-                            onSelectTrack: onSelectTrack,
-                            onSelectArtist: onSelectArtist,
-                            onPlayTrack: playTrack
-                        )
-                    }
-                }
-                .padding(.bottom, 16)
-            } else {
-                ForEach(tracks) { track in
-                    TrackListRow(
-                        track: track,
-                        playback: model.playback,
-                        analyzer: model.analyzer,
-                        artworkLoader: model.artworkLoader,
-                        likes: model.likes,
-                        onAddToQueue: model.addToQueue,
-                        onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist,
-                        onPlayTrack: playTrack
-                    )
-                }
-            }
+            TrackCollectionTracks(
+                tracks: tracks, trackLayout: trackLayout, model: model,
+                onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
+                onPlayTrack: playTrack
+            )
             if let errorMessage {
                 Text(errorMessage).foregroundStyle(.secondary)
                 Button("Try Again") { Task { await load() } }

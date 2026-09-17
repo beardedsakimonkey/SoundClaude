@@ -243,6 +243,16 @@ struct SignedInView: View {
                             .id(playlist.urn)
                             .navigationBarBackButtonHidden(true)
                             .toolbar { navigationToolbar }
+                        case let .station(urn):
+                            StationDetailView(
+                                urn: urn,
+                                model: model,
+                                onSelectTrack: showTrack,
+                                onSelectArtist: showArtist
+                            )
+                            .id(urn)
+                            .navigationBarBackButtonHidden(true)
+                            .toolbar { navigationToolbar }
                         case let .artist(artist):
                             ArtistDetailView(
                                 artist: artist,
@@ -250,7 +260,8 @@ struct SignedInView: View {
                                 onSelectTrack: showTrack,
                                 onSelectArtist: showArtist,
                                 onSelectPlaylist: showPlaylist,
-                                onSelectUsers: showArtistUsers
+                                onSelectUsers: showArtistUsers,
+                                onSelectStation: showStation
                             )
                             .id(artist.permalinkURL)
                             .navigationBarBackButtonHidden(true)
@@ -381,6 +392,11 @@ struct SignedInView: View {
         path.append(.playlist(playlist))
     }
 
+    private func showStation(_ urn: String) {
+        forwardPath.removeAll()
+        path.append(.station(urn))
+    }
+
     private func showArtist(_ artist: SoundCloudUser) {
         isShowingVisualizer = false
         isShowingQueue = false
@@ -475,6 +491,7 @@ private enum Route: Hashable {
     case search(String)
     case genre(String)
     case playlist(SoundCloudPlaylist)
+    case station(String)
     case track(SoundCloudTrack)
     case artist(SoundCloudUser)
     case artistUsers(SoundCloudUser, ArtistUserList)

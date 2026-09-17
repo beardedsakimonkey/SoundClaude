@@ -11,6 +11,7 @@ struct SoundCloudUser: Codable, Sendable, Hashable {
     var repostsCount: Int? = nil
     var playlistCount: Int? = nil
     var publicFavoritesCount: Int? = nil
+    var stationURN: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case urn
@@ -23,6 +24,7 @@ struct SoundCloudUser: Codable, Sendable, Hashable {
         case repostsCount = "reposts_count"
         case playlistCount = "playlist_count"
         case publicFavoritesCount = "public_favorites_count"
+        case stationURN = "station_urn"
     }
 }
 
@@ -435,6 +437,39 @@ struct RawPlaylistPage: Decodable {
     }
 }
 
+struct SoundCloudStation: Sendable {
+    let title: String?
+    let description: String?
+    let permalinkURL: URL?
+    let lastUpdated: String?
+    let trackCount: Int?
+    let tracks: [SoundCloudTrack]
+}
+
+struct RawSystemPlaylist: Decodable {
+    let title: String?
+    let description: String?
+    let permalinkURL: URL?
+    let lastUpdated: String?
+    let trackCount: Int?
+    let tracks: [RawTrack]
+
+    enum CodingKeys: String, CodingKey {
+        case title, description, tracks
+        case permalinkURL = "permalink_url"
+        case lastUpdated = "last_updated"
+        case trackCount = "track_count"
+    }
+
+    func normalized() -> SoundCloudStation {
+        SoundCloudStation(
+            title: title, description: description, permalinkURL: permalinkURL,
+            lastUpdated: lastUpdated, trackCount: trackCount,
+            tracks: tracks.compactMap { $0.normalized() }
+        )
+    }
+}
+
 struct RawPlaylist: Decodable {
     let urn: String?
     let title: String?
@@ -588,6 +623,7 @@ struct RawUser: Decodable {
     let repostsCount: Int?
     let playlistCount: Int?
     let publicFavoritesCount: Int?
+    let stationURN: String?
 
     enum CodingKeys: String, CodingKey {
         case urn, description, city, country
@@ -598,6 +634,7 @@ struct RawUser: Decodable {
         case repostsCount = "reposts_count"
         case playlistCount = "playlist_count"
         case publicFavoritesCount = "public_favorites_count"
+        case stationURN = "station_urn"
         case username
         case avatarURL = "avatar_url"
         case permalinkURL = "permalink_url"
@@ -615,7 +652,8 @@ struct RawUser: Decodable {
             trackCount: trackCount,
             repostsCount: repostsCount,
             playlistCount: playlistCount,
-            publicFavoritesCount: publicFavoritesCount
+            publicFavoritesCount: publicFavoritesCount,
+            stationURN: stationURN
         )
     }
 

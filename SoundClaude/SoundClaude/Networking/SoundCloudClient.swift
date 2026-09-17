@@ -639,6 +639,20 @@ actor SoundCloudClient {
         try validate(response: response, data: data)
     }
 
+    func stationTracks(urn: String, accessToken: String) async throws -> [SoundCloudTrack] {
+        try await station(urn: urn, accessToken: accessToken).tracks
+    }
+
+    func station(urn: String, accessToken: String) async throws -> SoundCloudStation {
+        let url = configuration.apiBaseURL.appending(path: "system-playlists")
+            .appending(path: urn)
+            .appending(queryItems: [URLQueryItem(name: "access", value: "playable,preview")])
+        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+        try validate(response: response, data: data)
+        let playlist = try decoder.decode(RawSystemPlaylist.self, from: data)
+        return playlist.normalized()
+    }
+
     func playlist(urn: String, accessToken: String) async throws -> SoundCloudPlaylist {
         let url = configuration.apiBaseURL.appending(path: "playlists")
             .appending(path: urn)

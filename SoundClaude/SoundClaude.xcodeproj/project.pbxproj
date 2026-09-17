@@ -82,6 +82,8 @@
 		A10000000000000000000040 /* LikesCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000040 /* LikesCache.swift */; };
 		53FD266F04FB426AA01E2B0A /* PlayerArtworkGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4925E94F504F440FA2B06DBF /* PlayerArtworkGlass.swift */; };
 		D74B0EAE0000000000000001 /* VisualizerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D74B0EAE0000000000000002 /* VisualizerView.swift */; };
+		7C744DE19B5D4565875D6CA0 /* StationDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B3DD082E98448CF88667491 /* StationDetailView.swift */; };
+		04EAD6EF5EBF47DA8FD023C2 /* TrackCollectionDetailViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EB04D45C090498081339D9A /* TrackCollectionDetailViews.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -168,6 +170,8 @@
 		A20000000000000000000040 /* LikesCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikesCache.swift; sourceTree = "<group>"; };
 		4925E94F504F440FA2B06DBF /* PlayerArtworkGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerArtworkGlass.swift; sourceTree = "<group>"; };
 		D74B0EAE0000000000000002 /* VisualizerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerView.swift; sourceTree = "<group>"; };
+		2B3DD082E98448CF88667491 /* StationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StationDetailView.swift; sourceTree = "<group>"; };
+		3EB04D45C090498081339D9A /* TrackCollectionDetailViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackCollectionDetailViews.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -233,6 +237,8 @@
 				A20000000000000000000090 /* RepostsController.swift */,
 				A20000000000000000000074 /* FeedCache.swift */,
 				A2000000000000000000003E /* PlaylistDetailView.swift */,
+				3EB04D45C090498081339D9A /* TrackCollectionDetailViews.swift */,
+				2B3DD082E98448CF88667491 /* StationDetailView.swift */,
 				A20000000000000000000039 /* ArtistDetailView.swift */,
 				A20000000000000000000072 /* ArtistUsersView.swift */,
 				A20000000000000000000082 /* TrackCommentsView.swift */,
@@ -478,6 +484,8 @@
 				A10000000000000000000090 /* RepostsController.swift in Sources */,
 				A10000000000000000000074 /* FeedCache.swift in Sources */,
 				A1000000000000000000003E /* PlaylistDetailView.swift in Sources */,
+				04EAD6EF5EBF47DA8FD023C2 /* TrackCollectionDetailViews.swift in Sources */,
+				7C744DE19B5D4565875D6CA0 /* StationDetailView.swift in Sources */,
 				A10000000000000000000039 /* ArtistDetailView.swift in Sources */,
 				A10000000000000000000072 /* ArtistUsersView.swift in Sources */,
 				A10000000000000000000082 /* TrackCommentsView.swift in Sources */,
