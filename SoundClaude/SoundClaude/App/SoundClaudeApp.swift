@@ -131,7 +131,7 @@ struct SoundClaudeApp: App {
 
         CommandGroup(after: .help) {
             Button("Keyboard Shortcuts") {
-                isShowingKeyboardShortcuts = true
+                isShowingKeyboardShortcuts.toggle()
             }
             .keyboardShortcut("?", modifiers: [])
         }

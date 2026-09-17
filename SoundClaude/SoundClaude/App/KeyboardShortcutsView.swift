@@ -19,7 +19,7 @@ struct KeyboardShortcutsView: View {
         Shortcut(title: "Seek forward 5 seconds", keys: ["→"]),
         Shortcut(title: "Previous track", keys: ["<"], alternateKeys: ["⇧", "←"]),
         Shortcut(title: "Next track", keys: [">"], alternateKeys: ["⇧", "→"]),
-        Shortcut(title: "Show keyboard shortcuts", keys: ["?"])
+        Shortcut(title: "Show or hide keyboard shortcuts", keys: ["?"])
     ]
 
     var body: some View {
@@ -55,6 +55,14 @@ struct KeyboardShortcutsView: View {
         }
         .padding(24)
         .frame(width: 420)
+        .background {
+            Button("Close keyboard shortcuts") {
+                dismiss()
+            }
+            .keyboardShortcut("?", modifiers: [])
+            .hidden()
+            .accessibilityHidden(true)
+        }
         .dismissOnOutsideClick()
     }
 
