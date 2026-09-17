@@ -138,6 +138,10 @@ struct TrackCommentsView: View {
                     )
             }
             .contentShape(Capsule())
+            .onTapGesture {
+                guard !isPosting else { return }
+                isCommentFocused = true
+            }
             .onHover { isCommentHovered = $0 }
             .overlay {
                 Capsule()
