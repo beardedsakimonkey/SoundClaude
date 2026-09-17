@@ -24,6 +24,12 @@ struct RecentSearchTests {
         precondition(reopened.restore(for: user) == ["ambient 🌊", "Jazz"])
         precondition(reopened.restore(for: otherUser).isEmpty)
         store.record("Other search", for: otherUser)
+        precondition(store.remove("ambient 🌊", for: user) == ["Jazz"])
+        precondition(reopened.restore(for: user) == ["Jazz"])
+        precondition(store.remove("Missing", for: user) == ["Jazz"])
+        precondition(store.remove("Jazz", for: user).isEmpty)
+        precondition(reopened.restore(for: user).isEmpty)
+        precondition(reopened.restore(for: otherUser) == ["Other search"])
         for index in 0..<15 { store.record("Query \(index)", for: user) }
         precondition(store.restore(for: user) == (5..<15).reversed().map { "Query \($0)" })
         store.clear(for: user)

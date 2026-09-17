@@ -6,7 +6,9 @@ struct SearchView: View {
     let focusRequest: UUID
     let onSearch: (String) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var recentSearches: [String] = []
+    @State private var isHoveringClearHistory = false
     @FocusState private var isSearchFocused: Bool
     private let store = RecentSearchStore()
 
@@ -24,17 +26,6 @@ struct SearchView: View {
                     .onSubmit { search(searchText) }
                     .onExitCommand { isSearchFocused = false }
                     .accessibilityLabel("Search SoundCloud")
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                        isSearchFocused = true
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
-                }
                 Button("Search") { search(searchText) }
                     .disabled(searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -52,28 +43,32 @@ struct SearchView: View {
                     Text("Recent searches")
                         .font(.headline)
                     Spacer()
-                    Button("Clear history") {
+                    Button {
                         store.clear(for: user)
                         recentSearches = []
+                    } label: {
+                        Text("Clear history")
                     }
                     .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isHoveringClearHistory ? Color.primary : Color.secondary)
+                    .onContentHover { isHoveringClearHistory = $0 }
                 }
+                .transition(.identity)
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), alignment: .leading)], alignment: .leading, spacing: 12) {
                         ForEach(recentSearches, id: \.self) { query in
-                            Button { search(query) } label: {
-                                Label(query, systemImage: "clock.arrow.circlepath")
-                                    .lineLimit(1)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(8)
+                            RecentSearchButton(query: query) {
+                                search(query)
+                            } onRemove: {
+                                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+                                    recentSearches = store.remove(query, for: user)
+                                }
                             }
-                            .buttonStyle(.bordered)
-                            .help("Search again: \(query)")
-                            .accessibilityLabel("Search again: \(query)")
+                            .transition(.identity)
                         }
                     }
                 }
+                .transition(.identity)
             }
             Spacer(minLength: 0)
         }
@@ -126,5 +121,65 @@ struct SearchView: View {
         recentSearches = store.record(query, for: user)
         isSearchFocused = false
         onSearch(query)
+    }
+}
+
+private struct RecentSearchButton: View {
+    let query: String
+    let onSearch: () -> Void
+    let onRemove: () -> Void
+
+    @State private var isHovering = false
+    @State private var isHoveringRemove = false
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            Button(action: onSearch) {
+                Label(query, systemImage: "clock.arrow.circlepath")
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .mask {
+                        HStack(spacing: 0) {
+                            Rectangle()
+                            if isHovering {
+                                LinearGradient(
+                                    colors: [.black, .clear],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                                .frame(width: 24)
+                                Color.clear.frame(width: 24)
+                            }
+                        }
+                    }
+                    .padding(8)
+            }
+            .buttonStyle(.bordered)
+            .overlay {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
+                    .allowsHitTesting(false)
+            }
+            .help("Search again: \(query)")
+            .accessibilityLabel("Search again: \(query)")
+            .accessibilityAction(named: Text("Remove recent search"), onRemove)
+
+            Button(action: onRemove) {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(isHoveringRemove ? Color.red : Color.secondary)
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Remove recent search: \(query)")
+            .accessibilityLabel("Remove recent search: \(query)")
+            .onContentHover { isHoveringRemove = $0 }
+            .opacity(isHovering ? 1 : 0)
+            .allowsHitTesting(isHovering)
+            .accessibilityHidden(!isHovering)
+            .padding(.trailing, 8)
+        }
+        .onContentHover { isHovering = $0 }
     }
 }

@@ -20,6 +20,13 @@ struct RecentSearchStore {
         return searches
     }
 
+    @discardableResult
+    func remove(_ query: String, for user: SoundCloudUser) -> [String] {
+        let searches = restore(for: user).filter { $0 != query }
+        defaults.set(searches, forKey: key(for: user))
+        return searches
+    }
+
     func clear(for user: SoundCloudUser) {
         defaults.removeObject(forKey: key(for: user))
     }
