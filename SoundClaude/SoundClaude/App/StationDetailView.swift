@@ -16,6 +16,12 @@ struct StationDetailView: View {
 
     private var tracks: [SoundCloudTrack] { station?.tracks ?? [] }
     private var title: String { station?.title ?? "Station" }
+    private var stationType: String {
+        let components = urn.split(separator: ":")
+        if components.contains("artist-stations") { return "Artist station" }
+        if components.contains("track-stations") { return "Track station" }
+        return "Station"
+    }
     private var currentStationTrack: SoundCloudTrack? {
         guard model.queue.source == .station(urn) else { return nil }
         return model.playback.currentTrack
@@ -110,7 +116,7 @@ struct StationDetailView: View {
                 }
                 .font(.system(size: 28, weight: .semibold))
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("Station")
+                    Text(stationType)
                     RelativeTimestampView(
                         timestamp: station?.lastUpdated,
                         accessibilityPrefix: "Last updated", prefix: "Updated"

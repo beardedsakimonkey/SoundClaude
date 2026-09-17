@@ -11,6 +11,7 @@ struct TrackDetailView: View {
     @ObservedObject private var reposts: RepostsController
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
+    let onSelectStation: (String) -> Void
 
     @State private var relatedTracks: [SoundCloudTrack] = []
     @State private var nextPageURL: URL?
@@ -29,7 +30,8 @@ struct TrackDetailView: View {
         track: SoundCloudTrack,
         model: AppModel,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
-        onSelectArtist: @escaping (SoundCloudUser) -> Void
+        onSelectArtist: @escaping (SoundCloudUser) -> Void,
+        onSelectStation: @escaping (String) -> Void
     ) {
         self.track = track
         self.model = model
@@ -37,6 +39,7 @@ struct TrackDetailView: View {
         _reposts = ObservedObject(wrappedValue: model.reposts)
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
+        self.onSelectStation = onSelectStation
 
         let cachedDetails = model.cachedTrackDetails(for: track)
         _details = State(initialValue: cachedDetails)
@@ -181,6 +184,9 @@ struct TrackDetailView: View {
                             playButton(for: details.track)
                             likeButton(for: details.track)
                             repostButton(for: details.track)
+                            if let stationURN = nonempty(details.track.stationURN) {
+                                stationButton(urn: stationURN)
+                            }
                         }
                         .padding(.top, 8)
 
@@ -409,6 +415,19 @@ struct TrackDetailView: View {
         .help(isReposted ? "Undo repost" : "Repost track")
         .accessibilityLabel(isReposted ? "Undo repost" : "Repost track")
         .accessibilityValue(isReposted ? "Reposted" : "Not reposted")
+    }
+
+    private func stationButton(urn: String) -> some View {
+        Button {
+            onSelectStation(urn)
+        } label: {
+            Label("Open track station", systemImage: "dot.radiowaves.left.and.right")
+                .labelStyle(.iconOnly)
+                .font(.title3.weight(.semibold))
+                .frame(width: 44, height: 24)
+        }
+        .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
+        .help("Open this track’s station")
     }
 
     private func nonempty(_ value: String?) -> String? {

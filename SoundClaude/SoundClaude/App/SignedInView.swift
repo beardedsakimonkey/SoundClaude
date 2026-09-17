@@ -227,7 +227,8 @@ struct SignedInView: View {
                                 track: track,
                                 model: model,
                                 onSelectTrack: showTrack,
-                                onSelectArtist: showArtist
+                                onSelectArtist: showArtist,
+                                onSelectStation: showStation
                             )
                             .id(track.urn)
                             .navigationBarBackButtonHidden(true)

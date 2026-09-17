@@ -122,6 +122,7 @@ struct SoundCloudTrack: Codable, Identifiable, Sendable, Hashable {
     var commentCount: Int? = nil
     var genre: String? = nil
     var createdAt: String? = nil
+    var stationURN: String? = nil
 
     var id: String { urn }
     var uploader: String { artist.username }
@@ -534,6 +535,7 @@ struct RawTrack: Decodable {
     let favoritingsCount: Int?
     let repostsCount: Int?
     let commentCount: Int?
+    let stationURN: String?
 
     enum CodingKeys: String, CodingKey {
         case urn
@@ -552,6 +554,7 @@ struct RawTrack: Decodable {
         case favoritingsCount = "favoritings_count"
         case repostsCount = "reposts_count"
         case commentCount = "comment_count"
+        case stationURN = "station_urn"
     }
 
     func normalized() -> SoundCloudTrack? {
@@ -577,7 +580,8 @@ struct RawTrack: Decodable {
             repostsCount: repostsCount,
             commentCount: commentCount,
             genre: genre,
-            createdAt: createdAt
+            createdAt: createdAt,
+            stationURN: stationURN
         )
     }
 
