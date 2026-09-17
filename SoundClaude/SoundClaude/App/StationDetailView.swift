@@ -39,10 +39,6 @@ struct StationDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     header
-                    if let description = station?.description?
-                        .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
-                        ExpandableDescriptionText(description: description, onSelectArtist: onSelectArtist)
-                    }
                     HStack {
                         CountedSectionHeader(title: "Tracks", count: station?.trackCount ?? tracks.count)
                         Spacer()
