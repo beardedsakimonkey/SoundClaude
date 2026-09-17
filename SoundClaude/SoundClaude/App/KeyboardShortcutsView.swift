@@ -14,6 +14,7 @@ struct KeyboardShortcutsView: View {
         Shortcut(title: "Toggle track queue", keys: ["Q"]),
         Shortcut(title: "Toggle visualizer", keys: ["V"]),
         Shortcut(title: "Focus current track", keys: ["F"]),
+        Shortcut(title: "Focus current artist", keys: ["A"]),
         Shortcut(title: "Focus search", keys: ["/"]),
         Shortcut(title: "Seek back 5 seconds", keys: ["←"]),
         Shortcut(title: "Seek forward 5 seconds", keys: ["→"]),

@@ -147,6 +147,10 @@ struct SignedInView: View {
                 if let track = model.playback.currentTrack { showTrack(track) }
             }
             .keyboardShortcut("f", modifiers: [])
+            Button("Focus current artist") {
+                if let track = model.playback.currentTrack { showArtist(track.artist) }
+            }
+            .keyboardShortcut("a", modifiers: [])
             Button("Show track queue") {
                 isShowingVisualizer = false
                 isShowingQueue = true
@@ -379,6 +383,7 @@ struct SignedInView: View {
 
     private func showArtist(_ artist: SoundCloudUser) {
         isShowingVisualizer = false
+        isShowingQueue = false
         if case let .artist(current) = path.last,
            current.permalinkURL == artist.permalinkURL { return }
         forwardPath.removeAll()

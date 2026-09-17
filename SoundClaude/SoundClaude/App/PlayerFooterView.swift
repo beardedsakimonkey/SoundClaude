@@ -91,6 +91,8 @@ struct PlayerFooterView: View {
                 Group {
                     if let track = playback.currentTrack {
                         ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                            .keyboardShortcut("a", modifiers: [])
+                            .help("Focus current artist (A)")
                     } else {
                         Text("Choose a track to start listening")
                     }
