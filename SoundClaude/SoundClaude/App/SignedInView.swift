@@ -234,6 +234,8 @@ struct SignedInView: View {
             rootView
                 .safeAreaPadding(.bottom, footerHeight)
                 .mask { bottomFade }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(nsColor: .windowBackgroundColor))
                 .toolbar { navigationToolbar }
                 .navigationDestination(for: Route.self) { route in
                     Group {
@@ -306,6 +308,10 @@ struct SignedInView: View {
                     }
                     .safeAreaPadding(.bottom, footerHeight)
                     .mask { bottomFade }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    // Keep the page opaque when the visualizer restores the stack.
+                    // The background must remain outside the footer fade mask.
+                    .background(Color(nsColor: .windowBackgroundColor))
                 }
         }
         .id(destinationID)
