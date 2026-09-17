@@ -98,10 +98,23 @@ struct TrackListRow: View {
                     value: isCurrentTrack
                 )
                 if showsArtist {
-                    ArtistLink(artist: track.artist, onSelect: onSelectArtist)
-                        .font(.caption)
-                        .foregroundStyle(isCurrentTrack ? Color.orange : Color.secondary)
-                        .onContentHover { isHoveringArtist = $0 }
+                    HStack(spacing: 4) {
+                        ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                            .onContentHover { isHoveringArtist = $0 }
+                        if let likeCount = likes.likeCount(for: track) {
+                            Text("·")
+                                .accessibilityHidden(true)
+                            HStack(spacing: 2) {
+                                Image(systemName: "heart")
+                                Text(likeCount.formatted())
+                            }
+                            .fixedSize()
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("\(likeCount.formatted()) likes")
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(isCurrentTrack ? Color.orange : Color.secondary)
                 }
             }
             .lineLimit(1)
