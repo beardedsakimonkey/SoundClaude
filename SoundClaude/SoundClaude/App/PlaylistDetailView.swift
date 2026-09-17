@@ -167,13 +167,10 @@ struct PlaylistDetailView: View {
         HStack(alignment: .top, spacing: 24) {
             playlistArtwork
             VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Image(systemName: "music.note.list")
-                        .accessibilityLabel("Playlist")
-                    Text(displayedPlaylist.title)
-                        .textSelection(.enabled)
-                }
-                .font(.system(size: 28, weight: .semibold))
+                Text("\(Image(systemName: "music.note.list")) \(displayedPlaylist.title)")
+                    .font(.system(size: 28, weight: .semibold))
+                    .textSelection(.enabled)
+                    .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     ArtistLink(
                         artist: displayedPlaylist.owner,

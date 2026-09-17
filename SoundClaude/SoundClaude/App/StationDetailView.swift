@@ -105,12 +105,10 @@ struct StationDetailView: View {
                 onShowArtwork: { isShowingArtwork = true }
             )
             VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Image(systemName: "dot.radiowaves.left.and.right")
-                        .accessibilityLabel("Station")
-                    Text(title).textSelection(.enabled)
-                }
-                .font(.system(size: 28, weight: .semibold))
+                Text("\(Image(systemName: "dot.radiowaves.left.and.right")) \(title)")
+                    .font(.system(size: 28, weight: .semibold))
+                    .textSelection(.enabled)
+                    .accessibilityLabel("Station, \(title)")
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(stationType)
                     RelativeTimestampView(
