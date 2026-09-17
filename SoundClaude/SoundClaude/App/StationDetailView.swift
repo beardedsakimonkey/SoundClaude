@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StationDetailView: View {
     let urn: String
+    let seedTrackURN: String?
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
@@ -143,6 +144,10 @@ struct StationDetailView: View {
             Button {
                 if currentStationTrack != nil {
                     model.playback.togglePlayPause()
+                } else if let seedTrackURN, model.playback.currentTrack?.urn == seedTrackURN {
+                    model.continuePlaybackInStation(
+                        urn: urn, tracks: tracks, continuingTrackURN: seedTrackURN
+                    )
                 } else if let track = tracks.first {
                     Task { await playTrack(track) }
                 }
