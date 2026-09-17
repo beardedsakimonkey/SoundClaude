@@ -215,7 +215,7 @@ struct TrackPreviewBadge: View {
             .padding(.vertical, 3)
             .overlay {
                 Capsule()
-                    .strokeBorder(.tertiary, lineWidth: 1)
+                    .strokeBorder(.secondary.opacity(0.35), lineWidth: 1)
             }
             .fixedSize()
             .help("Only a preview of this track is available.")
