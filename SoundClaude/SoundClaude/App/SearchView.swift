@@ -26,9 +26,22 @@ struct SearchView: View {
                     .onSubmit { search(searchText) }
                     .onExitCommand { isSearchFocused = false }
                     .accessibilityLabel("Search SoundCloud")
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                        isSearchFocused = true
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
+                }
                 Button("Search") { search(searchText) }
                     .disabled(searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: searchText.isEmpty)
             .padding(12)
             .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
             .background {
