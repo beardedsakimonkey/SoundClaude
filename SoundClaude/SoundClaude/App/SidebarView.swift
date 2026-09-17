@@ -5,7 +5,6 @@ struct SidebarView: View {
     @ObservedObject var playlists: PlaylistsController
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
-    let onSearch: (String) -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectProfile: (SoundCloudUser) -> Void
     let onReselect: () -> Void
@@ -13,8 +12,6 @@ struct SidebarView: View {
 
     @State private var isShowingCreatePlaylist = false
     @State private var isProfileHovered = false
-    @State private var searchText = ""
-    @FocusState private var isSearchFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -94,68 +91,6 @@ struct SidebarView: View {
         }
         .task { await playlists.load() }
         .listStyle(.sidebar)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            HStack(spacing: 6) {
-                Button {
-                    isSearchFocused = true
-                } label: {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut("/", modifiers: [])
-                .accessibilityLabel("Focus search")
-                .help("Focus search (/)")
-                TextField("", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .overlay(alignment: .leading) {
-                        // Keep the placeholder in place when native text editing starts.
-                        if searchText.isEmpty {
-                            Text("Search")
-                                .foregroundStyle(.placeholder)
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    .focused($isSearchFocused)
-                    .modifier(PreventAutomaticSearchFocus())
-                    .onExitCommand {
-                        if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            searchText = ""
-                        }
-                        isSearchFocused = false
-                    }
-                    .onSubmit {
-                        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-                        onSearch(searchText)
-                        isSearchFocused = false
-                    }
-                    .accessibilityLabel("Search SoundCloud")
-                    .help("Search SoundCloud. Press / to focus, then Return to search.")
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                        isSearchFocused = true
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
-                }
-            }
-            .padding(8)
-            .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
-            .background {
-                SearchOutsideClickView(isFocused: isSearchFocused) {
-                    if isSearchFocused {
-                        isSearchFocused = false
-                    }
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 12)
-        }
     }
 
     private func select(_ destination: SidebarDestination) {

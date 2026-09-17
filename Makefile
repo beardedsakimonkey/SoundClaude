@@ -53,6 +53,9 @@ icon:
 test-focus:
 	@mkdir -p /tmp/soundclaude-tests
 	swiftc -o /tmp/soundclaude-tests/search-focus \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/App/RecentSearchStore.swift \
+		SoundClaude/SoundClaude/App/SearchView.swift \
 		SoundClaude/SoundClaude/Likes/SearchOutsideClickView.swift \
 		tests/SearchFocusTests.swift
 	/tmp/soundclaude-tests/search-focus
@@ -89,6 +92,11 @@ test:
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
 		tests/SearchTests.swift
 	/tmp/soundclaude-tests/search
+	swiftc -o /tmp/soundclaude-tests/recent-searches \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/App/RecentSearchStore.swift \
+		tests/RecentSearchTests.swift
+	/tmp/soundclaude-tests/recent-searches
 	swiftc -o /tmp/soundclaude-tests/sidebar-selection \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/App/SidebarDestination.swift \

@@ -7,6 +7,8 @@ struct SignedInView: View {
     @State private var selectedDestination: SidebarDestination?
     private let selectionStore = SidebarSelectionStore()
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
+    @State private var searchText = ""
+    @State private var searchFocusRequest = UUID()
     @State private var isShowingVisualizer = false
     @State private var isShowingQueue = false
     @State private var isHoveringQueue = false
@@ -168,10 +170,12 @@ struct SignedInView: View {
                 playlists: model.playlists,
                 user: user,
                 artworkLoader: model.artworkLoader,
-                onSearch: showSearch,
                 onSelectPlaylist: showPlaylist,
                 onSelectProfile: showArtist,
-                onReselect: { navigationHistories[destinationID] = NavigationHistory() },
+                onReselect: {
+                    navigationHistories[destinationID] = NavigationHistory()
+                    if selectedDestination == .search { searchFocusRequest = UUID() }
+                },
                 onSignOut: model.signOut
             )
                 .safeAreaPadding(.bottom, footerHeight)
@@ -184,6 +188,16 @@ struct SignedInView: View {
             selectedView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .background {
+            Button("Open search", action: openSearch)
+                .keyboardShortcut("/", modifiers: [])
+                .hidden()
+                .accessibilityHidden(true)
+        }
+    }
+
+    private func openSearch() {
+        sidebarSelection.wrappedValue = .search
     }
 
     // Apply the clearance and fade to each page inside the navigation stack.
@@ -313,6 +327,13 @@ struct SignedInView: View {
                 onSelectArtist: showArtist,
                 feed: model.feed
             )
+        case .search:
+            SearchView(
+                user: user,
+                searchText: $searchText,
+                focusRequest: searchFocusRequest,
+                onSearch: showSearch
+            )
         case .history:
             HistoryView(
                 model: model,
@@ -440,6 +461,10 @@ struct SignedInView: View {
             get: { selectedDestination },
             set: { destination in
                 guard let destination else { return }
+                if destination == .search {
+                    navigationHistories[destination.id] = NavigationHistory()
+                    searchFocusRequest = UUID()
+                }
                 selectedDestination = destination
                 selectionStore.save(destination, for: user)
             }

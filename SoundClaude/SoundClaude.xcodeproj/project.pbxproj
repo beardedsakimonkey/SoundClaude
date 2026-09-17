@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D91700000000000000000002 /* RecentSearchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91700000000000000000012 /* RecentSearchStore.swift */; };
+		D91700000000000000000001 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91700000000000000000011 /* SearchView.swift */; };
 		C9FA7C0ECE4247239C5F652B /* PlayerArtworkGlass.metal in Sources */ = {isa = PBXBuildFile; fileRef = 8D06FA75D610477E98EECAA2 /* PlayerArtworkGlass.metal */; };
 		A10000000000000000000001 /* SoundClaudeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* SoundClaudeApp.swift */; };
 		A10000000000000000000002 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* AppModel.swift */; };
@@ -87,6 +89,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		D91700000000000000000012 /* RecentSearchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentSearchStore.swift; sourceTree = "<group>"; };
+		D91700000000000000000011 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		8D06FA75D610477E98EECAA2 /* PlayerArtworkGlass.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = PlayerArtworkGlass.metal; sourceTree = "<group>"; };
 		A20000000000000000000001 /* SoundClaudeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundClaudeApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
@@ -261,6 +265,8 @@
 				A20000000000000000000036 /* TrackWaveformView.swift */,
 				A2000000000000000000002D /* TrackArtworkView.swift */,
 				A2000000000000000000002E /* SignedInView.swift */,
+				D91700000000000000000012 /* RecentSearchStore.swift */,
+				D91700000000000000000011 /* SearchView.swift */,
 				E86C82775C864E97AE14574B /* SidebarView.swift */,
 				A20000000000000000000030 /* SidebarDestination.swift */,
 				A20000000000000000000032 /* FeedView.swift */,
@@ -508,6 +514,8 @@
 				A1000000000000000000001E /* TrackWaveformView.swift in Sources */,
 				A10000000000000000000015 /* TrackArtworkView.swift in Sources */,
 				A10000000000000000000016 /* SignedInView.swift in Sources */,
+				D91700000000000000000002 /* RecentSearchStore.swift in Sources */,
+				D91700000000000000000001 /* SearchView.swift in Sources */,
 				C2F91168AE4C486180421476 /* SidebarView.swift in Sources */,
 				A10000000000000000000018 /* SidebarDestination.swift in Sources */,
 				A1000000000000000000001A /* FeedView.swift in Sources */,

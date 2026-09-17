@@ -70,8 +70,32 @@ private struct SearchFocusTests {
                     precondition(field.currentEditor() == nil, "Outside click must end editing")
                     precondition(!monitor.isFocused, "Outside click must clear SwiftUI focus")
                     precondition(field.stringValue == "Keep this query", "Dismissal must retain the query")
-                    print("Search focus tests passed")
-                    app.terminate(nil)
+                    let user = SoundCloudUser(
+                        urn: "soundcloud:users:focus-test", username: "Focus test",
+                        avatarURL: nil, permalinkURL: URL(string: "https://soundcloud.com/focus-test")!
+                    )
+                    let searchHost = NSHostingView(rootView: SearchView(
+                        user: user, searchText: .constant(""), focusRequest: UUID(),
+                        onSearch: { _ in }
+                    ))
+                    window.contentView = searchHost
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        let searchField = descendant(NSTextField.self, in: searchHost)!
+                        precondition(searchField.currentEditor() != nil, "Search route must focus its input on arrival")
+                        click(NSPoint(x: 250, y: 100))
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            precondition(searchField.currentEditor() == nil, "Outside click must release search focus")
+                            searchHost.rootView = SearchView(
+                                user: user, searchText: .constant(""), focusRequest: UUID(),
+                                onSearch: { _ in }
+                            )
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                precondition(searchField.currentEditor() != nil, "Reselecting Search must restore input focus")
+                                print("Search focus tests passed")
+                                app.terminate(nil)
+                            }
+                        }
+                    }
                 }
             }
         }

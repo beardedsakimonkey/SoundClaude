@@ -1,14 +1,16 @@
 import Foundation
 
 enum SidebarDestination: Codable, Hashable, Identifiable {
+    case search
     case feed
     case liked
     case history
 
-    static let libraryDestinations: [Self] = [.feed, .liked, .history]
+    static let libraryDestinations: [Self] = [.search, .feed, .liked, .history]
 
     var id: String {
         switch self {
+        case .search: "search"
         case .feed: "feed"
         case .liked: "liked"
         case .history: "history"
@@ -17,6 +19,8 @@ enum SidebarDestination: Codable, Hashable, Identifiable {
 
     var title: String {
         switch self {
+        case .search:
+            "Search"
         case .feed:
             "Feed"
         case .liked:
@@ -28,6 +32,8 @@ enum SidebarDestination: Codable, Hashable, Identifiable {
 
     var systemImage: String {
         switch self {
+        case .search:
+            "magnifyingglass"
         case .feed:
             "list.bullet.rectangle"
         case .liked:
