@@ -210,22 +210,20 @@ struct PlaylistDetailView: View {
                 }
                 .padding(.top, 8)
 
-                if let track = currentPlaylistTrack {
-                    Spacer(minLength: 6)
-                    TrackWaveformView(
-                        track: track,
-                        model: model,
-                        invertsBarsOnTrackChange: true,
-                        collapsesBarsWhenPaused: true
-                    )
-                    .offset(y: -2)
-                }
+                Spacer(minLength: 6)
+                TrackWaveformView(
+                    track: currentPlaylistTrack,
+                    model: model,
+                    invertsBarsOnTrackChange: true,
+                    collapsesBarsWhenPaused: true,
+                    keepsBarsVisible: true
+                )
+                .offset(y: -2)
             }
             // Match the track detail header's waveform ground and reflection.
             .frame(
                 maxWidth: .infinity,
-                minHeight: currentPlaylistTrack != nil
-                    ? artworkSize + TrackWaveformView.Layout.detail.reflectionHeight : nil,
+                minHeight: artworkSize + TrackWaveformView.Layout.detail.reflectionHeight,
                 alignment: .topLeading
             )
         }

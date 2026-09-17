@@ -14,12 +14,13 @@ struct TrackWaveformView: View {
         }
     }
 
-    let track: SoundCloudTrack
+    let track: SoundCloudTrack?
     let model: AppModel
     let layout: Layout
     let height: CGFloat
     let invertsBarsOnTrackChange: Bool
     let collapsesBarsWhenPaused: Bool
+    let keepsBarsVisible: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
 
     private let playback: PlaybackController
@@ -39,12 +40,13 @@ struct TrackWaveformView: View {
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     init(
-        track: SoundCloudTrack,
+        track: SoundCloudTrack?,
         model: AppModel,
         layout: Layout = .detail,
         height: CGFloat? = nil,
         invertsBarsOnTrackChange: Bool = false,
         collapsesBarsWhenPaused: Bool? = nil,
+        keepsBarsVisible: Bool = false,
         onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
     ) {
         self.track = track
@@ -53,12 +55,12 @@ struct TrackWaveformView: View {
         self.height = height ?? layout.height
         self.invertsBarsOnTrackChange = invertsBarsOnTrackChange
         self.collapsesBarsWhenPaused = collapsesBarsWhenPaused ?? (layout == .detail)
+        self.keepsBarsVisible = keepsBarsVisible
         self.onPlayTrack = onPlayTrack
         playback = model.playback
-        _waveform = State(initialValue: model.cachedWaveform(for: track))
-        _waveformTrackURN = State(
-            initialValue: model.cachedWaveform(for: track) == nil ? nil : track.urn
-        )
+        let cachedWaveform = track.flatMap { model.cachedWaveform(for: $0) }
+        _waveform = State(initialValue: cachedWaveform)
+        _waveformTrackURN = State(initialValue: cachedWaveform == nil ? nil : track?.urn)
     }
 
     var body: some View {
@@ -70,7 +72,7 @@ struct TrackWaveformView: View {
                     // (including its progress labels) while the visualizer covers it.
                     Color.clear
                         .frame(height: height)
-                } else if layout == .compact {
+                } else if layout == .compact || keepsBarsVisible || track == nil {
                     waveformView(waveform)
                         .overlay {
                             if waveform == nil, let errorMessage {
@@ -96,13 +98,13 @@ struct TrackWaveformView: View {
                 }
             }
         }
-        .task(id: [track.urn, track.waveformURL?.absoluteString ?? ""]) {
+        .task(id: [track?.urn ?? "", track?.waveformURL?.absoluteString ?? ""]) {
             await load()
         }
-        .task(id: track.displayArtworkURL) {
+        .task(id: track?.displayArtworkURL) {
             artworkAccent = nil
             accentArtworkURL = nil
-            guard let url = track.displayArtworkURL,
+            guard let url = track?.displayArtworkURL,
                   let accent = try? await model.artworkLoader.accentColor(for: url),
                   !Task.isCancelled else { return }
             artworkAccent = accent
@@ -276,8 +278,8 @@ struct TrackWaveformView: View {
                         }
                 )
                 .help(
-                    isCurrentTrack
-                        ? "Click or drag to seek."
+                    track == nil ? "Start playback to see the waveform."
+                        : isCurrentTrack ? "Click or drag to seek."
                         : "Click to play from this position."
                 )
             }
@@ -313,7 +315,7 @@ struct TrackWaveformView: View {
             return .handled
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Track waveform")
+        .accessibilityLabel(track == nil ? "Waveform, playback not started" : "Track waveform")
         .accessibilityValue(
             "\(format(seconds: displayedCurrentTime)) of "
                 + format(seconds: displayedDuration)
@@ -400,7 +402,7 @@ struct TrackWaveformView: View {
         let fallback = ArtworkAccent(
             red: blue.redComponent, green: blue.greenComponent, blue: blue.blueComponent
         )
-        let accent = accentArtworkURL == track.displayArtworkURL
+        let accent = accentArtworkURL == track?.displayArtworkURL
             ? artworkAccent ?? fallback : fallback
         let contrastedAccent = accent.contrasted(
             isDark: colorScheme == .dark,
@@ -413,7 +415,8 @@ struct TrackWaveformView: View {
     }
 
     private var isCurrentTrack: Bool {
-        playback.currentTrack?.urn == track.urn
+        guard let track else { return false }
+        return playback.currentTrack?.urn == track.urn
     }
 
     private var shouldDimBars: Bool {
@@ -432,7 +435,7 @@ struct TrackWaveformView: View {
         if isCurrentTrack, playback.duration > 0 {
             return playback.duration
         }
-        return Double(track.durationMilliseconds) / 1_000
+        return Double(track?.durationMilliseconds ?? 0) / 1_000
     }
 
     private var progress: Double {
@@ -441,11 +444,12 @@ struct TrackWaveformView: View {
     }
 
     private var barsAreCollapsed: Bool {
-        collapsesBarsWhenPaused && (!isCurrentTrack || !playback.isPlaybackActive)
+        track == nil || (keepsBarsVisible && waveform == nil)
+            || (collapsesBarsWhenPaused && (!isCurrentTrack || !playback.isPlaybackActive))
     }
 
     private var showsHoverPreview: Bool {
-        isHovering && contentHoverEnabled
+        track != nil && isHovering && contentHoverEnabled
     }
 
     private func barAmplitudes(
@@ -524,6 +528,7 @@ struct TrackWaveformView: View {
     }
 
     private func seek(to fraction: Double) {
+        guard let track else { return }
         let target = fraction * displayedDuration
         if isCurrentTrack {
             playback.seek(to: target)
@@ -552,6 +557,13 @@ struct TrackWaveformView: View {
     }
 
     private func load() async {
+        guard let track else {
+            waveform = nil
+            waveformTrackURN = nil
+            barDirection = 1
+            errorMessage = nil
+            return
+        }
         if let cachedWaveform = model.cachedWaveform(for: track) {
             setWaveform(cachedWaveform)
             errorMessage = nil
@@ -574,6 +586,7 @@ struct TrackWaveformView: View {
     }
 
     private func setWaveform(_ loadedWaveform: SoundCloudWaveform) {
+        guard let track else { return }
         if invertsBarsOnTrackChange,
            let waveformTrackURN, waveformTrackURN != track.urn {
             barDirection *= -1

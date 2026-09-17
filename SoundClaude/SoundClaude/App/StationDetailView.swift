@@ -120,19 +120,17 @@ struct StationDetailView: View {
                 .font(.title3)
                 .foregroundStyle(.secondary)
                 playbackControls.padding(.top, 8)
-                if let track = currentStationTrack {
-                    Spacer(minLength: 6)
-                    TrackWaveformView(
-                        track: track, model: model,
-                        invertsBarsOnTrackChange: true, collapsesBarsWhenPaused: true
-                    )
-                    .offset(y: -2)
-                }
+                Spacer(minLength: 6)
+                TrackWaveformView(
+                    track: currentStationTrack, model: model,
+                    invertsBarsOnTrackChange: true, collapsesBarsWhenPaused: true,
+                    keepsBarsVisible: true
+                )
+                .offset(y: -2)
             }
             .frame(
                 maxWidth: .infinity,
-                minHeight: currentStationTrack != nil
-                    ? 250 + TrackWaveformView.Layout.detail.reflectionHeight : nil,
+                minHeight: 250 + TrackWaveformView.Layout.detail.reflectionHeight,
                 alignment: .topLeading
             )
         }
