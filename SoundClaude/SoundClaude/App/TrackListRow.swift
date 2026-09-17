@@ -14,6 +14,7 @@ struct TrackListRow: View {
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
 
+    @Environment(\.addToPlaylist) private var addToPlaylist
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
     @State private var isHoveringArtwork = false
@@ -134,8 +135,11 @@ struct TrackListRow: View {
                 .opacity(isHovering ? 0 : 1)
                 .overlay {
                     Menu {
-                        Button("Add to queue") {
+                        Button("Add to queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
                             onAddToQueue(track)
+                        }
+                        Button("Add to playlist", systemImage: "music.note.list") {
+                            addToPlaylist(track)
                         }
                     } label: {
                         Image(systemName: "ellipsis")
@@ -220,5 +224,91 @@ struct TrackPreviewBadge: View {
             .fixedSize()
             .help("Only a preview of this track is available.")
             .accessibilityLabel("Preview only")
+    }
+}
+
+private struct AddToPlaylistKey: EnvironmentKey {
+    static let defaultValue: (SoundCloudTrack) -> Void = { _ in }
+}
+
+extension EnvironmentValues {
+    var addToPlaylist: (SoundCloudTrack) -> Void {
+        get { self[AddToPlaylistKey.self] }
+        set { self[AddToPlaylistKey.self] = newValue }
+    }
+}
+
+struct AddToPlaylistView: View {
+    let track: SoundCloudTrack
+    let user: SoundCloudUser
+    @ObservedObject var playlists: PlaylistsController
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedURN: String?
+    @State private var isAdding = false
+    @State private var errorMessage: String?
+
+    private var ownedPlaylists: [SoundCloudPlaylist] {
+        playlists.playlists.filter {
+            ($0.owner.urn == user.urn && user.urn != nil)
+                || $0.owner.permalinkURL == user.permalinkURL
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Add to playlist").font(.title2.bold())
+            Text(track.title).foregroundStyle(.secondary).lineLimit(2)
+            List(ownedPlaylists, selection: $selectedURN) { playlist in
+                Label(playlist.title, systemImage: playlist.isPrivate ? "lock" : "music.note.list")
+                    .tag(playlist.urn)
+            }
+            .overlay {
+                if ownedPlaylists.isEmpty {
+                    if playlists.isLoading {
+                        ProgressView()
+                    } else {
+                        Text("No playlists. Create a playlist in the sidebar first.")
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding()
+                    }
+                }
+            }
+            .disabled(isAdding)
+            if let message = errorMessage ?? playlists.errorMessage {
+                Text(message).foregroundStyle(.red).font(.callout)
+                Button("Reload playlists") { Task { await playlists.load() } }
+                    .disabled(isAdding || playlists.isLoading)
+            }
+            HStack {
+                if isAdding { ProgressView().controlSize(.small) }
+                Spacer()
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                    .disabled(isAdding)
+                Button("Add") {
+                    guard let playlist = ownedPlaylists.first(where: { $0.urn == selectedURN }) else { return }
+                    isAdding = true
+                    errorMessage = nil
+                    Task { @MainActor in
+                        defer { isAdding = false }
+                        do {
+                            try await playlists.addTrack(track, to: playlist)
+                            dismiss()
+                        } catch is CancellationError {
+                            dismiss()
+                        } catch {
+                            errorMessage = error.localizedDescription
+                        }
+                    }
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(isAdding || selectedURN == nil)
+            }
+        }
+        .padding(24)
+        .frame(width: 420, height: 380)
+        .interactiveDismissDisabled(isAdding)
+        .task { await playlists.load() }
     }
 }

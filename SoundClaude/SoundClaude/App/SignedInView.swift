@@ -7,6 +7,7 @@ struct SignedInView: View {
     @State private var selectedDestination: SidebarDestination?
     private let selectionStore = SidebarSelectionStore()
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
+    @State private var playlistTrack: SoundCloudTrack?
     @State private var searchText = ""
     @State private var searchFocusRequest = UUID()
     @State private var isShowingVisualizer = false
@@ -118,6 +119,10 @@ struct SignedInView: View {
                     footerHeight = height
                 }
             }
+        }
+        .environment(\.addToPlaylist, { playlistTrack = $0 })
+        .sheet(item: $playlistTrack) { track in
+            AddToPlaylistView(track: track, user: user, playlists: model.playlists)
         }
         .environment(\.searchGenre, showGenreSearch)
         .background {

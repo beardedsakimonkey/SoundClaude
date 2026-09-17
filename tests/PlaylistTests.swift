@@ -174,6 +174,61 @@ struct PlaylistTests {
              "permalink_url":"https://soundcloud.com/owner/track","access":"playable",
              "user":{"username":"Owner","permalink_url":"https://soundcloud.com/owner"}}
             """
+        let updateNext = "https://api.soundcloud.com/playlists/soundcloud:playlists:42/tracks?cursor=update"
+        var updateRequests = 0
+        PlaylistURLProtocol.respond { request in
+            updateRequests += 1
+            if request.httpMethod == "PUT" {
+                precondition(updateRequests == 3)
+                precondition(request.url?.path == "/playlists/soundcloud:playlists:42")
+                var body = request.httpBody ?? Data()
+                if let stream = request.httpBodyStream {
+                    stream.open()
+                    defer { stream.close() }
+                    var buffer = [UInt8](repeating: 0, count: 1024)
+                    while stream.hasBytesAvailable {
+                        let count = stream.read(&buffer, maxLength: buffer.count)
+                        precondition(count >= 0)
+                        if count == 0 { break }
+                        body.append(contentsOf: buffer.prefix(count))
+                    }
+                }
+                let payload = try! JSONSerialization.jsonObject(with: body) as! [String: [String: [[String: String]]]]
+                precondition(payload["playlist"]?["tracks"]?.compactMap { $0["urn"] } == [
+                    "soundcloud:tracks:1", "soundcloud:tracks:2", "soundcloud:tracks:3"
+                ])
+                return (200, playlist)
+            }
+            if updateRequests == 1 {
+                let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+                precondition(query.contains(URLQueryItem(name: "access", value: "playable,preview,blocked")))
+                return (200, "{\"collection\":[\(track)],\"next_href\":\"\(updateNext)\"}")
+            }
+            precondition(request.url?.absoluteString == updateNext)
+            return (200, "[{\"urn\":\"soundcloud:tracks:2\",\"access\":\"blocked\"}]")
+        }
+        try await client.addTrackToPlaylist(
+            trackURN: "soundcloud:tracks:3", playlistURN: details.urn, accessToken: "test-token"
+        )
+        precondition(updateRequests == 3)
+        PlaylistURLProtocol.respond { request in
+            precondition(request.httpMethod == "GET")
+            return (200, "[\(track)]")
+        }
+        try await client.addTrackToPlaylist(
+            trackURN: "soundcloud:tracks:1", playlistURN: details.urn, accessToken: "test-token"
+        )
+        PlaylistURLProtocol.respond { request in
+            precondition(request.httpMethod == "GET")
+            return (200, "[{}]")
+        }
+        do {
+            try await client.addTrackToPlaylist(
+                trackURN: "soundcloud:tracks:3", playlistURN: details.urn, accessToken: "test-token"
+            )
+            fatalError("Incomplete track identities must not overwrite a playlist")
+        } catch SoundCloudError.invalidData {}
+
         let stationURN = "soundcloud:system-playlists:artist-stations:42"
         for field in ["", ",\"station_urn\":null", ",\"station_urn\":\"\(stationURN)\""] {
             let json = "{\"username\":\"Owner\",\"permalink_url\":\"https://soundcloud.com/owner\"\(field)}"

@@ -9,6 +9,12 @@ final class AuthController {
 
 @MainActor
 final class SoundCloudClient {
+    var addedTrackURNs: [String] = []
+    var failAddition = false
+    func addTrackToPlaylist(trackURN: String, playlistURN: String, accessToken: String) async throws {
+        if failAddition { throw SoundCloudError.invalidData }
+        addedTrackURNs.append(trackURN)
+    }
     var failDeletion = false
     var deletedURNs: [String] = []
     func deletePlaylist(urn: String, accessToken: String) async throws {
@@ -95,6 +101,20 @@ struct PlaylistsCacheTests {
         await controller.restoreCache()
         precondition(controller.playlists == baseline.playlists && client.listRequests.isEmpty)
         precondition(controller.cache.contents["playlist:1"]?.tracks == [track(1), track(2), track(3)])
+
+        client.fetchTracks = { _ in
+            SoundCloudTrackPage(tracks: [track(1), track(2), track(3)], nextURL: nil)
+        }
+        try await controller.addTrack(track(3), to: makePlaylist(1))
+        precondition(client.addedTrackURNs == [track(3).urn])
+        precondition(controller.cache.contents["playlist:1"]?.tracks == [track(1), track(2), track(3)])
+        client.failAddition = true
+        do {
+            try await controller.addTrack(track(4), to: makePlaylist(1))
+            fatalError("Failed addition was accepted")
+        } catch SoundCloudError.invalidData {}
+        precondition(controller.cache.contents["playlist:1"]?.tracks == [track(1), track(2), track(3)])
+        client.failAddition = false
 
         // A failed later page keeps the complete old list and track order, on disk too.
         client.fetchList = { url in

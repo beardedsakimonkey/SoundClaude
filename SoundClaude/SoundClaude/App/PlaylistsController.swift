@@ -130,6 +130,25 @@ final class PlaylistsController: ObservableObject {
         return playlist
     }
 
+    func addTrack(_ track: SoundCloudTrack, to playlist: SoundCloudPlaylist) async throws {
+        await restoreCache()
+        let session = sessionID
+        guard case let .signedIn(user) = auth.state,
+              playlist.owner.urn == user.urn && user.urn != nil
+                || playlist.owner.permalinkURL == user.permalinkURL else {
+            throw SoundCloudError.invalidData
+        }
+        let token = try await accessToken(session: session)
+        try await client.addTrackToPlaylist(
+            trackURN: track.urn, playlistURN: playlist.urn, accessToken: token
+        )
+        try checkSession(session)
+        if let syncTask { await syncTask.value }
+        if let task = playlistTasks[playlist.urn] { await task.value }
+        try checkSession(session)
+        await loadPlaylist(playlist)
+    }
+
     func deletePlaylist(_ playlist: SoundCloudPlaylist) async throws {
         await restoreCache()
         let session = sessionID

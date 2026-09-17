@@ -631,6 +631,37 @@ actor SoundCloudClient {
         return playlist
     }
 
+    func addTrackToPlaylist(trackURN: String, playlistURN: String, accessToken: String) async throws {
+        let playlistURL = configuration.apiBaseURL.appending(path: "playlists").appending(path: playlistURN)
+        var nextURL: URL? = playlistURL.appending(path: "tracks").appending(queryItems: [
+            URLQueryItem(name: "linked_partitioning", value: "true"),
+            URLQueryItem(name: "access", value: "playable,preview,blocked"),
+        ])
+        var visited: Set<URL> = []
+        var trackURNs: [String] = []
+        while let url = nextURL {
+            try validateAPIURL(url)
+            guard visited.insert(url).inserted else { throw SoundCloudError.invalidData }
+            let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+            try validate(response: response, data: data)
+            let page = try decoder.decode(RawTrackPage.self, from: data)
+            for track in page.collection {
+                guard let urn = track.urn, !urn.isEmpty else { throw SoundCloudError.invalidData }
+                trackURNs.append(urn)
+            }
+            nextURL = page.nextURL
+        }
+        guard !trackURNs.contains(trackURN) else { return }
+        trackURNs.append(trackURN)
+        let body = try JSONSerialization.data(withJSONObject: [
+            "playlist": ["tracks": trackURNs.map { ["urn": $0] }]
+        ])
+        let (data, response) = try await authenticatedRequest(
+            url: playlistURL, accessToken: accessToken, method: "PUT", body: body
+        )
+        try validate(response: response, data: data)
+    }
+
     func deletePlaylist(urn: String, accessToken: String) async throws {
         let url = configuration.apiBaseURL.appending(path: "playlists").appending(path: urn)
         let (data, response) = try await authenticatedRequest(
