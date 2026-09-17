@@ -12,10 +12,13 @@ struct SearchView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
+            Text("Search")
+                .font(.largeTitle.weight(.semibold))
+
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
-                TextField("Search SoundCloud", text: $searchText)
+                TextField("Search tracks, users, and playlists", text: $searchText)
                     .textFieldStyle(.plain)
                     .focused($isSearchFocused)
                     .onSubmit { search(searchText) }
@@ -42,6 +45,7 @@ struct SearchView: View {
                     isSearchFocused = false
                 }
             }
+            .frame(maxWidth: 600)
 
             if !recentSearches.isEmpty {
                 HStack {
@@ -73,7 +77,13 @@ struct SearchView: View {
             }
             Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
+        .background(alignment: .top) {
+            backdrop
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+        }
         .navigationTitle("Search")
         .task(id: focusRequest) {
             recentSearches = store.restore(for: user)
@@ -83,6 +93,30 @@ struct SearchView: View {
             isSearchFocused = true
         }
         .onDisappear { isSearchFocused = false }
+    }
+
+    @ViewBuilder
+    private var backdrop: some View {
+        let gradient = LinearGradient(
+            stops: (0...16).map { step in
+                let progress = Double(step) / 16
+                // Smoothstep keeps both ends of the fade soft.
+                let eased = progress * progress * (3 - 2 * progress)
+                return Gradient.Stop(
+                    color: .purple.opacity(0.3 * (1 - eased)),
+                    location: CGFloat(progress)
+                )
+            },
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 150)
+
+        if #available(macOS 26.0, *) {
+            gradient.backgroundExtensionEffect()
+        } else {
+            gradient
+        }
     }
 
     private func search(_ text: String) {
