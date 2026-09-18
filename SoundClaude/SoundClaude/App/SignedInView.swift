@@ -15,6 +15,7 @@ struct SignedInView: View {
     @State private var isHoveringQueue = false
     @State private var footerHeight: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     init(user: SoundCloudUser, model: AppModel) {
         self.user = user
@@ -80,7 +81,11 @@ struct SignedInView: View {
                             width: max(0, min(560, geometry.size.width - 28)),
                             height: max(0, min(520, availableHeight - 28))
                         )
-                        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 16))
+                        .background {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color(white: colorScheme == .dark ? 0.20 : 0.94))
+                                .shadow(color: .black, radius: 12, y: 4)
+                        }
                         .overlay {
                             RoundedRectangle(cornerRadius: 16)
                                 .strokeBorder(.primary.opacity(0.12), lineWidth: 1)
@@ -89,7 +94,6 @@ struct SignedInView: View {
                         .contentShape(RoundedRectangle(cornerRadius: 16))
                         .onHover { isHoveringQueue = $0 }
                         .onDisappear { isHoveringQueue = false }
-                        .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
                         .padding(14)
                         .transition(
                             .move(edge: .bottom)
