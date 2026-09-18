@@ -54,9 +54,12 @@ struct ArtistDetailView: View {
     @State private var webProfilesErrorMessage: String?
     @State private var hoveredWebProfileURL: URL?
     @State private var relatedArtists: [SoundCloudUser] = []
+    @State private var relatedArtistsPage = 0
+    private let relatedArtistsPageSize = 3
     @State private var isLoadingRelatedArtists = false
     @State private var relatedArtistsErrorMessage: String?
     @State private var hoveredRelatedArtistURL: URL?
+    @State private var isHoveringRelatedRefresh = false
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var tracks: [SoundCloudTrack] = []
@@ -358,11 +361,11 @@ struct ArtistDetailView: View {
                                     .textSelection(.enabled)
                             }
                             profileLinks
-                            if !relatedArtists.isEmpty {
+                            if !relatedArtists.isEmpty || isLoadingRelatedArtists || relatedArtistsErrorMessage != nil {
                                 relatedArtistsSection
                             }
                         }
-                        .frame(width: max(0, geometry.size.width - 72) * 0.3, alignment: .leading)
+                        .frame(width: min(320, max(0, geometry.size.width - 72) * 0.3), alignment: .leading)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -425,12 +428,24 @@ struct ArtistDetailView: View {
 
     private var relatedArtistsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Related")
-                .font(.headline)
-                .opacity(0.96)
+            HStack {
+                Text("Related")
+                    .font(.headline)
+                    .opacity(0.96)
+                Spacer()
+                Button("Refresh") {
+                    refreshRelatedArtists()
+                }
+                .buttonStyle(.plain)
+                .font(.callout)
+                .foregroundStyle(isHoveringRelatedRefresh ? .primary : .secondary)
+                .onContentHover { isHoveringRelatedRefresh = $0 }
+                .disabled(isLoadingRelatedArtists || relatedArtists.count <= relatedArtistsPageSize)
+                .help("Show the next page of related artists")
+            }
 
             VStack(spacing: 0) {
-                ForEach(relatedArtists, id: \.permalinkURL) { user in
+                ForEach(relatedArtists.dropFirst(relatedArtistsPage * relatedArtistsPageSize).prefix(relatedArtistsPageSize), id: \.permalinkURL) { user in
                     Button {
                         onSelectArtist(user)
                     } label: {
@@ -504,8 +519,16 @@ struct ArtistDetailView: View {
         }
     }
 
+    private func refreshRelatedArtists() {
+        let nextPage = relatedArtistsPage + 1
+        relatedArtistsPage = nextPage * relatedArtistsPageSize < relatedArtists.count ? nextPage : 0
+        hoveredRelatedArtistURL = nil
+    }
+
     private func loadRelatedArtists() async {
         relatedArtists = []
+        relatedArtistsPage = 0
+        hoveredRelatedArtistURL = nil
         relatedArtistsErrorMessage = nil
         guard let user = details?.user, user.urn != nil else { return }
         isLoadingRelatedArtists = true

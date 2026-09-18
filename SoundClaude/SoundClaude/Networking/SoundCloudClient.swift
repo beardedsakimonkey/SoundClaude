@@ -344,7 +344,7 @@ actor SoundCloudClient {
         let url = configuration.apiBaseURL.appending(path: "users")
             .appending(path: urn).appending(path: "related")
             .appending(queryItems: [
-                URLQueryItem(name: "limit", value: "5"),
+                URLQueryItem(name: "limit", value: "12"),
                 URLQueryItem(name: "linked_partitioning", value: "true"),
             ])
         let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
@@ -353,7 +353,7 @@ actor SoundCloudClient {
         var seen: Set<URL> = []
         return Array(page.collection.compactMap { $0.normalized() }
             .filter { $0.urn != urn && seen.insert($0.permalinkURL).inserted }
-            .prefix(5))
+            .prefix(12))
     }
 
     func followedArtistURNs(accessToken: String) async throws -> Set<String> {

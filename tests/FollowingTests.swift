@@ -13,7 +13,7 @@ struct FollowingTests {
             precondition(request.url?.path == "/users/soundcloud:users:1/related")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems
-            precondition(query?.contains(URLQueryItem(name: "limit", value: "5")) == true)
+            precondition(query?.contains(URLQueryItem(name: "limit", value: "12")) == true)
             precondition(query?.contains(URLQueryItem(name: "linked_partitioning", value: "true")) == true)
             return (200, """
                 {"collection":[
