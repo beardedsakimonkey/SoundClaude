@@ -738,6 +738,7 @@ struct ArtistDetailView: View {
                         ))
                     }
                 )
+                .modifier(FadeInOnAppear())
             }
             if let tracksErrorMessage {
                 Text(tracksErrorMessage).foregroundStyle(.secondary)
@@ -781,6 +782,7 @@ struct ArtistDetailView: View {
                         ))
                     }
                 )
+                .modifier(FadeInOnAppear())
             }
             if let repostsErrorMessage {
                 Text(repostsErrorMessage).foregroundStyle(.secondary)
@@ -827,6 +829,7 @@ struct ArtistDetailView: View {
                         ))
                     }
                 )
+                .modifier(FadeInOnAppear())
             }
             if let likesErrorMessage {
                 Text(likesErrorMessage).foregroundStyle(.secondary)
@@ -868,6 +871,7 @@ struct ArtistDetailView: View {
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist
                 )
+                .modifier(FadeInOnAppear())
             }
             if let playlistsErrorMessage {
                 Text(playlistsErrorMessage).foregroundStyle(.secondary)

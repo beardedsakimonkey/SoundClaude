@@ -53,7 +53,8 @@ struct StationDetailView: View {
                         TrackCollectionTracks(
                             tracks: tracks, trackLayout: trackLayout, model: model,
                             onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
-                            onPlayTrack: playTrack
+                            onPlayTrack: playTrack,
+                            fadesInTracks: true
                         )
                         if let errorMessage {
                             Text(errorMessage).foregroundStyle(.secondary)

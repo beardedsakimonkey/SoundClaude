@@ -40,6 +40,7 @@ struct TrackCollectionTracks: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
+    var fadesInTracks = false
 
     var body: some View {
         if trackLayout == .grid {
@@ -58,6 +59,7 @@ struct TrackCollectionTracks: View {
                         onSelectArtist: onSelectArtist,
                         onPlayTrack: onPlayTrack
                     )
+                    .modifier(FadeInOnAppear(isEnabled: fadesInTracks))
                 }
             }
             .padding(.bottom, 16)
@@ -74,6 +76,7 @@ struct TrackCollectionTracks: View {
                     onSelectArtist: onSelectArtist,
                     onPlayTrack: onPlayTrack
                 )
+                .modifier(FadeInOnAppear(isEnabled: fadesInTracks))
             }
         }
     }

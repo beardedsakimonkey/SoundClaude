@@ -88,6 +88,7 @@
 		D74B0EAE0000000000000001 /* VisualizerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D74B0EAE0000000000000002 /* VisualizerView.swift */; };
 		7C744DE19B5D4565875D6CA0 /* StationDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B3DD082E98448CF88667491 /* StationDetailView.swift */; };
 		04EAD6EF5EBF47DA8FD023C2 /* TrackCollectionDetailViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EB04D45C090498081339D9A /* TrackCollectionDetailViews.swift */; };
+		20F5B4C6065F4A5782E8B8F7 /* FadeInOnAppear.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4D34E774A7840E3850F9B1F /* FadeInOnAppear.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -180,6 +181,7 @@
 		D74B0EAE0000000000000002 /* VisualizerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerView.swift; sourceTree = "<group>"; };
 		2B3DD082E98448CF88667491 /* StationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StationDetailView.swift; sourceTree = "<group>"; };
 		3EB04D45C090498081339D9A /* TrackCollectionDetailViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackCollectionDetailViews.swift; sourceTree = "<group>"; };
+		F4D34E774A7840E3850F9B1F /* FadeInOnAppear.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FadeInOnAppear.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -245,6 +247,7 @@
 				A20000000000000000000090 /* RepostsController.swift */,
 				A20000000000000000000074 /* FeedCache.swift */,
 				A2000000000000000000003E /* PlaylistDetailView.swift */,
+				F4D34E774A7840E3850F9B1F /* FadeInOnAppear.swift */,
 				3EB04D45C090498081339D9A /* TrackCollectionDetailViews.swift */,
 				2B3DD082E98448CF88667491 /* StationDetailView.swift */,
 				A20000000000000000000039 /* ArtistDetailView.swift */,
@@ -496,6 +499,7 @@
 				A10000000000000000000090 /* RepostsController.swift in Sources */,
 				A10000000000000000000074 /* FeedCache.swift in Sources */,
 				A1000000000000000000003E /* PlaylistDetailView.swift in Sources */,
+				20F5B4C6065F4A5782E8B8F7 /* FadeInOnAppear.swift in Sources */,
 				04EAD6EF5EBF47DA8FD023C2 /* TrackCollectionDetailViews.swift in Sources */,
 				7C744DE19B5D4565875D6CA0 /* StationDetailView.swift in Sources */,
 				A10000000000000000000039 /* ArtistDetailView.swift in Sources */,

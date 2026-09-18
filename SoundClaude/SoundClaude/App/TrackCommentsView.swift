@@ -31,7 +31,7 @@ struct TrackCommentsView: View {
 
             ForEach(comments) { comment in
                 commentRow(comment)
-                    .modifier(TrackDetailRowFadeIn())
+                    .modifier(FadeInOnAppear())
             }
 
             if isLoading {
