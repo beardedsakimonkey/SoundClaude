@@ -78,6 +78,7 @@ struct ArtistUsersView: View {
                         }
                         .help("View profile: \(user.username)")
                         .accessibilityLabel("View profile: \(user.username)")
+                        .modifier(ArtistUserFadeIn())
                     }
                 }
 
@@ -134,5 +135,21 @@ struct ArtistUsersView: View {
             guard !Task.isCancelled else { return }
             errorMessage = error.localizedDescription
         }
+    }
+}
+
+private struct ArtistUserFadeIn: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hasAppeared = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(hasAppeared || reduceMotion ? 1 : 0)
+            .onAppear {
+                guard !hasAppeared else { return }
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
+                    hasAppeared = true
+                }
+            }
     }
 }
