@@ -31,6 +31,7 @@ struct TrackPlaybackIndicator: View {
             }
         }
         .onAppear { updateLevels() }
+        .onChange(of: isPlaying) { _, _ in updateLevels() }
         .onChange(of: isAnimating) { _, _ in updateLevels() }
         .onChange(of: isLoading) { _, _ in updateLevels() }
         .fixedSize()
@@ -51,6 +52,12 @@ struct TrackPlaybackIndicator: View {
     }
 
     private func updateLevels() {
+        guard isPlaying else {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
+                levels = [0, 0, 0]
+            }
+            return
+        }
         guard isAnimating, !isLoading, let snapshot = analyzer.playbackIndicatorLevels() else { return }
         levels = snapshot
     }
