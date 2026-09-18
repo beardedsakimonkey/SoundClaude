@@ -27,10 +27,13 @@ fragment float4 visualizerFragment(
     texture2d<float> artwork [[texture(0)]]
 ) {
     float2 uv = input.uv;
-    // Use points so bar width and spacing stay fixed across window sizes and displays.
-    const float barWidth = 10.0;
-    const float barSpacing = 2.0;
-    const float barStride = barWidth + barSpacing;
+    if (viewWidth <= 0.0) {
+        return float4(0.0);
+    }
+    // Fit all 64 bands on each side at every window width, preserving the gap ratio.
+    const float bandCount = 64.0;
+    float barStride = viewWidth / (2.0 * bandCount);
+    float barWidth = barStride * (10.0 / 12.0);
     float centeredX = (uv.x - 0.5) * viewWidth;
     float x = abs(centeredX);
     float y = abs(uv.y - 0.5);
@@ -39,7 +42,7 @@ fragment float4 visualizerFragment(
     float horizontalEdgeWidth = fwidth(centeredX);
     float verticalEdgeWidth = fwidth(uv.y);
     float pointsPerUV = horizontalEdgeWidth / verticalEdgeWidth;
-    if (bandPosition < 0.0 || bandPosition >= 64.0) {
+    if (bandPosition >= bandCount) {
         return float4(0.0);
     }
     uint bandIndex = (uint)bandPosition;
@@ -47,9 +50,10 @@ fragment float4 visualizerFragment(
     float barPosition = fract(bandPosition) * barStride;
     float height = (0.035 + amplitude * 0.86) * 0.5;
     // Measure both axes in points so the mirrored ends stay circular at any aspect ratio.
-    float radius = barWidth * 0.5;
+    float halfWidth = barWidth * 0.5;
+    float radius = min(halfWidth, height * pointsPerUV);
     float2 capPosition = float2(
-        barPosition - barStride * 0.5,
+        max(abs(barPosition - barStride * 0.5) - (halfWidth - radius), 0.0),
         max((y - height) * pointsPerUV + radius, 0.0)
     );
     float distance = length(capPosition) - radius;
@@ -78,14 +82,14 @@ fragment float4 visualizerFragment(
     float3 accent = accentColor.rgb;
     float localX = (barPosition - barStride * 0.5) / barWidth;
     float leftToRight = saturate(0.5 + (centeredX < 0.0 ? localX : -localX));
-    // Fill the upper half with artwork, then mirror the same image below it.
-    float2 artworkUV = float2(uv.x, 1.0 - 2.0 * uv.y);
+    // Center the artwork across the full view, with its top at the top of the view.
+    float2 artworkUV = float2(uv.x, 1.0 - uv.y);
     // Bend the artwork across each flute, with stronger refraction at its edges.
     // Strength is measured in bar widths so it stays consistent as the view resizes.
     const float fluteStrength = 0.5;
     float fluteSlope = (1.-leftToRight) * 2.0 - 1.0;
     artworkUV.x += fluteSlope * abs(fluteSlope) * fluteStrength * barWidth / viewWidth;
-    float viewAspect = viewWidth / (pointsPerUV * 0.5);
+    float viewAspect = viewWidth / pointsPerUV;
     float artworkAspect = float(artwork.get_width()) / float(artwork.get_height());
     float2 cropScale = float2(
         min(viewAspect / artworkAspect, 1.0),

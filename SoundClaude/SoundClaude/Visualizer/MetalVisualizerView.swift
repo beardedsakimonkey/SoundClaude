@@ -77,6 +77,7 @@ struct MetalVisualizerView: NSViewRepresentable {
         )
         view.layer?.isOpaque = false
         view.framebufferOnly = true
+        view.autoResizeDrawable = true
         view.enableSetNeedsDisplay = false
         view.isPaused = false
         let maximum = NSScreen.main?.maximumFramesPerSecond ?? 60
@@ -96,5 +97,12 @@ struct MetalVisualizerView: NSViewRepresentable {
     func updateNSView(_ view: MTKView, context: Context) {
         context.coordinator.renderer?.accent = accent
         context.coordinator.renderer?.updateArtwork(artworkImage)
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: MTKView, context: Context) -> CGSize? {
+        // Follow SwiftUI's available space instead of the Metal view's previous frame.
+        guard let width = proposal.width, let height = proposal.height,
+              width.isFinite, height.isFinite else { return nil }
+        return CGSize(width: width, height: height)
     }
 }
