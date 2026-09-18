@@ -276,6 +276,7 @@ struct TrackDetailView: View {
                         ))
                     }
                 )
+                .modifier(TrackDetailRowFadeIn())
             }
             if let relatedTracksErrorMessage {
                 Text(relatedTracksErrorMessage).foregroundStyle(.secondary)
@@ -452,6 +453,21 @@ struct TrackDetailView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+}
+
+struct TrackDetailRowFadeIn: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hasAppeared = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(reduceMotion || hasAppeared ? 1 : 0)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: hasAppeared)
+            .onAppear {
+                // Lazy rows can appear after the data insertion transaction has finished.
+                hasAppeared = true
+            }
     }
 }
 
