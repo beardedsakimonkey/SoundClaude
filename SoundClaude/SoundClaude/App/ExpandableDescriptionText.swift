@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ExpandableDescriptionText: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     private let description: ArtistMentionText
 
     private let collapsedLineLimit = 5
@@ -32,7 +34,8 @@ struct ExpandableDescriptionText: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             selectableDescription
-                .lineLimit(isExpanded ? nil : collapsedLineLimit)
+                // Keep the full text laid out while its visible height animates.
+                .lineLimit(fullHeight > 0 ? nil : collapsedLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(alignment: .topLeading) {
@@ -56,6 +59,8 @@ struct ExpandableDescriptionText: View {
                     .hidden()
                     .accessibilityHidden(true)
                 }
+                .modifier(DescriptionHeight(height: isExpanded ? fullHeight : collapsedHeight))
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: isExpanded)
                 .mask {
                     LinearGradient(
                         stops: [
@@ -80,6 +85,24 @@ struct ExpandableDescriptionText: View {
                 .accessibilityHint(isExpanded ? "Collapse description" : "Expand description")
             }
         }
+    }
+}
+
+private struct DescriptionHeight: AnimatableModifier {
+    var height: CGFloat
+
+    var animatableData: CGFloat {
+        get { height }
+        set { height = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        // Update layout on each frame so lazy rows below move together, including
+        // rows created while scrolling. Do not animate their individual positions.
+        content
+            .frame(height: height > 0 ? height : nil, alignment: .topLeading)
+            .clipped()
+            .transaction { $0.animation = nil }
     }
 }
 
