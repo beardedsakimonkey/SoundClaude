@@ -190,11 +190,30 @@ struct SignedInView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background {
-            Button("Open search", action: openSearch)
-                .keyboardShortcut("/", modifiers: [])
-                .hidden()
-                .accessibilityHidden(true)
+            Group {
+                Button("Open search", action: openSearch)
+                    .keyboardShortcut("/", modifiers: [])
+                Button("Open search") { openDestination(.search) }
+                    .keyboardShortcut("1", modifiers: [])
+                Button("Open feed") { openDestination(.feed) }
+                    .keyboardShortcut("2", modifiers: [])
+                Button("Open likes") { openDestination(.liked) }
+                    .keyboardShortcut("3", modifiers: [])
+                Button("Open history") { openDestination(.history) }
+                    .keyboardShortcut("4", modifiers: [])
+            }
+            .hidden()
+            .accessibilityHidden(true)
         }
+    }
+
+    private func openDestination(_ destination: SidebarDestination) {
+        isShowingVisualizer = false
+        isShowingQueue = false
+        if selectedDestination == destination {
+            navigationHistories[destination.id] = NavigationHistory()
+        }
+        sidebarSelection.wrappedValue = destination
     }
 
     private func openSearch() {
