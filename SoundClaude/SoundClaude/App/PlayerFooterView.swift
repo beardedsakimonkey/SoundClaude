@@ -162,29 +162,40 @@ struct PlayerFooterView: View {
     }
 
     private var artworkThumbnail: some View {
-        Color.clear
-            .frame(width: artworkThumbnailSize, height: artworkThumbnailSize)
-            .keyframeAnimator(initialValue: 180.0, trigger: playback.currentTrack?.urn) { _, angle in
-                let sign = playback.trackChangeDirection == .forward ? -1.0 : 1.0
-                let shouldFlip = !reduceMotion && hasPreviousTrack && playback.currentTrack != nil
+        ZStack {
+            artworkFace(for: previousArtworkURL, isPrevious: true)
+            artworkFace(for: playback.currentTrack?.displayArtworkURL, isPrevious: false)
+        }
+        .animation(
+            reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
+            value: isHoveringArtwork
+        )
+        .frame(width: artworkThumbnailSize, height: artworkThumbnailSize)
+        .contentShape(artworkShape)
+        .onContentHover { isHoveringArtwork = $0 }
+        .onChange(of: playback.currentTrack) { oldTrack, _ in
+            previousArtworkURL = oldTrack?.displayArtworkURL
+            hasPreviousTrack = oldTrack != nil
+        }
+    }
+
+    private func artworkFace(for url: URL?, isPrevious: Bool) -> some View {
+        let sign = playback.trackChangeDirection == .forward ? -1.0 : 1.0
+        let shouldFlip = !reduceMotion && hasPreviousTrack && playback.currentTrack != nil
+
+        // Keep image loading outside the animator's content closure so an image
+        // arriving during the flip does not replace the animated view.
+        return thumbnail(for: url)
+            .keyframeAnimator(initialValue: 180.0, trigger: playback.currentTrack?.urn) { content, angle in
                 let rotation = shouldFlip ? angle : 180
 
-                ZStack {
-                    thumbnail(for: previousArtworkURL)
-                        .opacity(rotation < 90 ? 1 : 0)
-                        .rotation3DEffect(
-                            .degrees(sign * rotation),
-                            axis: (x: 0, y: 1, z: 0),
-                            perspective: 0.5
-                        )
-                    thumbnail(for: playback.currentTrack?.displayArtworkURL)
-                        .opacity(rotation >= 90 ? 1 : 0)
-                        .rotation3DEffect(
-                            .degrees(sign * (rotation - 180)),
-                            axis: (x: 0, y: 1, z: 0),
-                            perspective: 0.5
-                        )
-                }
+                content
+                    .opacity((rotation < 90) == isPrevious ? 1 : 0)
+                    .rotation3DEffect(
+                        .degrees(sign * (isPrevious ? rotation : rotation - 180)),
+                        axis: (x: 0, y: 1, z: 0),
+                        perspective: 0.5
+                    )
             } keyframes: { _ in
                 MoveKeyframe(0)
                 SpringKeyframe(
@@ -192,17 +203,6 @@ struct PlayerFooterView: View {
                     spring: .init(duration: 0.42, bounce: 0.22),
                     startVelocity: 450
                 )
-            }
-            .animation(
-                reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
-                value: isHoveringArtwork
-            )
-            .frame(width: artworkThumbnailSize, height: artworkThumbnailSize)
-            .contentShape(artworkShape)
-            .onContentHover { isHoveringArtwork = $0 }
-            .onChange(of: playback.currentTrack) { oldTrack, _ in
-                previousArtworkURL = oldTrack?.displayArtworkURL
-                hasPreviousTrack = oldTrack != nil
             }
     }
 
