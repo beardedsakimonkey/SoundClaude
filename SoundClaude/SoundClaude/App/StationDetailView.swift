@@ -2,7 +2,7 @@ import SwiftUI
 
 struct StationDetailView: View {
     let urn: String
-    let seedTrackURN: String?
+    let seedTrack: SoundCloudTrack?
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
@@ -15,8 +15,9 @@ struct StationDetailView: View {
     @State private var isShowingArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
+    private var seedTrackURN: String? { seedTrack?.urn }
     private var tracks: [SoundCloudTrack] { station?.tracks ?? [] }
-    private var title: String { station?.title ?? "Station" }
+    private var title: String { station?.title ?? seedTrack?.title ?? "Station" }
     private var stationType: String {
         let components = urn.split(separator: ":")
         if components.contains("artist-stations") { return "Artist station" }
@@ -29,6 +30,7 @@ struct StationDetailView: View {
     }
     private var artworkURL: URL? {
         currentStationTrack?.displayArtworkURL
+            ?? seedTrack?.displayArtworkURL
             ?? tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
     }
     private var artworkTitle: String { currentStationTrack?.title ?? title }

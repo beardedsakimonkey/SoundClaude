@@ -11,7 +11,7 @@ struct TrackDetailView: View {
     @ObservedObject private var reposts: RepostsController
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
-    let onSelectStation: (String) -> Void
+    let onSelectStation: (String, SoundCloudTrack) -> Void
 
     @State private var relatedTracks: [SoundCloudTrack] = []
     @State private var nextPageURL: URL?
@@ -31,7 +31,7 @@ struct TrackDetailView: View {
         model: AppModel,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
-        onSelectStation: @escaping (String) -> Void
+        onSelectStation: @escaping (String, SoundCloudTrack) -> Void
     ) {
         self.track = track
         self.model = model
@@ -436,7 +436,7 @@ struct TrackDetailView: View {
 
     private func stationButton(urn: String) -> some View {
         Button {
-            onSelectStation(urn)
+            onSelectStation(urn, details?.track ?? track)
         } label: {
             Label("Open track station", systemImage: "dot.radiowaves.left.and.right")
                 .labelStyle(.iconOnly)
