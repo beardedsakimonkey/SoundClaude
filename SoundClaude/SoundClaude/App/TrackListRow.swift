@@ -23,11 +23,13 @@ struct TrackListRow: View {
     @State private var isHoveringArtist = false
     @State private var isHoveringMenu = false
     @State private var likeErrorMessage: String?
+    @State private var isStartingPlayback = false
     @GestureState private var isPressed = false
 
     var body: some View {
         let isCurrentTrack = playback.currentTrack?.urn == track.urn
-        let isPlaybackActive = isCurrentTrack && playback.isPlaybackActive
+        let isPlaybackActive = isCurrentTrack
+            ? playback.isPlaybackActive : isStartingPlayback
         let isLiked = likes.isLiked(track)
 
         HStack(spacing: 12) {
@@ -207,6 +209,9 @@ struct TrackListRow: View {
                 .fill(rowBackground)
         }
         .onContentHover { isHovering = $0 }
+        .onChange(of: playback.currentTrack?.urn) { _, _ in
+            isStartingPlayback = false
+        }
         .alert("Could not update like", isPresented: Binding(
             get: { likeErrorMessage != nil },
             set: { if !$0 { likeErrorMessage = nil } }
@@ -224,7 +229,13 @@ struct TrackListRow: View {
         if playback.currentTrack?.urn == track.urn {
             playback.togglePlayPause()
         } else {
-            Task { await onPlayTrack(track) }
+            guard !isStartingPlayback else { return }
+            // Acknowledge the click before the async callback selects the track.
+            isStartingPlayback = true
+            Task {
+                defer { isStartingPlayback = false }
+                await onPlayTrack(track)
+            }
         }
     }
 
