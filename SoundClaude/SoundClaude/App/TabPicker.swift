@@ -23,9 +23,13 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
     @Namespace private var underlineNamespace
     @State private var hoveredOption: Selection?
 
+    private var visibleOptions: [Selection] {
+        options.filter { optionCount($0) != 0 }
+    }
+
     var body: some View {
         HStack(spacing: 8) {
-            ForEach(options, id: \.self) { option in
+            ForEach(visibleOptions, id: \.self) { option in
                 let isSelected = selection == option
 
                 Button {
@@ -54,11 +58,18 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
             }
         }
         .overlay {
-            Rectangle()
-                .fill(Color.primary)
-                .matchedGeometryEffect(id: selection, in: underlineNamespace, isSource: false)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+            if visibleOptions.contains(selection) {
+                Rectangle()
+                    .fill(Color.primary)
+                    .matchedGeometryEffect(id: selection, in: underlineNamespace, isSource: false)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+        .onChange(of: visibleOptions, initial: true) { _, options in
+            if !options.contains(selection), let first = options.first {
+                selection = first
+            }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selection)
         .accessibilityElement(children: .contain)
