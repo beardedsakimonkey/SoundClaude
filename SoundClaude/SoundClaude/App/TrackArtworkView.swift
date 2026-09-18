@@ -9,6 +9,7 @@ struct TrackArtworkView: View {
     let shape: RoundedRectangle
     let showsBorder: Bool
     let animatesChanges: Bool
+    let showsPlaceholderIcon: Bool
 
     @State private var image: NSImage?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -20,7 +21,8 @@ struct TrackArtworkView: View {
         rendition: ArtworkLoader.Rendition = .source,
         shape: RoundedRectangle = RoundedRectangle(cornerRadius: 3),
         showsBorder: Bool = true,
-        animatesChanges: Bool = false
+        animatesChanges: Bool = false,
+        showsPlaceholderIcon: Bool = true
     ) {
         self.artworkURL = artworkURL
         self.loader = loader
@@ -29,6 +31,7 @@ struct TrackArtworkView: View {
         self.shape = shape
         self.showsBorder = showsBorder
         self.animatesChanges = animatesChanges
+        self.showsPlaceholderIcon = showsPlaceholderIcon
     }
 
     var body: some View {
@@ -43,7 +46,7 @@ struct TrackArtworkView: View {
                     .id(ObjectIdentifier(image))
                     .transition(.opacity)
                     .zIndex(1)
-            } else {
+            } else if showsPlaceholderIcon {
                 Image(systemName: "music.note")
                     .font(.system(size: size * 0.4, weight: .medium))
                     .foregroundStyle(.secondary)
@@ -351,6 +354,7 @@ struct DetailArtworkView: View {
     let loader: ArtworkLoader
     let size: CGFloat
     var animatesChanges = false
+    var showsPlaceholderIcon = true
     let onShowArtwork: () -> Void
 
     private let cornerRadius: CGFloat = 6
@@ -417,7 +421,8 @@ struct DetailArtworkView: View {
             rendition: .square500,
             shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
             showsBorder: false,
-            animatesChanges: animatesChanges
+            animatesChanges: animatesChanges,
+            showsPlaceholderIcon: showsPlaceholderIcon
         )
         .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))

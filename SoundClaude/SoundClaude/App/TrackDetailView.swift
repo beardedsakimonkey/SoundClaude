@@ -152,8 +152,11 @@ struct TrackDetailView: View {
                         title: details.track.title,
                         loader: model.artworkLoader,
                         size: artworkSize,
+                        animatesChanges: true,
+                        showsPlaceholderIcon: false,
                         onShowArtwork: { isShowingArtwork = true }
                     )
+                    .modifier(FadeInOnAppear())
 
                     VStack(alignment: .leading, spacing: 10) {
                         if details.track.access == .preview {
