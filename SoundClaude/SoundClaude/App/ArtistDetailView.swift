@@ -58,6 +58,7 @@ struct ArtistDetailView: View {
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectStation: (String) -> Void
 
+    @State private var scrollerStyle = NSScroller.preferredScrollerStyle
     @State private var isFollowing: Bool?
     @State private var isUpdatingFollow = false
     @State private var isShufflingTracks = false
@@ -234,6 +235,11 @@ struct ArtistDetailView: View {
 
     private func detailsView(_ details: SoundCloudArtistDetails) -> some View {
         GeometryReader { geometry in
+            let scrollbarWidth = scrollerStyle == .legacy
+                ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
+                : 0
+            let contentWidth = max(0, geometry.size.width - scrollbarWidth)
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 24) {
@@ -375,12 +381,19 @@ struct ArtistDetailView: View {
                                 relatedArtistsSection
                             }
                         }
-                        .frame(width: min(320, max(0, geometry.size.width - 72) * 0.3), alignment: .leading)
+                        .frame(width: min(320, max(0, contentWidth - 72) * 0.3), alignment: .leading)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(24)
+                // AppKit can defer its narrower width proposal until the first scroll.
+                .frame(width: contentWidth)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(width: geometry.size.width)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSScroller.preferredScrollerStyleDidChangeNotification)) { _ in
+            scrollerStyle = NSScroller.preferredScrollerStyle
         }
     }
 
