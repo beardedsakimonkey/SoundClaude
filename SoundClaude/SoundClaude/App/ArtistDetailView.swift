@@ -281,32 +281,14 @@ struct ArtistDetailView: View {
                             optionCount: tabCount
                         )
                         .font(.body.weight(.semibold))
+                        .layoutPriority(1)
                         Spacer(minLength: 16)
-                        Button {
-                            isShufflingTracks = true
-                        } label: {
-                            Label {
-                                Text("Shuffle")
-                            } icon: {
-                                Image(systemName: "shuffle")
-                                    .opacity(isShufflingTracks ? 0 : 1)
-                                    .overlay {
-                                        if isShufflingTracks {
-                                            ProgressView()
-                                                .controlSize(.mini)
-                                                .accessibilityHidden(true)
-                                        }
-                                    }
-                            }
-                        }
-                        .disabled(tracks.isEmpty || isShufflingTracks)
-                        .help("Shuffle this artist’s tracks")
-                        .accessibilityValue(isShufflingTracks ? "Starting shuffle playback" : "")
-                        if nonempty(details.user.stationURN) != nil {
-                            stationButton
-                        }
-                        if canFollowArtist {
-                            followControls
+                        ViewThatFits(in: .horizontal) {
+                            artistActions
+                                .labelStyle(.titleAndIcon)
+                                .fixedSize(horizontal: true, vertical: false)
+                            artistActions
+                                .labelStyle(.iconOnly)
                         }
                     }
                     if canFollowArtist, let followErrorMessage {
@@ -592,6 +574,37 @@ struct ArtistDetailView: View {
         }
     }
 
+    private var artistActions: some View {
+        HStack {
+            Button {
+                isShufflingTracks = true
+            } label: {
+                Label {
+                    Text("Shuffle")
+                } icon: {
+                    Image(systemName: "shuffle")
+                        .opacity(isShufflingTracks ? 0 : 1)
+                        .overlay {
+                            if isShufflingTracks {
+                                ProgressView()
+                                    .controlSize(.mini)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                }
+            }
+            .disabled(tracks.isEmpty || isShufflingTracks)
+            .help("Shuffle this artist’s tracks")
+            .accessibilityValue(isShufflingTracks ? "Starting shuffle playback" : "")
+            if nonempty(details?.user.stationURN) != nil {
+                stationButton
+            }
+            if canFollowArtist {
+                followControls
+            }
+        }
+    }
+
     private var stationButton: some View {
         Button("Station", systemImage: "dot.radiowaves.left.and.right") {
             guard let urn = nonempty(details?.user.stationURN) else { return }
@@ -633,6 +646,7 @@ struct ArtistDetailView: View {
             }
         }
         .disabled(isFollowing == nil || isUpdatingFollow)
+        .help(isFollowing == true ? "Unfollow this artist" : "Follow this artist")
         .accessibilityValue(isLoadingFollow ? "Loading follow status" : "")
     }
 
