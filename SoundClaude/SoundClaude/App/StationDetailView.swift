@@ -112,7 +112,7 @@ struct StationDetailView: View {
                 onShowArtwork: { isShowingArtwork = true }
             )
             VStack(alignment: .leading, spacing: 10) {
-                Text("\(Image(systemName: "dot.radiowaves.left.and.right")) \(title)")
+                Text("\(Text(Image(systemName: "dot.radiowaves.left.and.right")).foregroundStyle(.primary.opacity(0.7))) \(title)")
                     .font(.system(size: 28, weight: .semibold))
                     .textSelection(.enabled)
                     .accessibilityLabel("Station, \(title)")

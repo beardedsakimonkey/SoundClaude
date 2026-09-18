@@ -303,7 +303,12 @@ struct AddToPlaylistView: View {
             Text("Add to playlist").font(.title2.bold())
             Text(track.title).foregroundStyle(.secondary).lineLimit(2)
             List(ownedPlaylists, selection: $selectedURN) { playlist in
-                Label(playlist.title, systemImage: playlist.isPrivate ? "lock" : "music.note.list")
+                Label {
+                    Text(playlist.title)
+                } icon: {
+                    Image(systemName: playlist.isPrivate ? "lock" : "music.note.list")
+                        .opacity(0.7)
+                }
                     .tag(playlist.urn)
             }
             .overlay {
