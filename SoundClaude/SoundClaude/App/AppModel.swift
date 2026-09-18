@@ -239,6 +239,15 @@ final class AppModel: ObservableObject {
         prefetchNextTrack()
     }
 
+    func removeFromQueue(_ track: SoundCloudTrack) {
+        queue.replaceLikes(likes.tracks)
+        guard queue.remove(track) else { return }
+        shuffleQueueTask?.cancel()
+        trackSelectionTask?.cancel()
+        saveQueue()
+        prefetchNextTrack()
+    }
+
     func clearQueue() {
         shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()

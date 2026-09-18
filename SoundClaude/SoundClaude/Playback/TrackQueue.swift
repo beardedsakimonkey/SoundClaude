@@ -26,6 +26,8 @@ struct TrackQueue: Codable {
     private var reorderedLikesURNs: [String]?
     // Keep manually added tracks when a likes queue refreshes or saves without library metadata.
     private var addedLikesTracks: [SoundCloudTrack]?
+    // Optional for compatibility with previously saved queues.
+    private var removedURNs: Set<String>?
 
     init(source: Source, tracks: [SoundCloudTrack], nextPageURL: URL? = nil) {
         self.source = source
@@ -37,6 +39,7 @@ struct TrackQueue: Codable {
     @discardableResult
     mutating func add(_ track: SoundCloudTrack, after currentURN: String? = nil) -> Bool {
         guard track.urn != currentURN else { return false }
+        removedURNs?.remove(track.urn)
         let isNew = !tracks.contains { $0.urn == track.urn }
         if isNew {
             tracks.append(track)
@@ -55,6 +58,17 @@ struct TrackQueue: Codable {
         return isNew
     }
 
+    @discardableResult
+    mutating func remove(_ track: SoundCloudTrack) -> Bool {
+        guard tracks.contains(where: { $0.urn == track.urn }) else { return false }
+        removedURNs = (removedURNs ?? []).union([track.urn])
+        tracks.removeAll { $0.urn == track.urn }
+        shuffledURNs.removeAll { $0 == track.urn }
+        reorderedLikesURNs?.removeAll { $0 == track.urn }
+        addedLikesTracks?.removeAll { $0.urn == track.urn }
+        return true
+    }
+
     mutating func append(_ page: SoundCloudTrackPage) throws {
         if let next = page.nextURL,
            next == nextPageURL || loadedPageURLs.contains(next) {
@@ -62,6 +76,7 @@ struct TrackQueue: Codable {
         }
         if let nextPageURL { loadedPageURLs.insert(nextPageURL) }
         var known = Set(tracks.map(\.urn))
+        known.formUnion(removedURNs ?? [])
         tracks.append(contentsOf: page.tracks.filter { known.insert($0.urn).inserted })
         updateShuffleOrder()
         nextPageURL = page.nextURL
@@ -71,7 +86,8 @@ struct TrackQueue: Codable {
         guard source == .likes else { return }
         let likedURNs = Set(likes.map(\.urn))
         let additions = (addedLikesTracks ?? []).filter { !likedURNs.contains($0.urn) }
-        tracks = ordered(likes + additions, by: reorderedLikesURNs)
+        tracks = ordered((likes + additions).filter { !(removedURNs?.contains($0.urn) ?? false) },
+                         by: reorderedLikesURNs)
         updateShuffleOrder()
     }
 

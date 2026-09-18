@@ -9,7 +9,8 @@ struct TrackListRow: View {
     var showsArtist = true
     var isCompact = false
     var trackNumber: Int? = nil
-    let onAddToQueue: (SoundCloudTrack) -> Void
+    var onAddToQueue: ((SoundCloudTrack) -> Void)? = nil
+    var onRemoveFromQueue: ((SoundCloudTrack) -> Void)? = nil
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
@@ -141,8 +142,14 @@ struct TrackListRow: View {
                 .opacity(isHovering ? 0 : 1)
                 .overlay {
                     Menu {
-                        Button("Add to queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
-                            onAddToQueue(track)
+                        if let onRemoveFromQueue {
+                            Button("Remove from queue", systemImage: "text.badge.minus") {
+                                onRemoveFromQueue(track)
+                            }
+                        } else if let onAddToQueue {
+                            Button("Add to queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
+                                onAddToQueue(track)
+                            }
                         }
                         Button("Add to playlist", systemImage: "music.note.list") {
                             addToPlaylist(track)

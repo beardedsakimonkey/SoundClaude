@@ -42,6 +42,33 @@ struct QueueAndLikesTests {
     @MainActor
     static func main() async throws {
         let next = URL(string: "https://api.soundcloud.com/tracks?cursor=next")!
+        // Removal survives shuffle, likes refresh, saved queues, and overlapping pages.
+        for source: TrackQueue.Source in [.likes, .feed] {
+            for shuffled in [false, true] {
+                var queue = TrackQueue(source: source, tracks: (1...3).map(track), nextPageURL: next)
+                queue.setShuffle(shuffled, currentURN: "track:1")
+                precondition(queue.add(track(4)))
+                let expected = queue.playbackTracks.filter { $0 != track(2) && $0 != track(4) }
+                precondition(queue.remove(track(2)))
+                precondition(queue.remove(track(4)))
+                precondition(!queue.remove(track(99)))
+                queue = try JSONDecoder().decode(
+                    TrackQueue.self, from: JSONEncoder().encode(queue.withoutLikesMetadata())
+                )
+                queue.replaceLikes((1...3).map(track))
+                precondition(queue.playbackTracks == expected)
+                precondition(queue.nextPageURL == next)
+                try queue.append(SoundCloudTrackPage(tracks: [track(2), track(4), track(5)], nextURL: nil))
+                precondition(queue.playbackTracks == expected + [track(5)])
+                precondition(queue.add(track(2)))
+                precondition(queue.playbackTracks.contains(track(2)))
+                queue.setShuffle(false, currentURN: nil)
+                precondition(!queue.playbackTracks.contains(track(4)))
+                for remaining in queue.tracks { precondition(queue.remove(remaining)) }
+                precondition(queue.playbackTracks.isEmpty)
+            }
+        }
+
         // Manual additions append once, preserve pagination, and can start an empty queue.
         var added = TrackQueue(source: .single, tracks: [])
         precondition(added.add(track(1)))
