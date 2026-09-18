@@ -80,6 +80,7 @@ struct TrackCardView: View {
                         track: track,
                         model: model,
                         layout: .compact,
+                        animatesBarTransitions: false,
                         onPlayTrack: onPlayTrack
                     )
                     .frame(maxWidth: .infinity)

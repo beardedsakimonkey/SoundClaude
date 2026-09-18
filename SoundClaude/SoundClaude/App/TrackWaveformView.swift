@@ -18,6 +18,7 @@ struct TrackWaveformView: View {
     let model: AppModel
     let layout: Layout
     let height: CGFloat
+    let animatesBarTransitions: Bool
     let invertsBarsOnTrackChange: Bool
     let collapsesBarsWhenPaused: Bool
     let keepsBarsVisible: Bool
@@ -44,6 +45,7 @@ struct TrackWaveformView: View {
         model: AppModel,
         layout: Layout = .detail,
         height: CGFloat? = nil,
+        animatesBarTransitions: Bool = true,
         invertsBarsOnTrackChange: Bool = false,
         collapsesBarsWhenPaused: Bool? = nil,
         keepsBarsVisible: Bool = false,
@@ -53,6 +55,7 @@ struct TrackWaveformView: View {
         self.model = model
         self.layout = layout
         self.height = height ?? layout.height
+        self.animatesBarTransitions = animatesBarTransitions
         self.invertsBarsOnTrackChange = invertsBarsOnTrackChange
         self.collapsesBarsWhenPaused = collapsesBarsWhenPaused ?? (layout == .detail)
         self.keepsBarsVisible = keepsBarsVisible
@@ -116,7 +119,7 @@ struct TrackWaveformView: View {
         HStack(spacing: 8) {
             GeometryReader { proxy in
                 let amplitudes = barAmplitudes(waveform, width: proxy.size.width)
-                let trackChangeAnimation = reduceMotion ? nil : Animation(
+                let trackChangeAnimation = reduceMotion || !animatesBarTransitions ? nil : Animation(
                     WaveformStaggeredSpring(
                         reversesStagger: isCurrentTrack && playback.trackChangeDirection == .backward
                     )
@@ -232,7 +235,7 @@ struct TrackWaveformView: View {
                     value: hoverFraction
                 )
                 .animation(
-                    reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.3),
+                    reduceMotion || !animatesBarTransitions ? nil : .spring(duration: 0.35, bounce: 0.3),
                     value: barsAreCollapsed
                 )
                 .modifier(WaveformLoadingOpacity(

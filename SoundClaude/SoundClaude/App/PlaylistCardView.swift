@@ -70,6 +70,7 @@ struct PlaylistCardView: View {
                             track: track,
                             model: model,
                             layout: .compact,
+                            animatesBarTransitions: false,
                             onPlayTrack: play
                         )
                         .id(track.urn)
