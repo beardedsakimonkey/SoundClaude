@@ -145,17 +145,6 @@ struct TrackListRow: View {
                 .opacity(isHovering ? 0 : 1)
                 .overlay {
                     Menu {
-                        Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
-                            Task {
-                                do {
-                                    try await likes.toggleLike(track)
-                                } catch is CancellationError {
-                                } catch {
-                                    likeErrorMessage = error.localizedDescription
-                                }
-                            }
-                        }
-                        .disabled(likes.updatingTrackURNs.contains(track.urn))
                         if let onRemoveFromQueue {
                             Button("Remove from queue", systemImage: "text.badge.minus") {
                                 onRemoveFromQueue(track)
@@ -168,6 +157,17 @@ struct TrackListRow: View {
                         Button("Add to playlist", systemImage: "music.note.list") {
                             addToPlaylist(track)
                         }
+                        Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
+                            Task {
+                                do {
+                                    try await likes.toggleLike(track)
+                                } catch is CancellationError {
+                                } catch {
+                                    likeErrorMessage = error.localizedDescription
+                                }
+                            }
+                        }
+                        .disabled(likes.updatingTrackURNs.contains(track.urn))
                     } label: {
                         Image(systemName: "ellipsis")
                             .frame(width: 28, height: 28)
