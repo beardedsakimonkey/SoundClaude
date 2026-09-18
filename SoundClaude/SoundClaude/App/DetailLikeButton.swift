@@ -3,10 +3,11 @@ import SwiftUI
 struct DetailLikeButton: View {
     let isLiked: Bool
     var likeCount: Int? = nil
+    var iconOnly = false
     let subject: String
     let action: () -> Void
 
-    private var hasCount: Bool { (likeCount ?? 0) != 0 }
+    private var hasCount: Bool { !iconOnly && (likeCount ?? 0) != 0 }
     private var actionLabel: String { "\(isLiked ? "Unlike" : "Like") \(subject)" }
 
     var body: some View {
@@ -36,7 +37,7 @@ struct DetailLikeButton: View {
 
     @ViewBuilder
     private func label(systemImage: String) -> some View {
-        if let likeCount, likeCount != 0 {
+        if hasCount, let likeCount {
             Label(likeCount.formatted(.number), systemImage: systemImage)
         } else {
             Image(systemName: systemImage)

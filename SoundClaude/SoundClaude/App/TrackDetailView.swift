@@ -183,13 +183,12 @@ struct TrackDetailView: View {
                         }
                         .font(.title3)
                         .foregroundStyle(.secondary)
-                        HStack(spacing: 12) {
-                            playButton(for: details.track)
-                            likeButton(for: details.track)
-                            repostButton(for: details.track)
-                            if let stationURN = nonempty(details.track.stationURN) {
-                                stationButton(urn: stationURN)
-                            }
+                        ViewThatFits(in: .horizontal) {
+                            trackActions(for: details.track, iconOnly: false)
+                                .labelStyle(.titleAndIcon)
+                                .fixedSize(horizontal: true, vertical: false)
+                            trackActions(for: details.track, iconOnly: true)
+                                .labelStyle(.iconOnly)
                         }
                         .padding(.top, 8)
 
@@ -332,12 +331,23 @@ struct TrackDetailView: View {
         }
     }
 
-    private func playButton(for track: SoundCloudTrack) -> some View {
-        playButtonLabel(for: track)
+    private func trackActions(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
+        HStack(spacing: 12) {
+            playButton(for: track, iconOnly: iconOnly)
+            likeButton(for: track, iconOnly: iconOnly)
+            repostButton(for: track, iconOnly: iconOnly)
+            if let stationURN = nonempty(track.stationURN) {
+                stationButton(urn: stationURN)
+            }
+        }
+    }
+
+    private func playButton(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
+        playButtonLabel(for: track, iconOnly: iconOnly)
             .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
     }
 
-    private func playButtonLabel(for track: SoundCloudTrack) -> some View {
+    private func playButtonLabel(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
         let playback = model.playback
         let isCurrentTrack = playback.currentTrack?.urn == track.urn
         let isPlaying = isCurrentTrack && playback.isPlaybackActive
@@ -357,19 +367,20 @@ struct TrackDetailView: View {
                     .opacity(isPlaying ? 1 : 0)
                     .accessibilityHidden(!isPlaying)
             }
-                .labelStyle(.titleAndIcon)
                 .font(.title3.weight(.semibold))
-                .padding(.horizontal, 24)
+                .padding(.horizontal, iconOnly ? 0 : 24)
+                .frame(width: iconOnly ? 44 : nil)
                 .frame(minHeight: 24)
         }
         .help(isPlaying ? "Pause" : "Play")
         .accessibilityLabel(isPlaying ? "Pause" : "Play")
     }
 
-    private func likeButton(for track: SoundCloudTrack) -> some View {
+    private func likeButton(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
         DetailLikeButton(
             isLiked: likes.isLiked(track),
             likeCount: likes.likeCount(for: track),
+            iconOnly: iconOnly,
             subject: "track"
         ) {
             Task {
@@ -383,10 +394,10 @@ struct TrackDetailView: View {
         .disabled(likes.updatingTrackURNs.contains(track.urn))
     }
 
-    private func repostButton(for track: SoundCloudTrack) -> some View {
+    private func repostButton(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
         let isReposted = reposts.isReposted(track)
         let repostCount = reposts.repostCount(for: track)
-        let hasCount = (repostCount ?? 0) != 0
+        let hasCount = !iconOnly && (repostCount ?? 0) != 0
 
         return Button {
             Task {
@@ -399,7 +410,7 @@ struct TrackDetailView: View {
             }
         } label: {
             Group {
-                if let repostCount, repostCount != 0 {
+                if hasCount, let repostCount {
                     Label(repostCount.formatted(.number), systemImage: "arrow.2.squarepath")
                 } else {
                     Image(systemName: "arrow.2.squarepath")
