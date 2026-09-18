@@ -3,6 +3,7 @@ import SwiftUI
 struct StationDetailView: View {
     let urn: String
     let seedTrack: SoundCloudTrack?
+    let seedArtistName: String?
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
@@ -17,7 +18,7 @@ struct StationDetailView: View {
 
     private var seedTrackURN: String? { seedTrack?.urn }
     private var tracks: [SoundCloudTrack] { station?.tracks ?? [] }
-    private var title: String { station?.title ?? seedTrack?.title ?? "Station" }
+    private var title: String { station?.title ?? seedTrack?.title ?? seedArtistName ?? "Station" }
     private var stationType: String {
         let components = urn.split(separator: ":")
         if components.contains("artist-stations") { return "Artist station" }

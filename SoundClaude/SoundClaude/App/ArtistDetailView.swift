@@ -56,7 +56,7 @@ struct ArtistDetailView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectUsers: (SoundCloudUser, ArtistUserList) -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
-    let onSelectStation: (String) -> Void
+    let onSelectStation: (String, String) -> Void
 
     @State private var scrollerStyle = NSScroller.preferredScrollerStyle
     @State private var isFollowing: Bool?
@@ -118,7 +118,7 @@ struct ArtistDetailView: View {
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
         onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void,
         onSelectUsers: @escaping (SoundCloudUser, ArtistUserList) -> Void,
-        onSelectStation: @escaping (String) -> Void
+        onSelectStation: @escaping (String, String) -> Void
     ) {
         self.artist = artist
         self.model = model
@@ -663,7 +663,7 @@ struct ArtistDetailView: View {
     private var stationButton: some View {
         Button("Station", systemImage: "dot.radiowaves.left.and.right") {
             guard let urn = nonempty(details?.user.stationURN) else { return }
-            onSelectStation(urn)
+            onSelectStation(urn, details?.user.username ?? artist.username)
         }
         .modifier(ActionHoverEffect())
         .help("Open this artist’s station")
