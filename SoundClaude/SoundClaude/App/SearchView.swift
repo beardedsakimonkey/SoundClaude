@@ -50,6 +50,7 @@ struct SearchView: View {
                 }
             }
             .frame(maxWidth: 600)
+            .frame(maxWidth: .infinity, alignment: .center)
 
             if !recentSearches.isEmpty {
                 HStack {

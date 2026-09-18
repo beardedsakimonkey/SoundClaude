@@ -14,6 +14,8 @@ extension EnvironmentValues {
 struct GenrePill: View {
     let genre: String
     @Environment(\.searchGenre) private var searchGenre
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
 
     var body: some View {
         Button { searchGenre(genre) } label: {
@@ -22,7 +24,7 @@ struct GenrePill: View {
                 Text(genre)
             }
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(isHovering ? Color.primary : Color.secondary)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .overlay {
@@ -32,6 +34,8 @@ struct GenrePill: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        .onContentHover { isHovering = $0 }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isHovering)
         .fixedSize()
         .accessibilityLabel("Search tracks in genre: \(genre)")
         .help("Search tracks in genre: \(genre)")
