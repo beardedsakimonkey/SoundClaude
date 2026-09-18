@@ -96,8 +96,8 @@ struct TrackWaveformView: View {
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, minHeight: height)
                 } else {
-                    ProgressView("Loading waveform")
-                        .frame(maxWidth: .infinity, minHeight: height)
+                    Color.clear
+                        .frame(height: height)
                 }
             }
         }

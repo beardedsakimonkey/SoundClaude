@@ -144,7 +144,8 @@ struct ArtistDetailView: View {
             if let details {
                 detailsView(details)
             } else if isLoading {
-                ProgressView("Loading artist")
+                ProgressView()
+                    .accessibilityLabel("Loading artist")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView {
@@ -538,7 +539,8 @@ struct ArtistDetailView: View {
             )
 
             if isLoadingRelatedArtists {
-                ProgressView("Loading related artists")
+                ProgressView()
+                    .accessibilityLabel("Loading related artists")
                     .controlSize(.small)
             } else if let relatedArtistsErrorMessage {
                 Text(relatedArtistsErrorMessage)
@@ -801,7 +803,8 @@ struct ArtistDetailView: View {
                     .disabled(isLoadingTracks)
             }
             if isLoadingTracks || (nextPageURL != nil && tracksErrorMessage == nil) {
-                ProgressView("Loading tracks")
+                ProgressView()
+                    .accessibilityLabel("Loading tracks")
                     .frame(maxWidth: .infinity)
                     .task(id: nextPageURL) {
                         guard nextPageURL != nil, tracksErrorMessage == nil else { return }
@@ -846,7 +849,8 @@ struct ArtistDetailView: View {
             }
             if isLoadingReposts
                 || (repostsNextPageURL != nil && repostsErrorMessage == nil) {
-                ProgressView("Loading reposts")
+                ProgressView()
+                    .accessibilityLabel("Loading reposts")
                     .frame(maxWidth: .infinity)
                     .task(id: repostsNextPageURL) {
                         guard repostsNextPageURL != nil,
@@ -893,7 +897,8 @@ struct ArtistDetailView: View {
             }
             if isLoadingLikes
                 || (likesNextPageURL != nil && likesErrorMessage == nil) {
-                ProgressView("Loading likes")
+                ProgressView()
+                    .accessibilityLabel("Loading likes")
                     .frame(maxWidth: .infinity)
                     .task(id: likesNextPageURL) {
                         guard likesNextPageURL != nil,
@@ -935,7 +940,8 @@ struct ArtistDetailView: View {
             }
             if isLoadingPlaylists
                 || (playlistsNextPageURL != nil && playlistsErrorMessage == nil) {
-                ProgressView("Loading playlists")
+                ProgressView()
+                    .accessibilityLabel("Loading playlists")
                     .frame(maxWidth: .infinity)
                     .task(id: playlistsNextPageURL) {
                         guard playlistsNextPageURL != nil,

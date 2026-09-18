@@ -72,7 +72,8 @@ struct SidebarView: View {
                         .selectionDisabled()
                 }
                 if playlists.isLoading {
-                    ProgressView("Loading playlists")
+                    ProgressView()
+                        .accessibilityLabel("Loading playlists")
                         .controlSize(.small)
                 } else if let errorMessage = playlists.errorMessage {
                     VStack(alignment: .leading, spacing: 6) {
@@ -237,8 +238,9 @@ private struct CreatePlaylistView: View {
             }
             HStack {
                 if isCreating {
-                    ProgressView().controlSize(.small)
-                    Text("Creating playlist…").foregroundStyle(.secondary)
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Creating playlist")
                 }
                 Spacer()
                 Button("Cancel") { dismiss() }

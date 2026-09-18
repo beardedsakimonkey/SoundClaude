@@ -35,7 +35,8 @@ struct TrackCommentsView: View {
             }
 
             if isLoading {
-                ProgressView("Loading comments")
+                ProgressView()
+                    .accessibilityLabel("Loading comments")
                     .frame(maxWidth: .infinity)
             } else if let errorMessage {
                 VStack(spacing: 8) {

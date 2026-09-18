@@ -18,7 +18,8 @@ struct FeedView: View {
                 .allowsHitTesting(false)
 
             if !feed.cache.hasLoadedPage, feed.errorMessage == nil {
-                ProgressView("Loading feed")
+                ProgressView()
+                    .accessibilityLabel("Loading feed")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 feedContent
@@ -123,10 +124,12 @@ struct FeedView: View {
                         .disabled(feed.isLoading)
                 }
                 if feed.isLoading {
-                    ProgressView("Loading feed")
+                    ProgressView()
+                        .accessibilityLabel("Loading feed")
                         .frame(maxWidth: .infinity)
                 } else if nextPageURL != nil, feed.errorMessage == nil {
-                    ProgressView("Loading feed")
+                    ProgressView()
+                        .accessibilityLabel("Loading feed")
                         .frame(maxWidth: .infinity)
                         .task(id: nextPageURL) { await feed.loadMore() }
                 } else if items.isEmpty, feed.errorMessage == nil {

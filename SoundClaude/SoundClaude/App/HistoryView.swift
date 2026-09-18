@@ -14,7 +14,8 @@ struct HistoryView: View {
     var body: some View {
         ZStack(alignment: .top) {
             if !hasLoaded, errorMessage == nil {
-                ProgressView("Loading history")
+                ProgressView()
+                    .accessibilityLabel("Loading history")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 historyContent
@@ -55,7 +56,8 @@ struct HistoryView: View {
                 }
 
                 if isLoading {
-                    ProgressView("Loading history")
+                    ProgressView()
+                        .accessibilityLabel("Loading history")
                         .frame(maxWidth: .infinity)
                 } else if let errorMessage {
                     Text(errorMessage)

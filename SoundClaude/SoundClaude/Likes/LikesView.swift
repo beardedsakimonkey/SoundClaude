@@ -86,10 +86,8 @@ struct LikesView: View {
             }
             Spacer()
             if likes.isLoading {
-                Text("Syncing likes…")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 ProgressView()
+                    .accessibilityLabel("Syncing likes")
                     .controlSize(.small)
             }
             TrackLayoutPicker(trackLayout: $trackLayout)

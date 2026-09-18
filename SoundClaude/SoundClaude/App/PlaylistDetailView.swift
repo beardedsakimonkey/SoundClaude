@@ -323,7 +323,8 @@ struct PlaylistDetailView: View {
                     .disabled(isLoading)
             }
             if isLoading {
-                ProgressView("Loading playlist")
+                ProgressView()
+                    .accessibilityLabel("Loading playlist")
                     .frame(maxWidth: .infinity)
             } else if hasLoadedTracks, tracks.isEmpty, errorMessage == nil {
                 ContentUnavailableView(

@@ -62,7 +62,9 @@ struct StationDetailView: View {
                                 .disabled(isLoading)
                         }
                         if isLoading {
-                            ProgressView("Loading station").frame(maxWidth: .infinity)
+                            ProgressView()
+                                .accessibilityLabel("Loading station")
+                                .frame(maxWidth: .infinity)
                         } else if station != nil, tracks.isEmpty, errorMessage == nil {
                             ContentUnavailableView(
                                 "No playable tracks",

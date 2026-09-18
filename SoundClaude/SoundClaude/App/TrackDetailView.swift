@@ -55,7 +55,8 @@ struct TrackDetailView: View {
                 if let details {
                     detailsView(details)
                 } else if isLoading {
-                    ProgressView("Loading track")
+                    ProgressView()
+                        .accessibilityLabel("Loading track")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     ContentUnavailableView {
@@ -286,7 +287,8 @@ struct TrackDetailView: View {
                     .disabled(isLoadingRelatedTracks)
             }
             if isLoadingRelatedTracks || (nextPageURL != nil && relatedTracksErrorMessage == nil) {
-                ProgressView("Loading related tracks")
+                ProgressView()
+                    .accessibilityLabel("Loading related tracks")
                     .frame(maxWidth: .infinity)
                     .task(id: nextPageURL) {
                         guard nextPageURL != nil, relatedTracksErrorMessage == nil else { return }

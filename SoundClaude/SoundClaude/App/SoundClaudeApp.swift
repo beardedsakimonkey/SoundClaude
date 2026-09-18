@@ -57,12 +57,9 @@ struct SoundClaudeApp: App {
     }
 
     private func progressView(label: String) -> some View {
-        VStack(spacing: 12) {
-            ProgressView()
-            Text(label)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        ProgressView()
+            .accessibilityLabel(label)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @CommandsBuilder

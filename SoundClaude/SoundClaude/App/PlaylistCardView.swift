@@ -134,7 +134,8 @@ struct PlaylistCardView: View {
                 .disabled(isLoading)
         }
         if isLoading {
-            ProgressView("Loading playlist")
+            ProgressView()
+                .accessibilityLabel("Loading playlist")
                 .controlSize(.small)
         } else if contents?.hasLoadedPage == true, tracks.isEmpty, errorMessage == nil {
             Text(displayedPlaylist.trackCount == 0 ? "Empty playlist" : "No playable tracks")
