@@ -488,6 +488,13 @@ struct ArtistDetailView: View {
                     .help("View artist: \(user.username)")
                 }
             }
+            .id(relatedArtistsPage)
+            .transition(.opacity)
+            .opacity(relatedArtists.isEmpty ? 0 : 1)
+            .animation(
+                reduceMotion ? nil : .easeIn(duration: 0.25),
+                value: relatedArtists.isEmpty
+            )
 
             if isLoadingRelatedArtists {
                 ProgressView("Loading related artists")
@@ -503,7 +510,9 @@ struct ArtistDetailView: View {
 
     private func refreshRelatedArtists() {
         let nextPage = relatedArtistsPage + 1
-        relatedArtistsPage = nextPage * relatedArtistsPageSize < relatedArtists.count ? nextPage : 0
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+            relatedArtistsPage = nextPage * relatedArtistsPageSize < relatedArtists.count ? nextPage : 0
+        }
         hoveredRelatedArtistURL = nil
     }
 
