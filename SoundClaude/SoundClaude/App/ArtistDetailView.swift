@@ -2,6 +2,24 @@ import AppKit
 import SwiftUI
 
 struct ArtistDetailView: View {
+    private struct ActionHoverEffect: ViewModifier {
+        @Environment(\.isEnabled) private var isEnabled
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @State private var isHovering = false
+
+        func body(content: Content) -> some View {
+            content
+                .overlay {
+                    Capsule()
+                        .fill(.primary.opacity(isHovering && isEnabled ? 0.08 : 0))
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering && isEnabled)
+                .onContentHover { isHovering = $0 }
+        }
+    }
+
     private struct ImageButtonStyle: ButtonStyle {
         func makeBody(configuration: Configuration) -> some View {
             configuration.label
@@ -613,6 +631,7 @@ struct ArtistDetailView: View {
                             }
                     }
                 }
+                .modifier(ActionHoverEffect())
                 .disabled(isShufflingTracks)
                 .help("Shuffle this artist’s tracks")
                 .accessibilityValue(isShufflingTracks ? "Starting shuffle playback" : "")
@@ -631,6 +650,7 @@ struct ArtistDetailView: View {
             guard let urn = nonempty(details?.user.stationURN) else { return }
             onSelectStation(urn)
         }
+        .modifier(ActionHoverEffect())
         .help("Open this artist’s station")
     }
 
@@ -666,6 +686,7 @@ struct ArtistDetailView: View {
                     }
             }
         }
+        .modifier(ActionHoverEffect())
         .disabled(isFollowing == nil || isUpdatingFollow)
         .help(isFollowing == true ? "Unfollow this artist" : "Follow this artist")
         .accessibilityValue(isLoadingFollow ? "Loading follow status" : "")
