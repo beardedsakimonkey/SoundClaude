@@ -22,6 +22,7 @@ struct PlayerFooterView: View {
     @State private var hasPreviousTrack = false
     @State private var isHoveringTitle = false
     @State private var isHoveringArtwork = false
+    @State private var footerWidth: CGFloat = 0
 
     @Bindable private var playback: PlaybackController
     @ObservedObject private var likes: LikesController
@@ -46,10 +47,15 @@ struct PlayerFooterView: View {
     var body: some View {
         HStack(spacing: 6) {
             trackIdentity
-                .frame(width: 340)
+                .frame(width: min(340, max(140, footerWidth * 0.25)), alignment: .leading)
             playbackControls
                 .frame(maxWidth: .infinity)
-                .layoutPriority(1)
+        }
+        .frame(maxWidth: .infinity)
+        .onGeometryChange(for: CGFloat.self) { geometry in
+            geometry.size.width
+        } action: { width in
+            footerWidth = width
         }
         .padding(contentInset)
         .padding(.horizontal, 2)
