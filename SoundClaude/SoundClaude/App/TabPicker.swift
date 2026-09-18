@@ -35,7 +35,12 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                 Button {
                     selection = option
                 } label: {
-                    optionTitle(option, isEmphasized: isSelected || hoveredOption == option)
+                    ViewThatFits(in: .horizontal) {
+                        optionTitle(option, isEmphasized: isSelected || hoveredOption == option)
+                            .fixedSize(horizontal: true, vertical: false)
+                        Text(option.rawValue)
+                    }
+                        .lineLimit(1)
                         .foregroundStyle(isSelected || hoveredOption == option ? Color.primary : Color.secondary)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 14)
@@ -47,6 +52,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(optionTitle(option, isEmphasized: false))
                 .onContentHover { isHovering in
                     if isHovering {
                         hoveredOption = option
