@@ -48,8 +48,16 @@ struct FeedView: View {
     private var feedContent: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
-                Text("Feed")
-                    .font(.largeTitle.weight(.semibold))
+                HStack {
+                    Text("Feed")
+                        .font(.largeTitle.weight(.semibold))
+
+                    Spacer()
+
+                    RefreshButton(title: "Refresh feed", isLoading: feed.isLoading) {
+                        Task { await feed.load() }
+                    }
+                }
 
                 ForEach(items) { item in
                     VStack(alignment: .leading, spacing: 8) {

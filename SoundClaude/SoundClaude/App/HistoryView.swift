@@ -28,8 +28,16 @@ struct HistoryView: View {
     private var historyContent: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
-                Text("History")
-                    .font(.largeTitle.weight(.semibold))
+                HStack {
+                    Text("History")
+                        .font(.largeTitle.weight(.semibold))
+
+                    Spacer()
+
+                    RefreshButton(title: "Refresh history", isLoading: isLoading) {
+                        reloadID = UUID()
+                    }
+                }
 
                 ForEach(tracks) { track in
                     TrackCardView(
