@@ -22,6 +22,7 @@ struct TrackListRow: View {
     @State private var isHoveringTitle = false
     @State private var isHoveringArtist = false
     @State private var isHoveringMenu = false
+    @State private var likeErrorMessage: String?
     @GestureState private var isPressed = false
 
     var body: some View {
@@ -142,6 +143,17 @@ struct TrackListRow: View {
                 .opacity(isHovering ? 0 : 1)
                 .overlay {
                     Menu {
+                        Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
+                            Task {
+                                do {
+                                    try await likes.toggleLike(track)
+                                } catch is CancellationError {
+                                } catch {
+                                    likeErrorMessage = error.localizedDescription
+                                }
+                            }
+                        }
+                        .disabled(likes.updatingTrackURNs.contains(track.urn))
                         if let onRemoveFromQueue {
                             Button("Remove from queue", systemImage: "text.badge.minus") {
                                 onRemoveFromQueue(track)
@@ -195,6 +207,14 @@ struct TrackListRow: View {
                 .fill(rowBackground)
         }
         .onContentHover { isHovering = $0 }
+        .alert("Could not update like", isPresented: Binding(
+            get: { likeErrorMessage != nil },
+            set: { if !$0 { likeErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { likeErrorMessage = nil }
+        } message: {
+            Text(likeErrorMessage ?? "Please try again.")
+        }
         .accessibilityAction(named: isPlaybackActive ? "Pause" : "Play") {
             playOrPauseTrack()
         }
