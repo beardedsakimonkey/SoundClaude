@@ -230,7 +230,10 @@ struct TrackCardView: View {
     }
 
     private func statistic(_ count: Int?, label: String, systemImage: String) -> some View {
-        Label(count?.formatted(.number.notation(.compactName)) ?? "—", systemImage: systemImage)
+        HStack(spacing: 4) {
+            Image(systemName: systemImage)
+            Text(count?.formatted(.number.notation(.compactName)) ?? "—")
+        }
             .monospacedDigit()
             .fixedSize()
             .help(count.map { "\($0.formatted()) \(label)" } ?? "\(label.capitalized) unavailable")
