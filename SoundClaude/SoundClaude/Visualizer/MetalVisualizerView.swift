@@ -39,10 +39,7 @@ struct ArtworkVisualizerView: View {
     }
 
     private var accent: ArtworkAccent {
-        let blue = NSColor.systemBlue.usingColorSpace(.sRGB)!
-        let fallback = ArtworkAccent(
-            red: blue.redComponent, green: blue.greenComponent, blue: blue.blueComponent
-        )
+        let fallback = ArtworkAccent.fallback
         let color = accentArtworkURL == artworkURL
             ? artworkAccent ?? fallback : fallback
         return color.contrasted(

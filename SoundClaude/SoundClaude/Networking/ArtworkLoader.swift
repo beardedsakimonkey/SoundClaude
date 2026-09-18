@@ -159,6 +159,8 @@ struct ArtworkAccent: Sendable {
     let green: Double
     let blue: Double
 
+    static let fallback = ArtworkAccent(red: 0.5, green: 0.5, blue: 0.5)
+
     static func extract(from data: Data) -> ArtworkAccent? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [

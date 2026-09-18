@@ -401,10 +401,7 @@ struct TrackWaveformView: View {
     }
 
     private var progressColor: Color {
-        let blue = NSColor.systemBlue.usingColorSpace(.sRGB)!
-        let fallback = ArtworkAccent(
-            red: blue.redComponent, green: blue.greenComponent, blue: blue.blueComponent
-        )
+        let fallback = ArtworkAccent.fallback
         let accent = accentArtworkURL == track?.displayArtworkURL
             ? artworkAccent ?? fallback : fallback
         let contrastedAccent = accent.contrasted(
