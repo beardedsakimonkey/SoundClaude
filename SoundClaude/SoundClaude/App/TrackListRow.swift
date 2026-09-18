@@ -26,6 +26,7 @@ struct TrackListRow: View {
     var body: some View {
         let isCurrentTrack = playback.currentTrack?.urn == track.urn
         let isPlaybackActive = isCurrentTrack && playback.isPlaybackActive
+        let isLiked = likes.isLiked(track)
 
         HStack(spacing: 12) {
             Button(action: playOrPauseTrack) {
@@ -99,24 +100,30 @@ struct TrackListRow: View {
                     value: isCurrentTrack
                 )
                 let likeCount = likes.likeCount(for: track)
-                if showsArtist || likeCount != nil {
+                if showsArtist || likeCount != nil || isLiked {
                     HStack(spacing: 4) {
                         if showsArtist {
                             ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                                 .onContentHover { isHoveringArtist = $0 }
                         }
-                        if let likeCount {
+                        if likeCount != nil || isLiked {
                             if showsArtist {
                                 Text("·")
                                     .accessibilityHidden(true)
                             }
                             HStack(spacing: 2) {
-                                Image(systemName: "heart")
-                                Text(likeCount.formatted())
+                                Image(systemName: isLiked ? "heart.fill" : "heart")
+                                if let likeCount {
+                                    Text(likeCount.formatted())
+                                }
                             }
                             .fixedSize()
                             .accessibilityElement(children: .ignore)
-                            .accessibilityLabel("\(likeCount.formatted()) likes")
+                            .accessibilityLabel(
+                                [isLiked ? "Liked" : nil, likeCount.map { "\($0.formatted()) likes" }]
+                                    .compactMap { $0 }
+                                    .joined(separator: ", ")
+                            )
                         }
                     }
                     .font(.caption)
@@ -125,13 +132,6 @@ struct TrackListRow: View {
             }
             .lineLimit(1)
             Spacer()
-            if likes.isLiked(track) {
-                Image(systemName: "heart.fill")
-                    .font(.caption)
-                    .foregroundStyle(Color.white.opacity(0.7))
-                    .help("Liked")
-                    .accessibilityLabel("Liked")
-            }
             Text(duration)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
