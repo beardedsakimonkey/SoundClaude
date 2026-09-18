@@ -327,6 +327,7 @@ struct ArtistDetailView: View {
                                         statistic(trackCount, label: "Tracks")
                                     }
                                     .buttonStyle(.plain)
+                                    .disabled(trackCount == 0)
                                     .help("View tracks by \(details.user.username)")
                                 }
                             }
@@ -594,26 +595,28 @@ struct ArtistDetailView: View {
 
     private var artistActions: some View {
         HStack {
-            Button {
-                isShufflingTracks = true
-            } label: {
-                Label {
-                    Text("Shuffle")
-                } icon: {
-                    Image(systemName: "shuffle")
-                        .opacity(isShufflingTracks ? 0 : 1)
-                        .overlay {
-                            if isShufflingTracks {
-                                ProgressView()
-                                    .controlSize(.mini)
-                                    .accessibilityHidden(true)
+            if !tracks.isEmpty {
+                Button {
+                    isShufflingTracks = true
+                } label: {
+                    Label {
+                        Text("Shuffle")
+                    } icon: {
+                        Image(systemName: "shuffle")
+                            .opacity(isShufflingTracks ? 0 : 1)
+                            .overlay {
+                                if isShufflingTracks {
+                                    ProgressView()
+                                        .controlSize(.mini)
+                                        .accessibilityHidden(true)
+                                }
                             }
-                        }
+                    }
                 }
+                .disabled(isShufflingTracks)
+                .help("Shuffle this artist’s tracks")
+                .accessibilityValue(isShufflingTracks ? "Starting shuffle playback" : "")
             }
-            .disabled(tracks.isEmpty || isShufflingTracks)
-            .help("Shuffle this artist’s tracks")
-            .accessibilityValue(isShufflingTracks ? "Starting shuffle playback" : "")
             if nonempty(details?.user.stationURN) != nil {
                 stationButton
             }
