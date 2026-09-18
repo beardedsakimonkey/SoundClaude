@@ -101,7 +101,7 @@ struct TrackListRow: View {
                 )
                 let likeCount = likes.likeCount(for: track)
                 if showsArtist || likeCount != nil || isLiked {
-                    HStack(spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
                         if showsArtist {
                             ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                                 .onContentHover { isHoveringArtist = $0 }
@@ -111,12 +111,13 @@ struct TrackListRow: View {
                                 Text("·")
                                     .accessibilityHidden(true)
                             }
-                            HStack(spacing: 2) {
+                            HStack(alignment: .firstTextBaseline, spacing: 2) {
                                 Image(systemName: isLiked ? "heart.fill" : "heart")
                                 if let likeCount {
                                     Text(likeCount.formatted())
                                 }
                             }
+                            .font(.system(size: 9))
                             .fixedSize()
                             .accessibilityElement(children: .ignore)
                             .accessibilityLabel(
