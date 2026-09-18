@@ -20,7 +20,12 @@ struct PlaylistCardView: View {
     private var isLoading: Bool { playlists.loadingPlaylistURNs.contains(playlist.urn) }
     private var errorMessage: String? { playlists.playlistErrors[playlist.urn] }
     private var artworkURL: URL? {
-        displayedPlaylist.artworkURL ?? tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
+        if let track = model.playback.currentTrack,
+           model.queue.source == .playlist(playlist.urn)
+            || tracks.contains(where: { $0.urn == track.urn }) {
+            return track.displayArtworkURL
+        }
+        return displayedPlaylist.artworkURL ?? tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
     }
     private var waveformTrack: SoundCloudTrack? {
         tracks.first(where: { $0.urn == model.playback.currentTrack?.urn })
@@ -38,7 +43,8 @@ struct PlaylistCardView: View {
                     artworkURL: artworkURL,
                     loader: model.artworkLoader,
                     size: 140,
-                    rendition: .square500
+                    rendition: .square500,
+                    animatesChanges: true
                 )
             }
             .buttonStyle(.plain)
