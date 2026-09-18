@@ -18,7 +18,7 @@ struct RefreshButton: View {
             action()
         } label: {
             Image(systemName: "arrow.clockwise")
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.primary.opacity(isLoading ? 0.3 : isHovered ? 1 : 0.6))
                 .animation(reduceMotion || isLoading ? nil : .easeInOut(duration: 0.2), value: isLoading)
                 .frame(width: 32, height: 32)
