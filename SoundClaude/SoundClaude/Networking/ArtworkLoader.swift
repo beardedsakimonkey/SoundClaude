@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import CoreGraphics
 import ImageIO
@@ -17,8 +18,45 @@ actor ArtworkLoader {
     )
     private var requests: [URL: Task<Data, Error>] = [:]
 
+    // Keep display images separate from compressed data. NSCache can evict
+    // them under memory pressure; charge for decoded pixels, not file size.
+    @MainActor private let images = MemoryCache<NSString, NSImage>(
+        countLimit: 48,
+        totalCostLimit: 16 * 1_024 * 1_024
+    )
+
     init(client: SoundCloudClient) {
         self.client = client
+    }
+
+    @MainActor
+    func cachedImage(for url: URL, rendition: Rendition = .source) -> NSImage? {
+        images.value(forKey: resolvedURL(for: rendition, sourceURL: url).absoluteString as NSString)
+    }
+
+    @MainActor
+    func image(for url: URL, rendition: Rendition = .source) async throws -> NSImage? {
+        if let cached = cachedImage(for: url, rendition: rendition) { return cached }
+        let data = try await data(for: url, rendition: rendition)
+        try Task.checkCancellation()
+        // Another view (such as the reflection) may have populated the cache.
+        if let cached = cachedImage(for: url, rendition: rendition) { return cached }
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let bitmap = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: 500
+              ] as CFDictionary) else { return nil }
+        // These images serve thumbnails and blurred backdrops only. Even a
+        // large source is decoded at at most 500 pixels on its longest edge.
+        let image = NSImage(cgImage: bitmap, size: NSSize(width: bitmap.width, height: bitmap.height))
+        images.insert(
+            image,
+            forKey: resolvedURL(for: rendition, sourceURL: url).absoluteString as NSString,
+            cost: bitmap.bytesPerRow * bitmap.height
+        )
+        return image
     }
 
     func accentColor(for url: URL) async throws -> ArtworkAccent? {
@@ -73,7 +111,7 @@ actor ArtworkLoader {
         }
     }
 
-    private func resolvedURL(
+    nonisolated private func resolvedURL(
         for rendition: Rendition,
         sourceURL: URL
     ) -> URL {

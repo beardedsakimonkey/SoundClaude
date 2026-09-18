@@ -63,6 +63,11 @@ test-focus:
 # Standalone regression suites; no credentials or Keychain access required.
 test:
 	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/artwork-cache \
+		SoundClaude/SoundClaude/Support/MemoryCache.swift \
+		SoundClaude/SoundClaude/Networking/ArtworkLoader.swift \
+		tests/ArtworkCacheTests.swift
+	/tmp/soundclaude-tests/artwork-cache
 	swiftc -o /tmp/soundclaude-tests/reposts \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \

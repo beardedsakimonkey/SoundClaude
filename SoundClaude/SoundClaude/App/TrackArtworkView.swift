@@ -35,7 +35,7 @@ struct TrackArtworkView: View {
         ZStack {
             shape
                 .fill(.quaternary)
-            if let image {
+            if let image = image ?? artworkURL.flatMap({ loader.cachedImage(for: $0, rendition: rendition) }) {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)
@@ -59,13 +59,19 @@ struct TrackArtworkView: View {
         }
         .accessibilityHidden(true)
         .task(id: artworkURL) {
+            if let artworkURL, let cached = loader.cachedImage(for: artworkURL, rendition: rendition) {
+                withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
+                    image = cached
+                }
+                return
+            }
             if !animatesChanges {
                 image = nil
             }
             let nextImage: NSImage?
             if let artworkURL,
-               let data = try? await loader.data(for: artworkURL, rendition: rendition) {
-                nextImage = NSImage(data: data)
+               let loaded = try? await loader.image(for: artworkURL, rendition: rendition) {
+                nextImage = loaded
             } else {
                 nextImage = nil
             }
@@ -277,7 +283,7 @@ struct TrackArtworkBackdropView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                if let image = cachedImage ?? image {
+                if let image = cachedImage ?? image ?? artworkURL.flatMap({ loader.cachedImage(for: $0) }) {
                     Image(nsImage: image)
                         .resizable()
                         .scaledToFill()
@@ -314,13 +320,19 @@ struct TrackArtworkBackdropView: View {
         .accessibilityHidden(true)
         .task(id: artworkURL) {
             guard cachedImage == nil else { return }
+            if let artworkURL, let cached = loader.cachedImage(for: artworkURL) {
+                withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
+                    image = cached
+                }
+                return
+            }
             if !animatesChanges {
                 image = nil
             }
             let nextImage: NSImage?
             if let artworkURL,
-               let data = try? await loader.data(for: artworkURL) {
-                nextImage = NSImage(data: data)
+               let loaded = try? await loader.image(for: artworkURL) {
+                nextImage = loaded
             } else {
                 nextImage = nil
             }
