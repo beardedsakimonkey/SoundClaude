@@ -6,6 +6,7 @@ struct SignedInView: View {
     @ObservedObject private var model: AppModel
     @State private var selectedDestination: SidebarDestination?
     private let selectionStore = SidebarSelectionStore()
+    private let historyStore = NavigationHistoryStore()
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
     @State private var playlistTrack: SoundCloudTrack?
     @State private var searchText = ""
@@ -21,18 +22,19 @@ struct SignedInView: View {
         self.user = user
         _model = ObservedObject(wrappedValue: model)
         _selectedDestination = State(initialValue: SidebarSelectionStore().restore(for: user))
+        _navigationHistories = State(initialValue: NavigationHistoryStore().restore(for: user))
     }
 
     private var destinationID: SidebarDestination.ID {
         (selectedDestination ?? .liked).id
     }
 
-    private var path: [Route] {
+    private var path: [NavigationRoute] {
         get { navigationHistories[destinationID, default: NavigationHistory()].path }
         nonmutating set { navigationHistories[destinationID, default: NavigationHistory()].path = newValue }
     }
 
-    private var forwardPath: [Route] {
+    private var forwardPath: [NavigationRoute] {
         get { navigationHistories[destinationID, default: NavigationHistory()].forwardPath }
         nonmutating set { navigationHistories[destinationID, default: NavigationHistory()].forwardPath = newValue }
     }
@@ -127,6 +129,14 @@ struct SignedInView: View {
         .environment(\.addToPlaylist, { playlistTrack = $0 })
         .sheet(item: $playlistTrack) { track in
             AddToPlaylistView(track: track, user: user, playlists: model.playlists)
+        }
+        .onChange(of: navigationHistories) { _, histories in
+            historyStore.save(histories, for: user)
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: NSApplication.willTerminateNotification
+        )) { _ in
+            historyStore.save(navigationHistories, for: user)
         }
         .environment(\.searchGenre, showGenreSearch)
         .background {
@@ -230,7 +240,7 @@ struct SignedInView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(nsColor: .windowBackgroundColor))
                 .toolbar { navigationToolbar }
-                .navigationDestination(for: Route.self) { route in
+                .navigationDestination(for: NavigationRoute.self) { route in
                     Group {
                         switch route {
                         case let .search(query):
@@ -498,7 +508,7 @@ struct SignedInView: View {
         )
     }
 
-    private var navigationPath: Binding<[Route]> {
+    private var navigationPath: Binding<[NavigationRoute]> {
         // Bind to this section so a departing stack cannot change another section's history.
         let destinationID = destinationID
         return Binding(
@@ -522,11 +532,6 @@ struct SignedInView: View {
     }
 }
 
-private struct NavigationHistory {
-    var path: [Route] = []
-    var forwardPath: [Route] = []
-}
-
 private struct QueueBlurModifier: AnimatableModifier {
     var radius: CGFloat
 
@@ -538,16 +543,6 @@ private struct QueueBlurModifier: AnimatableModifier {
     func body(content: Content) -> some View {
         content.blur(radius: max(0, radius))
     }
-}
-
-private enum Route: Hashable {
-    case search(String)
-    case genre(String)
-    case playlist(SoundCloudPlaylist)
-    case station(String, seedTrackURN: String? = nil)
-    case track(SoundCloudTrack)
-    case artist(SoundCloudUser)
-    case artistUsers(SoundCloudUser, ArtistUserList)
 }
 
 // Hidden pages retain their state without running continuous animation timelines.

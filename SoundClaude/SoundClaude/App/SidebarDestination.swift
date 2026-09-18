@@ -63,3 +63,42 @@ struct SidebarSelectionStore {
         "sidebar.selection.\(user.urn ?? user.permalinkURL.absoluteString)"
     }
 }
+
+// Store both directions for every sidebar section so switching sections after
+// relaunch retains the same Back and Forward behavior.
+struct NavigationHistory: Codable, Equatable {
+    var path: [NavigationRoute] = []
+    var forwardPath: [NavigationRoute] = []
+}
+
+enum NavigationRoute: Codable, Hashable {
+    case search(String)
+    case genre(String)
+    case playlist(SoundCloudPlaylist)
+    case station(String, seedTrackURN: String? = nil)
+    case track(SoundCloudTrack)
+    case artist(SoundCloudUser)
+    case artistUsers(SoundCloudUser, ArtistUserList)
+}
+
+struct NavigationHistoryStore {
+    var defaults: UserDefaults = .standard
+
+    func restore(for user: SoundCloudUser) -> [SidebarDestination.ID: NavigationHistory] {
+        guard let data = defaults.data(forKey: key(for: user)),
+              let histories = try? JSONDecoder().decode(
+                [SidebarDestination.ID: NavigationHistory].self, from: data
+              )
+        else { return [:] }
+        return histories
+    }
+
+    func save(_ histories: [SidebarDestination.ID: NavigationHistory], for user: SoundCloudUser) {
+        guard let data = try? JSONEncoder().encode(histories) else { return }
+        defaults.set(data, forKey: key(for: user))
+    }
+
+    private func key(for user: SoundCloudUser) -> String {
+        "navigation.histories.\(user.urn ?? user.permalinkURL.absoluteString)"
+    }
+}
