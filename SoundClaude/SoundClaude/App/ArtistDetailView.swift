@@ -48,6 +48,7 @@ struct ArtistDetailView: View {
     @State private var hoveredStatistic: String?
     @State private var headerImage: NSImage?
     @State private var headerImageURL: URL?
+    @State private var isHeaderImageVisible = false
     @State private var isHeaderContentHidden = false
     @State private var details: SoundCloudArtistDetails?
     @State private var webProfiles: [SoundCloudWebProfile] = []
@@ -113,6 +114,7 @@ struct ArtistDetailView: View {
         let cachedHeader = model.cachedArtistHeader(for: artist)
         _headerImage = State(initialValue: cachedHeader?.image)
         _headerImageURL = State(initialValue: cachedHeader?.artworkURL)
+        _isHeaderImageVisible = State(initialValue: cachedHeader != nil)
     }
 
     var body: some View {
@@ -266,6 +268,13 @@ struct ArtistDetailView: View {
                             }
                             .buttonStyle(ImageButtonStyle())
                             .padding(.horizontal, 10)
+                            .opacity(isHeaderImageVisible ? 1 : 0)
+                            .onAppear {
+                                guard !isHeaderImageVisible else { return }
+                                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
+                                    isHeaderImageVisible = true
+                                }
+                            }
                             .accessibilityLabel(isHeaderContentHidden ? "Show artist information" : "Hide artist information")
                         }
                     }

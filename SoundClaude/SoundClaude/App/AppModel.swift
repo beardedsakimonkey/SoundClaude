@@ -48,7 +48,7 @@ final class AppModel: ObservableObject {
     >(countLimit: 50, totalCostLimit: 8 * 1_024 * 1_024)
     private var waveformRequests: [URL: (id: UUID, task: Task<SoundCloudWaveform, Error>)] = [:]
     private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(countLimit: 100)
-    private var latestArtistHeader: CachedArtistHeader?
+    private let artistHeaderCache = MemoryCache<NSURL, CachedArtistHeader>(countLimit: 10)
 
     init() {
         let configuration: SoundCloudConfiguration
@@ -156,7 +156,7 @@ final class AppModel: ObservableObject {
         for request in waveformRequests.values { request.task.cancel() }
         waveformRequests.removeAll()
         waveformCache.removeAll()
-        latestArtistHeader = nil
+        artistHeaderCache.removeAll()
         errorMessage = nil
         await auth.signOut()
     }
@@ -463,8 +463,7 @@ final class AppModel: ObservableObject {
     }
 
     func cachedArtistHeader(for artist: SoundCloudUser) -> CachedArtistHeader? {
-        guard latestArtistHeader?.artistURL == artist.permalinkURL else { return nil }
-        return latestArtistHeader
+        artistHeaderCache.value(forKey: artist.permalinkURL as NSURL)
     }
 
     func artistHeader(for artist: SoundCloudUser) async throws -> CachedArtistHeader? {
@@ -478,7 +477,7 @@ final class AppModel: ObservableObject {
             artworkURL: url,
             image: image
         )
-        latestArtistHeader = header
+        artistHeaderCache.insert(header, forKey: artist.permalinkURL as NSURL)
         return header
     }
 
