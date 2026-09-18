@@ -108,6 +108,11 @@ fragment float4 visualizerFragment(
 
     color *= (1. - leftToRight*leftToRight*.4);
 
+    // Leave room for a visible highlight when the body reaches full opacity.
+    // Scale with body opacity to preserve the cap treatment on quiet bars.
+    color *= mix(1.0, 0.8, bodyAlpha);
+    color = mix(color, float3(1.0), 0.75 * bodyAlpha * capFalloff);
+
     // Core Animation composites the drawable using premultiplied alpha.
     return float4(color * alpha, alpha);
 }
