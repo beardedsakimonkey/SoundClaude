@@ -356,9 +356,9 @@ struct DetailArtworkView: View {
     let size: CGFloat
     var animatesChanges = false
     var showsPlaceholderIcon = true
+    var cornerRadius: CGFloat = 6
     let onShowArtwork: () -> Void
 
-    private let cornerRadius: CGFloat = 6
     private var reflectionHeight: CGFloat { size * 0.45 }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

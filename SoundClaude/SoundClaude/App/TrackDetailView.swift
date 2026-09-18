@@ -155,6 +155,7 @@ struct TrackDetailView: View {
                         size: artworkSize,
                         animatesChanges: true,
                         showsPlaceholderIcon: false,
+                        cornerRadius: 12,
                         onShowArtwork: { isShowingArtwork = true }
                     )
                     .modifier(FadeInOnAppear())
