@@ -9,6 +9,7 @@ struct ArtistDetailView: View {
 
         func body(content: Content) -> some View {
             content
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isEnabled)
                 .overlay {
                     Capsule()
                         .fill(.primary.opacity(isHovering && isEnabled ? 0.08 : 0))
@@ -628,7 +629,7 @@ struct ArtistDetailView: View {
 
     private var artistActions: some View {
         HStack {
-            if !tracks.isEmpty {
+            if !tracks.isEmpty || (!hasLoadedTracks && tracksErrorMessage == nil) {
                 Button {
                     isShufflingTracks = true
                 } label: {
@@ -647,7 +648,7 @@ struct ArtistDetailView: View {
                     }
                 }
                 .modifier(ActionHoverEffect())
-                .disabled(isShufflingTracks)
+                .disabled(tracks.isEmpty || isShufflingTracks)
                 .help("Shuffle this artist’s tracks")
                 .accessibilityValue(isShufflingTracks ? "Starting shuffle playback" : "")
             }
