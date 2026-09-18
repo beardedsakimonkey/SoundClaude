@@ -689,6 +689,7 @@ struct ArtistDetailView: View {
                     analyzer: model.analyzer,
                     artworkLoader: model.artworkLoader,
                     likes: model.likes,
+                    showsArtist: false,
                     onAddToQueue: model.addToQueue,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
