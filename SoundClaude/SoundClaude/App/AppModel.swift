@@ -286,7 +286,7 @@ final class AppModel: ObservableObject {
         }
         queue.setShuffle(playback.isShuffleEnabled, currentURN: session.track.urn)
         saveQueue()
-        await loadPlayback(session.track, position: session.position, autoplay: false)
+        await loadPlayback(session.track, position: session.position, autoplay: session.wasPlaying)
     }
 
     private func loadPlayback(

@@ -15,7 +15,7 @@ Core Audio, Accelerate, and Metal. It feautres:
 - immediate launch from the saved account profile, with session validation in the background
 - authenticated stream resolution with final CDN host validation
 - one `AVPlayer` for Apple HLS/AAC playback
-- saved track, queue source, and playback position, restored paused at startup; cleared on sign-out
+- saved track, queue source, and playback position, with automatic resume at startup if playback was active at quit; cleared on sign-out
 - a locally cached feed with track and playlist posts, reposts, user avatars, and relative timestamps
 - queues from the feed, likes, artist tracks and reposts, playlists, and related tracks
 - account-specific likes metadata cached in Application Support; new likes sync when Likes opens

@@ -52,6 +52,29 @@ struct PlaybackTests {
             bitrateKilobitsPerSecond: 160, isPreview: false
         )
 
+        // Older sessions have no playback state and must still restore paused.
+        let encoded = try JSONEncoder().encode(
+            SavedPlayback(track: track(1), position: 0.75, wasPlaying: true)
+        )
+        var legacy = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        legacy.removeValue(forKey: "wasPlaying")
+        defaults.set(try JSONSerialization.data(withJSONObject: legacy), forKey: "playback.session")
+        precondition(playback.savedSession?.wasPlaying == false)
+        precondition(playback.savedSession?.position == 0.75)
+
+        // A new controller resumes an active session at its saved position.
+        defaults.set(encoded, forKey: "playback.session")
+        let relaunched = PlaybackController(defaults: defaults)
+        let session = relaunched.savedSession!
+        let resume = relaunched.beginLoading(
+            track: session.track, position: session.position, autoplay: session.wasPlaying
+        )
+        relaunched.load(source: source, requestID: resume)
+        try await until { relaunched.isPlaying }
+        precondition(relaunched.player.currentTime().seconds >= 0.7)
+        relaunched.pause()
+        precondition(relaunched.savedSession?.wasPlaying == false)
+
         // Selection and saved position update before a stream URL is available.
         let first = playback.beginLoading(track: track(1), position: 0.5)
         precondition(playback.currentTrack == track(1))
@@ -60,6 +83,7 @@ struct PlaybackTests {
         precondition(playback.currentTime == 0.5 && playback.duration == 2)
         precondition(playback.savedSession?.track == track(1))
         precondition(playback.savedSession?.position == 0.5)
+        precondition(playback.savedSession?.wasPlaying == true)
 
         // Pause and seek during resolution must survive source attachment.
         playback.togglePlayPause()
@@ -69,6 +93,7 @@ struct PlaybackTests {
         try await until { !playback.isLoading && abs(playback.player.currentTime().seconds - 1) < 0.05 }
         precondition(!playback.isPlaybackActive && !playback.isPlaying)
         precondition(playback.savedSession?.position == 1)
+        precondition(playback.savedSession?.wasPlaying == false)
 
         // Remove the old item immediately; late status/time callbacks cannot
         // restore its position or duration while the next source is resolving.
@@ -88,6 +113,7 @@ struct PlaybackTests {
         playback.failLoading(requestID: third, message: "Stream unavailable")
         precondition(!playback.isLoading && !playback.isPlaybackActive)
         precondition(playback.errorMessage == "Stream unavailable")
+        precondition(playback.savedSession?.wasPlaying == false)
         playback.load(source: source, requestID: third)
         precondition(playback.player.currentItem == nil)
 
@@ -96,6 +122,7 @@ struct PlaybackTests {
         precondition(!playback.isPlaybackActive && playback.errorMessage == nil)
         playback.togglePlayPause()
         precondition(playback.isPlaybackActive)
+        precondition(playback.savedSession?.wasPlaying == true)
         playback.pause()
         playback.load(source: source, requestID: restored)
         try await until { !playback.isLoading && abs(playback.player.currentTime().seconds - 0.75) < 0.05 }
@@ -111,6 +138,8 @@ struct PlaybackTests {
         precondition(playback.isPlaybackActive)
         try await until { didEnd }
         precondition(!playback.isPlaybackActive && !playback.isPlaying)
+
+        precondition(playback.savedSession?.wasPlaying == false)
 
         // Preparation readies audio without changing the selected track or position.
         let beforePrefetch = playback.beginLoading(track: track(1), autoplay: false)
@@ -157,6 +186,8 @@ struct PlaybackTests {
         bufferingPlayer.simulateStatus(.waitingToPlayAtSpecifiedRate)
         try await until { playback.isBuffering }
         precondition(!playback.isLoading)
+        playback.saveSession()
+        precondition(playback.savedSession?.wasPlaying == true)
         playback.pause()
         precondition(!playback.isBuffering)
         playback.togglePlayPause()
@@ -164,6 +195,7 @@ struct PlaybackTests {
         bufferingPlayer.simulateStatus(.playing)
         try await until { !playback.isBuffering && playback.isPlaying }
         playback.pause()
+        precondition(playback.savedSession?.wasPlaying == false)
         bufferingPlayer.simulateStatus(nil)
 
         // Queue edits drop an obsolete player and retain only the new next track.

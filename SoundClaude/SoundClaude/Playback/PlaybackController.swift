@@ -11,6 +11,24 @@ private struct RemoteCommandTarget: @unchecked Sendable {
 struct SavedPlayback: Codable {
     let track: SoundCloudTrack
     let position: Double
+    let wasPlaying: Bool
+
+    init(track: SoundCloudTrack, position: Double, wasPlaying: Bool) {
+        self.track = track
+        self.position = position
+        self.wasPlaying = wasPlaying
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case track, position, wasPlaying
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        track = try container.decode(SoundCloudTrack.self, forKey: .track)
+        position = try container.decode(Double.self, forKey: .position)
+        wasPlaying = try container.decodeIfPresent(Bool.self, forKey: .wasPlaying) ?? false
+    }
 }
 
 @MainActor
@@ -152,6 +170,7 @@ final class PlaybackController {
                 } else {
                     shouldPlayWhenReady = false
                     isPlaying = false
+                    saveSession()
                     updateNowPlayingInfo()
                     onTrackEnded?()
                 }
@@ -240,7 +259,9 @@ final class PlaybackController {
               player.currentItem?.status != .failed else { return }
         let seconds = seekTarget ?? (player.currentItem == nil ? currentTime : player.currentTime().seconds)
         let position = seconds.isFinite ? max(seconds, 0) : currentTime
-        let session = SavedPlayback(track: track, position: position)
+        // Preserve playback intent through loading, seeking, and buffering.
+        // AVPlayer's observed status can still report playing just after Pause.
+        let session = SavedPlayback(track: track, position: position, wasPlaying: shouldPlayWhenReady)
         guard let data = try? JSONEncoder().encode(session) else { return }
         defaults.set(data, forKey: SettingsKey.session)
         lastSaveTime = Date()
@@ -453,6 +474,7 @@ final class PlaybackController {
         isLoading = false
         shouldPlayWhenReady = false
         errorMessage = message
+        saveSession()
         updateNowPlayingInfo(elapsedTime: currentTime)
     }
 
@@ -472,6 +494,7 @@ final class PlaybackController {
     private func play() {
         guard isLoading || player.currentItem != nil else { return }
         shouldPlayWhenReady = true
+        saveSession()
         playIfReady()
     }
 
