@@ -245,7 +245,7 @@ struct PlaylistDetailView: View {
         return Button {
             if currentPlaylistTrack != nil {
                 model.playback.togglePlayPause()
-            } else if let track = tracks.first {
+            } else if let track = model.playback.isShuffleEnabled ? tracks.randomElement() : tracks.first {
                 Task {
                     await model.play(track, queue: TrackQueue(
                         source: .playlist(playlist.urn), tracks: tracks, nextPageURL: nextPageURL

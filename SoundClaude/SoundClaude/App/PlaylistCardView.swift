@@ -163,7 +163,8 @@ struct PlaylistCardView: View {
             if isCurrentTrack {
                 model.playback.togglePlayPause()
             } else {
-                Task { await play(track) }
+                let startingTrack = model.playback.isShuffleEnabled ? (tracks.randomElement() ?? track) : track
+                Task { await play(startingTrack) }
             }
         } label: {
             Image(systemName: isPlaying ? "pause.fill" : "play.fill")
