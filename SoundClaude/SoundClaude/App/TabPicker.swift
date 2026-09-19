@@ -6,17 +6,20 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
     let options: [Selection]
     @Binding var selection: Selection
     let optionCount: (Selection) -> Int?
+    let optionSystemImage: (Selection) -> String?
 
     init(
         title: String,
         options: [Selection],
         selection: Binding<Selection>,
-        optionCount: @escaping (Selection) -> Int? = { _ in nil }
+        optionCount: @escaping (Selection) -> Int? = { _ in nil },
+        optionSystemImage: @escaping (Selection) -> String? = { _ in nil }
     ) {
         self.title = title
         self.options = options
         self._selection = selection
         self.optionCount = optionCount
+        self.optionSystemImage = optionSystemImage
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -35,10 +38,16 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                 Button {
                     selection = option
                 } label: {
-                    ViewThatFits(in: .horizontal) {
-                        optionTitle(option, isEmphasized: isSelected || hoveredOption == option)
-                            .fixedSize(horizontal: true, vertical: false)
-                        Text(option.rawValue)
+                    HStack(spacing: 6) {
+                        if let systemImage = optionSystemImage(option) {
+                            Image(systemName: systemImage)
+                                .accessibilityHidden(true)
+                        }
+                        ViewThatFits(in: .horizontal) {
+                            optionTitle(option, isEmphasized: isSelected || hoveredOption == option)
+                                .fixedSize(horizontal: true, vertical: false)
+                            Text(option.rawValue)
+                        }
                     }
                         .lineLimit(1)
                         .foregroundStyle(isSelected || hoveredOption == option ? Color.primary : Color.secondary)

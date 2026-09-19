@@ -46,6 +46,15 @@ struct ArtistDetailView: View {
         case likes = "Likes"
 
         var id: Self { self }
+
+        var systemImage: String {
+            switch self {
+            case .tracks: "music.note"
+            case .reposts: "arrow.2.squarepath"
+            case .playlists: "music.note.list"
+            case .likes: "heart"
+            }
+        }
     }
 
     @Environment(\.colorScheme) private var colorScheme
@@ -313,7 +322,8 @@ struct ArtistDetailView: View {
                             title: "Artist content",
                             options: ContentTab.allCases,
                             selection: $selectedTab,
-                            optionCount: tabCount
+                            optionCount: tabCount,
+                            optionSystemImage: { $0.systemImage }
                         )
                         .font(.body.weight(.semibold))
                         .layoutPriority(1)
