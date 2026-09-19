@@ -8,7 +8,6 @@ struct TrackListRow: View {
     @ObservedObject var likes: LikesController
     var showsArtist = true
     var isCompact = false
-    var trackNumber: Int? = nil
     var onAddToQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromQueue: ((SoundCloudTrack) -> Void)? = nil
     let onSelectTrack: (SoundCloudTrack) -> Void
@@ -65,12 +64,6 @@ struct TrackListRow: View {
             .onContentHover { isHoveringArtwork = $0 }
             .help(isPlaybackActive ? "Pause" : "Play")
             .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
-            if let trackNumber {
-                Text(trackNumber.formatted())
-                    .font(.callout.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(minWidth: 20, alignment: .trailing)
-            }
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Button {

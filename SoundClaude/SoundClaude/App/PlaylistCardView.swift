@@ -145,7 +145,7 @@ struct PlaylistCardView: View {
     }
 
     private func trackRows(limit: Int) -> some View {
-        ForEach(Array(tracks.prefix(limit).enumerated()), id: \.element.urn) { index, track in
+        ForEach(tracks.prefix(limit), id: \.urn) { track in
             TrackListRow(
                 track: track,
                 playback: model.playback,
@@ -154,7 +154,6 @@ struct PlaylistCardView: View {
                 likes: model.likes,
                 showsArtist: false,
                 isCompact: true,
-                trackNumber: index + 1,
                 onAddToQueue: model.addToQueue,
                 onSelectTrack: onSelectTrack,
                 onSelectArtist: onSelectArtist,
