@@ -46,7 +46,12 @@ struct SidebarView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     sectionHeader("Playlists", isExpanded: $isPlaylistsExpanded)
                     if isPlaylistsExpanded {
-                        Label("New", systemImage: "plus")
+                        Label {
+                            Text("New")
+                        } icon: {
+                            Image(systemName: "plus")
+                                .frame(width: 24, height: 24)
+                        }
                             .modifier(SidebarRowStyle(isSelected: false) {
                                 isShowingCreatePlaylist = true
                             })
