@@ -241,6 +241,7 @@ struct PlaylistDetailView: View {
             loader: model.artworkLoader,
             size: artworkSize,
             animatesChanges: true,
+            cornerRadius: 12,
             onShowArtwork: { isShowingArtwork = true }
         )
     }

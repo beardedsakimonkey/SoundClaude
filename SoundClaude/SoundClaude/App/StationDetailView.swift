@@ -109,6 +109,7 @@ struct StationDetailView: View {
             DetailArtworkView(
                 artworkURL: artworkURL, title: artworkTitle,
                 loader: model.artworkLoader, size: 250, animatesChanges: true,
+                cornerRadius: 12,
                 onShowArtwork: { isShowingArtwork = true }
             )
             VStack(alignment: .leading, spacing: 10) {
