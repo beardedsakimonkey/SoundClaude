@@ -117,6 +117,7 @@ struct StationDetailView: View {
                     .font(.system(size: 28, weight: .semibold))
                     .textSelection(.enabled)
                     .accessibilityLabel("Station, \(title)")
+                    .modifier(FadeInOnAppear())
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(stationType)
                     RelativeTimestampView(
@@ -126,7 +127,10 @@ struct StationDetailView: View {
                 }
                 .font(.title3)
                 .foregroundStyle(.secondary)
-                playbackControls.padding(.top, 8)
+                .modifier(FadeInOnAppear())
+                playbackControls
+                    .padding(.top, 8)
+                    .modifier(FadeInOnAppear())
                 Spacer(minLength: 6)
                 TrackWaveformView(
                     track: currentStationTrack, model: model,
