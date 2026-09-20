@@ -323,7 +323,8 @@ struct ArtistDetailView: View {
                             options: ContentTab.allCases,
                             selection: $selectedTab,
                             optionCount: tabCount,
-                            optionSystemImage: { $0.systemImage }
+                            optionSystemImage: { $0.systemImage },
+                            allowsIconOnly: true
                         )
                         .font(.body.weight(.semibold))
                         .layoutPriority(1)
