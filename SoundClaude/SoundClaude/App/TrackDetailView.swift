@@ -213,9 +213,6 @@ struct TrackDetailView: View {
 
                 if let description = nonempty(details.description) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Description")
-                            .font(.headline)
-                            .opacity(0.96)
                         ExpandableDescriptionText(
                             description: description,
                             onSelectArtist: onSelectArtist
