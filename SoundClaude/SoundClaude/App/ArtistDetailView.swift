@@ -2,21 +2,29 @@ import AppKit
 import SwiftUI
 
 struct ArtistDetailView: View {
-    private struct ActionHoverEffect: ViewModifier {
+    private struct ArtistActionButtonStyle: ButtonStyle {
         @Environment(\.isEnabled) private var isEnabled
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
         @State private var isHovering = false
 
-        func body(content: Content) -> some View {
-            content
+        func makeBody(configuration: Configuration) -> some View {
+            let shape = RoundedRectangle(cornerRadius: 6)
+
+            configuration.label
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .background(.primary.opacity(0.12), in: shape)
+                .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.5)
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isEnabled)
                 .overlay {
-                    Capsule()
+                    shape
                         .fill(.primary.opacity(isHovering && isEnabled ? 0.08 : 0))
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
                 }
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering && isEnabled)
+                .contentShape(shape)
                 .onContentHover { isHovering = $0 }
         }
     }
@@ -316,6 +324,7 @@ struct ArtistDetailView: View {
                     .environment(\.colorScheme, headerImage == nil ? colorScheme : .dark)
                     .padding(.horizontal, -24)
                     .padding(.top, -24)
+                    .padding(.bottom, -12)
 
                     HStack {
                         TabPicker(
@@ -658,7 +667,6 @@ struct ArtistDetailView: View {
                             }
                     }
                 }
-                .modifier(ActionHoverEffect())
                 .disabled(tracks.isEmpty || isShufflingTracks)
                 .help("Shuffle this artist’s tracks")
                 .accessibilityValue(isShufflingTracks ? "Starting shuffle playback" : "")
@@ -670,6 +678,7 @@ struct ArtistDetailView: View {
                 followControls
             }
         }
+        .buttonStyle(ArtistActionButtonStyle())
     }
 
     private var stationButton: some View {
@@ -677,7 +686,6 @@ struct ArtistDetailView: View {
             guard let urn = nonempty(details?.user.stationURN) else { return }
             onSelectStation(urn, details?.user.username ?? artist.username)
         }
-        .modifier(ActionHoverEffect())
         .help("Open this artist’s station")
     }
 
@@ -713,7 +721,6 @@ struct ArtistDetailView: View {
                     }
             }
         }
-        .modifier(ActionHoverEffect())
         .disabled(isFollowing == nil || isUpdatingFollow)
         .help(isFollowing == true ? "Unfollow this artist" : "Follow this artist")
         .accessibilityValue(isLoadingFollow ? "Loading follow status" : "")
