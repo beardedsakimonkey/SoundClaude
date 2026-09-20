@@ -114,7 +114,7 @@ struct PlaylistCardView: View {
         .frame(height: CGFloat(min(tracks.count, isExpanded ? 8 : 5)) * 40)
         .scrollDisabled(!isExpanded)
 
-        if isExpanded || trackCount > 5 {
+        if !tracks.isEmpty && (isExpanded || trackCount > 5) {
             Button(isExpanded ? "View fewer tracks" : "View \(trackCount) tracks") {
                 isExpanded.toggle()
             }
