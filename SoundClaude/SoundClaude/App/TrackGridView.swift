@@ -105,10 +105,10 @@ struct TrackGridTile: View {
                         value: isHoveringArtwork
                     )
                     .overlay {
-                        Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")
-                            .font(.system(size: 32, weight: .semibold))
+                        AnimatedPlayPauseIcon(isPlaybackActive: isPlaybackActive, size: 32)
                             .foregroundStyle(.white)
                             .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
+                            .scaleEffect(reduceMotion || isHoveringArtwork || isCurrentTrack ? 1 : 0.8)
                             .opacity(isHoveringArtwork || isCurrentTrack ? 1 : 0)
                             .animation(
                                 reduceMotion ? nil : .easeInOut(duration: 0.15),

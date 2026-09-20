@@ -427,18 +427,9 @@ struct PlayerFooterView: View {
             .accessibilityLabel("Previous track")
 
             Button(action: playback.togglePlayPause) {
-                ZStack {
-                    Image(systemName: playback.isPlaybackActive ? "pause.fill" : "play.fill")
-                        .font(.system(size: 28, weight: .semibold))
-                        .id(playback.isPlaybackActive)
-                        .transition(reduceMotion ? .identity : .scale(scale: 0.01).combined(with: .opacity))
-                }
-                .frame(width: 44, height: 44)
-                .modifier(PlayerFooterButtonBackground())
-                .animation(
-                    reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.6),
-                    value: playback.isPlaybackActive
-                )
+                AnimatedPlayPauseIcon(isPlaybackActive: playback.isPlaybackActive, size: 28)
+                    .frame(width: 44, height: 44)
+                    .modifier(PlayerFooterButtonBackground())
             }
             .keyboardShortcut(.space, modifiers: [])
             .disabled(playback.currentTrack == nil)
