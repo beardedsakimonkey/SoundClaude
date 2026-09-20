@@ -9,6 +9,8 @@ struct StationDetailView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hasAppeared = false
     @State private var station: SoundCloudStation?
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -113,11 +115,7 @@ struct StationDetailView: View {
                 onShowArtwork: { isShowingArtwork = true }
             )
             VStack(alignment: .leading, spacing: 10) {
-                Text("\(Text(Image(systemName: "dot.radiowaves.left.and.right")).foregroundStyle(.primary.opacity(0.7))) \(title)")
-                    .font(.system(size: 28, weight: .semibold))
-                    .textSelection(.enabled)
-                    .accessibilityLabel("Station, \(title)")
-                    .modifier(FadeInOnAppear())
+                stationTitle
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(stationType)
                     RelativeTimestampView(
@@ -145,6 +143,28 @@ struct StationDetailView: View {
                 alignment: .topLeading
             )
         }
+    }
+
+    private var stationTitle: some View {
+        let showsIcon = seedTrack == nil || reduceMotion || hasAppeared
+        return Text(title)
+        .foregroundStyle(.primary.opacity(0.9))
+        .textSelection(.enabled)
+        .padding(.leading, showsIcon ? 64 : 0)
+        // Keep the symbol's metrics from changing the title row's height.
+        .overlay(alignment: Alignment(horizontal: .leading, vertical: .firstTextBaseline)) {
+            Image(systemName: "dot.radiowaves.left.and.right")
+                .foregroundStyle(.primary.opacity(0.7))
+                .frame(width: 56)
+                .opacity(showsIcon ? 1 : 0)
+                .accessibilityHidden(true)
+        }
+        .font(.system(size: 36, weight: .semibold))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Station, \(title)")
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: hasAppeared)
+        .onAppear { hasAppeared = true }
+        .modifier(FadeInOnAppear(isEnabled: seedTrack == nil))
     }
 
     private var playbackControls: some View {
