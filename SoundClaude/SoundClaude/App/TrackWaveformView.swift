@@ -130,9 +130,11 @@ struct TrackWaveformView: View {
                 let renderedProgress = progress
                 let renderedProgressColor = progressColor
                 let renderedHoverFraction = hoverFraction
+                let hoverStrength = colorScheme == .light
+                    && renderedHoverFraction >= renderedProgress ? 0.4 : 0.3
                 WaveformAnimatedCanvas(
                     amplitudes: amplitudes,
-                    hoverOpacity: showsHoverPreview ? 0.3 : 0
+                    hoverOpacity: showsHoverPreview ? hoverStrength : 0
                 ) { context, size, amplitudes, hoverOpacity in
                     guard size.width > 0, size.height > 0 else { return }
                     let bars = waveformBars(amplitudes, size: size)
@@ -159,11 +161,15 @@ struct TrackWaveformView: View {
                         )
                         path.closeSubpath()
                     }
-                    let background = Color.secondary.opacity(layout == .compact ? 0.3 : 0.5)
+                    let backgroundOpacity = layout == .compact ? 0.3 : 0.5
+                    let backgroundStrength = colorScheme == .light
+                        && colorSchemeContrast != .increased ? 0.6 : 1.0
+                    let background = Color.secondary.opacity(backgroundOpacity * backgroundStrength)
                         .resolve(in: context.environment).cgColor
                     let color = renderedProgressColor.opacity(layout == .compact ? 0.8 : 1)
                         .resolve(in: context.environment).cgColor
-                    let highlight = Color.white.opacity(0.9)
+                    // In light mode, retain the accent in the seek preview.
+                    let highlight = Color.white.opacity(colorScheme == .dark ? 0.9 : 0.12)
                         .resolve(in: context.environment).cgColor
                     let shadow = Color.black.opacity(0.9)
                         .resolve(in: context.environment).cgColor
@@ -379,7 +385,9 @@ struct TrackWaveformView: View {
             context.fill(rect)
             return
         }
-        guard let gradient = gradientCache.gradient(for: color) else { return }
+        guard let gradient = gradientCache.gradient(
+            for: color, isDark: colorScheme == .dark
+        ) else { return }
 
         context.saveGState()
         context.clip(to: rect)
@@ -695,23 +703,23 @@ private struct WaveformAmplitudes: VectorArithmetic {
 }
 
 // Each view retains a small palette across animation frames. Key by resolved
-// CGColor so artwork, appearance, contrast, and alpha changes get fresh shading.
+// CGColor and appearance so color and highlight changes get fresh shading.
 private final class WaveformGradientCache {
-    private var entries: [(color: CGColor, gradient: CGGradient)] = []
+    private var entries: [(color: CGColor, isDark: Bool, gradient: CGGradient)] = []
 
-    func gradient(for color: CGColor) -> CGGradient? {
-        if let entry = entries.first(where: { $0.color == color }) {
+    func gradient(for color: CGColor, isDark: Bool) -> CGGradient? {
+        if let entry = entries.first(where: { $0.color == color && $0.isDark == isDark }) {
             return entry.gradient
         }
-        guard let gradient = makeGradient(for: color) else { return nil }
+        guard let gradient = makeGradient(for: color, isDark: isDark) else { return nil }
         if entries.count == 8 {
             entries.removeFirst()
         }
-        entries.append((color, gradient))
+        entries.append((color, isDark, gradient))
         return gradient
     }
 
-    private func makeGradient(for color: CGColor) -> CGGradient? {
+    private func makeGradient(for color: CGColor, isDark: Bool) -> CGGradient? {
         let colorSpace = CGColorSpace(name: CGColorSpace.linearSRGB)!
         guard let components = color.converted(
             to: colorSpace, intent: .relativeColorimetric, options: nil
@@ -729,8 +737,10 @@ private final class WaveformGradientCache {
             (1,    0.87, 0.03)
         ]
         let stops = profile.map { stop in
-            base * Double(stop.brightness * (1 - stop.highlight))
-                + SIMD3<Double>(Double(stop.highlight), 0, 0)
+            // Keep a subtle crest on light backgrounds without a white stripe.
+            let highlight = stop.highlight * (isDark ? 1 : 0.25)
+            return base * Double(stop.brightness * (1 - highlight))
+                + SIMD3<Double>(Double(highlight), 0, 0)
         }
         // Core Graphics interpolates in RGB. Sample the OKLab curve densely
         // and include the exact profile stops to preserve each crest.
