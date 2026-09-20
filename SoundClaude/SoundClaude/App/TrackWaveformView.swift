@@ -529,9 +529,8 @@ struct TrackWaveformView: View {
 
     private func seek(to fraction: Double) {
         guard let track else { return }
-        let target = fraction * displayedDuration
         if isCurrentTrack {
-            playback.seek(to: target)
+            playback.seek(toFraction: fraction)
             return
         }
 
@@ -542,7 +541,7 @@ struct TrackWaveformView: View {
                 await model.play(track)
             }
             guard playback.currentTrack?.urn == track.urn else { return }
-            playback.seek(to: target)
+            playback.seek(toFraction: fraction)
         }
     }
 

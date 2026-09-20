@@ -35,12 +35,12 @@ struct PlaybackTests {
             urn: "user:1", username: "Test", avatarURL: nil,
             permalinkURL: URL(string: "https://soundcloud.com/test")!
         )
-        func track(_ id: Int) -> SoundCloudTrack {
+        func track(_ id: Int, durationMilliseconds: Int = 2000) -> SoundCloudTrack {
             SoundCloudTrack(
                 urn: "track:\(id)", title: "Track \(id)", artist: user,
                 artworkURL: nil, waveformURL: nil,
                 permalinkURL: URL(string: "https://soundcloud.com/test/\(id)")!,
-                durationMilliseconds: 2000, access: .playable, secretToken: nil
+                durationMilliseconds: durationMilliseconds, access: .playable, secretToken: nil
             )
         }
         let fileURL = FileManager.default.temporaryDirectory
@@ -295,6 +295,33 @@ struct PlaybackTests {
         let ignoredSignOut = await signedOutLoad.value
         precondition(ignoredSignOut && preparedPlayers.count == countBeforeSignOut)
         precondition(playback.currentTrack == nil)
+        // A waveform click before readiness uses the short stream duration,
+        // even when metadata describes a much longer full track.
+        let previewRequest = playback.beginLoading(
+            track: track(10, durationMilliseconds: 180_000), autoplay: false
+        )
+        playback.seek(toFraction: 0.5)
+        playback.load(source: source, requestID: previewRequest)
+        try await until { !playback.isLoading && !playback.isBuffering }
+        precondition(abs(playback.currentTime - 1) < 0.05)
+        precondition(abs(playback.duration - 2) < 0.05)
+
+        // Further clicks and rapid drags use the playable duration too.
+        playback.seek(toFraction: 0.25)
+        playback.seek(toFraction: 0.75)
+        try await until { !playback.isBuffering }
+        precondition(abs(playback.currentTime - 1.5) < 0.05)
+
+        // An absolute seek replaces a pending fractional seek during loading.
+        let replacementRequest = playback.beginLoading(
+            track: track(11, durationMilliseconds: 180_000), autoplay: false
+        )
+        playback.seek(toFraction: 0.75)
+        playback.seek(to: 0.5)
+        playback.load(source: source, requestID: replacementRequest)
+        try await until { !playback.isLoading && !playback.isBuffering }
+        precondition(abs(playback.currentTime - 0.5) < 0.05)
+        playback.clearSession()
         print("Playback tests passed")
     }
 

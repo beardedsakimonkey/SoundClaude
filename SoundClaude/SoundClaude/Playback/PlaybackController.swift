@@ -115,6 +115,7 @@ final class PlaybackController {
     @ObservationIgnored private var timeObserver: Any?
     @ObservationIgnored private var endObserver: NSObjectProtocol?
     @ObservationIgnored private var seekTarget: Double?
+    @ObservationIgnored private var seekFraction: Double?
     private var isSeekInProgress = false
     @ObservationIgnored private var loadingRequestID: UUID?
     private struct Preparation {
@@ -227,6 +228,9 @@ final class PlaybackController {
                 if duration != updatedDuration {
                     duration = updatedDuration
                 }
+                if seekFraction != nil {
+                    seekIfNeeded()
+                }
                 if Date().timeIntervalSince(lastSaveTime) >= 5 {
                     saveSession()
                 }
@@ -280,6 +284,7 @@ final class PlaybackController {
         currentTime = 0
         duration = 0
         seekTarget = nil
+        seekFraction = nil
         isSeekInProgress = false
         isLoading = false
         isPlaying = false
@@ -316,6 +321,7 @@ final class PlaybackController {
         let requestID = UUID()
         loadingRequestID = requestID
         seekTarget = nil
+        seekFraction = nil
         isSeekInProgress = false
         hasNotifiedReady = false
         errorMessage = nil
@@ -416,7 +422,7 @@ final class PlaybackController {
         replacePlayer(with: prepared)
         // A fresh standby player is already at the start. Preserve its preroll
         // instead of issuing a redundant seek before playback.
-        if seekTarget == 0, prepared.currentTime().seconds == 0 {
+        if seekFraction == nil, seekTarget == 0, prepared.currentTime().seconds == 0 {
             seekTarget = nil
         }
         load(item: item, requestID: requestID)
@@ -515,6 +521,17 @@ final class PlaybackController {
     }
 
     func seek(to seconds: Double) {
+        seek(to: seconds, fraction: nil)
+    }
+
+    /// Resolve waveform positions against the playable stream, including previews.
+    func seek(toFraction fraction: Double) {
+        guard fraction.isFinite else { return }
+        let fraction = min(max(fraction, 0), 1)
+        seek(to: fraction * duration, fraction: fraction)
+    }
+
+    private func seek(to seconds: Double, fraction: Double?) {
         guard seconds.isFinite,
               currentTrack != nil,
               isLoading || player.currentItem != nil,
@@ -522,6 +539,7 @@ final class PlaybackController {
         let upperBound = duration > 0 ? duration : seconds
         let target = min(max(seconds, 0), upperBound)
         seekTarget = target
+        seekFraction = fraction
         currentTime = target
         updateNowPlayingInfo(elapsedTime: target)
         saveSession()
@@ -567,8 +585,14 @@ final class PlaybackController {
               item.status == .readyToPlay else { return }
 
         let itemDuration = item.duration.seconds
+        let hasDuration = itemDuration.isFinite && itemDuration > 0
+        // A fraction must wait for the stream duration, never the track metadata.
+        if seekFraction != nil, !hasDuration { return }
+        let resolvedTarget = seekFraction.map { $0 * itemDuration } ?? requestedTarget
+        seekFraction = nil
+        if hasDuration { duration = itemDuration }
         let target = itemDuration.isFinite && itemDuration > 0
-            ? min(requestedTarget, itemDuration) : requestedTarget
+            ? min(resolvedTarget, itemDuration) : resolvedTarget
         seekTarget = target
         currentTime = target
 
@@ -584,7 +608,7 @@ final class PlaybackController {
                     return
                 }
                 isSeekInProgress = false
-                if let latestTarget = seekTarget, latestTarget != target {
+                if let latestTarget = seekTarget, latestTarget != target || seekFraction != nil {
                     seekIfNeeded()
                 } else {
                     seekTarget = nil
