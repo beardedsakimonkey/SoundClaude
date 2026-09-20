@@ -25,6 +25,7 @@ struct PlayerFooterView: View {
     @State private var isHoveringSource = false
     @State private var isHoveringTitle = false
     @State private var isHoveringArtwork = false
+    @State private var isHoveringWaveform = false
     @State private var footerWidth: CGFloat = 0
 
     @Bindable private var playback: PlaybackController
@@ -282,7 +283,10 @@ struct PlayerFooterView: View {
     }
 
     private var playbackControls: some View {
-        VStack(spacing: 10) {
+        let raisesTimestamps = playback.currentTrack != nil
+            && !playback.isPlaybackActive && !isHoveringWaveform
+
+        return VStack(spacing: 10) {
             HStack(spacing: 16) {
                 transportControls
                 VStack(spacing: 4) {
@@ -295,6 +299,7 @@ struct PlayerFooterView: View {
                             invertsBarsOnTrackChange: true,
                             collapsesBarsWhenPaused: true
                         )
+                        .onContentHover { isHoveringWaveform = $0 }
                     } else {
                         Color.clear
                             .frame(height: waveformHeight)
@@ -309,12 +314,12 @@ struct PlayerFooterView: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.tertiary)
                     // Follow the lower edge as centered bars collapse to 4 points.
-                    .offset(y: -4 - (playback.currentTrack != nil && !playback.isPlaybackActive
+                    .offset(y: -4 - (raisesTimestamps
                         ? (TrackWaveformView.Layout.compact.availableBarHeight(for: waveformHeight) - 4) / 2 - 1
                         : 0))
                     .animation(
                         reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.3),
-                        value: playback.isPlaybackActive
+                        value: raisesTimestamps
                     )
                 }
                 .frame(maxWidth: .infinity)
