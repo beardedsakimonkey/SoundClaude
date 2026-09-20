@@ -142,51 +142,59 @@ struct StationDetailView: View {
             )
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 10) {
-                    if seedTrack == nil || reduceMotion || hasAppeared {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Label(stationType, systemImage: "dot.radiowaves.left.and.right")
-                                .labelStyle(.titleAndIcon)
-                            RelativeTimestampView(
-                                timestamp: station?.lastUpdated,
-                                accessibilityPrefix: "Last updated", prefix: "Updated"
-                            )
-                        }
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                        .transition(.opacity)
-                    }
-                    stationTitle
-                    ZStack(alignment: .leading) {
-                        if let track = currentStationTrack {
-                            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Button {
-                                    onSelectTrack(track)
-                                } label: {
-                                    Text(track.title)
-                                        .lineLimit(1)
-                                        .truncationMode(.tail)
-                                        .underline(isHoveringTrackTitle)
-                                }
-                                .buttonStyle(.plain)
-                                .onContentHover { isHoveringTrackTitle = $0 }
-                                .help("View track: \(track.title)")
-                                .accessibilityLabel("View track: \(track.title)")
-                                Text("by")
-                                    .foregroundStyle(.tertiary)
-                                    .fixedSize()
-                                ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                    VStack(alignment: .leading, spacing: 6) {
+                        if seedTrack == nil || reduceMotion || hasAppeared {
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Label(stationType, systemImage: "dot.radiowaves.left.and.right")
+                                    .labelStyle(.titleAndIcon)
+                                RelativeTimestampView(
+                                    timestamp: station?.lastUpdated,
+                                    accessibilityPrefix: "Last updated", prefix: "Updated"
+                                )
                             }
-                            .font(.title3)
+                            .font(.headline)
                             .foregroundStyle(.secondary)
-                            .padding(.leading, 16)
-                            .overlay(alignment: .leading) {
+                            .transition(.opacity)
+                        }
+                        stationTitle
+                    }
+                    ZStack(alignment: .leading) {
+                        Text(" ")
+                            .font(.title3)
+                            .hidden()
+                            .accessibilityHidden(true)
+                        if let track = currentStationTrack {
+                            HStack(spacing: 6) {
                                 TrackPlaybackIndicator(
                                     isPlaying: model.playback.isPlaying,
                                     isLoading: model.playback.isLoading,
                                     analyzer: model.analyzer,
                                     color: (colorScheme == .dark ? Color.white : Color.black).opacity(0.6)
                                 )
+                                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                    Button {
+                                        onSelectTrack(track)
+                                    } label: {
+                                        Text(track.title)
+                                            .lineLimit(1)
+                                            .truncationMode(.tail)
+                                            .underline(isHoveringTrackTitle)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .onContentHover { isHoveringTrackTitle = $0 }
+                                    .help("View track: \(track.title)")
+                                    .accessibilityLabel("View track: \(track.title)")
+                                    Text("by")
+                                        .foregroundStyle(.tertiary)
+                                        .fixedSize()
+                                    ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                                }
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
                             }
+                            // Resolve header movement once for the whole row, before
+                            // the indicator's bar animations apply their own timing.
+                            .geometryGroup()
                             .id(track.urn)
                             .transition(reduceMotion ? .identity : .opacity)
                         }
