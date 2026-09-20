@@ -369,20 +369,11 @@ struct ArtistDetailView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         VStack(alignment: .leading, spacing: 24) {
-                            HStack(alignment: .top, spacing: 12) {
-                                userStatistic(details.followersCount.map { max(0, $0 + followerCountAdjustment) }, list: .followers, user: details.user)
-                                userStatistic(details.followingsCount, list: .following, user: details.user)
-                                if let trackCount = details.trackCount {
-                                    Button {
-                                        selectedTab = .tracks
-                                    } label: {
-                                        statistic(trackCount, label: "Tracks")
-                                    }
-                                    .buttonStyle(.plain)
-                                    .disabled(trackCount == 0)
-                                    .help("View tracks by \(details.user.username)")
-                                }
+                            ViewThatFits(in: .horizontal) {
+                                artistStatistics(details, showsTrackCount: true)
+                                artistStatistics(details, showsTrackCount: false)
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
                             if let description = nonempty(details.description) {
                                 VStack(alignment: .leading, spacing: 8) {
@@ -514,23 +505,10 @@ struct ArtistDetailView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(user.username)
                                     .font(.body.weight(.semibold))
-                                HStack(spacing: 12) {
-                                    if let count = user.followersCount {
-                                        HStack(spacing: 3) {
-                                            Image(systemName: "person.fill")
-                                            Text(count.formatted(.number.notation(.compactName).precision(.fractionLength(0))).uppercased())
-                                        }
-                                        .accessibilityElement(children: .ignore)
-                                        .accessibilityLabel("\(count.formatted()) followers")
-                                    }
-                                    if let count = user.trackCount {
-                                        HStack(spacing: 3) {
-                                            Image(systemName: "waveform")
-                                            Text(count.formatted(.number.notation(.compactName).precision(.fractionLength(0))).uppercased())
-                                        }
-                                        .accessibilityElement(children: .ignore)
-                                        .accessibilityLabel("\(count.formatted()) tracks")
-                                    }
+                                ViewThatFits(in: .horizontal) {
+                                    relatedArtistStatistics(user, showsTrackCount: true)
+                                        .fixedSize(horizontal: true, vertical: false)
+                                    relatedArtistStatistics(user, showsTrackCount: false)
                                 }
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
@@ -574,6 +552,27 @@ struct ArtistDetailView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                 Button("Retry related artists") { Task { await loadRelatedArtists() } }
+            }
+        }
+    }
+
+    private func relatedArtistStatistics(_ user: SoundCloudUser, showsTrackCount: Bool) -> some View {
+        HStack(spacing: 12) {
+            if let count = user.followersCount {
+                HStack(spacing: 3) {
+                    Image(systemName: "person.fill")
+                    Text(count.formatted(.number.notation(.compactName).precision(.fractionLength(0))).uppercased())
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(count.formatted()) followers")
+            }
+            if showsTrackCount, let count = user.trackCount {
+                HStack(spacing: 3) {
+                    Image(systemName: "waveform")
+                    Text(count.formatted(.number.notation(.compactName).precision(.fractionLength(0))).uppercased())
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(count.formatted()) tracks")
             }
         }
     }
@@ -988,13 +987,30 @@ struct ArtistDetailView: View {
         }
     }
 
+    private func artistStatistics(_ details: SoundCloudArtistDetails, showsTrackCount: Bool) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            userStatistic(details.followersCount.map { max(0, $0 + followerCountAdjustment) }, list: .followers, user: details.user, allowsScaling: !showsTrackCount)
+            userStatistic(details.followingsCount, list: .following, user: details.user, allowsScaling: !showsTrackCount)
+            if showsTrackCount, let trackCount = details.trackCount {
+                Button {
+                    selectedTab = .tracks
+                } label: {
+                    statistic(trackCount, label: "Tracks", allowsScaling: false)
+                }
+                .buttonStyle(.plain)
+                .disabled(trackCount == 0)
+                .help("View tracks by \(details.user.username)")
+            }
+        }
+    }
+
     @ViewBuilder
-    private func userStatistic(_ count: Int?, list: ArtistUserList, user: SoundCloudUser) -> some View {
+    private func userStatistic(_ count: Int?, list: ArtistUserList, user: SoundCloudUser, allowsScaling: Bool) -> some View {
         if let count {
             Button {
                 onSelectUsers(user, list)
             } label: {
-                statistic(count, label: list.title)
+                statistic(count, label: list.title, allowsScaling: allowsScaling)
             }
             .buttonStyle(.plain)
             .help("View \(list.title.lowercased()) of \(user.username)")
@@ -1002,7 +1018,7 @@ struct ArtistDetailView: View {
     }
 
     @ViewBuilder
-    private func statistic(_ count: Int?, label: String) -> some View {
+    private func statistic(_ count: Int?, label: String, allowsScaling: Bool) -> some View {
         if let count {
             VStack(alignment: .leading, spacing: 8) {
                 Text(label)
@@ -1013,7 +1029,8 @@ struct ArtistDetailView: View {
                     .opacity(hoveredStatistic == label ? 1 : 0.9)
             }
             .lineLimit(1)
-            .minimumScaleFactor(0.6)
+            .minimumScaleFactor(allowsScaling ? 0.6 : 1)
+            .fixedSize(horizontal: !allowsScaling, vertical: false)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .onContentHover { isHovering in
