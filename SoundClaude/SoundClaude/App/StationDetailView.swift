@@ -146,6 +146,8 @@ struct StationDetailView: View {
     private var stationTitle: some View {
         let showsIcon = seedTrack == nil || reduceMotion || hasAppeared
         return Text(title)
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
         .foregroundStyle(.primary.opacity(0.9))
         .textSelection(.enabled)
         .padding(.leading, showsIcon ? 64 : 0)
