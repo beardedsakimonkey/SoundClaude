@@ -34,12 +34,10 @@ struct SidebarView: View {
                 ForEach(SidebarDestination.libraryDestinations) { destination in
                     Label {
                         Text(destination.title)
-                            .foregroundStyle(selection == destination ? Color("AccentColor") : .primary)
                     } icon: {
                         Image(systemName: destination.systemImage)
-                            .foregroundStyle(selection == destination ? Color("AccentColor") : .primary)
                     }
-                        .modifier(SidebarRowStyle(isSelected: selection == destination) {
+                        .modifier(SidebarRowStyle(isSelected: selection == destination, brightensOnHover: true) {
                             select(destination)
                         })
                 }
@@ -52,10 +50,9 @@ struct SidebarView: View {
                             Image(systemName: "plus")
                                 .frame(width: 24, height: 24)
                         }
-                            .modifier(SidebarRowStyle(isSelected: false) {
+                            .modifier(SidebarRowStyle(isSelected: false, brightensOnHover: true) {
                                 isShowingCreatePlaylist = true
                             })
-                            .opacity(0.7)
 
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(playlists.playlists) { playlist in
@@ -73,6 +70,7 @@ struct SidebarView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                     Button("Try Again") { Task { await playlists.load() } }
+                                        .modifier(SidebarHoverBackground())
                                 }
                             } else if playlists.playlists.isEmpty {
                                 Text("No playlists")
@@ -106,6 +104,7 @@ struct SidebarView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                     Button("Try Again") { Task { await playlists.loadLikes() } }
+                                        .modifier(SidebarHoverBackground())
                                 }
                             } else if playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
                                 Text("No liked playlists")
@@ -151,7 +150,6 @@ struct SidebarView: View {
 
         return Label {
             Text(playlist.title)
-                .foregroundStyle(.primary)
         } icon: {
             TrackArtworkView(
                 artworkURL: artworkURL,
@@ -162,7 +160,7 @@ struct SidebarView: View {
         }
             .lineLimit(1)
             .help(playlist.title)
-            .modifier(SidebarRowStyle(isSelected: false) {
+            .modifier(SidebarRowStyle(isSelected: false, brightensOnHover: true) {
                 onSelectPlaylist(playlist)
             })
     }
@@ -180,11 +178,11 @@ struct SidebarView: View {
                     .accessibilityHidden(true)
             }
             .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
             .padding(.top, 16)
             .padding(.bottom, 6)
             .contentShape(Rectangle())
+            .modifier(SidebarForegroundHover())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
@@ -245,21 +243,74 @@ struct SidebarView: View {
 
 private struct SidebarRowStyle: ViewModifier {
     let isSelected: Bool
+    var brightensOnHover = false
     let onSelect: () -> Void
 
+    @ViewBuilder
     func body(content: Content) -> some View {
-        Button(action: onSelect) {
+        let button = Button(action: onSelect) {
             content
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .contentShape(Rectangle())
         }
             .buttonStyle(.plain)
-            .background(
+
+        if brightensOnHover {
+            button.modifier(SidebarForegroundHover(isSelected: isSelected))
+                .background {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(isSelected ? 0.06 : 0))
+                }
+        } else {
+            button.modifier(SidebarHoverBackground(isSelected: isSelected))
+        }
+    }
+}
+
+private struct SidebarForegroundHover: ViewModifier {
+    var isSelected = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovered = false
+
+    private var foregroundColor: Color {
+        if isSelected {
+            return Color("AccentColor")
+        }
+        return isHovered ? .primary : .secondary
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(foregroundColor)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isHovered)
+            .onContentHover { isHovered = $0 }
+    }
+}
+
+private struct SidebarHoverBackground: ViewModifier {
+    var isSelected = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovered = false
+
+    func body(content: Content) -> some View {
+        content
+            .background {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.primary.opacity(0.06) : .clear)
-            )
+                    .fill(Color.primary.opacity(isSelected ? 0.06 : 0))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.primary.opacity(isHovered && isEnabled ? 0.06 : 0))
+                            .animation(
+                                reduceMotion ? nil : .easeInOut(duration: 0.2),
+                                value: isHovered && isEnabled
+                            )
+                    }
+            }
+            .onContentHover { isHovered = $0 }
     }
 }
 
