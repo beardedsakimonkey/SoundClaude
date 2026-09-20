@@ -200,6 +200,8 @@ struct LikesView: View {
                                 playback: playback,
                                 analyzer: analyzer,
                                 artworkLoader: artworkLoader,
+                                likes: likes,
+                                onAddToQueue: onAddToQueue,
                                 onSelectTrack: onSelectTrack,
                                 onSelectArtist: onSelectArtist,
                                 onPlayTrack: onPlayTrack

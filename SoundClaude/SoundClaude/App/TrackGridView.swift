@@ -44,12 +44,17 @@ struct TrackGridTile: View {
     let playback: PlaybackController
     let analyzer: SpectrumAnalyzer
     let artworkLoader: ArtworkLoader
+    @ObservedObject var likes: LikesController
+    let onAddToQueue: (SoundCloudTrack) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
 
     @State private var isHoveringArtwork = false
     @State private var isHoveringTitle = false
+    @State private var isHoveringMenu = false
+    @State private var likeErrorMessage: String?
+    @Environment(\.addToPlaylist) private var addToPlaylist
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isCurrentTrack: Bool {
@@ -87,22 +92,36 @@ struct TrackGridTile: View {
                         value: isHoveringArtwork
                     )
                     .overlay {
-                        if isHoveringArtwork || isCurrentTrack {
-                            Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")
-                                .font(.system(size: 32, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
-                        }
+                        Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")
+                            .font(.system(size: 32, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
+                            .opacity(isHoveringArtwork || isCurrentTrack ? 1 : 0)
+                            .animation(
+                                reduceMotion ? nil : .easeInOut(duration: 0.15),
+                                value: isHoveringArtwork || isCurrentTrack
+                            )
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
                     }
                 }
                 .buttonStyle(.plain)
-                .onContentHover { isHoveringArtwork = $0 }
                 .help(isPlaybackActive ? "Pause" : "Play")
                 .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
             }
             .aspectRatio(1, contentMode: .fit)
+            .overlay(alignment: .bottomTrailing) {
+                overflowMenu
+                    .padding(8)
+                    .opacity(isHoveringArtwork ? 1 : 0)
+                    .animation(
+                        reduceMotion ? nil : .easeInOut(duration: 0.15),
+                        value: isHoveringArtwork
+                    )
+                    .allowsHitTesting(isHoveringArtwork)
+                    .accessibilityHidden(!isHoveringArtwork)
+            }
+            .onContentHover { isHoveringArtwork = $0 }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
@@ -145,7 +164,52 @@ struct TrackGridTile: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
-
         }
+        .alert("Could not update like", isPresented: Binding(
+            get: { likeErrorMessage != nil },
+            set: { if !$0 { likeErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { likeErrorMessage = nil }
+        } message: {
+            Text(likeErrorMessage ?? "Please try again.")
+        }
+    }
+
+    private var overflowMenu: some View {
+        let isLiked = likes.isLiked(track)
+
+        return Menu {
+            Button("Add to queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
+                onAddToQueue(track)
+            }
+            Button("Add to playlist", systemImage: "music.note.list") {
+                addToPlaylist(track)
+            }
+            Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
+                Task {
+                    do {
+                        try await likes.toggleLike(track)
+                    } catch is CancellationError {
+                    } catch {
+                        likeErrorMessage = error.localizedDescription
+                    }
+                }
+            }
+            .disabled(likes.updatingTrackURNs.contains(track.urn))
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
+                .background(.black.opacity(isHoveringMenu ? 0.75 : 0.55), in: Circle())
+                .contentShape(Circle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel("More options for \(track.title)")
+        .help("More options")
+        .onContentHover { isHoveringMenu = $0 }
     }
 }
