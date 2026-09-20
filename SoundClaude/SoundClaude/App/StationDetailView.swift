@@ -151,6 +151,15 @@ struct StationDetailView: View {
                             }
                             .font(.title3)
                             .foregroundStyle(.secondary)
+                            .padding(.leading, 16)
+                            .overlay(alignment: .leading) {
+                                TrackPlaybackIndicator(
+                                    isPlaying: model.playback.isPlaying,
+                                    isLoading: model.playback.isLoading,
+                                    analyzer: model.analyzer,
+                                    color: .white.opacity(0.6)
+                                )
+                            }
                             .id(track.urn)
                             .transition(reduceMotion ? .identity : .opacity)
                         }

@@ -4,6 +4,7 @@ struct TrackPlaybackIndicator: View {
     let isPlaying: Bool
     let isLoading: Bool
     let analyzer: SpectrumAnalyzer
+    var color: Color = .orange
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
@@ -16,7 +17,7 @@ struct TrackPlaybackIndicator: View {
             HStack(alignment: .center, spacing: 2) {
                 ForEach(0..<3) { index in
                     RoundedRectangle(cornerRadius: 1)
-                        .fill(.orange)
+                        .fill(color)
                         .frame(width: 2, height: isLoading ? 2 : 2 + CGFloat(levels[index]) * 7)
                         .offset(y: loadingOffset(for: index, at: context.date))
                         .animation(
