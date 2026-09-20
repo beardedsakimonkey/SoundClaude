@@ -191,7 +191,7 @@ final class AppModel: ObservableObject {
         await loadPlayback(track)
     }
 
-    func continuePlaybackInStation(urn: String, tracks: [SoundCloudTrack], continuingTrackURN: String) {
+    func continuePlaybackInStation(urn: String, title: String, tracks: [SoundCloudTrack], continuingTrackURN: String) {
         guard let currentTrack = playback.currentTrack,
               currentTrack.urn == continuingTrackURN,
               queue.source != .station(urn), !tracks.isEmpty else { return }
@@ -199,7 +199,7 @@ final class AppModel: ObservableObject {
         trackSelectionTask?.cancel()
         // Keep the current player item and its state. Deduplication leaves the seed first,
         // even when the station omits it or returns it later in the list.
-        queue = TrackQueue(source: .station(urn), tracks: [currentTrack] + tracks)
+        queue = TrackQueue(source: .station(urn), tracks: [currentTrack] + tracks, stationTitle: title)
         queue.setShuffle(playback.isShuffleEnabled, currentURN: currentTrack.urn)
         saveQueue()
         prefetchNextTrack()

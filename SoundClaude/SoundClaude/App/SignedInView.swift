@@ -116,7 +116,13 @@ struct SignedInView: View {
                     isShowingQueue: $isShowingQueue,
                     isShowingVisualizer: $isShowingVisualizer,
                     onSelectTrack: showTrack,
-                    onSelectArtist: showArtist
+                    onSelectArtist: showArtist,
+                    onSelectStation: { urn, title in
+                        isShowingQueue = false
+                        if case let .station(currentURN, _, _) = path.last,
+                           currentURN == urn { return }
+                        showStation(urn, seedArtistName: title)
+                    }
                 )
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(8)

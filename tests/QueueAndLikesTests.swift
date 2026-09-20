@@ -178,6 +178,23 @@ struct QueueAndLikesTests {
         let restored = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(queue))
         precondition(restored.source == .artist("user:1"))
         precondition(restored.relativeTrack(to: "track:2", offset: 1) == track(3))
+        let stationQueue = TrackQueue(
+            source: .station("soundcloud:track-stations:1"), tracks: [track(1), track(2)],
+            stationTitle: "Seed track station"
+        )
+        let stationData = try JSONEncoder().encode(stationQueue)
+        let restoredStation = try JSONDecoder().decode(TrackQueue.self, from: stationData)
+        precondition(restoredStation.source == stationQueue.source)
+        precondition(restoredStation.stationTitle == "Seed track station")
+        // Queues saved before station titles were added must still restore.
+        var legacyStationJSON = try JSONSerialization.jsonObject(with: stationData) as! [String: Any]
+        legacyStationJSON.removeValue(forKey: "stationTitle")
+        let legacyStation = try JSONDecoder().decode(
+            TrackQueue.self, from: JSONSerialization.data(withJSONObject: legacyStationJSON)
+        )
+        precondition(legacyStation.source == stationQueue.source)
+        precondition(legacyStation.stationTitle == nil)
+        precondition(legacyStation.tracks == stationQueue.tracks)
         var likesQueue = TrackQueue(source: .likes, tracks: [track(1), track(2), track(3)])
         likesQueue.setShuffle(true, currentURN: "track:1")
         let shuffled = likesQueue.relativeTrack(to: "track:1", offset: 1)!

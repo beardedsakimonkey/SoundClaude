@@ -151,7 +151,7 @@ struct StationDetailView: View {
                     model.playback.togglePlayPause()
                 } else if let seedTrackURN, model.playback.currentTrack?.urn == seedTrackURN {
                     model.continuePlaybackInStation(
-                        urn: urn, tracks: tracks, continuingTrackURN: seedTrackURN
+                        urn: urn, title: title, tracks: tracks, continuingTrackURN: seedTrackURN
                     )
                 } else if let track = tracks.first {
                     Task { await playTrack(track) }
@@ -190,7 +190,7 @@ struct StationDetailView: View {
     }
 
     private func playTrack(_ track: SoundCloudTrack) async {
-        await model.play(track, queue: TrackQueue(source: .station(urn), tracks: tracks))
+        await model.play(track, queue: TrackQueue(source: .station(urn), tracks: tracks, stationTitle: title))
     }
 
     private func load() async {

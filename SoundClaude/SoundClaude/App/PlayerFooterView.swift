@@ -14,12 +14,14 @@ struct PlayerFooterView: View {
     let artworkLoader: ArtworkLoader
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
+    let onSelectStation: (String, String) -> Void
     @Binding var isShowingQueue: Bool
     @Binding var isShowingVisualizer: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var previousArtworkURL: URL?
     @State private var hasPreviousTrack = false
+    @State private var isHoveringStation = false
     @State private var isHoveringTitle = false
     @State private var isHoveringArtwork = false
     @State private var footerWidth: CGFloat = 0
@@ -32,13 +34,15 @@ struct PlayerFooterView: View {
         isShowingQueue: Binding<Bool>,
         isShowingVisualizer: Binding<Bool>,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
-        onSelectArtist: @escaping (SoundCloudUser) -> Void
+        onSelectArtist: @escaping (SoundCloudUser) -> Void,
+        onSelectStation: @escaping (String, String) -> Void
     ) {
         self.model = model
         _isShowingQueue = isShowingQueue
         _isShowingVisualizer = isShowingVisualizer
         self.artworkLoader = model.artworkLoader
         self.onSelectTrack = onSelectTrack
+        self.onSelectStation = onSelectStation
         self.onSelectArtist = onSelectArtist
         self.playback = model.playback
         _likes = ObservedObject(wrappedValue: model.likes)
@@ -75,6 +79,25 @@ struct PlayerFooterView: View {
             artwork
             VStack(alignment: .leading, spacing: 6) {
                 if let track = playback.currentTrack {
+                    if let stationURN {
+                        Button {
+                            onSelectStation(stationURN, stationTitle)
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "dot.radiowaves.left.and.right")
+                                Text(stationTitle)
+                                    .underline(isHoveringStation)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .onContentHover { isHoveringStation = $0 }
+                        .help("View station: \(stationTitle)")
+                        .accessibilityLabel("View station: \(stationTitle)")
+                    }
                     if track.access == .preview {
                         TrackPreviewBadge(font: .caption2)
                     }
@@ -82,7 +105,7 @@ struct PlayerFooterView: View {
                         onSelectTrack(track)
                     } label: {
                         Text(track.title)
-                            .lineLimit(track.access == .preview ? 1 : 2)
+                            .lineLimit(stationURN != nil || track.access == .preview ? 1 : 2)
                             .multilineTextAlignment(.leading)
                             .underline(isHoveringTitle)
                             .foregroundStyle(.primary)
@@ -113,6 +136,13 @@ struct PlayerFooterView: View {
             likeButton
         }
     }
+
+    private var stationURN: String? {
+        guard case let .station(urn) = model.queue.source else { return nil }
+        return urn
+    }
+
+    private var stationTitle: String { model.queue.stationTitle ?? "Station" }
 
     private var likeButton: some View {
         let track = playback.currentTrack
@@ -482,7 +512,8 @@ private struct PlayerFooterGlass: ViewModifier {
         isShowingQueue: .constant(false),
         isShowingVisualizer: .constant(false),
         onSelectTrack: { _ in },
-        onSelectArtist: { _ in }
+        onSelectArtist: { _ in },
+        onSelectStation: { _, _ in }
     )
     .frame(width: 900)
 }
