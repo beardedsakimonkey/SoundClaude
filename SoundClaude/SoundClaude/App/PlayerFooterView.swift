@@ -14,6 +14,7 @@ struct PlayerFooterView: View {
     let artworkLoader: ArtworkLoader
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
+    let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectStation: (String, String) -> Void
     @Binding var isShowingQueue: Bool
     @Binding var isShowingVisualizer: Bool
@@ -21,13 +22,14 @@ struct PlayerFooterView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var previousArtworkURL: URL?
     @State private var hasPreviousTrack = false
-    @State private var isHoveringStation = false
+    @State private var isHoveringSource = false
     @State private var isHoveringTitle = false
     @State private var isHoveringArtwork = false
     @State private var footerWidth: CGFloat = 0
 
     @Bindable private var playback: PlaybackController
     @ObservedObject private var likes: LikesController
+    @ObservedObject private var playlists: PlaylistsController
 
     init(
         model: AppModel,
@@ -35,6 +37,7 @@ struct PlayerFooterView: View {
         isShowingVisualizer: Binding<Bool>,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
+        onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void,
         onSelectStation: @escaping (String, String) -> Void
     ) {
         self.model = model
@@ -42,10 +45,12 @@ struct PlayerFooterView: View {
         _isShowingVisualizer = isShowingVisualizer
         self.artworkLoader = model.artworkLoader
         self.onSelectTrack = onSelectTrack
+        self.onSelectPlaylist = onSelectPlaylist
         self.onSelectStation = onSelectStation
         self.onSelectArtist = onSelectArtist
         self.playback = model.playback
         _likes = ObservedObject(wrappedValue: model.likes)
+        _playlists = ObservedObject(wrappedValue: model.playlists)
     }
 
     var body: some View {
@@ -80,24 +85,16 @@ struct PlayerFooterView: View {
             VStack(alignment: .leading, spacing: 6) {
                 if let track = playback.currentTrack {
                     if let stationURN {
-                        Button {
+                        sourceButton(title: stationTitle, icon: "dot.radiowaves.left.and.right", kind: "station") {
                             onSelectStation(stationURN, stationTitle)
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "dot.radiowaves.left.and.right")
-                                Text(stationTitle)
-                                    .underline(isHoveringStation)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                            }
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                         }
-                        .buttonStyle(.plain)
-                        .onContentHover { isHoveringStation = $0 }
-                        .help("View station: \(stationTitle)")
-                        .accessibilityLabel("View station: \(stationTitle)")
                         .id(stationURN)
+                        .transition(reduceMotion ? .identity : .opacity)
+                    } else if let playlist = currentPlaylist {
+                        sourceButton(title: playlist.title, icon: "music.note.list", kind: "playlist") {
+                            onSelectPlaylist(playlist)
+                        }
+                        .id(playlist.urn)
                         .transition(reduceMotion ? .identity : .opacity)
                     }
                     if track.access == .preview {
@@ -107,7 +104,7 @@ struct PlayerFooterView: View {
                         onSelectTrack(track)
                     } label: {
                         Text(track.title)
-                            .lineLimit(stationURN != nil || track.access == .preview ? 1 : 2)
+                            .lineLimit(stationURN != nil || currentPlaylist != nil || track.access == .preview ? 1 : 2)
                             .multilineTextAlignment(.leading)
                             .underline(isHoveringTitle)
                             .foregroundStyle(.primary)
@@ -136,8 +133,33 @@ struct PlayerFooterView: View {
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: stationURN)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: currentPlaylist?.urn)
             likeButton
         }
+    }
+
+    private func sourceButton(title: String, icon: String, kind: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                Text(title)
+                    .underline(isHoveringSource)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .onContentHover { isHoveringSource = $0 }
+        .help("View \(kind): \(title)")
+        .accessibilityLabel("View \(kind): \(title)")
+    }
+
+    private var currentPlaylist: SoundCloudPlaylist? {
+        guard case let .playlist(urn) = model.queue.source else { return nil }
+        return playlists.cache.contents[urn]?.playlist
+            ?? playlists.playlists.first { $0.urn == urn }
     }
 
     private var stationURN: String? {
@@ -526,6 +548,7 @@ private struct PlayerFooterGlass: ViewModifier {
         isShowingVisualizer: .constant(false),
         onSelectTrack: { _ in },
         onSelectArtist: { _ in },
+        onSelectPlaylist: { _ in },
         onSelectStation: { _, _ in }
     )
     .frame(width: 900)

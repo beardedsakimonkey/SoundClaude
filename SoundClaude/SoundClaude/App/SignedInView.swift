@@ -117,6 +117,12 @@ struct SignedInView: View {
                     isShowingVisualizer: $isShowingVisualizer,
                     onSelectTrack: showTrack,
                     onSelectArtist: showArtist,
+                    onSelectPlaylist: { playlist in
+                        isShowingQueue = false
+                        if case let .playlist(current) = path.last,
+                           current.urn == playlist.urn { return }
+                        showPlaylist(playlist)
+                    },
                     onSelectStation: { urn, title in
                         isShowingQueue = false
                         if case let .station(currentURN, _, _) = path.last,
