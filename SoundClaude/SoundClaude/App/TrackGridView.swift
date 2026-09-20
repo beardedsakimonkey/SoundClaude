@@ -10,10 +10,15 @@ enum TrackLayout: String, CaseIterable {
 
 struct TrackLayoutPicker: View {
     @Binding var trackLayout: TrackLayout
+    @State private var hoveredLayout: TrackLayout?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 4) {
             ForEach(TrackLayout.allCases, id: \.self) { layout in
+                let isSelected = trackLayout == layout
+                let isHovered = hoveredLayout == layout && !isSelected
+
                 Button {
                     trackLayout = layout
                 } label: {
@@ -22,13 +27,21 @@ struct TrackLayoutPicker: View {
                         .contentShape(Rectangle())
                         .foregroundStyle(trackLayout == layout ? Color.accentColor : Color.secondary)
                         .background {
-                            if trackLayout == layout {
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.accentColor.opacity(0.12))
-                            }
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(isSelected
+                                    ? Color.accentColor.opacity(0.12)
+                                    : Color.primary.opacity(isHovered ? 0.1 : 0))
                         }
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovered)
                 }
                 .buttonStyle(.plain)
+                .onContentHover { isHovering in
+                    if isHovering {
+                        hoveredLayout = layout
+                    } else if hoveredLayout == layout {
+                        hoveredLayout = nil
+                    }
+                }
                 .help(layout.title)
                 .accessibilityLabel(layout.title)
                 .accessibilityAddTraits(trackLayout == layout ? .isSelected : [])
