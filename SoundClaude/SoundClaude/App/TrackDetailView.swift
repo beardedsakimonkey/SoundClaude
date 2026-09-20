@@ -171,6 +171,7 @@ struct TrackDetailView: View {
                             .foregroundStyle(.primary)
                             .opacity(0.9)
                             .textSelection(.enabled)
+                            .modifier(FadeInOnAppear())
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             ArtistLink(
                                 artist: details.track.artist,
@@ -185,6 +186,7 @@ struct TrackDetailView: View {
                         }
                         .font(.title3)
                         .foregroundStyle(.secondary)
+                        .modifier(FadeInOnAppear())
                         ViewThatFits(in: .horizontal) {
                             trackActions(for: details.track, iconOnly: false)
                                 .labelStyle(.titleAndIcon)
@@ -193,6 +195,7 @@ struct TrackDetailView: View {
                                 .labelStyle(.iconOnly)
                         }
                         .padding(.top, 8)
+                        .modifier(FadeInOnAppear())
 
                         if details.track.waveformURL != nil {
                             Spacer(minLength: 6)
@@ -219,6 +222,7 @@ struct TrackDetailView: View {
                         )
                         .id(track.urn)
                     }
+                    .modifier(FadeInOnAppear())
                 }
 
                 HStack(alignment: .top, spacing: 24) {
@@ -227,6 +231,7 @@ struct TrackDetailView: View {
                             title: "Comments",
                             count: details.commentCount
                         )
+                        .modifier(FadeInOnAppear())
 
                         TrackCommentsView(
                             track: details.track,
@@ -246,9 +251,11 @@ struct TrackDetailView: View {
                         Text("Related tracks")
                             .font(.headline)
                             .opacity(0.96)
+                            .modifier(FadeInOnAppear())
                         if let message = model.errorMessage {
                             Label(message, systemImage: "exclamationmark.triangle")
                                 .foregroundStyle(.orange)
+                                .modifier(FadeInOnAppear())
                         }
                         relatedTrackList
                     }
@@ -284,13 +291,16 @@ struct TrackDetailView: View {
             }
             if let relatedTracksErrorMessage {
                 Text(relatedTracksErrorMessage).foregroundStyle(.secondary)
+                    .modifier(FadeInOnAppear())
                 Button("Try Again") { Task { await loadRelatedTracks() } }
                     .disabled(isLoadingRelatedTracks)
+                    .modifier(FadeInOnAppear())
             }
             if isLoadingRelatedTracks || (nextPageURL != nil && relatedTracksErrorMessage == nil) {
                 ProgressView()
                     .accessibilityLabel("Loading related tracks")
                     .frame(maxWidth: .infinity)
+                    .modifier(FadeInOnAppear())
                     .task(id: nextPageURL) {
                         guard nextPageURL != nil, relatedTracksErrorMessage == nil else { return }
                         await loadRelatedTracks()
@@ -302,6 +312,7 @@ struct TrackDetailView: View {
                     systemImage: "music.note",
                     description: Text("No related tracks are available for playback here.")
                 )
+                .modifier(FadeInOnAppear())
             }
         }
     }

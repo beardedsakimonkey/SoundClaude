@@ -28,6 +28,7 @@ struct TrackCommentsView: View {
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 24) {
             commentComposer
+                .modifier(FadeInOnAppear())
 
             ForEach(comments) { comment in
                 commentRow(comment)
@@ -38,15 +39,18 @@ struct TrackCommentsView: View {
                 ProgressView()
                     .accessibilityLabel("Loading comments")
                     .frame(maxWidth: .infinity)
+                    .modifier(FadeInOnAppear())
             } else if let errorMessage {
                 VStack(spacing: 8) {
                     Text(errorMessage).foregroundStyle(.secondary)
                     Button("Try Again") { Task { await loadPage() } }
                 }
                 .frame(maxWidth: .infinity)
+                .modifier(FadeInOnAppear())
             } else if nextPageURL != nil {
                 Button("Load More") { Task { await loadPage() } }
                     .frame(maxWidth: .infinity)
+                    .modifier(FadeInOnAppear())
             }
         }
         .task {
