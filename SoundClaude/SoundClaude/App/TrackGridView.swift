@@ -38,6 +38,8 @@ struct TrackLayoutPicker: View {
 }
 
 struct TrackGridTile: View {
+    private static let artworkCornerRadius: CGFloat = 10
+
     let track: SoundCloudTrack
     let playback: PlaybackController
     let analyzer: SpectrumAnalyzer
@@ -71,13 +73,13 @@ struct TrackGridTile: View {
                         loader: artworkLoader,
                         size: geometry.size.width,
                         rendition: .square500,
-                        shape: RoundedRectangle(cornerRadius: 8, style: .continuous),
+                        shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous),
                         showsBorder: false
                     )
                     .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous))
                     .modifier(PlayerArtworkGlass(
-                        cornerRadius: 8,
+                        cornerRadius: Self.artworkCornerRadius,
                         isHovering: isHoveringArtwork && !reduceMotion
                     ))
                     .animation(
