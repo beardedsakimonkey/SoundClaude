@@ -97,6 +97,8 @@ struct PlayerFooterView: View {
                         .onContentHover { isHoveringStation = $0 }
                         .help("View station: \(stationTitle)")
                         .accessibilityLabel("View station: \(stationTitle)")
+                        .id(stationURN)
+                        .transition(reduceMotion ? .identity : .opacity)
                     }
                     if track.access == .preview {
                         TrackPreviewBadge(font: .caption2)
@@ -133,6 +135,7 @@ struct PlayerFooterView: View {
             .opacity(0.85)
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: stationURN)
             likeButton
         }
     }
