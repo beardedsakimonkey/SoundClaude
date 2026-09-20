@@ -14,8 +14,8 @@ struct SidebarView: View {
     @FocusState private var isSidebarFocused: Bool
     @State private var isShowingCreatePlaylist = false
     @State private var isProfileHovered = false
-    @State private var isPlaylistsExpanded = true
-    @State private var isLikedPlaylistsExpanded = true
+    @AppStorage("sidebarPlaylistsExpanded") private var isPlaylistsExpanded = true
+    @AppStorage("sidebarLikedPlaylistsExpanded") private var isLikedPlaylistsExpanded = true
 
     var body: some View {
         VStack(spacing: 0) {
