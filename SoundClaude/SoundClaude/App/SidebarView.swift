@@ -37,7 +37,7 @@ struct SidebarView: View {
                     } icon: {
                         Image(systemName: destination.systemImage)
                     }
-                        .modifier(SidebarRowStyle(isSelected: selection == destination) {
+                        .modifier(SidebarRowStyle(isSelected: selection == destination, usesPrimaryForeground: true) {
                             select(destination)
                         })
                 }
@@ -237,12 +237,13 @@ struct SidebarView: View {
             .help("Sign out")
             .accessibilityLabel("Sign out")
         }
-        .padding(12)
+        .padding(.horizontal, 12)
     }
 }
 
 private struct SidebarRowStyle: ViewModifier {
     let isSelected: Bool
+    var usesPrimaryForeground = false
     let onSelect: () -> Void
 
     func body(content: Content) -> some View {
@@ -254,7 +255,7 @@ private struct SidebarRowStyle: ViewModifier {
                 .contentShape(Rectangle())
         }
             .buttonStyle(.plain)
-            .modifier(SidebarForegroundHover(isSelected: isSelected))
+            .modifier(SidebarForegroundHover(isSelected: isSelected, usesPrimaryForeground: usesPrimaryForeground))
             .background {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color.primary.opacity(isSelected ? 0.06 : 0))
@@ -264,12 +265,17 @@ private struct SidebarRowStyle: ViewModifier {
 
 private struct SidebarForegroundHover: ViewModifier {
     var isSelected = false
+    var usesPrimaryForeground = false
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovered = false
 
     private var foregroundColor: Color {
         if isSelected {
             return Color("AccentColor")
+        }
+        if usesPrimaryForeground {
+            return isHovered ? (colorScheme == .dark ? .white : .black) : .primary
         }
         return isHovered ? .primary : .secondary
     }
