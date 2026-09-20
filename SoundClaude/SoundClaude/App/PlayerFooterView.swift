@@ -288,7 +288,7 @@ struct PlayerFooterView: View {
                         ? (TrackWaveformView.Layout.compact.availableBarHeight(for: waveformHeight) - 4) / 2 - 1
                         : 0))
                     .animation(
-                        reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.3),
+                        reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.3),
                         value: playback.isPlaybackActive
                     )
                 }
