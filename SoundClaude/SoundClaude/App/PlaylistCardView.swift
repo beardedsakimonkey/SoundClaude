@@ -114,16 +114,27 @@ struct PlaylistCardView: View {
         .frame(height: CGFloat(min(tracks.count, isExpanded ? 8 : 5)) * 40)
         .scrollDisabled(!isExpanded)
 
-        if !tracks.isEmpty && (isExpanded || trackCount > 5) {
-            Button(isExpanded ? "View fewer tracks" : "View \(trackCount) tracks") {
-                isExpanded.toggle()
+        if isLoading || (!tracks.isEmpty && (isExpanded || trackCount > 5)) {
+            HStack(spacing: 8) {
+                if !tracks.isEmpty && (isExpanded || trackCount > 5) {
+                    Button(isExpanded ? "View fewer tracks" : "View \(trackCount) tracks") {
+                        isExpanded.toggle()
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(isHoveringTrackToggle ? Color.primary : Color.secondary)
+                    .font(.callout)
+                    .onContentHover { isHoveringTrackToggle = $0 }
+                    .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+                }
+
+                if isLoading {
+                    ProgressView()
+                        .accessibilityLabel("Loading playlist")
+                        .controlSize(.small)
+                        .frame(width: 16, height: 16)
+                }
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(isHoveringTrackToggle ? Color.primary : Color.secondary)
-            .font(.callout)
             .padding(.vertical, 8)
-            .onContentHover { isHoveringTrackToggle = $0 }
-            .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
         }
 
         if let errorMessage {
@@ -133,11 +144,7 @@ struct PlaylistCardView: View {
             Button("Try Again") { Task { await playlists.loadPlaylist(playlist) } }
                 .disabled(isLoading)
         }
-        if isLoading {
-            ProgressView()
-                .accessibilityLabel("Loading playlist")
-                .controlSize(.small)
-        } else if contents?.hasLoadedPage == true, tracks.isEmpty, errorMessage == nil {
+        if !isLoading, contents?.hasLoadedPage == true, tracks.isEmpty, errorMessage == nil {
             Text(displayedPlaylist.trackCount == 0 ? "Empty playlist" : "No playable tracks")
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 8)
