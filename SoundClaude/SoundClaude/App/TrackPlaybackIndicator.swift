@@ -14,19 +14,19 @@ struct TrackPlaybackIndicator: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !isAnimating)) { context in
-            HStack(alignment: .center, spacing: 2) {
+            HStack(alignment: .bottom, spacing: 2) {
                 ForEach(0..<3) { index in
                     RoundedRectangle(cornerRadius: 1)
                         .fill(color)
                         .frame(width: 2, height: isLoading ? 2 : 2 + CGFloat(levels[index]) * 7)
-                        .offset(y: loadingOffset(for: index, at: context.date))
                         .animation(
-                            reduceMotion || isLoading ? nil : .easeOut(duration: 0.2),
-                            value: isLoading
+                            reduceMotion || contentAnimationsPaused || isLoading ? nil : .easeOut(duration: 0.2),
+                            value: levels[index]
                         )
+                        .offset(y: loadingOffset(for: index, at: context.date))
                 }
             }
-            .frame(width: 10, height: 9, alignment: .center)
+            .frame(width: 10, height: 9, alignment: .bottom)
             .onChange(of: context.date) { _, _ in
                 updateLevels()
             }
