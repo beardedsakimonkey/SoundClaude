@@ -14,6 +14,8 @@ struct SidebarView: View {
     @FocusState private var isSidebarFocused: Bool
     @State private var isShowingCreatePlaylist = false
     @State private var isProfileHovered = false
+    @State private var isPlaylistsExpanded = true
+    @State private var isLikedPlaylistsExpanded = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -42,67 +44,72 @@ struct SidebarView: View {
                         })
                 }
                 VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader("Playlists")
-                    Label("New", systemImage: "plus")
-                        .modifier(SidebarRowStyle(isSelected: false) {
-                            isShowingCreatePlaylist = true
-                        })
-                        .opacity(0.7)
+                    sectionHeader("Playlists", isExpanded: $isPlaylistsExpanded)
+                    if isPlaylistsExpanded {
+                        Label("New", systemImage: "plus")
+                            .modifier(SidebarRowStyle(isSelected: false) {
+                                isShowingCreatePlaylist = true
+                            })
+                            .opacity(0.7)
 
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(playlists.playlists) { playlist in
-                            playlistRow(playlist)
-                                .transition(.opacity)
-                        }
-                        if playlists.isLoading {
-                            ProgressView()
-                                .accessibilityLabel("Loading playlists")
-                                .controlSize(.small)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                        } else if let errorMessage = playlists.errorMessage {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(errorMessage)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Button("Try Again") { Task { await playlists.load() } }
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(playlists.playlists) { playlist in
+                                playlistRow(playlist)
+                                    .transition(.opacity)
                             }
-                        } else if playlists.playlists.isEmpty {
-                            Text("No playlists")
-                                .foregroundStyle(.secondary)
+                            if playlists.isLoading {
+                                ProgressView()
+                                    .accessibilityLabel("Loading playlists")
+                                    .controlSize(.small)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                            } else if let errorMessage = playlists.errorMessage {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(errorMessage)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Button("Try Again") { Task { await playlists.load() } }
+                                }
+                            } else if playlists.playlists.isEmpty {
+                                Text("No playlists")
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 VStack(alignment: .leading, spacing: 0) {
                     if !playlists.likedPlaylists.isEmpty {
-                        sectionHeader("Liked Playlists")
+                        sectionHeader("Liked Playlists", isExpanded: $isLikedPlaylistsExpanded)
                             .transition(.opacity)
                     }
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(playlists.likedPlaylists) { playlist in
-                            playlistRow(playlist)
-                                .transition(.opacity)
-                        }
-                        if playlists.isLoadingLikes {
-                            if !playlists.likedPlaylists.isEmpty {
-                                ProgressView()
-                                    .accessibilityLabel("Loading liked playlists")
-                                    .controlSize(.small)
-                                    .frame(maxWidth: .infinity, alignment: .center)
+                    if isLikedPlaylistsExpanded {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(playlists.likedPlaylists) { playlist in
+                                playlistRow(playlist)
+                                    .transition(.opacity)
                             }
-                        } else if let errorMessage = playlists.likesErrorMessage {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(errorMessage)
-                                    .font(.caption)
+                            if playlists.isLoadingLikes {
+                                if !playlists.likedPlaylists.isEmpty {
+                                    ProgressView()
+                                        .accessibilityLabel("Loading liked playlists")
+                                        .controlSize(.small)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                }
+                            } else if let errorMessage = playlists.likesErrorMessage {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(errorMessage)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Button("Try Again") { Task { await playlists.loadLikes() } }
+                                }
+                            } else if playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
+                                Text("No liked playlists")
                                     .foregroundStyle(.secondary)
-                                Button("Try Again") { Task { await playlists.loadLikes() } }
                             }
-                        } else if playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
-                            Text("No liked playlists")
-                                .foregroundStyle(.secondary)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .transition(.opacity)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .padding(8)
@@ -155,13 +162,30 @@ struct SidebarView: View {
             })
     }
 
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title)
+    private func sectionHeader(_ title: String, isExpanded: Binding<Bool>) -> some View {
+        Button {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+                isExpanded.wrappedValue.toggle()
+            }
+        } label: {
+            HStack {
+                Text(title)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
+                    .accessibilityHidden(true)
+            }
             .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
             .padding(.top, 16)
             .padding(.bottom, 6)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityValue(isExpanded.wrappedValue ? "Expanded" : "Collapsed")
+        .help("\(isExpanded.wrappedValue ? "Collapse" : "Expand") \(title)")
     }
 
     private func select(_ destination: SidebarDestination) {
