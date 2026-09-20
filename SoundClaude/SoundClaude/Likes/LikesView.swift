@@ -11,6 +11,7 @@ struct LikesView: View {
     let onPlayTrack: (SoundCloudTrack) async -> Void
 
     @ObservedObject private var likes: LikesController
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var searchText = ""
     @AppStorage("likesTrackLayout") private var trackLayout = TrackLayout.list
     @FocusState private var isSearchFocused: Bool
@@ -52,6 +53,10 @@ struct LikesView: View {
                     header
                     errorBanner
                     trackList
+                        .animation(
+                            reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85),
+                            value: likes.tracks.map(\.urn)
+                        )
                 }
             }
         }
@@ -206,6 +211,9 @@ struct LikesView: View {
                                 onSelectArtist: onSelectArtist,
                                 onPlayTrack: onPlayTrack
                             )
+                            .transition(
+                                reduceMotion ? .identity : .scale(scale: 0.9).combined(with: .opacity)
+                            )
                         }
                     }
                     .padding(.bottom, 16)
@@ -221,6 +229,9 @@ struct LikesView: View {
                             onSelectTrack: onSelectTrack,
                             onSelectArtist: onSelectArtist,
                             onPlayTrack: onPlayTrack
+                        )
+                        .transition(
+                            reduceMotion ? .identity : .move(edge: .top).combined(with: .opacity)
                         )
                     }
                 }
