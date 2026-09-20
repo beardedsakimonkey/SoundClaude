@@ -85,6 +85,7 @@ struct ArtistDetailView: View {
     @State private var hoveredStatistic: String?
     @State private var headerImage: NSImage?
     @State private var headerImageURL: URL?
+    @State private var isHeaderImageMissing = false
     @State private var isHeaderImageVisible = false
     @State private var isHeaderContentHidden = false
     @State private var details: SoundCloudArtistDetails?
@@ -194,11 +195,16 @@ struct ArtistDetailView: View {
             if isShufflingTracks { await shuffleTracks() }
         }
         .task(id: artist.permalinkURL) {
-            guard headerImage == nil,
-                  let header = try? await model.artistHeader(for: artist),
-                  !Task.isCancelled else { return }
-            headerImage = header.image
-            headerImageURL = header.artworkURL
+            guard headerImage == nil, !isHeaderImageMissing else { return }
+            do {
+                let header = try await model.artistHeader(for: artist)
+                try Task.checkCancellation()
+                headerImage = header?.image
+                headerImageURL = header?.artworkURL
+                isHeaderImageMissing = header == nil
+            } catch {
+                // A failed lookup does not confirm that the header is absent.
+            }
         }
         .task(id: details?.user.urn) {
             await loadFollowStatus()
@@ -226,7 +232,7 @@ struct ArtistDetailView: View {
     @ViewBuilder
     private var artworkBackdrop: some View {
         let backdrop = TrackArtworkBackdropView(
-            artworkURL: headerImageURL ?? details?.user.avatarURL ?? artist.avatarURL,
+            artworkURL: headerImageURL ?? (isHeaderImageMissing ? details?.user.avatarURL ?? artist.avatarURL : nil),
             loader: model.artworkLoader,
             fadesToBottom: false,
             cachedImage: headerImage
