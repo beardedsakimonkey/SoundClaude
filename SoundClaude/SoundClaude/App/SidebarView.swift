@@ -10,6 +10,8 @@ struct SidebarView: View {
     let onReselect: () -> Void
     let onSignOut: () async -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @FocusState private var isSidebarFocused: Bool
     @State private var isShowingCreatePlaylist = false
     @State private var isProfileHovered = false
 
@@ -25,73 +27,101 @@ struct SidebarView: View {
     }
 
     private var sidebarList: some View {
-        List(selection: $selection) {
-            ForEach(SidebarDestination.libraryDestinations) { destination in
-                Label {
-                    Text(destination.title)
-                        .foregroundStyle(selection == destination ? Color("AccentColor") : .primary)
-                } icon: {
-                    Image(systemName: destination.systemImage)
-                        .foregroundStyle(selection == destination ? Color("AccentColor") : .primary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(SidebarDestination.libraryDestinations) { destination in
+                    Label {
+                        Text(destination.title)
+                            .foregroundStyle(selection == destination ? Color("AccentColor") : .primary)
+                    } icon: {
+                        Image(systemName: destination.systemImage)
+                            .foregroundStyle(selection == destination ? Color("AccentColor") : .primary)
+                    }
+                        .modifier(SidebarRowStyle(isSelected: selection == destination) {
+                            select(destination)
+                        })
                 }
-                    .modifier(SidebarRowStyle(isSelected: selection == destination) {
-                        select(destination)
-                    })
-                    .tag(destination)
-            }
-            Section {
-                Label("New", systemImage: "plus")
-                    .modifier(SidebarRowStyle(isSelected: false) {
-                        isShowingCreatePlaylist = true
-                    })
-                    .opacity(0.7)
-                    .selectionDisabled()
+                VStack(alignment: .leading, spacing: 0) {
+                    sectionHeader("Playlists")
+                    Label("New", systemImage: "plus")
+                        .modifier(SidebarRowStyle(isSelected: false) {
+                            isShowingCreatePlaylist = true
+                        })
+                        .opacity(0.7)
 
-                ForEach(playlists.playlists) { playlist in
-                    playlistRow(playlist)
-                }
-                if playlists.isLoading {
-                    ProgressView()
-                        .accessibilityLabel("Loading playlists")
-                        .controlSize(.small)
-                } else if let errorMessage = playlists.errorMessage {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(errorMessage)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Button("Try Again") { Task { await playlists.load() } }
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(playlists.playlists) { playlist in
+                            playlistRow(playlist)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                        if playlists.isLoading {
+                            ProgressView()
+                                .accessibilityLabel("Loading playlists")
+                                .controlSize(.small)
+                        } else if let errorMessage = playlists.errorMessage {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(errorMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Button("Try Again") { Task { await playlists.load() } }
+                            }
+                        } else if playlists.playlists.isEmpty {
+                            Text("No playlists")
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                } else if playlists.playlists.isEmpty {
-                    Text("No playlists")
-                        .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-            } header: {
-                Text("Playlists")
+                VStack(alignment: .leading, spacing: 0) {
+                    sectionHeader("Liked Playlists")
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(playlists.likedPlaylists) { playlist in
+                            playlistRow(playlist)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
+                        if playlists.isLoadingLikes {
+                            ProgressView()
+                                .accessibilityLabel("Loading liked playlists")
+                                .controlSize(.small)
+                        } else if let errorMessage = playlists.likesErrorMessage {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(errorMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Button("Try Again") { Task { await playlists.loadLikes() } }
+                            }
+                        } else if playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
+                            Text("No liked playlists")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
-            Section("Liked Playlists") {
-                ForEach(playlists.likedPlaylists) { playlist in
-                    playlistRow(playlist)
-                }
-                if playlists.isLoadingLikes {
-                    ProgressView()
-                        .accessibilityLabel("Loading liked playlists")
-                        .controlSize(.small)
-                } else if let errorMessage = playlists.likesErrorMessage {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(errorMessage)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Button("Try Again") { Task { await playlists.loadLikes() } }
-                    }
-                } else if playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
-                    Text("No liked playlists")
-                        .foregroundStyle(.secondary)
-                }
+            .padding(8)
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: 0.25),
+                value: playlists.playlists.map(\.urn)
+            )
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: 0.25),
+                value: playlists.likedPlaylists.map(\.urn)
+            )
+        }
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isSidebarFocused)
+        .onMoveCommand { direction in
+            let destinations = SidebarDestination.libraryDestinations
+            let index = selection.flatMap { destinations.firstIndex(of: $0) } ?? 0
+            switch direction {
+            case .up: selection = destinations[max(0, index - 1)]
+            case .down: selection = destinations[min(destinations.count - 1, index + 1)]
+            default: break
             }
         }
         .task { await playlists.load() }
         .task { await playlists.loadLikes() }
-        .listStyle(.sidebar)
     }
 
     private func playlistRow(_ playlist: SoundCloudPlaylist) -> some View {
@@ -116,10 +146,19 @@ struct SidebarView: View {
             .modifier(SidebarRowStyle(isSelected: false) {
                 onSelectPlaylist(playlist)
             })
-            .selectionDisabled()
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.top, 16)
+            .padding(.bottom, 6)
     }
 
     private func select(_ destination: SidebarDestination) {
+        isSidebarFocused = true
         if selection == destination {
             onReselect()
         } else {
@@ -177,53 +216,15 @@ private struct SidebarRowStyle: ViewModifier {
         Button(action: onSelect) {
             content
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
                 .contentShape(Rectangle())
         }
             .buttonStyle(.plain)
-            .listRowBackground(
+            .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(isSelected ? Color.primary.opacity(0.06) : .clear)
-                    .padding(.horizontal, 8)
             )
-            .background(SidebarTableConfiguration())
-    }
-}
-
-// Attach inside a row so only the sidebar's enclosing table is configured.
-private struct SidebarTableConfiguration: NSViewRepresentable {
-    func makeNSView(context: Context) -> ConfigurationView {
-        ConfigurationView()
-    }
-
-    func updateNSView(_ nsView: ConfigurationView, context: Context) {
-        nsView.configureTable()
-    }
-
-    final class ConfigurationView: NSView {
-        override func hitTest(_ point: NSPoint) -> NSView? { nil }
-
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            configureTable()
-        }
-
-        override func viewDidMoveToSuperview() {
-            super.viewDidMoveToSuperview()
-            configureTable()
-        }
-
-        func configureTable() {
-            var ancestor = superview
-            while let view = ancestor {
-                if let table = view as? NSTableView {
-                    table.allowsTypeSelect = false
-                    // SwiftUI draws the gray row background; keep native keyboard selection.
-                    table.selectionHighlightStyle = .none
-                    return
-                }
-                ancestor = view.superview
-            }
-        }
     }
 }
 
