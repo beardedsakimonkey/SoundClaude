@@ -712,18 +712,23 @@ struct ArtistDetailView: View {
         return Button {
             Task { await toggleFollow() }
         } label: {
-            Label {
-                Text(isFollowing == true ? "Unfollow" : "Follow")
-            } icon: {
-                Image(systemName: isFollowing == true ? "person.badge.minus" : "person.badge.plus")
-                    .opacity(isLoadingFollow ? 0 : 1)
-                    .overlay {
-                        if isLoadingFollow {
-                            ProgressView()
-                                .controlSize(.mini)
-                                .accessibilityHidden(true)
+            ZStack {
+                Label("Follow", systemImage: "person.badge.plus").hidden()
+                Label("Unfollow", systemImage: "person.badge.minus").hidden()
+
+                Label {
+                    Text(isFollowing == true ? "Unfollow" : "Follow")
+                } icon: {
+                    Image(systemName: isFollowing == true ? "person.badge.minus" : "person.badge.plus")
+                        .opacity(isLoadingFollow ? 0 : 1)
+                        .overlay {
+                            if isLoadingFollow {
+                                ProgressView()
+                                    .controlSize(.mini)
+                                    .accessibilityHidden(true)
+                            }
                         }
-                    }
+                }
             }
         }
         .disabled(isFollowing == nil || isUpdatingFollow)
