@@ -71,17 +71,25 @@ struct TrackGridTile: View {
                         loader: artworkLoader,
                         size: geometry.size.width,
                         rendition: .square500,
-                        shape: RoundedRectangle(cornerRadius: 8)
+                        shape: RoundedRectangle(cornerRadius: 8, style: .continuous),
+                        showsBorder: false
+                    )
+                    .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .modifier(PlayerArtworkGlass(
+                        cornerRadius: 8,
+                        isHovering: isHoveringArtwork && !reduceMotion
+                    ))
+                    .animation(
+                        reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
+                        value: isHoveringArtwork
                     )
                     .overlay {
                         if isHoveringArtwork || isCurrentTrack {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(.black.opacity(0.35))
-                                .overlay {
-                                    Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")
-                                        .font(.system(size: 32, weight: .semibold))
-                                        .foregroundStyle(.white)
-                                }
+                            Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")
+                                .font(.system(size: 32, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
                                 .allowsHitTesting(false)
                                 .accessibilityHidden(true)
                         }
