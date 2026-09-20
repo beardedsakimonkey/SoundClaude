@@ -52,7 +52,7 @@ struct SidebarView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(playlists.playlists) { playlist in
                             playlistRow(playlist)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
+                                .transition(.opacity)
                         }
                         if playlists.isLoading {
                             ProgressView()
@@ -74,17 +74,22 @@ struct SidebarView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader("Liked Playlists")
+                    if !playlists.likedPlaylists.isEmpty {
+                        sectionHeader("Liked Playlists")
+                            .transition(.opacity)
+                    }
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(playlists.likedPlaylists) { playlist in
                             playlistRow(playlist)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
+                                .transition(.opacity)
                         }
                         if playlists.isLoadingLikes {
-                            ProgressView()
-                                .accessibilityLabel("Loading liked playlists")
-                                .controlSize(.small)
-                                .frame(maxWidth: .infinity, alignment: .center)
+                            if !playlists.likedPlaylists.isEmpty {
+                                ProgressView()
+                                    .accessibilityLabel("Loading liked playlists")
+                                    .controlSize(.small)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                            }
                         } else if let errorMessage = playlists.likesErrorMessage {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(errorMessage)
