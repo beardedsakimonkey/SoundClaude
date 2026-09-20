@@ -242,7 +242,7 @@ struct SignedInView: View {
             rootView
                 .safeAreaPadding(.bottom, footerHeight)
                 .mask { bottomFade }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                 .background(Color(nsColor: .windowBackgroundColor))
                 .toolbar { navigationToolbar }
                 .navigationDestination(for: Route.self) { route in
@@ -336,7 +336,8 @@ struct SignedInView: View {
                     }
                     .safeAreaPadding(.bottom, footerHeight)
                     .mask { bottomFade }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    // Let tall artwork fit the window without enlarging the split view.
+                    .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                     // Keep the page opaque when the visualizer restores the stack.
                     // The background must remain outside the footer fade mask.
                     .background(Color(nsColor: .windowBackgroundColor))
