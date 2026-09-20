@@ -341,15 +341,33 @@ struct QueueAndLikesTests {
         var countedTrack = track(20)
         countedTrack.likesCount = 1_234
         precondition(likes.likeCount(for: countedTrack) == 1_234)
+        client.setLike = {
+            precondition(likes.isLiked(countedTrack))
+            precondition(likes.updatingTrackURNs.contains(countedTrack.urn))
+            precondition(!likes.tracks.contains(countedTrack))
+            // A second click while pending must not send another request.
+            try await likes.toggleLike(countedTrack)
+        }
         try await likes.toggleLike(countedTrack)
+        precondition(likes.updatingTrackURNs.isEmpty)
         precondition(likes.isLiked(countedTrack) && likes.likeCount(for: countedTrack) == 1_235)
+        client.setLike = {
+            precondition(!likes.isLiked(countedTrack))
+            precondition(likes.updatingTrackURNs.contains(countedTrack.urn))
+        }
         try await likes.toggleLike(countedTrack)
+        precondition(likes.updatingTrackURNs.isEmpty)
         precondition(!likes.isLiked(countedTrack) && likes.likeCount(for: countedTrack) == 1_234)
-        client.setLike = { throw SoundCloudError.invalidData }
+        client.setLike = {
+            precondition(likes.isLiked(countedTrack))
+            precondition(likes.updatingTrackURNs.contains(countedTrack.urn))
+            throw SoundCloudError.invalidData
+        }
         do {
             try await likes.toggleLike(countedTrack)
             fatalError("Failed like accepted")
         } catch SoundCloudError.invalidData {}
+        precondition(likes.updatingTrackURNs.isEmpty)
         precondition(!likes.isLiked(countedTrack) && likes.likeCount(for: countedTrack) == 1_234)
         client.setLike = {}
 

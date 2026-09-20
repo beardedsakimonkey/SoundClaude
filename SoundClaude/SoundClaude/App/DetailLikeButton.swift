@@ -1,7 +1,10 @@
 import SwiftUI
 
 struct DetailLikeButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let isLiked: Bool
+    var isUpdating = false
     var likeCount: Int? = nil
     var iconOnly = false
     let subject: String
@@ -11,7 +14,10 @@ struct DetailLikeButton: View {
     private var actionLabel: String { "\(isLiked ? "Unlike" : "Like") \(subject)" }
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            guard !isUpdating else { return }
+            action()
+        } label: {
             ZStack {
                 label(systemImage: "heart")
                     .opacity(isLiked ? 0 : 1)
@@ -30,9 +36,13 @@ struct DetailLikeButton: View {
         .buttonStyle(TrackActionButtonStyle(
             fill: isLiked ? .accentColor.opacity(0.12) : .primary.opacity(0.12)
         ))
+        // Keep the button enabled so a pending request cannot interrupt its release spring.
+        .opacity(isUpdating ? 0.5 : 1)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
         .help(actionLabel)
         .accessibilityLabel(actionLabel)
-        .accessibilityValue(isLiked ? "Liked" : "Not liked")
+        .accessibilityValue(isUpdating ? "Updating" : (isLiked ? "Liked" : "Not liked"))
     }
 
     @ViewBuilder

@@ -6,7 +6,7 @@ final class LikesController: ObservableObject {
     @Published private(set) var tracks: [SoundCloudTrack] = []
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
-    @Published private(set) var updatingTrackURNs: Set<String> = []
+    @Published private var pendingLikes: [String: Bool] = [:]
     @Published private var updatedLikeCounts: [String: Int] = [:]
 
     private let client: SoundCloudClient
@@ -22,6 +22,7 @@ final class LikesController: ObservableObject {
 
     var canLoadMore: Bool { cache.nextPageURL != nil }
     var isLoadingMore: Bool { isLoading && !tracks.isEmpty }
+    var updatingTrackURNs: Set<String> { Set(pendingLikes.keys) }
 
     init(client: SoundCloudClient, auth: AuthController, store: LikesCacheStore = LikesCacheStore()) {
         self.client = client
@@ -53,7 +54,7 @@ final class LikesController: ObservableObject {
     }
 
     func isLiked(_ track: SoundCloudTrack) -> Bool {
-        tracks.contains { $0.urn == track.urn }
+        pendingLikes[track.urn] ?? tracks.contains { $0.urn == track.urn }
     }
 
     func likeCount(for track: SoundCloudTrack) -> Int? {
@@ -62,15 +63,18 @@ final class LikesController: ObservableObject {
 
     func toggleLike(_ track: SoundCloudTrack) async throws {
         await restoreCache()
-        guard let accountID, updatingTrackURNs.insert(track.urn).inserted else { return }
+        guard let accountID, pendingLikes[track.urn] == nil else { return }
         let session = sessionID
         let shouldLike = !isLiked(track)
-        defer {
-            if sessionID == session { updatingTrackURNs.remove(track.urn) }
+        pendingLikes[track.urn] = shouldLike
+        do {
+            let accessToken = try await auth.validAccessToken()
+            guard sessionID == session else { return }
+            try await client.setTrackLiked(urn: track.urn, isLiked: shouldLike, accessToken: accessToken)
+        } catch {
+            if sessionID == session { pendingLikes.removeValue(forKey: track.urn) }
+            throw error
         }
-        let accessToken = try await auth.validAccessToken()
-        guard sessionID == session else { return }
-        try await client.setTrackLiked(urn: track.urn, isLiked: shouldLike, accessToken: accessToken)
         guard sessionID == session else { return }
         // Track details can remain cached after the like state changes.
         if let count = likeCount(for: track) {
@@ -87,6 +91,7 @@ final class LikesController: ObservableObject {
             cache.tracks.removeAll { $0.urn == track.urn }
         }
         tracks = cache.tracks
+        pendingLikes.removeValue(forKey: track.urn)
         try await store.save(cache, accountID: accountID)
     }
 
@@ -197,7 +202,7 @@ final class LikesController: ObservableObject {
         sessionID = UUID()
         accountID = nil
         cache = LikesCache()
-        updatingTrackURNs = []
+        pendingLikes = [:]
         updatedLikeCounts = [:]
         localChanges = [:]
         unlikedTrackURNs = []

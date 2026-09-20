@@ -167,7 +167,10 @@ struct PlayerFooterView: View {
         }
         .buttonStyle(.plain)
         .modifier(SpringPressEffect())
-        .disabled(track == nil || isUpdating)
+        .disabled(track == nil)
+        .opacity(isUpdating ? 0.5 : 1)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
         .help(isLiked ? "Unlike track (L)" : "Like track (L)")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
         .accessibilityValue(isLiked ? "Liked" : "Not liked")

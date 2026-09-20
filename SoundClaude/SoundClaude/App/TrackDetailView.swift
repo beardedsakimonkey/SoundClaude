@@ -393,6 +393,7 @@ struct TrackDetailView: View {
     private func likeButton(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
         DetailLikeButton(
             isLiked: likes.isLiked(track),
+            isUpdating: likes.updatingTrackURNs.contains(track.urn),
             likeCount: likes.likeCount(for: track),
             iconOnly: iconOnly,
             subject: "track"
@@ -405,7 +406,6 @@ struct TrackDetailView: View {
                 }
             }
         }
-        .disabled(likes.updatingTrackURNs.contains(track.urn))
     }
 
     private func repostButton(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
