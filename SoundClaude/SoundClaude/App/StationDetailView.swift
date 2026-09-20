@@ -90,11 +90,9 @@ struct StationDetailView: View {
             } else {
                 ToolbarItem(placement: .primaryAction) { Spacer() }
             }
-            if let url = station?.permalinkURL {
-                ToolbarItem(placement: .primaryAction) {
-                    OpenInSoundCloudButton(url: url)
-                        .help("Open this station in your web browser")
-                }
+            ToolbarItem(placement: .primaryAction) {
+                OpenInSoundCloudButton(url: station?.permalinkURL)
+                    .help("Open this station in your web browser")
             }
         }
         .task(id: loadAttempt) { await load() }
