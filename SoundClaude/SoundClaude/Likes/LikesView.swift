@@ -62,7 +62,7 @@ struct LikesView: View {
     @ViewBuilder
     private var backdrop: some View {
         let gradient = LinearGradient(
-            colors: [.orange.opacity(0.3), .clear],
+            colors: [.accentColor.opacity(0.3), .clear],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -160,7 +160,7 @@ struct LikesView: View {
                         .disabled(likes.isLoading)
                 }
             }
-            .foregroundStyle(.orange)
+            .foregroundStyle(Color.accentColor)
             .padding(.horizontal)
             .padding(.bottom, 8)
         }

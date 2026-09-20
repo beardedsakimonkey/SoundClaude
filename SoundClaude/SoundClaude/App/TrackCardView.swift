@@ -131,7 +131,7 @@ struct TrackCardView: View {
             } label: {
                 Text(track.title)
                     .font(.title2.weight(.semibold))
-                    .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
+                    .foregroundStyle(isCurrentTrack ? Color.accentColor : Color.primary)
                     .underline(isHoveringTitle)
                     .multilineTextAlignment(.leading)
                     .lineLimit(1)
@@ -202,7 +202,7 @@ struct TrackCardView: View {
                 systemImage: isLiked ? "heart.fill" : "heart"
             )
         }
-        .buttonStyle(TrackStatisticButtonStyle(color: .orange, isSelected: isLiked))
+        .buttonStyle(TrackStatisticButtonStyle(color: .accentColor, isSelected: isLiked))
         .disabled(likes.updatingTrackURNs.contains(track.urn))
         .help(isLiked ? "Unlike track" : "Like track")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")

@@ -54,7 +54,7 @@ struct StationDetailView: View {
                     }
                     if let message = model.errorMessage {
                         Label(message, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.accentColor)
                     }
                     LazyVStack(alignment: .leading, spacing: 0) {
                         TrackCollectionTracks(

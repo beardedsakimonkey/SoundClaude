@@ -159,9 +159,9 @@ struct PlayerFooterView: View {
         } label: {
             Image(systemName: isLiked ? "heart.fill" : "heart")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(isLiked ? Color.orange : Color.primary)
+                .foregroundStyle(isLiked ? Color.accentColor : Color.primary)
                 .frame(width: 32, height: 32)
-                .modifier(PlayerFooterButtonBackground(color: .orange, isActive: isLiked))
+                .modifier(PlayerFooterButtonBackground(color: .accentColor, isActive: isLiked))
                 .padding(.horizontal, 6)
                 .contentShape(Rectangle())
         }
@@ -301,9 +301,9 @@ struct PlayerFooterView: View {
                 } label: {
                     Image(systemName: "list.bullet")
                         .font(.system(size: 14))
-                        .foregroundStyle(isShowingQueue ? Color.orange : Color.primary)
+                        .foregroundStyle(isShowingQueue ? Color.accentColor : Color.primary)
                         .frame(width: 32, height: 32)
-                        .modifier(PlayerFooterButtonBackground(color: .orange, isActive: isShowingQueue))
+                        .modifier(PlayerFooterButtonBackground(color: .accentColor, isActive: isShowingQueue))
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -318,9 +318,9 @@ struct PlayerFooterView: View {
                 } label: {
                     Image(systemName: "waveform.path")
                         .font(.system(size: 14))
-                        .foregroundStyle(isShowingVisualizer ? Color.orange : Color.primary)
+                        .foregroundStyle(isShowingVisualizer ? Color.accentColor : Color.primary)
                         .frame(width: 32, height: 32)
-                        .modifier(PlayerFooterButtonBackground(color: .orange, isActive: isShowingVisualizer))
+                        .modifier(PlayerFooterButtonBackground(color: .accentColor, isActive: isShowingVisualizer))
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)

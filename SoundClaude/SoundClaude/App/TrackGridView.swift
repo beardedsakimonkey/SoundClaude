@@ -130,7 +130,7 @@ struct TrackGridTile: View {
                     } label: {
                         Text(track.title)
                             .font(.body.weight(.semibold))
-                            .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
+                            .foregroundStyle(isCurrentTrack ? Color.accentColor : Color.primary)
                             .underline(isHoveringTitle)
                             .multilineTextAlignment(.leading)
                             .lineLimit(1)

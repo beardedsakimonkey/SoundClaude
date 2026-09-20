@@ -17,7 +17,7 @@ struct DetailLikeButton: View {
                     .opacity(isLiked ? 0 : 1)
                     .accessibilityHidden(isLiked)
                 label(systemImage: "heart.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.accentColor)
                     .opacity(isLiked ? 1 : 0)
                     .accessibilityHidden(!isLiked)
             }

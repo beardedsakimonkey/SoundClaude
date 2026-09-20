@@ -71,7 +71,7 @@ struct TrackListRow: View {
                     } label: {
                         Text(track.title)
                             .underline(isHoveringTitle)
-                            .foregroundStyle(isCurrentTrack ? Color.orange : Color.primary)
+                            .foregroundStyle(isCurrentTrack ? Color.accentColor : Color.primary)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -125,7 +125,7 @@ struct TrackListRow: View {
                         }
                     }
                     .font(.caption)
-                    .foregroundStyle(isCurrentTrack ? Color.orange : Color.secondary)
+                    .foregroundStyle(isCurrentTrack ? Color.accentColor : Color.secondary)
                 }
             }
             .lineLimit(1)

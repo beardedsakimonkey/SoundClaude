@@ -4,7 +4,7 @@ struct TrackPlaybackIndicator: View {
     let isPlaying: Bool
     let isLoading: Bool
     let analyzer: SpectrumAnalyzer
-    var color: Color = .orange
+    var color: Color = .accentColor
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused

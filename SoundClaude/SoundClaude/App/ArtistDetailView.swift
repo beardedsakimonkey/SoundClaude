@@ -627,7 +627,7 @@ struct ArtistDetailView: View {
         VStack(alignment: .leading, spacing: 24) {
             if let message = model.errorMessage {
                 Label(message, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.accentColor)
             }
             switch selectedTab {
             case .tracks:

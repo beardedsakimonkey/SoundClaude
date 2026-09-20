@@ -73,7 +73,7 @@ struct PlaylistDetailView: View {
                     }
                     if let message = model.errorMessage {
                         Label(message, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.accentColor)
                     }
                     trackList
                 }
