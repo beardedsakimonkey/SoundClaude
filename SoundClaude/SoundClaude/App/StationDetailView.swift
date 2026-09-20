@@ -16,6 +16,7 @@ struct StationDetailView: View {
     @State private var errorMessage: String?
     @State private var loadAttempt = 0
     @State private var isShowingArtwork = false
+    @State private var isHoveringTrackTitle = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
     private var seedTrackURN: String? { seedTrack?.urn }
@@ -128,6 +129,36 @@ struct StationDetailView: View {
                         .transition(.opacity)
                     }
                     stationTitle
+                    ZStack(alignment: .leading) {
+                        if let track = currentStationTrack {
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Button {
+                                    onSelectTrack(track)
+                                } label: {
+                                    Text(track.title)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                        .underline(isHoveringTrackTitle)
+                                }
+                                .buttonStyle(.plain)
+                                .onContentHover { isHoveringTrackTitle = $0 }
+                                .help("View track: \(track.title)")
+                                .accessibilityLabel("View track: \(track.title)")
+                                Text("by")
+                                    .foregroundStyle(.tertiary)
+                                    .fixedSize()
+                                ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                            }
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                            .id(track.urn)
+                            .transition(reduceMotion ? .identity : .opacity)
+                        }
+                    }
+                    .animation(
+                        reduceMotion ? nil : .easeInOut(duration: 0.3),
+                        value: currentStationTrack?.urn
+                    )
                 }
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: hasAppeared)
                 .onAppear { hasAppeared = true }
