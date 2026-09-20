@@ -113,17 +113,25 @@ struct StationDetailView: View {
                 onShowArtwork: { isShowingArtwork = true }
             )
             VStack(alignment: .leading, spacing: 10) {
-                stationTitle
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(stationType)
-                    RelativeTimestampView(
-                        timestamp: station?.lastUpdated,
-                        accessibilityPrefix: "Last updated", prefix: "Updated"
-                    )
+                VStack(alignment: .leading, spacing: 10) {
+                    if seedTrack == nil || reduceMotion || hasAppeared {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Label(stationType, systemImage: "dot.radiowaves.left.and.right")
+                                .labelStyle(.titleAndIcon)
+                            RelativeTimestampView(
+                                timestamp: station?.lastUpdated,
+                                accessibilityPrefix: "Last updated", prefix: "Updated"
+                            )
+                        }
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                        .transition(.opacity)
+                    }
+                    stationTitle
                 }
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .modifier(FadeInOnAppear())
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: hasAppeared)
+                .onAppear { hasAppeared = true }
+                .modifier(FadeInOnAppear(isEnabled: seedTrack == nil))
                 playbackControls
                     .padding(.top, 8)
                     .modifier(FadeInOnAppear())
@@ -144,27 +152,13 @@ struct StationDetailView: View {
     }
 
     private var stationTitle: some View {
-        let showsIcon = seedTrack == nil || reduceMotion || hasAppeared
-        return Text(title)
-        .lineLimit(1)
-        .minimumScaleFactor(0.6)
-        .foregroundStyle(.primary.opacity(0.9))
-        .textSelection(.enabled)
-        .padding(.leading, showsIcon ? 64 : 0)
-        // Keep the symbol's metrics from changing the title row's height.
-        .overlay(alignment: Alignment(horizontal: .leading, vertical: .firstTextBaseline)) {
-            Image(systemName: "dot.radiowaves.left.and.right")
-                .foregroundStyle(.primary.opacity(0.7))
-                .frame(width: 56)
-                .opacity(showsIcon ? 1 : 0)
-                .accessibilityHidden(true)
-        }
-        .font(.system(size: 36, weight: .semibold))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Station, \(title)")
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: hasAppeared)
-        .onAppear { hasAppeared = true }
-        .modifier(FadeInOnAppear(isEnabled: seedTrack == nil))
+        Text(title)
+            .font(.system(size: 36, weight: .semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .foregroundStyle(.primary)
+            .opacity(0.9)
+            .textSelection(.enabled)
     }
 
     private var playbackControls: some View {
