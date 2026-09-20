@@ -170,7 +170,6 @@ struct SidebarView: View {
         } label: {
             HStack {
                 Text(title)
-                Spacer()
                 Image(systemName: "chevron.right")
                     .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
                     .accessibilityHidden(true)
