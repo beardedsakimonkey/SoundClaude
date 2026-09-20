@@ -83,6 +83,11 @@ struct TrackCommentsView: View {
                         showsBorder: false
                     )
                     .clipShape(Circle())
+                    .overlay {
+                        Circle()
+                            .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                            .allowsHitTesting(false)
+                    }
                 }
 
                 TextField("", text: $draft)
@@ -234,6 +239,11 @@ struct TrackCommentsView: View {
                         showsBorder: false
                     )
                     .clipShape(Circle())
+                    .overlay {
+                        Circle()
+                            .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                            .allowsHitTesting(false)
+                    }
                 }
                 .buttonStyle(.plain)
                 .help("View artist")
