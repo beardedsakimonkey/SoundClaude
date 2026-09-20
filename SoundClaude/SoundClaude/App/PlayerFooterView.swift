@@ -283,7 +283,14 @@ struct PlayerFooterView: View {
                     }
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.tertiary)
-                    .offset(y: -4)
+                    // Follow the lower edge as centered bars collapse to 4 points.
+                    .offset(y: -4 - (playback.currentTrack != nil && !playback.isPlaybackActive
+                        ? (TrackWaveformView.Layout.compact.availableBarHeight(for: waveformHeight) - 4) / 2 - 1
+                        : 0))
+                    .animation(
+                        reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.3),
+                        value: playback.isPlaybackActive
+                    )
                 }
                 .frame(maxWidth: .infinity)
                 // Compensate for the timestamps below the waveform.
