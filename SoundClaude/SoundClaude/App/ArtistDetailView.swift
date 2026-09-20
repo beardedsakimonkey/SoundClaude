@@ -784,6 +784,7 @@ struct ArtistDetailView: View {
             reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
             value: isHoveringArtwork
         )
+        .modifier(FadeInOnAppear())
 
         if avatarURL != nil {
             Button {
