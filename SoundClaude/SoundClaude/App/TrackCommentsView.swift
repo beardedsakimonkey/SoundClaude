@@ -222,57 +222,81 @@ struct TrackCommentsView: View {
     }
 
     private func commentRow(_ comment: SoundCloudComment) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if let user = comment.user {
-                    ArtistLink(
-                        artist: user,
-                        artworkLoader: model.artworkLoader,
-                        onSelect: onSelectArtist
+        HStack(alignment: .top, spacing: 12) {
+            if let user = comment.user {
+                Button {
+                    onSelectArtist(user)
+                } label: {
+                    TrackArtworkView(
+                        artworkURL: user.avatarURL,
+                        loader: model.artworkLoader,
+                        size: 40,
+                        showsBorder: false
                     )
-                    .font(.headline)
-                    .fontWeight(.medium)
-                    .opacity(0.85)
-                } else {
-                    Label("Unknown user", systemImage: "person.crop.circle")
-                        .foregroundStyle(.secondary)
+                    .clipShape(Circle())
                 }
-                if let timestamp = comment.timestampMilliseconds {
-                    let seconds = timestamp / 1_000
-                    let timeLabel = "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
-                    Text("at")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Button {
-                        let position = Double(timestamp) / 1_000
-                        if model.playback.currentTrack?.urn == track.urn {
-                            model.playback.seek(to: position)
-                        } else {
-                            Task { await model.play(track, position: position) }
-                        }
-                    } label: {
-                        Text(timeLabel)
-                    }
-                    .buttonStyle(CommentTimestampButtonStyle(color: timestampColor))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(timestampColor)
-                    .help("Jump to \(timeLabel)")
-                    .accessibilityLabel("Jump to \(timeLabel) in \(track.title)")
-                }
-                if let createdAt = comment.createdAt {
-                    Text(createdAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .help(createdAt.formatted(date: .abbreviated, time: .shortened))
-                }
-                Spacer()
+                .buttonStyle(.plain)
+                .help("View artist")
+                .accessibilityLabel("View artist: \(user.username)")
+            } else {
+                Image(systemName: "person.crop.circle")
+                    .resizable()
+                    .frame(width: 40, height: 40)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
             }
 
-            ArtistMentionText(comment.body, onSelectArtist: onSelectArtist)
-                .textSelection(.enabled)
-                .foregroundStyle(.primary.opacity(0.9))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    if let user = comment.user {
+                        ArtistLink(
+                            artist: user,
+                            onSelect: onSelectArtist
+                        )
+                        .font(.headline)
+                        .fontWeight(.medium)
+                        .opacity(0.85)
+                    } else {
+                        Text("Unknown user")
+                            .foregroundStyle(.secondary)
+                    }
+                    if let timestamp = comment.timestampMilliseconds {
+                        let seconds = timestamp / 1_000
+                        let timeLabel = "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
+                        Text("at")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button {
+                            let position = Double(timestamp) / 1_000
+                            if model.playback.currentTrack?.urn == track.urn {
+                                model.playback.seek(to: position)
+                            } else {
+                                Task { await model.play(track, position: position) }
+                            }
+                        } label: {
+                            Text(timeLabel)
+                        }
+                        .buttonStyle(CommentTimestampButtonStyle(color: timestampColor))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(timestampColor)
+                        .help("Jump to \(timeLabel)")
+                        .accessibilityLabel("Jump to \(timeLabel) in \(track.title)")
+                    }
+                    if let createdAt = comment.createdAt {
+                        Text(createdAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .help(createdAt.formatted(date: .abbreviated, time: .shortened))
+                    }
+                    Spacer()
+                }
+
+                ArtistMentionText(comment.body, onSelectArtist: onSelectArtist)
+                    .textSelection(.enabled)
+                    .foregroundStyle(.primary.opacity(0.9))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

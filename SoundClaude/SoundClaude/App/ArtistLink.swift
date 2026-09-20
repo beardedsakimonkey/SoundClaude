@@ -3,6 +3,7 @@ import SwiftUI
 struct ArtistLink: View {
     let artist: SoundCloudUser
     var artworkLoader: ArtworkLoader? = nil
+    var avatarSize: CGFloat = 24
     let onSelect: (SoundCloudUser) -> Void
 
     @State private var isHovering = false
@@ -16,7 +17,7 @@ struct ArtistLink: View {
                     TrackArtworkView(
                         artworkURL: artist.avatarURL,
                         loader: artworkLoader,
-                        size: 24,
+                        size: avatarSize,
                         showsBorder: false
                     )
                     .clipShape(Circle())
