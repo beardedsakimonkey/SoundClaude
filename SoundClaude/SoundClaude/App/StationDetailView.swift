@@ -41,6 +41,14 @@ struct StationDetailView: View {
     }
     private var artworkTitle: String { currentStationTrack?.title ?? title }
 
+    private var initialExpandedWaveform: SoundCloudWaveform? {
+        guard currentStationTrack == nil,
+              let seedTrack,
+              model.playback.currentTrack?.urn == seedTrack.urn,
+              model.playback.isPlaybackActive else { return nil }
+        return model.cachedWaveform(for: seedTrack)
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             TrackCollectionBackdrop(artworkURL: artworkURL, loader: model.artworkLoader)
@@ -175,7 +183,8 @@ struct StationDetailView: View {
                 TrackWaveformView(
                     track: currentStationTrack, model: model,
                     invertsBarsOnTrackChange: true, collapsesBarsWhenPaused: true,
-                    keepsBarsVisible: true
+                    keepsBarsVisible: true,
+                    initialExpandedWaveform: initialExpandedWaveform
                 )
                 .offset(y: -2)
             }
