@@ -519,7 +519,7 @@ struct ArtistDetailView: View {
                         .padding(8)
                         .background {
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(.white.opacity(hoveredRelatedArtistURL == user.permalinkURL ? 0.08 : 0))
+                                .fill(Color.primary.opacity(hoveredRelatedArtistURL == user.permalinkURL ? 0.08 : 0))
                                 .animation(.easeInOut(duration: 0.15), value: hoveredRelatedArtistURL == user.permalinkURL)
                         }
                         .contentShape(Rectangle())

@@ -9,6 +9,7 @@ struct StationDetailView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hasAppeared = false
     @State private var station: SoundCloudStation?
@@ -157,7 +158,7 @@ struct StationDetailView: View {
                                     isPlaying: model.playback.isPlaying,
                                     isLoading: model.playback.isLoading,
                                     analyzer: model.analyzer,
-                                    color: .white.opacity(0.6)
+                                    color: (colorScheme == .dark ? Color.white : Color.black).opacity(0.6)
                                 )
                             }
                             .id(track.urn)
