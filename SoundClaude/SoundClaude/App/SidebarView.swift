@@ -234,6 +234,7 @@ struct SidebarView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .modifier(SidebarForegroundHover(usesPrimaryForeground: true))
             .help("Sign out")
             .accessibilityLabel("Sign out")
         }
