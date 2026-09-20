@@ -9,7 +9,6 @@ struct StationDetailView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hasAppeared = false
     @State private var station: SoundCloudStation?
@@ -17,7 +16,6 @@ struct StationDetailView: View {
     @State private var errorMessage: String?
     @State private var loadAttempt = 0
     @State private var isShowingArtwork = false
-    @State private var isHoveringTrackTitle = false
     @State private var isHoveringStationTitle = false
     @State private var isOpeningSource = false
     @State private var sourceErrorMessage: String?
@@ -158,50 +156,13 @@ struct StationDetailView: View {
                         }
                         stationTitle
                     }
-                    ZStack(alignment: .leading) {
-                        Text(" ")
-                            .font(.title3)
-                            .hidden()
-                            .accessibilityHidden(true)
-                        if let track = currentStationTrack {
-                            HStack(spacing: 6) {
-                                TrackPlaybackIndicator(
-                                    isPlaying: model.playback.isPlaying,
-                                    isLoading: model.playback.isLoading,
-                                    analyzer: model.analyzer,
-                                    color: (colorScheme == .dark ? Color.white : Color.black).opacity(0.6)
-                                )
-                                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                    Button {
-                                        onSelectTrack(track)
-                                    } label: {
-                                        Text(track.title)
-                                            .lineLimit(1)
-                                            .truncationMode(.tail)
-                                            .underline(isHoveringTrackTitle)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .onContentHover { isHoveringTrackTitle = $0 }
-                                    .help("View track: \(track.title)")
-                                    .accessibilityLabel("View track: \(track.title)")
-                                    Text("by")
-                                        .foregroundStyle(.tertiary)
-                                        .fixedSize()
-                                    ArtistLink(artist: track.artist, onSelect: onSelectArtist)
-                                }
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
-                            }
-                            // Resolve header movement once for the whole row, before
-                            // the indicator's bar animations apply their own timing.
-                            .geometryGroup()
-                            .id(track.urn)
-                            .transition(reduceMotion ? .identity : .opacity)
-                        }
-                    }
-                    .animation(
-                        reduceMotion ? nil : .easeInOut(duration: 0.3),
-                        value: currentStationTrack?.urn
+                    NowPlayingTrackRow(
+                        track: currentStationTrack,
+                        isPlaying: model.playback.isPlaying,
+                        isLoading: model.playback.isLoading,
+                        analyzer: model.analyzer,
+                        onSelectTrack: onSelectTrack,
+                        onSelectArtist: onSelectArtist
                     )
                 }
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: hasAppeared)

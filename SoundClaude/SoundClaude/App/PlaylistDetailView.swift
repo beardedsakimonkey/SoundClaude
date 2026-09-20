@@ -202,6 +202,15 @@ struct PlaylistDetailView: View {
                 .font(.title3)
                 .foregroundStyle(.secondary)
 
+                NowPlayingTrackRow(
+                    track: currentPlaylistTrack,
+                    isPlaying: model.playback.isPlaying,
+                    isLoading: model.playback.isLoading,
+                    analyzer: model.analyzer,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist
+                )
+
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(spacing: 12) {
                         playButton
