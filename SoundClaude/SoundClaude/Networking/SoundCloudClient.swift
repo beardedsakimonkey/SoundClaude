@@ -328,6 +328,17 @@ actor SoundCloudClient {
         return details
     }
 
+    func artist(urn: String, accessToken: String) async throws -> SoundCloudArtistDetails {
+        let url = configuration.apiBaseURL.appending(path: "users").appending(path: urn)
+        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+        try validate(response: response, data: data)
+        guard let details = try decoder.decode(RawUser.self, from: data)
+            .normalizedArtistDetails() else {
+            throw SoundCloudError.invalidData
+        }
+        return details
+    }
+
     func artistWebProfiles(urn: String, accessToken: String) async throws -> [SoundCloudWebProfile] {
         let url = configuration.apiBaseURL.appending(path: "users")
             .appending(path: urn).appending(path: "web-profiles")

@@ -552,6 +552,33 @@ final class AppModel: ObservableObject {
         )
     }
 
+    enum StationSource {
+        case track(SoundCloudTrack)
+        case artist(SoundCloudUser)
+    }
+
+    func stationSource(urn: String) async throws -> StationSource {
+        let components = urn.split(separator: ":")
+        guard components.count >= 2, let id = components.last else {
+            throw SoundCloudError.invalidData
+        }
+        let accessToken = try await auth.validAccessToken()
+        switch components[components.count - 2] {
+        case "track-stations":
+            let details = try await client.track(
+                urn: "soundcloud:tracks:\(id)", secretToken: nil, accessToken: accessToken
+            )
+            trackDetailsCache.insert(details, forKey: TrackCacheKey(track: details.track))
+            return .track(details.track)
+        case "artist-stations":
+            let details = try await client.artist(urn: "soundcloud:users:\(id)", accessToken: accessToken)
+            artistDetailsCache.insert(details, forKey: details.user.permalinkURL as NSURL)
+            return .artist(details.user)
+        default:
+            throw SoundCloudError.invalidData
+        }
+    }
+
     func station(urn: String) async throws -> SoundCloudStation {
         let accessToken = try await auth.validAccessToken()
         return try await client.station(urn: urn, accessToken: accessToken)

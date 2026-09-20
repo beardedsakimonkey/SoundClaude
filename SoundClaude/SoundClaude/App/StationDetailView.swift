@@ -18,6 +18,9 @@ struct StationDetailView: View {
     @State private var loadAttempt = 0
     @State private var isShowingArtwork = false
     @State private var isHoveringTrackTitle = false
+    @State private var isHoveringStationTitle = false
+    @State private var isOpeningSource = false
+    @State private var sourceErrorMessage: String?
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
     private var seedTrackURN: String? { seedTrack?.urn }
@@ -98,6 +101,29 @@ struct StationDetailView: View {
             }
         }
         .task(id: loadAttempt) { await load() }
+        .task(id: isOpeningSource) {
+            guard isOpeningSource else { return }
+            defer { isOpeningSource = false }
+            do {
+                let source = try await model.stationSource(urn: urn)
+                try Task.checkCancellation()
+                switch source {
+                case let .track(track): onSelectTrack(track)
+                case let .artist(artist): onSelectArtist(artist)
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                sourceErrorMessage = error.localizedDescription
+            }
+        }
+        .alert("Could not open station source", isPresented: Binding(
+            get: { sourceErrorMessage != nil },
+            set: { if !$0 { sourceErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { sourceErrorMessage = nil }
+        } message: {
+            Text(sourceErrorMessage ?? "Please try again.")
+        }
         .sheet(isPresented: $isShowingArtwork) {
             FullSizeArtworkView(
                 title: artworkTitle, artworkURL: artworkURL,
@@ -193,13 +219,27 @@ struct StationDetailView: View {
     }
 
     private var stationTitle: some View {
-        Text(title)
-            .font(.system(size: 36, weight: .semibold))
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
-            .foregroundStyle(.primary)
-            .opacity(0.9)
-            .textSelection(.enabled)
+        Button {
+            if let seedTrack {
+                onSelectTrack(seedTrack)
+            } else {
+                isOpeningSource = true
+            }
+        } label: {
+            Text(title)
+                .font(.system(size: 36, weight: .semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .foregroundStyle(.primary)
+                .opacity(0.9)
+                .underline(isHoveringStationTitle)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onContentHover { isHoveringStationTitle = $0 }
+        .disabled(isOpeningSource)
+        .help(stationType == "Artist station" ? "View station artist" : "View station track")
+        .accessibilityLabel("\(stationType == "Artist station" ? "View artist" : "View track"): \(title)")
     }
 
     private var playbackControls: some View {
