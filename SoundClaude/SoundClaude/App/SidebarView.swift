@@ -175,6 +175,10 @@ struct SidebarView: View {
                 Text(title)
                 Image(systemName: "chevron.right")
                     .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
+                    .animation(
+                        reduceMotion ? nil : .easeInOut(duration: 0.25),
+                        value: isExpanded.wrappedValue
+                    )
                     .accessibilityHidden(true)
             }
             .font(.caption.weight(.semibold))
