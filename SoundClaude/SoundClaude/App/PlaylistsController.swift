@@ -8,12 +8,14 @@ final class PlaylistsController: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var loadingPlaylistURNs: Set<String> = []
     @Published private(set) var playlistErrors: [String: String] = [:]
-    @Published private(set) var likedPlaylistURNs: Set<String> = []
+    @Published private(set) var likedPlaylists: [SoundCloudPlaylist] = []
+    @Published private(set) var isLoadingLikes = false
     @Published private(set) var hasLoadedLikes = false
     @Published private(set) var likesErrorMessage: String?
     @Published private(set) var updatingLikeURNs: Set<String> = []
 
     var playlists: [SoundCloudPlaylist] { cache.playlists }
+    var likedPlaylistURNs: Set<String> { Set(likedPlaylists.map(\.urn)) }
 
     private let client: SoundCloudClient
     private let auth: AuthController
@@ -164,7 +166,7 @@ final class PlaylistsController: ObservableObject {
         cache.playlists.removeAll { $0.urn == playlist.urn }
         cache.contents.removeValue(forKey: playlist.urn)
         playlistErrors.removeValue(forKey: playlist.urn)
-        likedPlaylistURNs.remove(playlist.urn)
+        likedPlaylists.removeAll { $0.urn == playlist.urn }
         // Deletion succeeded remotely; a disk failure must not invite another DELETE.
         try? await save(accountID: accountID, session: session)
         try checkSession(session)
@@ -209,6 +211,9 @@ final class PlaylistsController: ObservableObject {
                         if let index = cache.playlists.firstIndex(where: { $0.urn == urn }) {
                             cache.playlists[index] = details
                         }
+                        if let index = likedPlaylists.firstIndex(where: { $0.urn == urn }) {
+                            likedPlaylists[index] = details
+                        }
                         try await save(accountID: accountID, session: session)
                     }
                     if refreshed.nextPageURL != nil { try await Task.sleep(for: .milliseconds(350)) }
@@ -232,10 +237,17 @@ final class PlaylistsController: ObservableObject {
         guard accountID != nil, !hasLoadedLikes else { return }
         let session = sessionID
         likesErrorMessage = nil
+        isLoadingLikes = true
         let task = Task { @MainActor in
-            defer { if sessionID == session { likesTask = nil } }
+            defer {
+                if sessionID == session {
+                    likesTask = nil
+                    isLoadingLikes = false
+                }
+            }
             do {
                 var likedURNs: Set<String> = []
+                var refreshed: [SoundCloudPlaylist] = []
                 var url: URL?
                 var visited: Set<URL> = []
                 repeat {
@@ -243,11 +255,11 @@ final class PlaylistsController: ObservableObject {
                     let page = try await client.likedPlaylists(accessToken: token, pageURL: url)
                     try checkSession(session)
                     try validate(next: page.nextURL, requested: url, visited: &visited)
-                    likedURNs.formUnion(page.playlists.map(\.urn))
+                    refreshed.append(contentsOf: page.playlists.filter { likedURNs.insert($0.urn).inserted })
                     url = page.nextURL
                     if url != nil { try await Task.sleep(for: .milliseconds(350)) }
                 } while url != nil
-                likedPlaylistURNs = likedURNs
+                likedPlaylists = refreshed
                 hasLoadedLikes = true
             } catch {
                 if sessionID == session, !(error is CancellationError) {
@@ -270,9 +282,9 @@ final class PlaylistsController: ObservableObject {
         try await client.setPlaylistLiked(urn: playlist.urn, isLiked: shouldLike, accessToken: token)
         try checkSession(session)
         if shouldLike {
-            likedPlaylistURNs.insert(playlist.urn)
+            likedPlaylists.insert(playlist, at: 0)
         } else {
-            likedPlaylistURNs.remove(playlist.urn)
+            likedPlaylists.removeAll { $0.urn == playlist.urn }
         }
     }
 
@@ -303,7 +315,8 @@ final class PlaylistsController: ObservableObject {
     func clear() {
         likesTask?.cancel()
         likesTask = nil
-        likedPlaylistURNs = []
+        likedPlaylists = []
+        isLoadingLikes = false
         hasLoadedLikes = false
         likesErrorMessage = nil
         updatingLikeURNs = []

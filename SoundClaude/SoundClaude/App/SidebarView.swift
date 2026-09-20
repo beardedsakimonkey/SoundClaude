@@ -48,28 +48,7 @@ struct SidebarView: View {
                     .selectionDisabled()
 
                 ForEach(playlists.playlists) { playlist in
-                    let contents = playlists.cache.contents[playlist.urn]
-                    let artworkURL = contents?.playlist.artworkURL
-                        ?? playlist.artworkURL
-                        ?? contents?.tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
-
-                    Label {
-                        Text(playlist.title)
-                            .foregroundStyle(.primary)
-                    } icon: {
-                        TrackArtworkView(
-                            artworkURL: artworkURL,
-                            loader: artworkLoader,
-                            size: 24,
-                            showsBorder: false
-                        )
-                    }
-                        .lineLimit(1)
-                        .help(playlist.title)
-                        .modifier(SidebarRowStyle(isSelected: false) {
-                            onSelectPlaylist(playlist)
-                        })
-                        .selectionDisabled()
+                    playlistRow(playlist)
                 }
                 if playlists.isLoading {
                     ProgressView()
@@ -89,9 +68,55 @@ struct SidebarView: View {
             } header: {
                 Text("Playlists")
             }
+            Section("Liked Playlists") {
+                ForEach(playlists.likedPlaylists) { playlist in
+                    playlistRow(playlist)
+                }
+                if playlists.isLoadingLikes {
+                    ProgressView()
+                        .accessibilityLabel("Loading liked playlists")
+                        .controlSize(.small)
+                } else if let errorMessage = playlists.likesErrorMessage {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Try Again") { Task { await playlists.loadLikes() } }
+                    }
+                } else if playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
+                    Text("No liked playlists")
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .task { await playlists.load() }
+        .task { await playlists.loadLikes() }
         .listStyle(.sidebar)
+    }
+
+    private func playlistRow(_ playlist: SoundCloudPlaylist) -> some View {
+        let contents = playlists.cache.contents[playlist.urn]
+        let artworkURL = contents?.playlist.artworkURL
+            ?? playlist.artworkURL
+            ?? contents?.tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
+
+        return Label {
+            Text(playlist.title)
+                .foregroundStyle(.primary)
+        } icon: {
+            TrackArtworkView(
+                artworkURL: artworkURL,
+                loader: artworkLoader,
+                size: 24,
+                showsBorder: false
+            )
+        }
+            .lineLimit(1)
+            .help(playlist.title)
+            .modifier(SidebarRowStyle(isSelected: false) {
+                onSelectPlaylist(playlist)
+            })
+            .selectionDisabled()
     }
 
     private func select(_ destination: SidebarDestination) {

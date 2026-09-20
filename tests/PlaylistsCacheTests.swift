@@ -228,15 +228,20 @@ struct PlaylistsCacheTests {
         // Like state must include later pages before choosing POST or DELETE.
         let publicPlaylist = makePlaylist(42, isPrivate: false)
         client.fetchLikes = { url in
-            SoundCloudPlaylistPage(playlists: url == nil ? [] : [publicPlaylist],
+            precondition(controller.isLoadingLikes)
+            return SoundCloudPlaylistPage(playlists: url == nil ? [] : [publicPlaylist, publicPlaylist],
                                    nextURL: url == nil ? next : nil)
         }
         await controller.loadLikes()
         precondition(controller.hasLoadedLikes && controller.likedPlaylistURNs == [publicPlaylist.urn])
+        precondition(controller.likedPlaylists == [publicPlaylist] && !controller.isLoadingLikes)
+        precondition(controller.playlists == [makePlaylist(2)])
         try await controller.toggleLike(publicPlaylist)
+        precondition(controller.likedPlaylists.isEmpty)
         precondition(client.likeWrites == [false] && controller.likedPlaylistURNs.isEmpty)
         try await controller.toggleLike(publicPlaylist)
         precondition(client.likeWrites == [false, true])
+        precondition(controller.likedPlaylists == [publicPlaylist])
         client.failLikeWrite = true
         do {
             try await controller.toggleLike(publicPlaylist)
@@ -244,14 +249,20 @@ struct PlaylistsCacheTests {
         } catch is SoundCloudError {}
         precondition(controller.likedPlaylistURNs == [publicPlaylist.urn])
         precondition(controller.updatingLikeURNs.isEmpty)
+        precondition(controller.likedPlaylists == [publicPlaylist])
         try await controller.toggleLike(makePlaylist(1))
         precondition(client.likeWrites.count == 3)
         controller.clear()
         precondition(controller.likedPlaylistURNs.isEmpty && !controller.hasLoadedLikes)
+        precondition(controller.likedPlaylists.isEmpty && !controller.isLoadingLikes)
         await controller.restoreCache()
-        client.fetchLikes = { _ in throw SoundCloudError.invalidData }
+        client.fetchLikes = { url in
+            if url == nil { return SoundCloudPlaylistPage(playlists: [publicPlaylist], nextURL: next) }
+            throw SoundCloudError.invalidData
+        }
         await controller.loadLikes()
         precondition(!controller.hasLoadedLikes && controller.likesErrorMessage != nil)
+        precondition(controller.likedPlaylists.isEmpty && !controller.isLoadingLikes)
         client.fetchLikes = { _ in SoundCloudPlaylistPage(playlists: [], nextURL: nil) }
         await controller.loadLikes()
         precondition(controller.hasLoadedLikes && controller.likesErrorMessage == nil)
