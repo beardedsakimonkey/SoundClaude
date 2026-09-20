@@ -37,7 +37,7 @@ struct SidebarView: View {
                     } icon: {
                         Image(systemName: destination.systemImage)
                     }
-                        .modifier(SidebarRowStyle(isSelected: selection == destination, brightensOnHover: true) {
+                        .modifier(SidebarRowStyle(isSelected: selection == destination) {
                             select(destination)
                         })
                 }
@@ -50,7 +50,7 @@ struct SidebarView: View {
                             Image(systemName: "plus")
                                 .frame(width: 24, height: 24)
                         }
-                            .modifier(SidebarRowStyle(isSelected: false, brightensOnHover: true) {
+                            .modifier(SidebarRowStyle(isSelected: false) {
                                 isShowingCreatePlaylist = true
                             })
 
@@ -160,7 +160,7 @@ struct SidebarView: View {
         }
             .lineLimit(1)
             .help(playlist.title)
-            .modifier(SidebarRowStyle(isSelected: false, brightensOnHover: true) {
+            .modifier(SidebarRowStyle(isSelected: false) {
                 onSelectPlaylist(playlist)
             })
     }
@@ -243,12 +243,10 @@ struct SidebarView: View {
 
 private struct SidebarRowStyle: ViewModifier {
     let isSelected: Bool
-    var brightensOnHover = false
     let onSelect: () -> Void
 
-    @ViewBuilder
     func body(content: Content) -> some View {
-        let button = Button(action: onSelect) {
+        Button(action: onSelect) {
             content
                 .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
                 .padding(.horizontal, 10)
@@ -256,16 +254,11 @@ private struct SidebarRowStyle: ViewModifier {
                 .contentShape(Rectangle())
         }
             .buttonStyle(.plain)
-
-        if brightensOnHover {
-            button.modifier(SidebarForegroundHover(isSelected: isSelected))
-                .background {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color.primary.opacity(isSelected ? 0.06 : 0))
-                }
-        } else {
-            button.modifier(SidebarHoverBackground(isSelected: isSelected))
-        }
+            .modifier(SidebarForegroundHover(isSelected: isSelected))
+            .background {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(isSelected ? 0.06 : 0))
+            }
     }
 }
 
@@ -311,81 +304,5 @@ private struct SidebarHoverBackground: ViewModifier {
                     }
             }
             .onContentHover { isHovered = $0 }
-    }
-}
-
-private struct CreatePlaylistView: View {
-    @ObservedObject var playlists: PlaylistsController
-    let onCreated: (SoundCloudPlaylist) -> Void
-    @Environment(\.dismiss) private var dismiss
-    @State private var title = ""
-    @State private var description = ""
-    @State private var isPrivate = true
-    @State private var isCreating = false
-    @State private var errorMessage: String?
-    @FocusState private var isTitleFocused: Bool
-
-    private var trimmedTitle: String { title.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Create playlist")
-                .font(.title2.bold())
-            Form {
-                TextField("Title", text: $title)
-                    .focused($isTitleFocused)
-                TextField("Description", text: $description, axis: .vertical)
-                    .lineLimit(3...5)
-                Picker("Visibility", selection: $isPrivate) {
-                    Text("Private").tag(true)
-                    Text("Public").tag(false)
-                }
-            }
-            .disabled(isCreating)
-            if let errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
-                    .font(.callout)
-                    .textSelection(.enabled)
-            }
-            HStack {
-                if isCreating {
-                    ProgressView()
-                        .controlSize(.small)
-                        .accessibilityLabel("Creating playlist")
-                }
-                Spacer()
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                    .disabled(isCreating)
-                Button("Create") {
-                    isCreating = true
-                    errorMessage = nil
-                    Task { @MainActor in
-                        defer { isCreating = false }
-                        do {
-                            let playlist = try await playlists.createPlaylist(
-                                title: trimmedTitle,
-                                description: description.trimmingCharacters(in: .whitespacesAndNewlines),
-                                isPrivate: isPrivate
-                            )
-                            dismiss()
-                            onCreated(playlist)
-                        } catch is CancellationError {
-                            dismiss()
-                        } catch {
-                            errorMessage = error.localizedDescription
-                        }
-                    }
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(trimmedTitle.isEmpty || isCreating)
-            }
-        }
-        .padding(24)
-        .frame(width: 420)
-        .interactiveDismissDisabled(isCreating)
-        .dismissOnOutsideClick(isEnabled: !isCreating)
-        .onAppear { isTitleFocused = true }
     }
 }
