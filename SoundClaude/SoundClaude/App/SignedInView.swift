@@ -194,7 +194,7 @@ struct SignedInView: View {
                 },
                 onSignOut: model.signOut
             )
-                .safeAreaPadding(.bottom, footerHeight)
+                .safeAreaPadding(.bottom, max(0, footerHeight - 20))
                 .navigationSplitViewColumnWidth(
                     min: 180,
                     ideal: 220,

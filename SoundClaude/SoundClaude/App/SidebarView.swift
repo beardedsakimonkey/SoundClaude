@@ -58,6 +58,7 @@ struct SidebarView: View {
                             ProgressView()
                                 .accessibilityLabel("Loading playlists")
                                 .controlSize(.small)
+                                .frame(maxWidth: .infinity, alignment: .center)
                         } else if let errorMessage = playlists.errorMessage {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(errorMessage)
@@ -83,6 +84,7 @@ struct SidebarView: View {
                             ProgressView()
                                 .accessibilityLabel("Loading liked playlists")
                                 .controlSize(.small)
+                                .frame(maxWidth: .infinity, alignment: .center)
                         } else if let errorMessage = playlists.likesErrorMessage {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(errorMessage)
