@@ -42,7 +42,8 @@ final class WaveformCommentIndex {
             return a == b ? playbackEntries[$0].order < playbackEntries[$1].order : a < b
         }!
         let entry = playbackEntries[nearest]
-        return abs(entry.seconds - time) <= 2 ? entry.id : nil
+        // Expand the nearest avatar within five seconds before or after its timestamp.
+        return abs(entry.seconds - time) <= 5 ? entry.id : nil
     }
 
     func hoverCommentID(at x: CGFloat, width: CGFloat, duration: Double) -> String? {

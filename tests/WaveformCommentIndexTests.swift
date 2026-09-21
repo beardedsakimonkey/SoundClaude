@@ -14,7 +14,7 @@ struct WaveformCommentIndexTests {
         precondition(empty.hoverCommentID(at: 0, width: 100, duration: 10) == nil)
 
         // Shuffled timestamps, duplicate timestamps, and comments outside duration.
-        // Compare the indexed queries with the previous full-scan behavior.
+        // Compare the indexed queries with a full scan.
         let source = try (0..<5_000).map { try comment($0, ($0 * 7919) % 120_000) }
             + [comment(5_000, 0), comment(5_001, 0), comment(5_002, nil)]
         let timed = source.filter { $0.timestampMilliseconds != nil }
@@ -24,7 +24,7 @@ struct WaveformCommentIndexTests {
             Double(comment.timestampMilliseconds ?? 0) / 1_000
         }
         for time in stride(from: -3.0, through: 125.0, by: 0.125) {
-            let expected = timed.filter { abs(seconds($0) - time) <= 2 }
+            let expected = timed.filter { abs(seconds($0) - time) <= 5 }
                 .min { abs(seconds($0) - time) < abs(seconds($1) - time) }?.id
             precondition(index.playbackCommentID(at: time) == expected, "Playback mismatch at \(time)")
         }
@@ -48,8 +48,10 @@ struct WaveformCommentIndexTests {
         }
         let sparse = WaveformCommentIndex(try [comment(9, 10_000), comment(1, 6_000), comment(0, 10_000)])
         precondition(sparse.playbackCommentID(at: 8) == "9") // First-loaded tie, not sorted ID.
-        precondition(sparse.playbackCommentID(at: 12) == "9")
-        precondition(sparse.playbackCommentID(at: 12.001) == nil)
+        precondition(sparse.playbackCommentID(at: 1) == "1")
+        precondition(sparse.playbackCommentID(at: 0.999) == nil)
+        precondition(sparse.playbackCommentID(at: 15) == "9")
+        precondition(sparse.playbackCommentID(at: 15.001) == nil)
         precondition(sparse.playbackCommentID(at: .nan) == nil)
         print("Waveform comment index tests passed (5,000 comments)")
     }

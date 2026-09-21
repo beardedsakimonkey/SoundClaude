@@ -795,8 +795,8 @@ private struct WaveformCommentMarkersContent: View {
                             value: showsComments
                         )
                         .position(x: position(for: comment, width: width), y: proxy.size.height / 2)
-                        // Growing neighbors retain their fixed order in the comment list.
-                        .zIndex(comment.id == interactionID ? 1 : 0)
+                        // Keep active avatars above neighbors, with interaction above playback.
+                        .zIndex(comment.id == interactionID ? 2 : (comment.id == playbackID ? 1 : 0))
                 }
             }
             .frame(width: width, height: proxy.size.height, alignment: .topLeading)
