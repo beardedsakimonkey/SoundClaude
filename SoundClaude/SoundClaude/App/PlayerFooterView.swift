@@ -363,7 +363,7 @@ struct PlayerFooterView: View {
 
                 HStack(spacing: 4) {
                     Button(action: playback.toggleMute) {
-                        Group {
+                        ZStack {
                             if playback.volume == 0 || playback.isMuted {
                                 Image(systemName: "speaker.slash.fill")
                             } else {
@@ -373,7 +373,8 @@ struct PlayerFooterView: View {
                         .symbolRenderingMode(.hierarchical)
                         .foregroundStyle(Color(white: isPressingVolume ? 1 : 0.65))
                         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isPressingVolume)
-                        .frame(width: 24, alignment: .leading)
+                        .frame(width: 24, height: 32, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
 
