@@ -18,7 +18,7 @@ struct ExpandableDescriptionText: View {
     }
 
     init(description: String, onSelectArtist: @escaping (SoundCloudUser) -> Void) {
-        self.description = ArtistMentionText(description, onSelectArtist: onSelectArtist)
+        self.description = ArtistMentionText(description, linkHashtags: true, onSelectArtist: onSelectArtist)
     }
 
     @ViewBuilder
@@ -107,11 +107,13 @@ private struct DescriptionHeight: AnimatableModifier {
 }
 
 struct ArtistMentionText: View {
+    @Environment(\.searchTag) private var searchTag
+
     let onSelectArtist: (SoundCloudUser) -> Void
     private let mentions: ArtistMentions
 
-    init(_ text: String, onSelectArtist: @escaping (SoundCloudUser) -> Void) {
-        mentions = ArtistMentions(text)
+    init(_ text: String, linkHashtags: Bool = false, onSelectArtist: @escaping (SoundCloudUser) -> Void) {
+        mentions = ArtistMentions(text, linkHashtags: linkHashtags)
         self.onSelectArtist = onSelectArtist
     }
 
@@ -119,6 +121,10 @@ struct ArtistMentionText: View {
         Text(mentions.text)
             .opacity(0.95)
             .environment(\.openURL, OpenURLAction { url in
+                if let tag = mentions.tagsByURL[url] {
+                    searchTag(tag)
+                    return .handled
+                }
                 guard let artist = mentions.artistsByURL[url] else {
                     return .systemAction
                 }
@@ -131,6 +137,7 @@ struct ArtistMentionText: View {
 private struct ArtistMentions {
     let text: AttributedString
     let artistsByURL: [URL: SoundCloudUser]
+    let tagsByURL: [URL: String]
 
     private static let linkDetector = try! NSDataDetector(
         types: NSTextCheckingResult.CheckingType.link.rawValue
@@ -141,9 +148,15 @@ private struct ArtistMentions {
         pattern: #"(?<![\p{L}\p{N}_./%+@-])@([A-Za-z0-9_-]+)(?![\p{L}\p{N}_-])"#
     )
 
-    init(_ description: String) {
+    // Include Unicode letters, combining marks, numbers, underscores, and hyphens.
+    private static let hashtagPattern = try! NSRegularExpression(
+        pattern: #"(?<![\p{L}\p{M}\p{N}_./%+@#-])#([\p{L}\p{N}_][\p{L}\p{M}\p{N}_-]*)"#
+    )
+
+    init(_ description: String, linkHashtags: Bool) {
         var text = AttributedString(description)
         var artistsByURL: [URL: SoundCloudUser] = [:]
+        var tagsByURL: [URL: String] = [:]
         let links = Self.linkDetector.matches(
             in: description,
             range: NSRange(description.startIndex..., in: description)
@@ -180,7 +193,24 @@ private struct ArtistMentions {
                 permalinkURL: url
             )
         }
+        if linkHashtags {
+            let hashtags = Self.hashtagPattern.matches(
+                in: description,
+                range: NSRange(description.startIndex..., in: description)
+            )
+            for hashtag in hashtags {
+                guard !links.contains(where: { NSIntersectionRange($0.range, hashtag.range).length > 0 }),
+                      let tagRange = Range(hashtag.range(at: 1), in: description),
+                      let hashtagRange = Range(hashtag.range, in: description),
+                      let attributedRange = Range(hashtagRange, in: text) else { continue }
+                let tag = String(description[tagRange])
+                let tagURL = URL(string: "soundclaude-tag://tracks")!.appendingPathComponent(tag)
+                text[attributedRange].link = tagURL
+                tagsByURL[tagURL] = tag
+            }
+        }
         self.text = text
         self.artistsByURL = artistsByURL
+        self.tagsByURL = tagsByURL
     }
 }
