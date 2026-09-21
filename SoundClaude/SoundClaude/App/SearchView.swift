@@ -30,9 +30,7 @@ struct SearchView<Results: View>: View {
                 .environment(\.searchViewportHeight, geometry.size.height)
         }
         .background(alignment: .top) {
-            backdrop
-                .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
+            RouteGradientBackdrop()
         }
         .navigationTitle("Search")
         .task(id: focusRequest) {
@@ -127,30 +125,6 @@ struct SearchView<Results: View>: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
-        }
-    }
-
-    @ViewBuilder
-    private var backdrop: some View {
-        let gradient = LinearGradient(
-            stops: (0...16).map { step in
-                let progress = Double(step) / 16
-                // Smoothstep keeps both ends of the fade soft.
-                let eased = progress * progress * (3 - 2 * progress)
-                return Gradient.Stop(
-                    color: .purple.opacity(0.3 * (1 - eased)),
-                    location: CGFloat(progress)
-                )
-            },
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .frame(height: 150)
-
-        if #available(macOS 26.0, *) {
-            gradient.backgroundExtensionEffect()
-        } else {
-            gradient
         }
     }
 

@@ -14,9 +14,7 @@ struct HistoryView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            backdrop
-                .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
+            RouteGradientBackdrop()
 
             if !hasLoaded, errorMessage == nil {
                 ProgressView()
@@ -29,22 +27,6 @@ struct HistoryView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("History")
         .task(id: reloadID) { await load() }
-    }
-
-    @ViewBuilder
-    private var backdrop: some View {
-        let gradient = LinearGradient(
-            colors: [.gray.opacity(0.12), .clear],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .frame(height: 150)
-
-        if #available(macOS 26.0, *) {
-            gradient.backgroundExtensionEffect()
-        } else {
-            gradient
-        }
     }
 
     private var historyContent: some View {

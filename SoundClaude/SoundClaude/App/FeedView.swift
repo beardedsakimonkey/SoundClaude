@@ -13,9 +13,7 @@ struct FeedView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            backdrop
-                .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
+            RouteGradientBackdrop()
 
             if !feed.cache.hasLoadedPage, feed.errorMessage == nil {
                 ProgressView()
@@ -28,22 +26,6 @@ struct FeedView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Feed")
         .task { await feed.load() }
-    }
-
-    @ViewBuilder
-    private var backdrop: some View {
-        let gradient = LinearGradient(
-            colors: [.blue.opacity(0.3), .clear],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .frame(height: 150)
-
-        if #available(macOS 26.0, *) {
-            gradient.backgroundExtensionEffect()
-        } else {
-            gradient
-        }
     }
 
     private var feedContent: some View {
