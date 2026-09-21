@@ -300,6 +300,18 @@ struct TrackWaveformView: View {
                         : isCurrentTrack ? "Click or drag to seek."
                         : "Click to play from this position."
                 )
+                .overlay(alignment: .bottom) {
+                    if layout == .detail, let track {
+                        WaveformCommentsView(
+                            track: track,
+                            model: model,
+                            duration: displayedDuration,
+                            onSeek: { seek(to: $0) }
+                        )
+                        .id(track.urn)
+                        .frame(height: layout.reflectionHeight)
+                    }
+                }
             }
             .frame(height: height)
 
@@ -332,7 +344,7 @@ struct TrackWaveformView: View {
             playback.seek(by: 5)
             return .handled
         }
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(track == nil ? "Waveform, playback not started" : "Track waveform")
         .accessibilityValue(
             "\(format(seconds: displayedCurrentTime)) of "
@@ -610,6 +622,166 @@ struct TrackWaveformView: View {
         }
         waveformTrackURN = track.urn
         waveform = loadedWaveform
+    }
+}
+
+private struct WaveformCommentsView: View {
+    let track: SoundCloudTrack
+    let model: AppModel
+    let duration: Double
+    let onSeek: (Double) -> Void
+
+    @State private var comments: [SoundCloudComment] = []
+    @State private var hoveredID: String?
+    @FocusState private var focusedID: String?
+    @Environment(\.contentHoverEnabled) private var contentHoverEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var showsComments: Bool {
+        model.playback.currentTrack?.urn == track.urn && model.playback.isPlaybackActive
+    }
+
+    private var activeID: String? {
+        if contentHoverEnabled, let hoveredID { return hoveredID }
+        if let focusedID { return focusedID }
+        let playback = model.playback
+        guard playback.currentTrack?.urn == track.urn, playback.isPlaying else { return nil }
+        return comments.filter { abs(seconds(for: $0) - playback.currentTime) <= 2 }
+            .min { abs(seconds(for: $0) - playback.currentTime)
+                < abs(seconds(for: $1) - playback.currentTime) }?.id
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let activeID = activeID
+            let width = proxy.size.width
+            ZStack(alignment: .topLeading) {
+                ForEach(visibleComments(width: width, activeID: activeID)) { comment in
+                    marker(comment, width: width, isActive: comment.id == activeID)
+                        .scaleEffect(showsComments || reduceMotion ? 1 : 0.6)
+                        .animation(
+                            reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.45),
+                            value: showsComments
+                        )
+                        .position(x: position(for: comment, width: width), y: proxy.size.height / 2)
+                        .zIndex(comment.id == activeID ? 1 : 0)
+                }
+            }
+            .animation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.45), value: activeID)
+        }
+        .opacity(showsComments ? 1 : 0)
+        .allowsHitTesting(showsComments)
+        .accessibilityHidden(!showsComments)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: showsComments)
+        .task { await loadComments() }
+        .onChange(of: showsComments) { _, visible in
+            if !visible {
+                hoveredID = nil
+                focusedID = nil
+            }
+        }
+        .onChange(of: contentHoverEnabled) { _, enabled in
+            if !enabled { hoveredID = nil }
+        }
+        .onDisappear { hoveredID = nil }
+    }
+
+    private func marker(_ comment: SoundCloudComment, width: CGFloat, isActive: Bool) -> some View {
+        let x = position(for: comment, width: width)
+        let textOnLeft = x > width / 2
+        let textWidth = min(220, max(0, (textOnLeft ? x : width - x) + 14))
+        return Button {
+            guard duration > 0 else { return }
+            onSeek(seconds(for: comment) / duration)
+        } label: {
+            TrackArtworkView(
+                artworkURL: comment.user?.avatarURL,
+                loader: model.artworkLoader,
+                size: 28,
+                showsBorder: false,
+                showsPlaceholderIcon: false
+            )
+            .clipShape(Circle())
+            .overlay { Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1) }
+            .scaleEffect(isActive ? 1 : 16.0 / 28)
+            .frame(width: 28, height: 28)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .focused($focusedID, equals: comment.id)
+        .onHover { hovering in
+            if hovering { hoveredID = comment.id }
+            else if hoveredID == comment.id { hoveredID = nil }
+        }
+        .overlay(alignment: textOnLeft ? .topTrailing : .topLeading) {
+            if isActive, textWidth > 0 {
+                Text(comment.body.replacingOccurrences(of: "\n", with: " "))
+                    .font(.caption)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: textWidth)
+                    .fixedSize(horizontal: true, vertical: true)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(.primary.opacity(0.2), lineWidth: 1)
+                    }
+                    .offset(y: 34)
+                    .transition(.opacity.combined(with: .scale(
+                        scale: 0.85, anchor: textOnLeft ? .topTrailing : .topLeading
+                    )))
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+        .accessibilityLabel("\(comment.user?.username ?? "Unknown user"): \(comment.body)")
+        .accessibilityValue(Duration.seconds(seconds(for: comment)).formatted(.time(pattern: .minuteSecond)))
+        .accessibilityHint("Play from this comment")
+    }
+
+    private func seconds(for comment: SoundCloudComment) -> Double {
+        Double(comment.timestampMilliseconds ?? 0) / 1_000
+    }
+
+    private func position(for comment: SoundCloudComment, width: CGFloat) -> CGFloat {
+        guard duration > 0 else { return 0 }
+        let inset = min(14, width / 2)
+        return min(max(CGFloat(seconds(for: comment) / duration) * width, inset), width - inset)
+    }
+
+    private func visibleComments(width: CGFloat, activeID: String?) -> [SoundCloudComment] {
+        guard duration > 0, width > 0 else { return [] }
+        // Keep dense sections readable and avoid loading hundreds of avatars.
+        // The active comment takes its section's place during playback.
+        var sections: [Int: SoundCloudComment] = [:]
+        for comment in comments where seconds(for: comment) <= duration {
+            let section = Int(position(for: comment, width: width) / 28)
+            if sections[section] == nil || comment.id == activeID {
+                sections[section] = comment
+            }
+        }
+        return sections.sorted { $0.key < $1.key }.map(\.value)
+    }
+
+    private func loadComments() async {
+        var nextURL: URL?
+        var visitedURLs = Set<URL>()
+        var knownIDs = Set<String>()
+        do {
+            repeat {
+                let page = try await model.trackComments(for: track, pageURL: nextURL)
+                try Task.checkCancellation()
+                comments.append(contentsOf: page.comments.filter {
+                    $0.timestampMilliseconds != nil && knownIDs.insert($0.id).inserted
+                })
+                nextURL = page.nextURL
+                if let nextURL, !visitedURLs.insert(nextURL).inserted { break }
+            } while nextURL != nil
+        } catch {
+            // Comments are optional; keep any pages already loaded.
+        }
     }
 }
 
