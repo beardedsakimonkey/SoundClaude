@@ -1,10 +1,14 @@
 import SwiftUI
 
 struct RouteGradientBackdrop: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
-        backdrop
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
+        if colorScheme == .dark {
+            backdrop
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+        }
     }
 
     @ViewBuilder
