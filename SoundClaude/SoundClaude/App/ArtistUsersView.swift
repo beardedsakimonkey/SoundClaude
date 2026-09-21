@@ -40,6 +40,7 @@ struct ArtistUsersView: View {
                 UserGridView(
                     users: users,
                     artworkLoader: model.artworkLoader,
+                    showsAvatarGlass: true,
                     onSelectArtist: onSelectArtist
                 )
 
@@ -66,6 +67,9 @@ struct ArtistUsersView: View {
                 }
             }
             .padding(24)
+        }
+        .background(alignment: .top) {
+            RouteGradientBackdrop()
         }
         .navigationTitle(title)
         .task(id: artist.permalinkURL) {

@@ -3,12 +3,14 @@ import SwiftUI
 struct UserGridView: View {
     let users: [SoundCloudUser]
     let artworkLoader: ArtworkLoader
+    var showsAvatarGlass = false
     let onSelectArtist: (SoundCloudUser) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hoveredUserURL: URL?
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 24)], spacing: 24) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 164), spacing: 0)], spacing: 0) {
             ForEach(users, id: \.permalinkURL) { user in
                 Button {
                     onSelectArtist(user)
@@ -19,14 +21,33 @@ struct UserGridView: View {
                             loader: artworkLoader,
                             size: 120,
                             rendition: .square500,
+                            showsBorder: !showsAvatarGlass,
                             showsPlaceholderIcon: false
                         )
+                        .scaleEffect(
+                            showsAvatarGlass && hoveredUserURL == user.permalinkURL && !reduceMotion
+                                ? 1.08 : 1
+                        )
+                        .animation(
+                            reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8),
+                            value: hoveredUserURL == user.permalinkURL
+                        )
                         .clipShape(Circle())
+                        .modifier(UserAvatarGlass(
+                            isEnabled: showsAvatarGlass,
+                            isHovering: hoveredUserURL == user.permalinkURL && !reduceMotion
+                        ))
+                        .scaleEffect(
+                            hoveredUserURL == user.permalinkURL && !reduceMotion ? 1.08 : 1
+                        )
+                        .animation(
+                            reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.6),
+                            value: hoveredUserURL == user.permalinkURL
+                        )
                         VStack(spacing: 4) {
                             Text(user.username)
                                 .font(.headline)
-                                .underline(hoveredUserURL == user.permalinkURL)
-                                .lineLimit(2)
+                                .lineLimit(1)
                             if let followersCount = user.followersCount {
                                 Text("\(followersCount.formatted()) \(followersCount == 1 ? "follower" : "followers")")
                                     .font(.caption)
@@ -34,9 +55,19 @@ struct UserGridView: View {
                             }
                         }
                         .multilineTextAlignment(.center)
-                        .frame(minHeight: 40, alignment: .top)
                     }
-                    .frame(maxWidth: .infinity)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .background {
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.primary.opacity(0.06))
+                            .opacity(hoveredUserURL == user.permalinkURL ? 1 : 0)
+                            .animation(
+                                reduceMotion ? nil : .easeInOut(duration: 0.25),
+                                value: hoveredUserURL == user.permalinkURL
+                            )
+                    }
+                    .padding(12)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -51,6 +82,20 @@ struct UserGridView: View {
                 .accessibilityLabel("View profile: \(user.username)")
                 .modifier(UserFadeIn())
             }
+        }
+    }
+}
+
+private struct UserAvatarGlass: ViewModifier {
+    let isEnabled: Bool
+    let isHovering: Bool
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.modifier(PlayerArtworkGlass(cornerRadius: 60, isHovering: isHovering))
+        } else {
+            content
         }
     }
 }
