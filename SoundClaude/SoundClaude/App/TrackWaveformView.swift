@@ -777,6 +777,7 @@ private struct WaveformCommentMarkersContent: View {
             ZStack(alignment: .topLeading) {
                 ForEach(index.visibleComments(duration: duration)) { comment in
                     marker(comment, width: width, isActive: comment.id == interactionID || comment.id == playbackID)
+                        .modifier(FadeInOnAppear())
                         .scaleEffect(showsComments || reduceMotion ? 1 : 0.6)
                         .animation(
                             reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.45),
@@ -838,6 +839,7 @@ private struct WaveformCommentMarkersContent: View {
                 loader: model.artworkLoader,
                 size: 28,
                 showsBorder: false,
+                animatesChanges: true,
                 showsPlaceholderIcon: false
             )
             .clipShape(Circle())
