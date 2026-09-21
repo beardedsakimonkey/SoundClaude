@@ -530,6 +530,20 @@ actor SoundCloudClient {
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
+    func artistPlaylistReposts(
+        urn: String,
+        accessToken: String,
+        pageURL: URL? = nil
+    ) async throws -> SoundCloudPlaylistPage {
+        let url = pageURL ?? configuration.apiBaseURL.appending(path: "users")
+            .appending(path: urn).appending(path: "reposts/playlists")
+            .appending(queryItems: [
+                URLQueryItem(name: "limit", value: "25"),
+                URLQueryItem(name: "linked_partitioning", value: "true"),
+            ])
+        return try await playlistPage(at: url, accessToken: accessToken)
+    }
+
     func artistLikes(
         urn: String,
         accessToken: String,

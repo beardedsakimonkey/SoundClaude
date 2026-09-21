@@ -15,6 +15,65 @@ struct RepostsTests {
             configuration: SoundCloudConfiguration(clientID: "test", clientSecret: "test"),
             sessionConfiguration: configuration
         )
+        let artistURN = "soundcloud:users:1"
+        RepostsURLProtocol.respond { request in
+            precondition(request.httpMethod == "GET")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            precondition(request.url?.path == "/users/\(artistURN)/reposts/tracks")
+            return (200, #"{"collection":[{"urn":"soundcloud:tracks:1","title":"Reposted track","permalink_url":"https://soundcloud.com/test/track","access":"playable","user":{"username":"Test","permalink_url":"https://soundcloud.com/test"}}],"next_href":null}"#)
+        }
+        let tracks = try await client.artistReposts(urn: artistURN, accessToken: "test-token")
+        precondition(tracks.tracks.map(\.urn) == ["soundcloud:tracks:1"])
+
+        let playlistNextURL = URL(string: "https://api.soundcloud.com/users/\(artistURN)/reposts/playlists?cursor=next")!
+        RepostsURLProtocol.respond { request in
+            precondition(request.httpMethod == "GET")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            precondition(request.url?.path == "/users/\(artistURN)/reposts/playlists")
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            precondition(query.contains(URLQueryItem(name: "limit", value: "25")))
+            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "true")))
+            precondition(!query.contains { $0.name == "access" || $0.name == "show_tracks" })
+            return (200, """
+                {"collection":[{"urn":"soundcloud:playlists:2","title":"Reposted playlist",
+                "permalink_url":"https://soundcloud.com/test/sets/repost","track_count":0,"created_at":"2026-09-19T12:00:00.000Z",
+                "user":{"username":"Test","permalink_url":"https://soundcloud.com/test"}}],
+                "next_href":"\(playlistNextURL.absoluteString)"}
+                """)
+        }
+        let playlists = try await client.artistPlaylistReposts(urn: artistURN, accessToken: "test-token")
+        precondition(playlists.playlists.map(\.urn) == ["soundcloud:playlists:2"])
+        precondition(playlists.playlists[0].createdAt == "2026-09-19T12:00:00.000Z")
+        var olderTrack = tracks.tracks[0]
+        olderTrack.createdAt = "2026/09/18 12:00:00 +0000"
+        var newerTrack = olderTrack
+        newerTrack.createdAt = "2026-09-20T12:00:00Z"
+        let playlistContent = SoundCloudFeedContent.playlist(playlists.playlists[0])
+        let sorted = SoundCloudFeedContent.sortedByCreationDate([
+            .track(olderTrack), playlistContent, .track(newerTrack),
+        ])
+        precondition(sorted.map(\.urn) == [olderTrack.urn, playlists.playlists[0].urn, olderTrack.urn])
+        precondition(sorted.first?.track?.createdAt == newerTrack.createdAt)
+        precondition(sorted.last?.track?.createdAt == olderTrack.createdAt)
+        for missingDate in [nil, "invalid"] as [String?] {
+            olderTrack.createdAt = missingDate
+            let undatedLast = SoundCloudFeedContent.sortedByCreationDate([.track(olderTrack), playlistContent])
+            precondition(undatedLast.last?.urn == olderTrack.urn)
+        }
+        let cachedPlaylist = try JSONDecoder().decode(
+            SoundCloudPlaylist.self, from: JSONEncoder().encode(playlists.playlists[0])
+        )
+        precondition(cachedPlaylist.createdAt == playlists.playlists[0].createdAt)
+        precondition(playlists.nextURL == playlistNextURL)
+        RepostsURLProtocol.respond { request in
+            precondition(request.url == playlistNextURL)
+            return (200, #"{"collection":[],"next_href":null}"#)
+        }
+        let lastPage = try await client.artistPlaylistReposts(
+            urn: artistURN, accessToken: "test-token", pageURL: playlists.nextURL
+        )
+        precondition(lastPage.playlists.isEmpty && lastPage.nextURL == nil)
+
         let controller = RepostsController(client: client, auth: AuthController())
         let user = SoundCloudUser(urn: "soundcloud:users:1", username: "Test", avatarURL: nil,
                                   permalinkURL: URL(string: "https://soundcloud.com/test")!)

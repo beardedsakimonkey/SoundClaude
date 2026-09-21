@@ -151,6 +151,35 @@ enum SoundCloudFeedContent: Codable, Sendable {
         }
     }
 
+    /// Repost endpoints expose content creation time, not the time it was reposted.
+    static func sortedByCreationDate(_ contents: [Self]) -> [Self] {
+        let iso = ISO8601DateFormatter()
+        let legacy = DateFormatter()
+        legacy.locale = Locale(identifier: "en_US_POSIX")
+        legacy.timeZone = TimeZone(secondsFromGMT: 0)
+        legacy.dateFormat = "yyyy/MM/dd HH:mm:ss Z"
+
+        func date(for content: Self) -> Date {
+            let timestamp: String?
+            switch content {
+            case let .track(track): timestamp = track.createdAt
+            case let .playlist(playlist): timestamp = playlist.createdAt
+            }
+            guard let timestamp else { return .distantPast }
+            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = iso.date(from: timestamp) { return date }
+            iso.formatOptions = [.withInternetDateTime]
+            return iso.date(from: timestamp) ?? legacy.date(from: timestamp) ?? .distantPast
+        }
+
+        return contents.map { (content: $0, date: date(for: $0)) }
+            .sorted {
+                if $0.date != $1.date { return $0.date > $1.date }
+                return $0.content.urn < $1.content.urn
+            }
+            .map(\.content)
+    }
+
     var owner: SoundCloudUser {
         switch self {
         case let .track(track): track.artist
@@ -255,6 +284,7 @@ struct SoundCloudPlaylist: Codable, Identifiable, Sendable, Hashable {
     let durationMilliseconds: Int?
     let isPrivate: Bool
     var lastModified: String? = nil
+    var createdAt: String? = nil
 
     var id: String { urn }
 }
@@ -482,6 +512,7 @@ struct RawPlaylist: Decodable {
     let duration: Int?
     let sharing: String?
     let lastModified: String?
+    let createdAt: String?
 
     enum CodingKeys: String, CodingKey {
         case urn, title, user, description, duration, sharing
@@ -489,6 +520,7 @@ struct RawPlaylist: Decodable {
         case permalinkURL = "permalink_url"
         case trackCount = "track_count"
         case lastModified = "last_modified"
+        case createdAt = "created_at"
     }
 
     func normalized() -> SoundCloudPlaylist? {
@@ -505,7 +537,8 @@ struct RawPlaylist: Decodable {
             trackCount: trackCount,
             durationMilliseconds: duration,
             isPrivate: sharing == "private",
-            lastModified: lastModified
+            lastModified: lastModified,
+            createdAt: createdAt
         )
     }
 }
