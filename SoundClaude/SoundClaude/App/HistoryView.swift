@@ -5,6 +5,7 @@ struct HistoryView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
+    @AppStorage("historyTrackLayout") private var trackLayout = TrackLayout.list
     @State private var tracks: [SoundCloudTrack] = []
     @State private var hasLoaded = false
     @State private var isLoading = false
@@ -35,25 +36,14 @@ struct HistoryView: View {
 
                     Spacer()
 
+                    TrackLayoutPicker(trackLayout: $trackLayout)
+
                     RefreshButton(title: "Refresh history", isLoading: isLoading) {
                         reloadID = UUID()
                     }
                 }
 
-                ForEach(tracks) { track in
-                    TrackCardView(
-                        track: track,
-                        model: model,
-                        onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist,
-                        onPlayTrack: { track in
-                            await model.play(track, queue: TrackQueue(
-                                source: .history,
-                                tracks: tracks
-                            ))
-                        }
-                    )
-                }
+                trackList
 
                 if isLoading {
                     ProgressView()
@@ -74,6 +64,54 @@ struct HistoryView: View {
             }
             .padding(20)
         }
+    }
+
+    @ViewBuilder
+    private var trackList: some View {
+        if trackLayout == .grid {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 160), spacing: 20, alignment: .top)],
+                alignment: .leading,
+                spacing: 24
+            ) {
+                ForEach(tracks) { track in
+                    TrackGridTile(
+                        track: track,
+                        playback: model.playback,
+                        analyzer: model.analyzer,
+                        artworkLoader: model.artworkLoader,
+                        likes: model.likes,
+                        onAddToQueue: model.addToQueue,
+                        onSelectTrack: onSelectTrack,
+                        onSelectArtist: onSelectArtist,
+                        onPlayTrack: play
+                    )
+                }
+            }
+        } else {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(tracks) { track in
+                    TrackListRow(
+                        track: track,
+                        playback: model.playback,
+                        analyzer: model.analyzer,
+                        artworkLoader: model.artworkLoader,
+                        likes: model.likes,
+                        onAddToQueue: model.addToQueue,
+                        onSelectTrack: onSelectTrack,
+                        onSelectArtist: onSelectArtist,
+                        onPlayTrack: play
+                    )
+                }
+            }
+        }
+    }
+
+    private func play(_ track: SoundCloudTrack) async {
+        await model.play(track, queue: TrackQueue(
+            source: .history,
+            tracks: tracks
+        ))
     }
 
     private func load() async {
