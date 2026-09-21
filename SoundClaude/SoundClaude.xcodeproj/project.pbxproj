@@ -50,6 +50,7 @@
 		A1000000000000000000001C /* SignedOutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* SignedOutView.swift */; };
 		A1000000000000000000001D /* NavigationBackEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000035 /* NavigationBackEventView.swift */; };
 		A1000000000000000000001E /* TrackWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000036 /* TrackWaveformView.swift */; };
+		D921C0000000000000000001 /* WaveformCommentIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = D921C0000000000000000002 /* WaveformCommentIndex.swift */; };
 		A1000000000000000000001F /* MemoryCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000037 /* MemoryCache.swift */; };
 		A10000000000000000000020 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* SwiftUI.framework */; };
 		A10000000000000000000021 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* AppKit.framework */; };
@@ -160,6 +161,7 @@
 		A20000000000000000000034 /* SignedOutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedOutView.swift; sourceTree = "<group>"; };
 		A20000000000000000000035 /* NavigationBackEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationBackEventView.swift; sourceTree = "<group>"; };
 		A20000000000000000000036 /* TrackWaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackWaveformView.swift; sourceTree = "<group>"; };
+		D921C0000000000000000002 /* WaveformCommentIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformCommentIndex.swift; sourceTree = "<group>"; };
 		A20000000000000000000037 /* MemoryCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryCache.swift; sourceTree = "<group>"; };
 		A20000000000000000000039 /* ArtistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistDetailView.swift; sourceTree = "<group>"; };
 		A20000000000000000000072 /* ArtistUsersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistUsersView.swift; sourceTree = "<group>"; };
@@ -290,6 +292,7 @@
 				B7DC513A84E2467A901BD002 /* CountedSectionHeader.swift */,
 				D91400000000000000000002 /* TrackGridView.swift */,
 				A20000000000000000000036 /* TrackWaveformView.swift */,
+				D921C0000000000000000002 /* WaveformCommentIndex.swift */,
 				A2000000000000000000002D /* TrackArtworkView.swift */,
 				A2000000000000000000002E /* SignedInView.swift */,
 				D91700000000000000000012 /* RecentSearchStore.swift */,
@@ -549,6 +552,7 @@
 				B7DC513A84E2467A901BD001 /* CountedSectionHeader.swift in Sources */,
 				D91400000000000000000001 /* TrackGridView.swift in Sources */,
 				A1000000000000000000001E /* TrackWaveformView.swift in Sources */,
+				D921C0000000000000000001 /* WaveformCommentIndex.swift in Sources */,
 				A10000000000000000000015 /* TrackArtworkView.swift in Sources */,
 				A10000000000000000000016 /* SignedInView.swift in Sources */,
 				D91700000000000000000002 /* RecentSearchStore.swift in Sources */,

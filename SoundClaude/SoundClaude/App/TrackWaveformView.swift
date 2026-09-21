@@ -631,31 +631,128 @@ private struct WaveformCommentsView: View {
     let duration: Double
     let onSeek: (Double) -> Void
 
-    @State private var comments: [SoundCloudComment] = []
+    @State private var index = WaveformCommentIndex([])
+    @State private var playbackID: String?
+    @State private var seekRequest: Double?
+
+    var body: some View {
+        WaveformCommentMarkers(
+            index: index,
+            model: model,
+            duration: duration,
+            showsComments: model.playback.currentTrack?.urn == track.urn
+                && model.playback.isPlaybackActive,
+            playbackID: playbackID,
+            seekRequest: $seekRequest
+        )
+        .equatable()
+        .background {
+            WaveformCommentPlaybackObserver(
+                index: index, playback: model.playback, trackURN: track.urn,
+                activeID: $playbackID
+            )
+        }
+        .task { await loadComments() }
+        .onChange(of: seekRequest) { _, fraction in
+            guard let fraction else { return }
+            onSeek(fraction)
+            seekRequest = nil
+        }
+    }
+
+    private func loadComments() async {
+        var nextURL: URL?
+        var visitedURLs = Set<URL>()
+        var knownIDs = Set<String>()
+        do {
+            repeat {
+                let page = try await model.trackComments(for: track, pageURL: nextURL)
+                try Task.checkCancellation()
+                let additions = page.comments.filter {
+                    $0.timestampMilliseconds != nil && knownIDs.insert($0.id).inserted
+                }
+                if !additions.isEmpty {
+                    index = index.appending(additions)
+                }
+                nextURL = page.nextURL
+                if let nextURL, !visitedURLs.insert(nextURL).inserted { break }
+            } while nextURL != nil
+        } catch {
+            // Comments are optional; keep any pages already loaded.
+        }
+    }
+}
+
+// Only this small subtree observes the playback clock. Publish changes to the
+// selected ID, not every clock tick, to the marker layer.
+private struct WaveformCommentPlaybackObserver: View {
+    let index: WaveformCommentIndex
+    let playback: PlaybackController
+    let trackURN: String
+    @Binding var activeID: String?
+
+    var body: some View {
+        let nextID = playback.currentTrack?.urn == trackURN && playback.isPlaying
+            ? index.playbackCommentID(at: playback.currentTime) : nil
+        Color.clear
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .onChange(of: nextID, initial: true) { _, value in
+                if activeID != value { activeID = value }
+            }
+    }
+}
+
+private struct WaveformCommentMarkers: View, Equatable {
+    let index: WaveformCommentIndex
+    let model: AppModel
+    let duration: Double
+    let showsComments: Bool
+    let playbackID: String?
+    @Binding var seekRequest: Double?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        // The seek binding always addresses the owning view's same State.
+        // Avoid passing its changing waveform/seek closure into this boundary.
+        lhs.index === rhs.index && lhs.model === rhs.model
+            && lhs.duration == rhs.duration && lhs.showsComments == rhs.showsComments
+            && lhs.playbackID == rhs.playbackID
+    }
+
+    var body: some View {
+        WaveformCommentMarkersContent(
+            index: index,
+            model: model,
+            duration: duration,
+            showsComments: showsComments,
+            playbackID: playbackID,
+            seekRequest: $seekRequest
+        )
+    }
+}
+
+// Keep local interaction state below the equality boundary. Hover, keyboard
+// focus and environment changes must update this subtree independently of
+// whether the playback inputs changed.
+private struct WaveformCommentMarkersContent: View {
+    let index: WaveformCommentIndex
+    let model: AppModel
+    let duration: Double
+    let showsComments: Bool
+    let playbackID: String?
+    @Binding var seekRequest: Double?
+
     @State private var hoveredID: String?
     @FocusState private var focusedID: String?
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var showsComments: Bool {
-        model.playback.currentTrack?.urn == track.urn && model.playback.isPlaybackActive
-    }
-
-    private var playbackCommentID: String? {
-        let playback = model.playback
-        guard playback.currentTrack?.urn == track.urn, playback.isPlaying else { return nil }
-        return comments.filter { abs(seconds(for: $0) - playback.currentTime) <= 2 }
-            .min { abs(seconds(for: $0) - playback.currentTime)
-                < abs(seconds(for: $1) - playback.currentTime) }?.id
-    }
-
     var body: some View {
         GeometryReader { proxy in
-            let playbackID = playbackCommentID
             let interactionID = (contentHoverEnabled ? hoveredID : nil) ?? focusedID
             let width = proxy.size.width
             ZStack(alignment: .topLeading) {
-                ForEach(visibleComments) { comment in
+                ForEach(index.visibleComments(duration: duration)) { comment in
                     marker(comment, width: width, isActive: comment.id == interactionID || comment.id == playbackID)
                         .scaleEffect(showsComments || reduceMotion ? 1 : 0.6)
                         .animation(
@@ -674,13 +771,10 @@ private struct WaveformCommentsView: View {
                     guard contentHoverEnabled else { return }
                     // Select by distance, independent of the avatars' overlap and
                     // the active avatar's larger size and higher drawing order.
-                    hoveredID = visibleComments.min {
-                        abs(position(for: $0, width: width) - location.x)
-                            < abs(position(for: $1, width: width) - location.x)
-                    }.flatMap { comment in
-                        abs(position(for: comment, width: width) - location.x) <= 14
-                            ? comment.id : nil
-                    }
+                    let nextID = index.hoverCommentID(
+                        at: location.x, width: width, duration: duration
+                    )
+                    if hoveredID != nextID { hoveredID = nextID }
                 case .ended:
                     hoveredID = nil
                 }
@@ -692,7 +786,6 @@ private struct WaveformCommentsView: View {
         .allowsHitTesting(showsComments)
         .accessibilityHidden(!showsComments)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: showsComments)
-        .task { await loadComments() }
         .onChange(of: showsComments) { _, visible in
             if !visible {
                 hoveredID = nil
@@ -715,7 +808,7 @@ private struct WaveformCommentsView: View {
         let textWidth = min(280, max(0, (textOnLeft ? x : width - x) + 14))
         return Button {
             guard duration > 0 else { return }
-            onSeek(seconds(for: comment) / duration)
+            seekRequest = seconds(for: comment) / duration
         } label: {
             TrackArtworkView(
                 artworkURL: comment.user?.avatarURL,
@@ -770,37 +863,6 @@ private struct WaveformCommentsView: View {
         guard duration > 0 else { return 0 }
         let inset = min(14, width / 2)
         return min(max(CGFloat(seconds(for: comment) / duration) * width, inset), width - inset)
-    }
-
-    private var visibleComments: [SoundCloudComment] {
-        guard duration > 0 else { return [] }
-        // Retain every timed comment, including those covered by another avatar.
-        return comments.filter { seconds(for: $0) <= duration }
-            .sorted {
-                if $0.timestampMilliseconds == $1.timestampMilliseconds {
-                    return $0.id < $1.id
-                }
-                return seconds(for: $0) < seconds(for: $1)
-            }
-    }
-
-    private func loadComments() async {
-        var nextURL: URL?
-        var visitedURLs = Set<URL>()
-        var knownIDs = Set<String>()
-        do {
-            repeat {
-                let page = try await model.trackComments(for: track, pageURL: nextURL)
-                try Task.checkCancellation()
-                comments.append(contentsOf: page.comments.filter {
-                    $0.timestampMilliseconds != nil && knownIDs.insert($0.id).inserted
-                })
-                nextURL = page.nextURL
-                if let nextURL, !visitedURLs.insert(nextURL).inserted { break }
-            } while nextURL != nil
-        } catch {
-            // Comments are optional; keep any pages already loaded.
-        }
     }
 }
 

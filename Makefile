@@ -83,6 +83,11 @@ test:
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
 		tests/CommentsTests.swift
 	/tmp/soundclaude-tests/comments
+	swiftc -o /tmp/soundclaude-tests/waveform-comment-index \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/App/WaveformCommentIndex.swift \
+		tests/WaveformCommentIndexTests.swift
+	/tmp/soundclaude-tests/waveform-comment-index
 	swiftc -o /tmp/soundclaude-tests/playback \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Playback/PlaybackController.swift \
