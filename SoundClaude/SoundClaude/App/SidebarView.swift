@@ -53,6 +53,7 @@ struct SidebarView: View {
                             .modifier(SidebarRowStyle(isSelected: false) {
                                 isShowingCreatePlaylist = true
                             })
+                            .transition(.opacity)
 
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(playlists.playlists) { playlist in
@@ -78,6 +79,7 @@ struct SidebarView: View {
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .transition(.opacity)
                     }
                 }
                 VStack(alignment: .leading, spacing: 0) {
@@ -117,6 +119,14 @@ struct SidebarView: View {
                 }
             }
             .padding(8)
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: 0.25),
+                value: isPlaylistsExpanded
+            )
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: 0.25),
+                value: isLikedPlaylistsExpanded
+            )
             .animation(
                 reduceMotion ? nil : .easeInOut(duration: 0.25),
                 value: playlists.playlists.map(\.urn)
