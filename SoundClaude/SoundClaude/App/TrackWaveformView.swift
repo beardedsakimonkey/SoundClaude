@@ -654,14 +654,18 @@ private struct WaveformCommentsView: View {
     @State private var index = WaveformCommentIndex([])
     @State private var playbackID: String?
     @State private var seekRequest: Double?
+    @State private var commentsReady = true
+
+    private var isPlaybackActive: Bool {
+        model.playback.currentTrack?.urn == track.urn && model.playback.isPlaybackActive
+    }
 
     var body: some View {
         WaveformCommentMarkers(
             index: index,
             model: model,
             duration: duration,
-            showsComments: model.playback.currentTrack?.urn == track.urn
-                && model.playback.isPlaybackActive,
+            showsComments: isPlaybackActive && commentsReady,
             playbackID: playbackID,
             seekRequest: $seekRequest
         )
@@ -673,6 +677,21 @@ private struct WaveformCommentsView: View {
             )
         }
         .task { await loadComments() }
+        .task(id: isPlaybackActive) {
+            guard isPlaybackActive else {
+                commentsReady = false
+                return
+            }
+            guard !commentsReady else { return }
+            // Let the waveform expand before comments return after a pause.
+            do {
+                try await Task.sleep(for: .milliseconds(350))
+                try Task.checkCancellation()
+                commentsReady = true
+            } catch {
+                return
+            }
+        }
         .onChange(of: seekRequest) { _, fraction in
             guard let fraction else { return }
             onSeek(fraction)
