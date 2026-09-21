@@ -826,7 +826,7 @@ private struct WaveformCommentMarkersContent: View {
     private func marker(_ comment: SoundCloudComment, width: CGFloat, isActive: Bool) -> some View {
         let x = position(for: comment, width: width)
         let textOnLeft = x > width / 2
-        let textWidth = min(280, max(0, (textOnLeft ? x : width - x) + 14))
+        let textWidth = min(280, max(0, (textOnLeft ? x : width - x) + 18))
         return Button {
             guard duration > 0 else { return }
             seekRequest = seconds(for: comment) / duration
@@ -834,16 +834,17 @@ private struct WaveformCommentMarkersContent: View {
             TrackArtworkView(
                 artworkURL: comment.user?.avatarURL,
                 loader: model.artworkLoader,
-                size: 28,
+                size: 36,
                 showsBorder: false,
                 animatesChanges: true,
                 showsPlaceholderIcon: false
             )
             .clipShape(Circle())
             .overlay { Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1) }
+            .overlay { Circle().fill(.black.opacity(isActive ? 0 : 0.5)) }
             .shadow(color: .black.opacity(isActive ? 0.4 : 0), radius: 5, y: 2)
-            .scaleEffect(isActive ? 1 : 16.0 / 28)
-            .frame(width: 28, height: 28)
+            .scaleEffect(isActive ? 1 : 16.0 / 36)
+            .frame(width: 36, height: 36)
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -864,7 +865,7 @@ private struct WaveformCommentMarkersContent: View {
                             .strokeBorder(.primary.opacity(0.2), lineWidth: 1)
                     }
                     .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
-                    .offset(y: 34)
+                    .offset(y: 42)
                     .transition(.opacity.combined(with: .scale(
                         scale: 0.85, anchor: textOnLeft ? .topTrailing : .topLeading
                     )))
@@ -883,7 +884,7 @@ private struct WaveformCommentMarkersContent: View {
 
     private func position(for comment: SoundCloudComment, width: CGFloat) -> CGFloat {
         guard duration > 0 else { return 0 }
-        let inset = min(14, width / 2)
+        let inset = min(18, width / 2)
         return min(max(CGFloat(seconds(for: comment) / duration) * width, inset), width - inset)
     }
 }
