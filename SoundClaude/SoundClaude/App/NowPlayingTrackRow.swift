@@ -25,7 +25,7 @@ struct NowPlayingTrackRow: View {
                 .hidden()
                 .accessibilityHidden(true)
             if let track = visibleTrack {
-                HStack(spacing: 6) {
+                HStack(spacing: 10) {
                     TrackPlaybackIndicator(
                         isPlaying: isPlaying,
                         isLoading: isLoading,

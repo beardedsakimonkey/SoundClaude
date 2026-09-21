@@ -158,7 +158,7 @@ struct StationDetailView: View {
                                     accessibilityPrefix: "Last updated", prefix: "Updated"
                                 )
                             }
-                            .font(.headline)
+                            .font(.body)
                             .foregroundStyle(.secondary)
                             .transition(.opacity)
                         }
