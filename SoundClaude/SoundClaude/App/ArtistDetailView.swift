@@ -76,7 +76,6 @@ struct ArtistDetailView: View {
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectStation: (String, String) -> Void
 
-    @State private var scrollerStyle = NSScroller.preferredScrollerStyle
     @State private var isFollowing: Bool?
     @State private var isUpdatingFollow = false
     @State private var isShufflingTracks = false
@@ -271,166 +270,152 @@ struct ArtistDetailView: View {
     }
 
     private func detailsView(_ details: SoundCloudArtistDetails) -> some View {
-        GeometryReader { geometry in
-            let scrollbarWidth = scrollerStyle == .legacy
-                ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
-                : 0
-            let contentWidth = max(0, geometry.size.width - scrollbarWidth)
-
-            ScrollView {
+        ScrollbarReservedScrollView { contentSize in
+            VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 24) {
-                    VStack(alignment: .leading, spacing: 24) {
-                        HStack(alignment: .center, spacing: 24) {
-                            artistPicture(for: details.user)
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text(details.user.username)
-                                    .font(.system(size: 36, weight: .semibold))
-                                    .textSelection(.enabled)
-                                if let fullName = nonempty(details.user.fullName) {
-                                    Text(fullName)
-                                        .font(.title3)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .padding(headerImage == nil ? 0 : 16)
-                            .background {
-                                if headerImage != nil {
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .fill(.ultraThinMaterial)
-                                }
-                            }
-                        }
-                        .opacity(isHeaderContentHidden ? 0 : 1)
-                        .allowsHitTesting(!isHeaderContentHidden)
-                        .accessibilityHidden(isHeaderContentHidden)
-                    }
-                    .padding(24)
-                    .frame(maxWidth: .infinity, minHeight: 260, alignment: .leading)
-                    .background {
-                        if let headerImage {
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.25)) {
-                                    isHeaderContentHidden.toggle()
-                                }
-                            } label: {
-                                GeometryReader { geometry in
-                                    Image(nsImage: headerImage)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: geometry.size.width, height: geometry.size.height)
-                                        .clipped()
-                                }
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .strokeBorder(.white.opacity(0.2), lineWidth: 1)
-                                }
-                                .contentShape(RoundedRectangle(cornerRadius: 16))
-                            }
-                            .buttonStyle(ImageButtonStyle())
-                            .padding(.horizontal, 10)
-                            .opacity(isHeaderImageVisible ? 1 : 0)
-                            .onAppear {
-                                guard !isHeaderImageVisible else { return }
-                                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
-                                    isHeaderImageVisible = true
-                                }
-                            }
-                            .accessibilityLabel(isHeaderContentHidden ? "Show artist information" : "Hide artist information")
-                        }
-                    }
-                    .environment(\.colorScheme, headerImage == nil ? colorScheme : .dark)
-                    .padding(.horizontal, -24)
-                    .padding(.top, -24)
-                    .padding(.bottom, -12)
-
-                    HStack {
-                        TabPicker(
-                            title: "Artist content",
-                            options: ContentTab.allCases,
-                            selection: $selectedTab,
-                            optionCount: tabCount,
-                            optionSystemImage: { $0.systemImage },
-                            allowsIconOnly: true
-                        )
-                        .font(.body.weight(.semibold))
-                        .layoutPriority(1)
-                        Spacer(minLength: 16)
-                        ViewThatFits(in: .horizontal) {
-                            artistActions
-                                .labelStyle(.titleAndIcon)
-                                .fixedSize(horizontal: true, vertical: false)
-                            artistActions
-                                .labelStyle(.iconOnly)
-                        }
-                    }
-                    if canFollowArtist, let followErrorMessage {
-                        VStack(alignment: .trailing, spacing: 8) {
-                            Text(followErrorMessage)
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                            if isFollowing == nil {
-                                Button("Try Again") { Task { await loadFollowStatus() } }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-
-                    HStack(alignment: .top, spacing: 24) {
-                        tabContent
-                            // Keep enough scroll space below the tabs when their content
-                            // is loading or short, so switching tabs does not pull them down.
-                            .frame(
-                                maxWidth: .infinity,
-                                minHeight: geometry.size.height,
-                                alignment: .topLeading
-                            )
-
-                        VStack(alignment: .leading, spacing: 24) {
-                            ViewThatFits(in: .horizontal) {
-                                artistStatistics(details, showsTrackCount: true)
-                                artistStatistics(details, showsTrackCount: false)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                            if let description = nonempty(details.description) {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("About")
-                                        .font(.headline)
-                                        .opacity(0.96)
-                                    ExpandableDescriptionText(
-                                        description: description,
-                                        onSelectArtist: onSelectArtist
-                                    )
-                                    .id(artist.permalinkURL)
-                                }
-                            }
-                            let location = [details.city, details.country]
-                                .compactMap { nonempty($0) }
-                                .joined(separator: ", ")
-                            if !location.isEmpty {
-                                Label(location, systemImage: "mappin.and.ellipse")
+                    HStack(alignment: .center, spacing: 24) {
+                        artistPicture(for: details.user)
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(details.user.username)
+                                .font(.system(size: 36, weight: .semibold))
+                                .textSelection(.enabled)
+                            if let fullName = nonempty(details.user.fullName) {
+                                Text(fullName)
+                                    .font(.title3)
                                     .foregroundStyle(.secondary)
-                                    .textSelection(.enabled)
-                            }
-                            profileLinks
-                            if !relatedArtists.isEmpty || isLoadingRelatedArtists || relatedArtistsErrorMessage != nil {
-                                relatedArtistsSection
                             }
                         }
-                        .frame(width: min(320, max(0, contentWidth - 72) * 0.3), alignment: .leading)
+                        .padding(headerImage == nil ? 0 : 16)
+                        .background {
+                            if headerImage != nil {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(.ultraThinMaterial)
+                            }
+                        }
+                    }
+                    .opacity(isHeaderContentHidden ? 0 : 1)
+                    .allowsHitTesting(!isHeaderContentHidden)
+                    .accessibilityHidden(isHeaderContentHidden)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity, minHeight: 260, alignment: .leading)
+                .background {
+                    if let headerImage {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                isHeaderContentHidden.toggle()
+                            }
+                        } label: {
+                            GeometryReader { geometry in
+                                Image(nsImage: headerImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: geometry.size.width, height: geometry.size.height)
+                                    .clipped()
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 16)
+                                    .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                            }
+                            .contentShape(RoundedRectangle(cornerRadius: 16))
+                        }
+                        .buttonStyle(ImageButtonStyle())
+                        .padding(.horizontal, 10)
+                        .opacity(isHeaderImageVisible ? 1 : 0)
+                        .onAppear {
+                            guard !isHeaderImageVisible else { return }
+                            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) {
+                                isHeaderImageVisible = true
+                            }
+                        }
+                        .accessibilityLabel(isHeaderContentHidden ? "Show artist information" : "Hide artist information")
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(24)
-                // AppKit can defer its narrower width proposal until the first scroll.
-                .frame(width: contentWidth)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .environment(\.colorScheme, headerImage == nil ? colorScheme : .dark)
+                .padding(.horizontal, -24)
+                .padding(.top, -24)
+                .padding(.bottom, -12)
+
+                HStack {
+                    TabPicker(
+                        title: "Artist content",
+                        options: ContentTab.allCases,
+                        selection: $selectedTab,
+                        optionCount: tabCount,
+                        optionSystemImage: { $0.systemImage },
+                        allowsIconOnly: true
+                    )
+                    .font(.body.weight(.semibold))
+                    .layoutPriority(1)
+                    Spacer(minLength: 16)
+                    ViewThatFits(in: .horizontal) {
+                        artistActions
+                            .labelStyle(.titleAndIcon)
+                            .fixedSize(horizontal: true, vertical: false)
+                        artistActions
+                            .labelStyle(.iconOnly)
+                    }
+                }
+                if canFollowArtist, let followErrorMessage {
+                    VStack(alignment: .trailing, spacing: 8) {
+                        Text(followErrorMessage)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                        if isFollowing == nil {
+                            Button("Try Again") { Task { await loadFollowStatus() } }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+
+                HStack(alignment: .top, spacing: 24) {
+                    tabContent
+                        // Keep enough scroll space below the tabs when their content
+                        // is loading or short, so switching tabs does not pull them down.
+                        .frame(
+                            maxWidth: .infinity,
+                            minHeight: contentSize.height,
+                            alignment: .topLeading
+                        )
+
+                    VStack(alignment: .leading, spacing: 24) {
+                        ViewThatFits(in: .horizontal) {
+                            artistStatistics(details, showsTrackCount: true)
+                            artistStatistics(details, showsTrackCount: false)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        if let description = nonempty(details.description) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("About")
+                                    .font(.headline)
+                                    .opacity(0.96)
+                                ExpandableDescriptionText(
+                                    description: description,
+                                    onSelectArtist: onSelectArtist
+                                )
+                                .id(artist.permalinkURL)
+                            }
+                        }
+                        let location = [details.city, details.country]
+                            .compactMap { nonempty($0) }
+                            .joined(separator: ", ")
+                        if !location.isEmpty {
+                            Label(location, systemImage: "mappin.and.ellipse")
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                        }
+                        profileLinks
+                        if !relatedArtists.isEmpty || isLoadingRelatedArtists || relatedArtistsErrorMessage != nil {
+                            relatedArtistsSection
+                        }
+                    }
+                    .frame(width: min(320, max(0, contentSize.width - 72) * 0.3), alignment: .leading)
+                }
             }
-            .frame(width: geometry.size.width)
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSScroller.preferredScrollerStyleDidChangeNotification)) { _ in
-            scrollerStyle = NSScroller.preferredScrollerStyle
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(24)
         }
     }
 

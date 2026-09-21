@@ -70,6 +70,7 @@
 		B10D6E740000000000000001 /* OpenInSoundCloudButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20D6E740000000000000001 /* OpenInSoundCloudButton.swift */; };
 		B10D6E740000000000000002 /* RefreshButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20D6E740000000000000002 /* RefreshButton.swift */; };
 		D92100000000000000000001 /* RouteGradientBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = D92100000000000000000002 /* RouteGradientBackdrop.swift */; };
+		D93800000000000000000001 /* ScrollbarReservedScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D93800000000000000000002 /* ScrollbarReservedScrollView.swift */; };
 		A10000000000000000000060 /* ExpandableDescriptionText.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000060 /* ExpandableDescriptionText.swift */; };
 		A1000000000000000000003B /* TrackListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003B /* TrackListRow.swift */; };
 		A10000000000000000000063 /* TrackQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000063 /* TrackQueueView.swift */; };
@@ -169,6 +170,7 @@
 		B20D6E740000000000000001 /* OpenInSoundCloudButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInSoundCloudButton.swift; sourceTree = "<group>"; };
 		B20D6E740000000000000002 /* RefreshButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshButton.swift; sourceTree = "<group>"; };
 		D92100000000000000000002 /* RouteGradientBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteGradientBackdrop.swift; sourceTree = "<group>"; };
+		D93800000000000000000002 /* ScrollbarReservedScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollbarReservedScrollView.swift; sourceTree = "<group>"; };
 		A20000000000000000000060 /* ExpandableDescriptionText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandableDescriptionText.swift; sourceTree = "<group>"; };
 		A2000000000000000000003B /* TrackListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackListRow.swift; sourceTree = "<group>"; };
 		A20000000000000000000063 /* TrackQueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackQueueView.swift; sourceTree = "<group>"; };
@@ -271,6 +273,7 @@
 				B20D6E740000000000000001 /* OpenInSoundCloudButton.swift */,
 				B20D6E740000000000000002 /* RefreshButton.swift */,
 				D92100000000000000000002 /* RouteGradientBackdrop.swift */,
+				D93800000000000000000002 /* ScrollbarReservedScrollView.swift */,
 				A20000000000000000000060 /* ExpandableDescriptionText.swift */,
 				A2000000000000000000003B /* TrackListRow.swift */,
 				A20000000000000000000063 /* TrackQueueView.swift */,
@@ -529,6 +532,7 @@
 				B10D6E740000000000000001 /* OpenInSoundCloudButton.swift in Sources */,
 				B10D6E740000000000000002 /* RefreshButton.swift in Sources */,
 				D92100000000000000000001 /* RouteGradientBackdrop.swift in Sources */,
+				D93800000000000000000001 /* ScrollbarReservedScrollView.swift in Sources */,
 				A10000000000000000000060 /* ExpandableDescriptionText.swift in Sources */,
 				A1000000000000000000003B /* TrackListRow.swift in Sources */,
 				A10000000000000000000063 /* TrackQueueView.swift in Sources */,

@@ -25,9 +25,9 @@ struct SearchView<Results: View>: View {
     private let store = RecentSearchStore()
 
     var body: some View {
-        GeometryReader { geometry in
-            searchScrollView
-                .environment(\.searchViewportHeight, geometry.size.height)
+        ScrollbarReservedScrollView { contentSize in
+            searchContent
+                .environment(\.searchViewportHeight, contentSize.height)
         }
         .background(alignment: .top) {
             RouteGradientBackdrop()
@@ -48,82 +48,80 @@ struct SearchView<Results: View>: View {
         .onDisappear { isSearchFocused = false }
     }
 
-    private var searchScrollView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                Text("Search")
-                    .font(.largeTitle.weight(.semibold))
+    private var searchContent: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Text("Search")
+                .font(.largeTitle.weight(.semibold))
 
-                HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                    TextField("Search tracks, users, and playlists", text: $searchText)
-                        .textFieldStyle(.plain)
-                        .focused($isSearchFocused)
-                        .onSubmit { search(searchText) }
-                        .onExitCommand { isSearchFocused = false }
-                        .accessibilityLabel("Search SoundCloud")
-                    if !searchText.isEmpty {
-                        Button {
-                            searchText = ""
-                            isSearchFocused = true
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Clear search")
-                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search tracks, users, and playlists", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .focused($isSearchFocused)
+                    .onSubmit { search(searchText) }
+                    .onExitCommand { isSearchFocused = false }
+                    .accessibilityLabel("Search SoundCloud")
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                        isSearchFocused = true
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
                     }
-                }
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: searchText.isEmpty)
-                .padding(12)
-                .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
-                .background {
-                    SearchOutsideClickView(isFocused: isSearchFocused) {
-                        isSearchFocused = false
-                    }
-                }
-                .frame(maxWidth: 450)
-                .frame(maxWidth: .infinity, alignment: .center)
-
-                if let submittedQuery {
-                    results(submittedQuery)
-                        .id(submittedQuery)
-                } else if !recentSearches.isEmpty {
-                    HStack {
-                        Text("Recent")
-                            .font(.headline)
-                        Spacer()
-                        Button {
-                            store.clear(for: user)
-                            recentSearches = []
-                        } label: {
-                            Text("Clear history")
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(isHoveringClearHistory ? Color.primary : Color.secondary)
-                        .onContentHover { isHoveringClearHistory = $0 }
-                    }
-                    .transition(.identity)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), alignment: .leading)], alignment: .leading, spacing: 12) {
-                        ForEach(recentSearches, id: \.self) { query in
-                            RecentSearchButton(query: query) {
-                                search(query)
-                            } onRemove: {
-                                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
-                                    recentSearches = store.remove(query, for: user)
-                                }
-                            }
-                            .transition(.identity)
-                        }
-                    }
-                    .transition(.identity)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(20)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: searchText.isEmpty)
+            .padding(12)
+            .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+            .background {
+                SearchOutsideClickView(isFocused: isSearchFocused) {
+                    isSearchFocused = false
+                }
+            }
+            .frame(maxWidth: 400)
+            .frame(maxWidth: .infinity, alignment: .center)
+
+            if let submittedQuery {
+                results(submittedQuery)
+                    .id(submittedQuery)
+            } else if !recentSearches.isEmpty {
+                HStack {
+                    Text("Recent")
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        store.clear(for: user)
+                        recentSearches = []
+                    } label: {
+                        Text("Clear history")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(isHoveringClearHistory ? Color.primary : Color.secondary)
+                    .onContentHover { isHoveringClearHistory = $0 }
+                }
+                .transition(.identity)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), alignment: .leading)], alignment: .leading, spacing: 12) {
+                    ForEach(recentSearches, id: \.self) { query in
+                        RecentSearchButton(query: query) {
+                            search(query)
+                        } onRemove: {
+                            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+                                recentSearches = store.remove(query, for: user)
+                            }
+                        }
+                        .transition(.identity)
+                    }
+                }
+                .transition(.identity)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
     }
 
     private func search(_ text: String) {
