@@ -712,7 +712,7 @@ private struct WaveformCommentsView: View {
     private func marker(_ comment: SoundCloudComment, width: CGFloat, isActive: Bool) -> some View {
         let x = position(for: comment, width: width)
         let textOnLeft = x > width / 2
-        let textWidth = min(220, max(0, (textOnLeft ? x : width - x) + 14))
+        let textWidth = min(280, max(0, (textOnLeft ? x : width - x) + 14))
         return Button {
             guard duration > 0 else { return }
             onSeek(seconds(for: comment) / duration)
@@ -726,6 +726,7 @@ private struct WaveformCommentsView: View {
             )
             .clipShape(Circle())
             .overlay { Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1) }
+            .shadow(color: .black.opacity(isActive ? 0.4 : 0), radius: 5, y: 2)
             .scaleEffect(isActive ? 1 : 16.0 / 28)
             .frame(width: 28, height: 28)
             .contentShape(Circle())
@@ -747,6 +748,7 @@ private struct WaveformCommentsView: View {
                         RoundedRectangle(cornerRadius: 6)
                             .strokeBorder(.primary.opacity(0.2), lineWidth: 1)
                     }
+                    .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
                     .offset(y: 34)
                     .transition(.opacity.combined(with: .scale(
                         scale: 0.85, anchor: textOnLeft ? .topTrailing : .topLeading
