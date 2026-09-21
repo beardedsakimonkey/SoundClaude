@@ -374,17 +374,18 @@ struct PlayerFooterView: View {
                         .frame(width: 24, alignment: .leading)
                     }
 
-                    Slider(value: Binding(
+                    PlayerVolumeSlider(value: Binding(
                         get: { displayedVolume },
                         set: {
                             playback.volume = $0
                             playback.isMuted = false
                         }
-                    ), in: 0...1)
-                        .frame(width: 110)
+                    ))
+                        .frame(width: 90)
                         .accessibilityLabel("Volume")
                         .accessibilityValue("\(Int(displayedVolume * 100)) percent")
                 }
+                .padding(.trailing, 12)
             }
             .buttonStyle(.borderless)
 
@@ -480,6 +481,60 @@ struct PlayerFooterView: View {
         guard seconds.isFinite, seconds >= 0 else { return "0:00" }
         let total = Int(seconds)
         return String(format: "%d:%02d", total / 60, total % 60)
+    }
+}
+
+private struct PlayerVolumeSlider: View {
+    @Binding var value: Float
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            let fillWidth = width * CGFloat(min(max(value, 0), 1))
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(.white.opacity(0.18))
+                    .frame(height: 8)
+
+                Rectangle()
+                    .fill(.white.opacity(0.65))
+                    .frame(width: fillWidth, height: 8)
+            }
+            .clipShape(Capsule())
+            .animation(reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.8), value: value)
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        isFocused = true
+                        guard width > 0 else { return }
+                        value = Float(min(max(gesture.location.x / width, 0), 1))
+                    }
+            )
+        }
+        .frame(height: 24)
+        .focusable()
+        .focusEffectDisabled()
+        .focused($isFocused)
+        .onMoveCommand { direction in
+            switch direction {
+            case .left, .down:
+                value = max(0, value - 0.05)
+            case .right, .up:
+                value = min(1, value + 0.05)
+            default:
+                break
+            }
+        }
+        .accessibilityRepresentation {
+            Slider(value: $value, in: 0...1)
+                .accessibilityLabel("Volume")
+                .accessibilityValue("\(Int(value * 100)) percent")
+        }
     }
 }
 
