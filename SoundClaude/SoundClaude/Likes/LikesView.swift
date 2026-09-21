@@ -127,11 +127,12 @@ struct LikesView: View {
     }
 
     private var filteredTracks: [SoundCloudTrack] {
-        let query = searchQuery
+        // Normalize styled Unicode letters to their plain equivalents for matching.
+        let query = searchQuery.precomposedStringWithCompatibilityMapping
         guard !query.isEmpty else { return likes.tracks }
         return likes.tracks.filter {
-            $0.title.localizedStandardContains(query)
-                || $0.artist.username.localizedStandardContains(query)
+            $0.title.precomposedStringWithCompatibilityMapping.localizedStandardContains(query)
+                || $0.artist.username.precomposedStringWithCompatibilityMapping.localizedStandardContains(query)
         }
     }
 
