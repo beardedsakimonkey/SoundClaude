@@ -172,7 +172,7 @@ struct StationDetailView: View {
                     analyzer: model.analyzer,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
-                    appearanceDelay: .milliseconds(700)
+                    appearanceDelay: .milliseconds(350)
                 )
                 .offset(y: 8)
                 Spacer(minLength: 6)
@@ -181,7 +181,7 @@ struct StationDetailView: View {
                     invertsBarsOnTrackChange: true, collapsesBarsWhenPaused: true,
                     keepsBarsVisible: true,
                     initialExpandedWaveform: initialExpandedWaveform,
-                    commentsAppearanceDelay: .milliseconds(700)
+                    commentsAppearanceDelay: .milliseconds(350)
                 )
                 .offset(y: -2)
             }

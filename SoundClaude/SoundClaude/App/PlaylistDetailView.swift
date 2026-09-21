@@ -222,7 +222,7 @@ struct PlaylistDetailView: View {
                     analyzer: model.analyzer,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
-                    appearanceDelay: .milliseconds(700)
+                    appearanceDelay: .milliseconds(350)
                 )
                 .offset(y: 8)
 
@@ -233,7 +233,7 @@ struct PlaylistDetailView: View {
                     invertsBarsOnTrackChange: true,
                     collapsesBarsWhenPaused: true,
                     keepsBarsVisible: true,
-                    commentsAppearanceDelay: .milliseconds(700)
+                    commentsAppearanceDelay: .milliseconds(350)
                 )
                 .offset(y: -2)
             }

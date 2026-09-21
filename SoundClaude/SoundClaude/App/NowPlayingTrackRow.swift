@@ -12,10 +12,10 @@ struct NowPlayingTrackRow: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHoveringTrackTitle = false
-    @State private var isContentReady = false
+    @State private var readyTrackURN: String?
 
     private var visibleTrack: SoundCloudTrack? {
-        isContentReady || appearanceDelay == .zero || reduceMotion ? track : nil
+        readyTrackURN == track?.urn || appearanceDelay == .zero || reduceMotion ? track : nil
     }
 
     var body: some View {
@@ -63,14 +63,12 @@ struct NowPlayingTrackRow: View {
             reduceMotion ? nil : .easeInOut(duration: 0.3),
             value: visibleTrack?.urn
         )
-        .task(id: track != nil) {
-            guard track != nil else {
-                isContentReady = false
-                return
-            }
-            guard !isContentReady else { return }
+        .task(id: track?.urn) {
+            readyTrackURN = nil
+            isHoveringTrackTitle = false
+            guard let track else { return }
             // Defer constructing the indicator so its timeline does not compete
-            // with the waveform's initial bar animation.
+            // with the waveform's bar animation on appearance or track changes.
             if !reduceMotion, appearanceDelay > .zero {
                 do {
                     try await Task.sleep(for: appearanceDelay)
@@ -79,7 +77,7 @@ struct NowPlayingTrackRow: View {
                 }
             }
             guard !Task.isCancelled else { return }
-            isContentReady = true
+            readyTrackURN = track.urn
         }
     }
 }

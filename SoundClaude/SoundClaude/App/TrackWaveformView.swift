@@ -36,7 +36,7 @@ struct TrackWaveformView: View {
     @State private var accentArtworkURL: URL?
     @State private var hoverFraction: Double = 0
     @State private var isHovering = false
-    @State private var areCommentsReady = false
+    @State private var commentsReadyTrackURN: String?
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -111,13 +111,10 @@ struct TrackWaveformView: View {
         .task(id: [track?.urn ?? "", track?.waveformURL?.absoluteString ?? ""]) {
             await load()
         }
-        .task(id: track != nil) {
-            guard track != nil else {
-                areCommentsReady = false
-                return
-            }
-            guard !areCommentsReady else { return }
-            // Defer the comment subtree and its work during the initial bar animation.
+        .task(id: track?.urn) {
+            commentsReadyTrackURN = nil
+            guard let track else { return }
+            // Defer the comment subtree during appearance and track-change animations.
             if !reduceMotion, commentsAppearanceDelay > .zero {
                 do {
                     try await Task.sleep(for: commentsAppearanceDelay)
@@ -126,7 +123,7 @@ struct TrackWaveformView: View {
                 }
             }
             guard !Task.isCancelled else { return }
-            areCommentsReady = true
+            commentsReadyTrackURN = track.urn
         }
         .task {
             // Present the source view's bars before animating to the station's state.
@@ -323,7 +320,7 @@ struct TrackWaveformView: View {
                 )
                 .overlay(alignment: .bottom) {
                     if layout == .detail,
-                       areCommentsReady || commentsAppearanceDelay == .zero || reduceMotion,
+                       commentsReadyTrackURN == track?.urn || commentsAppearanceDelay == .zero || reduceMotion,
                        let track {
                         WaveformCommentsView(
                             track: track,
