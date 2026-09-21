@@ -9,6 +9,8 @@ struct SearchResultsView: View {
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
+    @Environment(\.searchViewportHeight) private var searchViewportHeight
+
     @State private var category: SearchCategory = .tracks
     @State private var visitedCategories: Set<SearchCategory> = [.tracks]
 
@@ -47,6 +49,8 @@ struct SearchResultsView: View {
                     }
                 }
             }
+            // Keep enough scroll space below the tabs while results load or are short.
+            .frame(minHeight: searchViewportHeight, alignment: .topLeading)
         }
         .padding(contentPadding)
         .navigationTitle("Search")

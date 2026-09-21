@@ -378,7 +378,13 @@ struct ArtistDetailView: View {
 
                     HStack(alignment: .top, spacing: 24) {
                         tabContent
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            // Keep enough scroll space below the tabs when their content
+                            // is loading or short, so switching tabs does not pull them down.
+                            .frame(
+                                maxWidth: .infinity,
+                                minHeight: geometry.size.height,
+                                alignment: .topLeading
+                            )
 
                         VStack(alignment: .leading, spacing: 24) {
                             ViewThatFits(in: .horizontal) {

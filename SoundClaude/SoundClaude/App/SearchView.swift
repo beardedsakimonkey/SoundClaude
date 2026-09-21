@@ -1,5 +1,16 @@
 import SwiftUI
 
+private struct SearchViewportHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    var searchViewportHeight: CGFloat {
+        get { self[SearchViewportHeightKey.self] }
+        set { self[SearchViewportHeightKey.self] = newValue }
+    }
+}
+
 struct SearchView<Results: View>: View {
     let user: SoundCloudUser
     @Binding var searchText: String
@@ -14,6 +25,32 @@ struct SearchView<Results: View>: View {
     private let store = RecentSearchStore()
 
     var body: some View {
+        GeometryReader { geometry in
+            searchScrollView
+                .environment(\.searchViewportHeight, geometry.size.height)
+        }
+        .background(alignment: .top) {
+            backdrop
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+        }
+        .navigationTitle("Search")
+        .task(id: focusRequest) {
+            recentSearches = store.restore(for: user)
+            // Wait until the navigation stack has mounted the text field.
+            await Task.yield()
+            guard !Task.isCancelled else { return }
+            isSearchFocused = true
+        }
+        .onChange(of: searchText) { _, text in
+            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                submittedQuery = nil
+            }
+        }
+        .onDisappear { isSearchFocused = false }
+    }
+
+    private var searchScrollView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Text("Search")
@@ -91,25 +128,6 @@ struct SearchView<Results: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
         }
-        .background(alignment: .top) {
-            backdrop
-                .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
-        }
-        .navigationTitle("Search")
-        .task(id: focusRequest) {
-            recentSearches = store.restore(for: user)
-            // Wait until the navigation stack has mounted the text field.
-            await Task.yield()
-            guard !Task.isCancelled else { return }
-            isSearchFocused = true
-        }
-        .onChange(of: searchText) { _, text in
-            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                submittedQuery = nil
-            }
-        }
-        .onDisappear { isSearchFocused = false }
     }
 
     @ViewBuilder
