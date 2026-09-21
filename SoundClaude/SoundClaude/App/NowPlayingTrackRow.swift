@@ -7,10 +7,16 @@ struct NowPlayingTrackRow: View {
     let analyzer: SpectrumAnalyzer
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
+    var appearanceDelay: Duration = .zero
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHoveringTrackTitle = false
+    @State private var isContentReady = false
+
+    private var visibleTrack: SoundCloudTrack? {
+        isContentReady || appearanceDelay == .zero || reduceMotion ? track : nil
+    }
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -18,7 +24,7 @@ struct NowPlayingTrackRow: View {
                 .font(.title3)
                 .hidden()
                 .accessibilityHidden(true)
-            if let track = track {
+            if let track = visibleTrack {
                 HStack(spacing: 6) {
                     TrackPlaybackIndicator(
                         isPlaying: isPlaying,
@@ -55,7 +61,25 @@ struct NowPlayingTrackRow: View {
         }
         .animation(
             reduceMotion ? nil : .easeInOut(duration: 0.3),
-            value: track?.urn
+            value: visibleTrack?.urn
         )
+        .task(id: track != nil) {
+            guard track != nil else {
+                isContentReady = false
+                return
+            }
+            guard !isContentReady else { return }
+            // Defer constructing the indicator so its timeline does not compete
+            // with the waveform's initial bar animation.
+            if !reduceMotion, appearanceDelay > .zero {
+                do {
+                    try await Task.sleep(for: appearanceDelay)
+                } catch {
+                    return
+                }
+            }
+            guard !Task.isCancelled else { return }
+            isContentReady = true
+        }
     }
 }

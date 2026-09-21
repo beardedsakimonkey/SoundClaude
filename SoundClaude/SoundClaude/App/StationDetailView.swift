@@ -170,7 +170,8 @@ struct StationDetailView: View {
                         isLoading: model.playback.isLoading,
                         analyzer: model.analyzer,
                         onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist
+                        onSelectArtist: onSelectArtist,
+                        appearanceDelay: .milliseconds(700)
                     )
                 }
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: hasAppeared)

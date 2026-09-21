@@ -208,7 +208,8 @@ struct PlaylistDetailView: View {
                     isLoading: model.playback.isLoading,
                     analyzer: model.analyzer,
                     onSelectTrack: onSelectTrack,
-                    onSelectArtist: onSelectArtist
+                    onSelectArtist: onSelectArtist,
+                    appearanceDelay: .milliseconds(700)
                 )
 
                 VStack(alignment: .leading, spacing: 16) {
