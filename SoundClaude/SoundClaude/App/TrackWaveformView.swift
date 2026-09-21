@@ -771,9 +771,23 @@ private struct WaveformCommentMarkersContent: View {
         GeometryReader { proxy in
             let interactionID = (contentHoverEnabled ? hoveredID : nil) ?? focusedID
             let width = proxy.size.width
+            let comments = index.visibleComments(duration: duration)
+            let interactionX = comments.first { $0.id == interactionID }
+                .map { position(for: $0, width: width) }
+            let commentID = interactionID ?? playbackID
             ZStack(alignment: .topLeading) {
-                ForEach(index.visibleComments(duration: duration)) { comment in
-                    marker(comment, width: width, isActive: comment.id == interactionID || comment.id == playbackID)
+                ForEach(comments) { comment in
+                    let distance = interactionX.map { abs(position(for: comment, width: width) - $0) }
+                    let proximity = distance.map {
+                        let strength = max(0, 1 - $0 / 72)
+                        return strength * strength * strength
+                    } ?? 0
+                    marker(
+                        comment, width: width,
+                        isActive: comment.id == interactionID || comment.id == playbackID,
+                        showsComment: comment.id == commentID,
+                        proximity: proximity
+                    )
                         .modifier(FadeInOnAppear())
                         .scaleEffect(showsComments || reduceMotion ? 1 : 0.6)
                         .animation(
@@ -781,7 +795,8 @@ private struct WaveformCommentMarkersContent: View {
                             value: showsComments
                         )
                         .position(x: position(for: comment, width: width), y: proxy.size.height / 2)
-                        .zIndex(comment.id == interactionID ? 2 : comment.id == playbackID ? 1 : 0)
+                        // Growing neighbors retain their fixed order in the comment list.
+                        .zIndex(comment.id == interactionID ? 1 : 0)
                 }
             }
             .frame(width: width, height: proxy.size.height, alignment: .topLeading)
@@ -823,7 +838,10 @@ private struct WaveformCommentMarkersContent: View {
         }
     }
 
-    private func marker(_ comment: SoundCloudComment, width: CGFloat, isActive: Bool) -> some View {
+    private func marker(
+        _ comment: SoundCloudComment, width: CGFloat, isActive: Bool,
+        showsComment: Bool, proximity: CGFloat
+    ) -> some View {
         let x = position(for: comment, width: width)
         let textOnLeft = x > width / 2
         let textWidth = min(280, max(0, (textOnLeft ? x : width - x) + 18))
@@ -843,14 +861,15 @@ private struct WaveformCommentMarkersContent: View {
             .overlay { Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1) }
             .overlay { Circle().fill(.black.opacity(isActive ? 0 : 0.5)) }
             .shadow(color: .black.opacity(isActive ? 0.4 : 0), radius: 5, y: 2)
-            .scaleEffect(isActive ? 1 : 16.0 / 36)
+            // Nearby avatars grow from 16 to 30 points; only the active one reaches 36.
+            .scaleEffect(isActive ? 1 : (16 + 14 * proximity) / 36)
             .frame(width: 36, height: 36)
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .focused($focusedID, equals: comment.id)
         .overlay(alignment: textOnLeft ? .topTrailing : .topLeading) {
-            if isActive, textWidth > 0 {
+            if showsComment, textWidth > 0 {
                 Text(comment.body.replacingOccurrences(of: "\n", with: " "))
                     .font(.caption)
                     .lineLimit(1)
