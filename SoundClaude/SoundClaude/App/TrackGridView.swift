@@ -178,6 +178,10 @@ struct TrackGridTile: View {
                     .lineLimit(1)
             }
         }
+        .contentShape(Rectangle())
+        .contextMenu {
+            trackMenuItems
+        }
         .alert("Could not update like", isPresented: Binding(
             get: { likeErrorMessage != nil },
             set: { if !$0 { likeErrorMessage = nil } }
@@ -188,27 +192,32 @@ struct TrackGridTile: View {
         }
     }
 
-    private var overflowMenu: some View {
+    @ViewBuilder
+    private var trackMenuItems: some View {
         let isLiked = likes.isLiked(track)
 
-        return Menu {
-            Button("Add to queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
-                onAddToQueue(track)
-            }
-            Button("Add to playlist", systemImage: "music.note.list") {
-                addToPlaylist(track)
-            }
-            Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
-                Task {
-                    do {
-                        try await likes.toggleLike(track)
-                    } catch is CancellationError {
-                    } catch {
-                        likeErrorMessage = error.localizedDescription
-                    }
+        Button("Add to queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
+            onAddToQueue(track)
+        }
+        Button("Add to playlist", systemImage: "music.note.list") {
+            addToPlaylist(track)
+        }
+        Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
+            Task {
+                do {
+                    try await likes.toggleLike(track)
+                } catch is CancellationError {
+                } catch {
+                    likeErrorMessage = error.localizedDescription
                 }
             }
-            .disabled(likes.updatingTrackURNs.contains(track.urn))
+        }
+        .disabled(likes.updatingTrackURNs.contains(track.urn))
+    }
+
+    private var overflowMenu: some View {
+        Menu {
+            trackMenuItems
         } label: {
             Image(systemName: "ellipsis")
                 .font(.system(size: 14, weight: .semibold))

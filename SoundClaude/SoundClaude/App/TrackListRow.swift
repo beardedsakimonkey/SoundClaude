@@ -138,29 +138,7 @@ struct TrackListRow: View {
                 .opacity(isHovering ? 0 : 1)
                 .overlay {
                     Menu {
-                        if let onRemoveFromQueue {
-                            Button("Remove from queue", systemImage: "text.badge.minus") {
-                                onRemoveFromQueue(track)
-                            }
-                        } else if let onAddToQueue {
-                            Button("Add to queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
-                                onAddToQueue(track)
-                            }
-                        }
-                        Button("Add to playlist", systemImage: "music.note.list") {
-                            addToPlaylist(track)
-                        }
-                        Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
-                            Task {
-                                do {
-                                    try await likes.toggleLike(track)
-                                } catch is CancellationError {
-                                } catch {
-                                    likeErrorMessage = error.localizedDescription
-                                }
-                            }
-                        }
-                        .disabled(likes.updatingTrackURNs.contains(track.urn))
+                        trackMenuItems
                     } label: {
                         Image(systemName: "ellipsis")
                             .frame(width: 28, height: 28)
@@ -187,6 +165,9 @@ struct TrackListRow: View {
         .padding(.vertical, isCompact ? 4 : 6)
         .padding(.horizontal, 8)
         .contentShape(Rectangle())
+        .contextMenu {
+            trackMenuItems
+        }
         .onTapGesture {
             guard !isHoveringArtwork, !isHoveringTitle, !isHoveringArtist, !isHoveringMenu else { return }
             playOrPauseTrack()
@@ -216,6 +197,35 @@ struct TrackListRow: View {
         .accessibilityAction(named: isPlaybackActive ? "Pause" : "Play") {
             playOrPauseTrack()
         }
+    }
+
+    @ViewBuilder
+    private var trackMenuItems: some View {
+        let isLiked = likes.isLiked(track)
+
+        if let onRemoveFromQueue {
+            Button("Remove from queue", systemImage: "text.badge.minus") {
+                onRemoveFromQueue(track)
+            }
+        } else if let onAddToQueue {
+            Button("Add to queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
+                onAddToQueue(track)
+            }
+        }
+        Button("Add to playlist", systemImage: "music.note.list") {
+            addToPlaylist(track)
+        }
+        Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
+            Task {
+                do {
+                    try await likes.toggleLike(track)
+                } catch is CancellationError {
+                } catch {
+                    likeErrorMessage = error.localizedDescription
+                }
+            }
+        }
+        .disabled(likes.updatingTrackURNs.contains(track.urn))
     }
 
     private func playOrPauseTrack() {
