@@ -117,6 +117,7 @@ struct ArtistMentionText: View {
 
     var body: some View {
         Text(mentions.text)
+            .opacity(0.95)
             .environment(\.openURL, OpenURLAction { url in
                 guard let artist = mentions.artistsByURL[url] else {
                     return .systemAction

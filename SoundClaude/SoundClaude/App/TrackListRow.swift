@@ -75,7 +75,7 @@ struct TrackListRow: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .opacity(0.9)
+                    .opacity(0.95)
                     .onContentHover { isHoveringTitle = $0 }
                     if track.access == .preview {
                         TrackPreviewBadge()

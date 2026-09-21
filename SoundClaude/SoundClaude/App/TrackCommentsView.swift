@@ -305,7 +305,7 @@ struct TrackCommentsView: View {
 
                 ArtistMentionText(comment.body, onSelectArtist: onSelectArtist)
                     .textSelection(.enabled)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(.primary.opacity(0.95))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
