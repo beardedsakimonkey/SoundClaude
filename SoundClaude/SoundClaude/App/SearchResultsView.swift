@@ -101,29 +101,13 @@ private struct SearchResultList: View {
                     }
                 case .playlists:
                     ForEach(playlists) { playlist in
-                        HStack(spacing: 16) {
-                            Button { onSelectPlaylist(playlist) } label: {
-                                TrackArtworkView(
-                                    artworkURL: playlist.artworkURL,
-                                    loader: model.artworkLoader, size: 80
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Open playlist: \(playlist.title)")
-                            VStack(alignment: .leading, spacing: 6) {
-                                Button(playlist.title) { onSelectPlaylist(playlist) }
-                                    .buttonStyle(.plain)
-                                    .font(.headline)
-                                ArtistLink(artist: playlist.owner, onSelect: onSelectArtist)
-                                    .foregroundStyle(.secondary)
-                                if let count = playlist.trackCount {
-                                    Text("\(count.formatted()) \(count == 1 ? "track" : "tracks")")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            Spacer(minLength: 0)
-                        }
+                        PlaylistCardView(
+                            playlist: playlist, model: model,
+                            playlists: model.playlists,
+                            onSelectPlaylist: onSelectPlaylist,
+                            onSelectTrack: onSelectTrack,
+                            onSelectArtist: onSelectArtist
+                        )
                     }
                 case .users:
                     ForEach(users, id: \.permalinkURL) { user in
