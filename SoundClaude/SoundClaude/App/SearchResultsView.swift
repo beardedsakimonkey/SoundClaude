@@ -119,29 +119,11 @@ private struct SearchResultList: View {
                             )
                         }
                     case .users:
-                        ForEach(users, id: \.permalinkURL) { user in
-                            Button { onSelectArtist(user) } label: {
-                                HStack(spacing: 16) {
-                                    TrackArtworkView(
-                                        artworkURL: user.avatarURL,
-                                        loader: model.artworkLoader, size: 64
-                                    )
-                                    .clipShape(Circle())
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(user.username).font(.headline)
-                                        if let count = user.followersCount {
-                                            Text("\(count.formatted()) \(count == 1 ? "follower" : "followers")")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    Spacer(minLength: 0)
-                                }
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .help("View profile: \(user.username)")
-                        }
+                        UserGridView(
+                            users: users,
+                            artworkLoader: model.artworkLoader,
+                            onSelectArtist: onSelectArtist
+                        )
                     }
 
                     Group {
