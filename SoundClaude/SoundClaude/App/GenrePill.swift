@@ -61,7 +61,7 @@ private struct SearchPill: View {
             .padding(.vertical, 4)
             .overlay {
                 Capsule()
-                    .strokeBorder(.secondary.opacity(0.35), lineWidth: 1)
+                    .strokeBorder(.secondary.opacity(isHovering ? 0.7 : 0.35), lineWidth: 1)
             }
             .contentShape(Capsule())
         }
