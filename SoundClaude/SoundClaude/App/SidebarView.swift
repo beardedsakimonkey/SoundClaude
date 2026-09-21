@@ -14,6 +14,7 @@ struct SidebarView: View {
     @FocusState private var isSidebarFocused: Bool
     @State private var isShowingCreatePlaylist = false
     @State private var isProfileHovered = false
+    @State private var isSignOutHovered = false
     @AppStorage("sidebarPlaylistsExpanded") private var isPlaylistsExpanded = true
     @AppStorage("sidebarLikedPlaylistsExpanded") private var isLikedPlaylistsExpanded = true
 
@@ -246,10 +247,15 @@ struct SidebarView: View {
             } label: {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
                     .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
+                    .background {
+                        Circle()
+                            .fill(Color.primary.opacity(isSignOutHovered ? 0.1 : 0))
+                    }
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .modifier(SidebarForegroundHover(usesPrimaryForeground: true))
+            .foregroundStyle(.primary)
+            .onContentHover { isSignOutHovered = $0 }
             .help("Sign out")
             .accessibilityLabel("Sign out")
         }
