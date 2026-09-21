@@ -144,6 +144,7 @@ struct SignedInView: View {
             AddToPlaylistView(track: track, user: user, playlists: model.playlists)
         }
         .environment(\.searchGenre, showGenreSearch)
+        .environment(\.searchTag, showTagSearch)
         .background {
             NavigationBackEventView(
                 onBack: navigateBack,
@@ -248,6 +249,20 @@ struct SignedInView: View {
                 .navigationDestination(for: Route.self) { route in
                     Group {
                         switch route {
+                        case let .tag(tag):
+                            ScrollView {
+                                SearchResultsView(
+                                    query: tag,
+                                    isTagSearch: true,
+                                    model: model,
+                                    onSelectTrack: showTrack,
+                                    onSelectPlaylist: showPlaylist,
+                                    onSelectArtist: showArtist
+                                )
+                            }
+                            .id(route)
+                            .navigationBarBackButtonHidden(true)
+                            .toolbar { navigationToolbar }
                         case let .genre(genre):
                             ScrollView {
                                 SearchResultsView(
@@ -430,6 +445,12 @@ struct SignedInView: View {
         .labelStyle(.iconOnly)
     }
 
+    private func showTagSearch(_ tag: String) {
+        guard !tag.isEmpty else { return }
+        forwardPath.removeAll()
+        path.append(.tag(tag))
+    }
+
     private func showGenreSearch(_ genre: String) {
         guard !genre.isEmpty else { return }
         forwardPath.removeAll()
@@ -551,6 +572,7 @@ private struct QueueBlurModifier: AnimatableModifier {
 
 private enum Route: Hashable {
     case genre(String)
+    case tag(String)
     case playlist(SoundCloudPlaylist)
     case station(String, seedTrack: SoundCloudTrack? = nil, seedArtistName: String? = nil)
     case track(SoundCloudTrack)

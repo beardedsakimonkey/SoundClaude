@@ -148,6 +148,33 @@ struct SearchTests {
         }
         let genreEnd = try await client.searchTracks(genres: genre, accessToken: "test-token", pageURL: genrePage.nextURL)
         precondition(genreEnd.nextURL == nil)
+        let tag = "R&B + café/夜?"
+        let tagNextURL = URL(string: "https://api.soundcloud.com/tracks")!.appending(queryItems: [
+            URLQueryItem(name: "tags", value: tag),
+            URLQueryItem(name: "cursor", value: "next"),
+        ])
+        SearchURLProtocol.respond { request in
+            precondition(request.url?.path == "/tracks")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            let parameters = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value!) })
+            precondition(parameters["tags"] == tag, "Tag must survive URL encoding")
+            precondition(parameters["genres"] == nil && parameters["q"] == nil, "Tag search must not also filter by text")
+            precondition(parameters["limit"] == "25" && parameters["linked_partitioning"] == "true")
+            precondition(parameters["access"] == "playable,preview")
+            return (200, "{\"collection\":[\(track(1))],\"next_href\":\"\(tagNextURL)\"}")
+        }
+        let tagPage = try await client.searchTracks(tags: tag, accessToken: "test-token")
+        precondition(tagPage.tracks.count == 1 && tagPage.nextURL == tagNextURL)
+        let tagQueue = TrackQueue(source: .tag(tag), tracks: tagPage.tracks, nextPageURL: tagPage.nextURL)
+        let restoredTagQueue = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(tagQueue))
+        precondition(restoredTagQueue.source == .tag(tag) && restoredTagQueue.nextPageURL == tagNextURL)
+        SearchURLProtocol.respond { request in
+            precondition(request.url == tagNextURL, "Tag continuation must be used unchanged")
+            return (200, "{\"collection\":[],\"next_href\":null}")
+        }
+        let tagEnd = try await client.searchTracks(tags: tag, accessToken: "test-token", pageURL: tagPage.nextURL)
+        precondition(tagEnd.nextURL == nil)
         print("Search API, genre filtering, pagination, and queue checks passed")
     }
 }

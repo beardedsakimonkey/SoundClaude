@@ -295,6 +295,7 @@ struct SoundCloudPlaylistPage: Sendable {
 }
 
 struct SoundCloudTrackDetails: Sendable, Equatable {
+    var tags: [String] = []
     let track: SoundCloudTrack
     let description: String?
     let genre: String?
@@ -563,6 +564,7 @@ struct RawTrack: Decodable {
     let user: RawUser?
     let description: String?
     let genre: String?
+    let tagList: String?
     let createdAt: String?
     let playbackCount: Int?
     let favoritingsCount: Int?
@@ -582,6 +584,7 @@ struct RawTrack: Decodable {
         case user
         case description
         case genre
+        case tagList = "tag_list"
         case createdAt = "created_at"
         case playbackCount = "playback_count"
         case favoritingsCount = "favoritings_count"
@@ -621,6 +624,7 @@ struct RawTrack: Decodable {
     func normalizedDetails() -> SoundCloudTrackDetails? {
         guard let track = normalized() else { return nil }
         return SoundCloudTrackDetails(
+            tags: parsedTags,
             track: track,
             description: description,
             genre: genre,
@@ -629,6 +633,28 @@ struct RawTrack: Decodable {
             favoritingsCount: favoritingsCount,
             commentCount: commentCount
         )
+    }
+
+    private var parsedTags: [String] {
+        var tags: [String] = []
+        var tag = ""
+        var isQuoted = false
+        for character in tagList ?? "" {
+            if character == "\"" {
+                isQuoted.toggle()
+            } else if character.isWhitespace && !isQuoted {
+                if !tag.isEmpty { tags.append(tag) }
+                tag = ""
+            } else {
+                tag.append(character)
+            }
+        }
+        if !tag.isEmpty { tags.append(tag) }
+        // Machine tags are metadata and are not shown on SoundCloud track pages.
+        return tags.filter {
+            $0.range(of: #"^[^:\s]+:[^=\s]+="#, options: .regularExpression) == nil
+                && !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
     }
 
     private static func extractSecretToken(from url: URL?) -> String? {

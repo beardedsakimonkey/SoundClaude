@@ -6,6 +6,7 @@ struct TrackQueue: Codable {
         case history
         case search(String)
         case genre(String)
+        case tag(String)
         case likes
         case artist(String)
         case artistReposts(String)

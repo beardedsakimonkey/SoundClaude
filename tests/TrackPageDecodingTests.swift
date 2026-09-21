@@ -11,6 +11,23 @@ struct TrackPageDecodingTests {
             """
         let nextURL = "https://api.soundcloud.com/tracks/soundcloud:tracks:1/related?cursor=next"
         let decoder = JSONDecoder()
+        let tagFixtures: [(String?, [String])] = [
+            (nil, []),
+            ("", []),
+            ("  ambient  electronic ", ["ambient", "electronic"]),
+            (#"ambient "deep house" 日本語"#, ["ambient", "deep house", "日本語"]),
+            (#"ambient geo:lat=43.555 "machine:tag=with space""#, ["ambient"]),
+        ]
+        for (tagList, expected) in tagFixtures {
+            var json = try JSONSerialization.jsonObject(with: Data(track.utf8)) as! [String: Any]
+            json["tag_list"] = tagList ?? (NSNull() as Any)
+            let raw = try decoder.decode(
+                RawTrack.self, from: JSONSerialization.data(withJSONObject: json)
+            )
+            precondition(raw.normalizedDetails()?.tags == expected)
+        }
+        let untagged = try decoder.decode(RawTrack.self, from: Data(track.utf8)).normalizedDetails()
+        precondition(untagged?.tags == [])
         let withoutCounts = try decoder.decode(RawTrack.self, from: Data(track.utf8)).normalized()!
         precondition(withoutCounts.likesCount == nil)
         precondition(withoutCounts.repostsCount == nil)

@@ -493,9 +493,9 @@ final class AppModel: ObservableObject {
         )
     }
 
-    func searchTracks(query: String? = nil, genres: String? = nil, pageURL: URL? = nil) async throws -> SoundCloudTrackPage {
+    func searchTracks(query: String? = nil, genres: String? = nil, tags: String? = nil, pageURL: URL? = nil) async throws -> SoundCloudTrackPage {
         let accessToken = try await auth.validAccessToken()
-        return try await client.searchTracks(query: query, genres: genres, accessToken: accessToken, pageURL: pageURL)
+        return try await client.searchTracks(query: query, genres: genres, tags: tags, accessToken: accessToken, pageURL: pageURL)
     }
 
     func searchPlaylists(query: String, pageURL: URL? = nil) async throws -> SoundCloudPlaylistPage {
@@ -792,6 +792,8 @@ final class AppModel: ObservableObject {
         let accessToken = try await auth.validAccessToken()
         try Task.checkCancellation()
         switch source {
+        case let .tag(tag):
+            return try await client.searchTracks(tags: tag, accessToken: accessToken, pageURL: pageURL)
         case let .genre(genre):
             return try await client.searchTracks(genres: genre, accessToken: accessToken, pageURL: pageURL)
         case let .search(query):
