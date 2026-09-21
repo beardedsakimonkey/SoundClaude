@@ -51,8 +51,8 @@ struct SearchView<Results: View>: View {
                         isSearchFocused = false
                     }
                 }
-                .frame(maxWidth: 600)
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(maxWidth: 400)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let submittedQuery {
                     results(submittedQuery)

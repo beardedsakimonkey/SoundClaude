@@ -12,6 +12,7 @@ struct TrackCardView: View {
 
     @State private var repostErrorMessage: String?
     @State private var isHoveringTitle = false
+    @State private var hasAppeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
@@ -121,6 +122,12 @@ struct TrackCardView: View {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(.primary.opacity(0.06), lineWidth: 1)
                 .allowsHitTesting(false)
+        }
+        .opacity(hasAppeared || reduceMotion ? 1 : 0)
+        .onAppear {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) {
+                hasAppeared = true
+            }
         }
     }
 
