@@ -80,7 +80,8 @@ struct TrackCommentsView: View {
                         loader: model.artworkLoader,
                         size: 24,
                         shape: RoundedRectangle(cornerRadius: 12),
-                        showsBorder: false
+                        showsBorder: false,
+                        showsPlaceholderIcon: false
                     )
                     .clipShape(Circle())
                     .overlay {
@@ -236,7 +237,8 @@ struct TrackCommentsView: View {
                         artworkURL: user.avatarURL,
                         loader: model.artworkLoader,
                         size: 40,
-                        showsBorder: false
+                        showsBorder: false,
+                        showsPlaceholderIcon: false
                     )
                     .clipShape(Circle())
                     .overlay {

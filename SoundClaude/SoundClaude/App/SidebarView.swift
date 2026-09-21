@@ -222,7 +222,8 @@ struct SidebarView: View {
                     TrackArtworkView(
                         artworkURL: user.avatarURL,
                         loader: artworkLoader,
-                        size: 24
+                        size: 24,
+                        showsPlaceholderIcon: false
                     )
                     .clipShape(Circle())
                     Text(user.username)

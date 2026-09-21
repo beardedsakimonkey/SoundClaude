@@ -508,7 +508,8 @@ struct ArtistDetailView: View {
                                 artworkURL: user.avatarURL,
                                 loader: model.artworkLoader,
                                 size: 44,
-                                showsBorder: false
+                                showsBorder: false,
+                                showsPlaceholderIcon: false
                             )
                             .clipShape(Circle())
                             .overlay { Circle().strokeBorder(.white.opacity(0.2), lineWidth: 1) }
@@ -784,7 +785,8 @@ struct ArtistDetailView: View {
             artworkURL: avatarURL,
             loader: model.artworkLoader,
             size: pictureSize,
-            rendition: .square500
+            rendition: .square500,
+            showsPlaceholderIcon: false
         )
         .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.12 : 1)
         .clipShape(Circle())

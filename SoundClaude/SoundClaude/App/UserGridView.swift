@@ -18,7 +18,8 @@ struct UserGridView: View {
                             artworkURL: user.avatarURL,
                             loader: artworkLoader,
                             size: 120,
-                            rendition: .square500
+                            rendition: .square500,
+                            showsPlaceholderIcon: false
                         )
                         .clipShape(Circle())
                         VStack(spacing: 4) {

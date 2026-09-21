@@ -18,7 +18,8 @@ struct ArtistLink: View {
                         artworkURL: artist.avatarURL,
                         loader: artworkLoader,
                         size: avatarSize,
-                        showsBorder: false
+                        showsBorder: false,
+                        showsPlaceholderIcon: false
                     )
                     .clipShape(Circle())
                 }
