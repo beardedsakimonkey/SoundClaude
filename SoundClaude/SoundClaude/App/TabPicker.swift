@@ -70,6 +70,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                     optionLabel(option, style: style, isEmphasized: isSelected || hoveredOption == option)
                         .lineLimit(1)
                         .foregroundStyle(isSelected || hoveredOption == option ? Color.primary : Color.secondary)
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: hoveredOption == option)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 14)
                         .overlay(alignment: .bottom) {
