@@ -26,6 +26,7 @@ struct PlayerFooterView: View {
     @State private var isHoveringTitle = false
     @State private var isHoveringArtwork = false
     @State private var isHoveringWaveform = false
+    @GestureState private var isPressingVolume = false
     @State private var footerWidth: CGFloat = 0
 
     @Bindable private var playback: PlaybackController
@@ -370,9 +371,11 @@ struct PlayerFooterView: View {
                             }
                         }
                         .symbolRenderingMode(.hierarchical)
-                        .opacity(0.9)
+                        .foregroundStyle(Color(white: isPressingVolume ? 1 : 0.65))
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isPressingVolume)
                         .frame(width: 24, alignment: .leading)
                     }
+                    .buttonStyle(.plain)
 
                     PlayerVolumeSlider(value: Binding(
                         get: { displayedVolume },
@@ -380,7 +383,7 @@ struct PlayerFooterView: View {
                             playback.volume = $0
                             playback.isMuted = false
                         }
-                    ))
+                    ), pressState: $isPressingVolume)
                         .frame(width: 90)
                         .accessibilityLabel("Volume")
                         .accessibilityValue("\(Int(displayedVolume * 100)) percent")
@@ -486,8 +489,11 @@ struct PlayerFooterView: View {
 
 private struct PlayerVolumeSlider: View {
     @Binding var value: Float
+    let pressState: GestureState<Bool>
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isFocused: Bool
+
+    private var isPressed: Bool { pressState.wrappedValue }
 
     var body: some View {
         GeometryReader { geometry in
@@ -500,7 +506,8 @@ private struct PlayerVolumeSlider: View {
                     .frame(height: 8)
 
                 Rectangle()
-                    .fill(.white.opacity(0.65))
+                    .fill(.white.opacity(isPressed ? 1 : 0.65))
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isPressed)
                     .frame(width: fillWidth, height: 8)
             }
             .clipShape(Capsule())
@@ -509,6 +516,9 @@ private struct PlayerVolumeSlider: View {
             .contentShape(Rectangle())
             .gesture(
                 DragGesture(minimumDistance: 0)
+                    .updating(pressState) { _, isPressed, _ in
+                        isPressed = true
+                    }
                     .onChanged { gesture in
                         isFocused = true
                         guard width > 0 else { return }
