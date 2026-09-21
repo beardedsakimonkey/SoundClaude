@@ -143,6 +143,7 @@ private struct RecentSearchButton: View {
     let onSearch: () -> Void
     let onRemove: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
     @State private var isHoveringRemove = false
 
@@ -172,6 +173,7 @@ private struct RecentSearchButton: View {
             .overlay {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering)
                     .allowsHitTesting(false)
             }
             .help("Search again: \(query)")
@@ -182,6 +184,7 @@ private struct RecentSearchButton: View {
                 Image(systemName: "xmark")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(isHoveringRemove ? Color.red : Color.secondary)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHoveringRemove)
                     .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
             }
@@ -190,6 +193,7 @@ private struct RecentSearchButton: View {
             .accessibilityLabel("Remove recent search: \(query)")
             .onContentHover { isHoveringRemove = $0 }
             .opacity(isHovering ? 1 : 0)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering)
             .allowsHitTesting(isHovering)
             .accessibilityHidden(!isHovering)
             .padding(.trailing, 8)
