@@ -3,6 +3,7 @@ import SwiftUI
 struct SearchResultsView: View {
     let query: String
     var isGenreSearch = false
+    var contentPadding: CGFloat = 20
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
@@ -13,7 +14,7 @@ struct SearchResultsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(isGenreSearch ? "Tracks in “\(query)”" : "Search results for “\(query)”")
+            Text(isGenreSearch ? "Tracks in “\(query)”" : "Results for “\(query)”")
                 .font(.title2.weight(.semibold))
                 .textSelection(.enabled)
             if !isGenreSearch {
@@ -26,30 +27,28 @@ struct SearchResultsView: View {
                             visitedCategories.insert($0)
                             category = $0
                         }
-                    )
+                    ),
+                    optionSystemImage: { $0.systemImage }
                 )
             }
 
-            // Keep visited lists mounted to retain results, pagination, and scroll position.
-            ZStack {
+            // Keep visited lists mounted to retain results and pagination.
+            ZStack(alignment: .topLeading) {
                 ForEach(SearchCategory.allCases, id: \.self) { resultCategory in
                     if visitedCategories.contains(resultCategory) {
                         SearchResultList(
                             query: query, isGenreSearch: isGenreSearch,
-                            category: resultCategory, model: model,
+                            category: resultCategory, isActive: category == resultCategory,
+                            model: model,
                             onSelectTrack: onSelectTrack,
                             onSelectPlaylist: onSelectPlaylist,
                             onSelectArtist: onSelectArtist
                         )
-                        .opacity(category == resultCategory ? 1 : 0)
-                        .allowsHitTesting(category == resultCategory)
-                        .disabled(category != resultCategory)
-                        .accessibilityHidden(category != resultCategory)
                     }
                 }
             }
         }
-        .padding(20)
+        .padding(contentPadding)
         .navigationTitle("Search")
     }
 }
@@ -58,12 +57,21 @@ private enum SearchCategory: String, CaseIterable {
     case tracks = "Tracks"
     case playlists = "Playlists"
     case users = "Users"
+
+    var systemImage: String {
+        switch self {
+        case .tracks: "music.note"
+        case .playlists: "music.note.list"
+        case .users: "person"
+        }
+    }
 }
 
 private struct SearchResultList: View {
     let query: String
     let isGenreSearch: Bool
     let category: SearchCategory
+    let isActive: Bool
     let model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
@@ -82,81 +90,83 @@ private struct SearchResultList: View {
     private var isEmpty: Bool { tracks.isEmpty && playlists.isEmpty && users.isEmpty }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 20) {
-                switch category {
-                case .tracks:
-                    ForEach(tracks) { track in
-                        TrackCardView(
-                            track: track, model: model,
-                            onSelectTrack: onSelectTrack,
-                            onSelectArtist: onSelectArtist,
-                            onPlayTrack: { track in
-                                await model.play(track, queue: TrackQueue(
-                                    source: isGenreSearch ? .genre(query) : .search(query),
-                                    tracks: tracks, nextPageURL: nextPageURL
-                                ))
-                            }
-                        )
-                    }
-                case .playlists:
-                    ForEach(playlists) { playlist in
-                        PlaylistCardView(
-                            playlist: playlist, model: model,
-                            playlists: model.playlists,
-                            onSelectPlaylist: onSelectPlaylist,
-                            onSelectTrack: onSelectTrack,
-                            onSelectArtist: onSelectArtist
-                        )
-                    }
-                case .users:
-                    ForEach(users, id: \.permalinkURL) { user in
-                        Button { onSelectArtist(user) } label: {
-                            HStack(spacing: 16) {
-                                TrackArtworkView(
-                                    artworkURL: user.avatarURL,
-                                    loader: model.artworkLoader, size: 64
-                                )
-                                .clipShape(Circle())
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(user.username).font(.headline)
-                                    if let count = user.followersCount {
-                                        Text("\(count.formatted()) \(count == 1 ? "follower" : "followers")")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
+        Group {
+            if isActive {
+                LazyVStack(alignment: .leading, spacing: 20) {
+                    switch category {
+                    case .tracks:
+                        ForEach(tracks) { track in
+                            TrackCardView(
+                                track: track, model: model,
+                                onSelectTrack: onSelectTrack,
+                                onSelectArtist: onSelectArtist,
+                                onPlayTrack: { track in
+                                    await model.play(track, queue: TrackQueue(
+                                        source: isGenreSearch ? .genre(query) : .search(query),
+                                        tracks: tracks, nextPageURL: nextPageURL
+                                    ))
                                 }
-                                Spacer(minLength: 0)
+                            )
+                        }
+                    case .playlists:
+                        ForEach(playlists) { playlist in
+                            PlaylistCardView(
+                                playlist: playlist, model: model,
+                                playlists: model.playlists,
+                                onSelectPlaylist: onSelectPlaylist,
+                                onSelectTrack: onSelectTrack,
+                                onSelectArtist: onSelectArtist
+                            )
+                        }
+                    case .users:
+                        ForEach(users, id: \.permalinkURL) { user in
+                            Button { onSelectArtist(user) } label: {
+                                HStack(spacing: 16) {
+                                    TrackArtworkView(
+                                        artworkURL: user.avatarURL,
+                                        loader: model.artworkLoader, size: 64
+                                    )
+                                    .clipShape(Circle())
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(user.username).font(.headline)
+                                        if let count = user.followersCount {
+                                            Text("\(count.formatted()) \(count == 1 ? "follower" : "followers")")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer(minLength: 0)
+                                }
+                                .contentShape(Rectangle())
                             }
-                            .contentShape(Rectangle())
+                            .buttonStyle(.plain)
+                            .help("View profile: \(user.username)")
                         }
-                        .buttonStyle(.plain)
-                        .help("View profile: \(user.username)")
                     }
-                }
 
-                Group {
-                    if isLoading || (!hasLoaded && errorMessage == nil) {
-                        ProgressView()
-                            .accessibilityLabel("Searching \(category.rawValue.lowercased())")
-                    } else if let errorMessage {
-                        VStack(spacing: 8) {
-                            Text(errorMessage).foregroundStyle(.secondary)
-                            Button("Try Again") { requestID = UUID() }
+                    Group {
+                        if isLoading || (!hasLoaded && errorMessage == nil) {
+                            ProgressView()
+                                .accessibilityLabel("Searching \(category.rawValue.lowercased())")
+                        } else if let errorMessage {
+                            VStack(spacing: 8) {
+                                Text(errorMessage).foregroundStyle(.secondary)
+                                Button("Try Again") { requestID = UUID() }
+                            }
+                        } else if nextPageURL != nil {
+                            Button("Load More") { requestID = UUID() }
+                        } else if isEmpty {
+                            ContentUnavailableView(
+                                "No \(category.rawValue.lowercased()) found",
+                                systemImage: "magnifyingglass",
+                                description: Text(isGenreSearch ? "Try another genre or search." : "Try another search or result type.")
+                            )
                         }
-                    } else if nextPageURL != nil {
-                        Button("Load More") { requestID = UUID() }
-                    } else if isEmpty {
-                        ContentUnavailableView(
-                            "No \(category.rawValue.lowercased()) found",
-                            systemImage: "magnifyingglass",
-                            description: Text(isGenreSearch ? "Try another genre or search." : "Try another search or result type.")
-                        )
                     }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+                .padding(.bottom, 20)
             }
-            .padding(.bottom, 20)
         }
         .task(id: requestID) { await loadPage() }
     }

@@ -56,6 +56,7 @@ test-focus:
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/App/RecentSearchStore.swift \
 		SoundClaude/SoundClaude/App/SearchView.swift \
+		SoundClaude/SoundClaude/App/ContentHover.swift \
 		SoundClaude/SoundClaude/Likes/SearchOutsideClickView.swift \
 		tests/SearchFocusTests.swift
 	/tmp/soundclaude-tests/search-focus

@@ -76,7 +76,7 @@ private struct SearchFocusTests {
                     )
                     let searchHost = NSHostingView(rootView: SearchView(
                         user: user, searchText: .constant(""), focusRequest: UUID(),
-                        onSearch: { _ in }
+                        results: { Text("Results for \($0)") }
                     ))
                     window.contentView = searchHost
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -87,7 +87,7 @@ private struct SearchFocusTests {
                             precondition(searchField.currentEditor() == nil, "Outside click must release search focus")
                             searchHost.rootView = SearchView(
                                 user: user, searchText: .constant(""), focusRequest: UUID(),
-                                onSearch: { _ in }
+                                results: { Text("Results for \($0)") }
                             )
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                 precondition(searchField.currentEditor() != nil, "Reselecting Search must restore input focus")

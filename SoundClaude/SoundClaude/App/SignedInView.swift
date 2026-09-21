@@ -248,26 +248,17 @@ struct SignedInView: View {
                 .navigationDestination(for: Route.self) { route in
                     Group {
                         switch route {
-                        case let .search(query):
-                            SearchResultsView(
-                                query: query,
-                                model: model,
-                                onSelectTrack: showTrack,
-                                onSelectPlaylist: showPlaylist,
-                                onSelectArtist: showArtist
-                            )
-                            .id(query)
-                            .navigationBarBackButtonHidden(true)
-                            .toolbar { navigationToolbar }
                         case let .genre(genre):
-                            SearchResultsView(
-                                query: genre,
-                                isGenreSearch: true,
-                                model: model,
-                                onSelectTrack: showTrack,
-                                onSelectPlaylist: showPlaylist,
-                                onSelectArtist: showArtist
-                            )
+                            ScrollView {
+                                SearchResultsView(
+                                    query: genre,
+                                    isGenreSearch: true,
+                                    model: model,
+                                    onSelectTrack: showTrack,
+                                    onSelectPlaylist: showPlaylist,
+                                    onSelectArtist: showArtist
+                                )
+                            }
                             .id(route)
                             .navigationBarBackButtonHidden(true)
                             .toolbar { navigationToolbar }
@@ -375,9 +366,17 @@ struct SignedInView: View {
             SearchView(
                 user: user,
                 searchText: $searchText,
-                focusRequest: searchFocusRequest,
-                onSearch: showSearch
-            )
+                focusRequest: searchFocusRequest
+            ) { query in
+                SearchResultsView(
+                    query: query,
+                    contentPadding: 0,
+                    model: model,
+                    onSelectTrack: showTrack,
+                    onSelectPlaylist: showPlaylist,
+                    onSelectArtist: showArtist
+                )
+            }
         case .history:
             HistoryView(
                 model: model,
@@ -429,13 +428,6 @@ struct SignedInView: View {
             .help("Go forward")
         }
         .labelStyle(.iconOnly)
-    }
-
-    private func showSearch(_ text: String) {
-        let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return }
-        forwardPath.removeAll()
-        path.append(.search(query))
     }
 
     private func showGenreSearch(_ genre: String) {
@@ -558,7 +550,6 @@ private struct QueueBlurModifier: AnimatableModifier {
 }
 
 private enum Route: Hashable {
-    case search(String)
     case genre(String)
     case playlist(SoundCloudPlaylist)
     case station(String, seedTrack: SoundCloudTrack? = nil, seedArtistName: String? = nil)
