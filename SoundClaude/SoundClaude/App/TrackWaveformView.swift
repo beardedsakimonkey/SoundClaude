@@ -22,6 +22,7 @@ struct TrackWaveformView: View {
     let invertsBarsOnTrackChange: Bool
     let collapsesBarsWhenPaused: Bool
     let keepsBarsVisible: Bool
+    let commentsAppearanceDelay: Duration
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
 
     private let playback: PlaybackController
@@ -35,6 +36,7 @@ struct TrackWaveformView: View {
     @State private var accentArtworkURL: URL?
     @State private var hoverFraction: Double = 0
     @State private var isHovering = false
+    @State private var areCommentsReady = false
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -51,6 +53,7 @@ struct TrackWaveformView: View {
         collapsesBarsWhenPaused: Bool? = nil,
         keepsBarsVisible: Bool = false,
         initialExpandedWaveform: SoundCloudWaveform? = nil,
+        commentsAppearanceDelay: Duration = .zero,
         onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
     ) {
         self.track = track
@@ -61,6 +64,7 @@ struct TrackWaveformView: View {
         self.invertsBarsOnTrackChange = invertsBarsOnTrackChange
         self.collapsesBarsWhenPaused = collapsesBarsWhenPaused ?? (layout == .detail)
         self.keepsBarsVisible = keepsBarsVisible
+        self.commentsAppearanceDelay = commentsAppearanceDelay
         _initialExpandedWaveform = State(initialValue: initialExpandedWaveform)
         self.onPlayTrack = onPlayTrack
         playback = model.playback
@@ -106,6 +110,23 @@ struct TrackWaveformView: View {
         }
         .task(id: [track?.urn ?? "", track?.waveformURL?.absoluteString ?? ""]) {
             await load()
+        }
+        .task(id: track != nil) {
+            guard track != nil else {
+                areCommentsReady = false
+                return
+            }
+            guard !areCommentsReady else { return }
+            // Defer the comment subtree and its work during the initial bar animation.
+            if !reduceMotion, commentsAppearanceDelay > .zero {
+                do {
+                    try await Task.sleep(for: commentsAppearanceDelay)
+                } catch {
+                    return
+                }
+            }
+            guard !Task.isCancelled else { return }
+            areCommentsReady = true
         }
         .task {
             // Present the source view's bars before animating to the station's state.
@@ -301,7 +322,9 @@ struct TrackWaveformView: View {
                         : "Click to play from this position."
                 )
                 .overlay(alignment: .bottom) {
-                    if layout == .detail, let track {
+                    if layout == .detail,
+                       areCommentsReady || commentsAppearanceDelay == .zero || reduceMotion,
+                       let track {
                         WaveformCommentsView(
                             track: track,
                             model: model,

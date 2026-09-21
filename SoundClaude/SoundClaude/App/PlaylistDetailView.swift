@@ -232,7 +232,8 @@ struct PlaylistDetailView: View {
                     model: model,
                     invertsBarsOnTrackChange: true,
                     collapsesBarsWhenPaused: true,
-                    keepsBarsVisible: true
+                    keepsBarsVisible: true,
+                    commentsAppearanceDelay: .milliseconds(700)
                 )
                 .offset(y: -2)
             }
