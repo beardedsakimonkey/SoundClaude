@@ -202,16 +202,6 @@ struct PlaylistDetailView: View {
                 .font(.title3)
                 .foregroundStyle(.secondary)
 
-                NowPlayingTrackRow(
-                    track: currentPlaylistTrack,
-                    isPlaying: model.playback.isPlaying,
-                    isLoading: model.playback.isLoading,
-                    analyzer: model.analyzer,
-                    onSelectTrack: onSelectTrack,
-                    onSelectArtist: onSelectArtist,
-                    appearanceDelay: .milliseconds(700)
-                )
-
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(spacing: 12) {
                         playButton
@@ -224,6 +214,17 @@ struct PlaylistDetailView: View {
                     }
                 }
                 .padding(.top, 8)
+
+                NowPlayingTrackRow(
+                    track: currentPlaylistTrack,
+                    isPlaying: model.playback.isPlaying,
+                    isLoading: model.playback.isLoading,
+                    analyzer: model.analyzer,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist,
+                    appearanceDelay: .milliseconds(700)
+                )
+                .offset(y: 8)
 
                 Spacer(minLength: 6)
                 TrackWaveformView(

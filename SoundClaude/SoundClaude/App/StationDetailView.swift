@@ -158,15 +158,6 @@ struct StationDetailView: View {
                         }
                         stationTitle
                     }
-                    NowPlayingTrackRow(
-                        track: currentStationTrack,
-                        isPlaying: model.playback.isPlaying,
-                        isLoading: model.playback.isLoading,
-                        analyzer: model.analyzer,
-                        onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist,
-                        appearanceDelay: .milliseconds(700)
-                    )
                 }
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: hasAppeared)
                 .onAppear { hasAppeared = true }
@@ -174,6 +165,16 @@ struct StationDetailView: View {
                 playbackControls
                     .padding(.top, 8)
                     .modifier(FadeInOnAppear())
+                NowPlayingTrackRow(
+                    track: currentStationTrack,
+                    isPlaying: model.playback.isPlaying,
+                    isLoading: model.playback.isLoading,
+                    analyzer: model.analyzer,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist,
+                    appearanceDelay: .milliseconds(700)
+                )
+                .offset(y: 8)
                 Spacer(minLength: 6)
                 TrackWaveformView(
                     track: currentStationTrack, model: model,
