@@ -53,40 +53,14 @@ struct SearchView<Results: View>: View {
             Text("Search")
                 .font(.largeTitle.weight(.semibold))
 
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                TextField("Search tracks, users, and playlists", text: $searchText)
-                    .textFieldStyle(.plain)
-                    .focused($isSearchFocused)
-                    .onSubmit { search(searchText) }
-                    .onExitCommand { isSearchFocused = false }
-                    .accessibilityLabel("Search SoundCloud")
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                        isSearchFocused = true
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
-                    .transition(.scale(scale: 0.8).combined(with: .opacity))
-                }
-            }
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: searchText.isEmpty)
-            .padding(12)
-            .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
-            .contentShape(Rectangle())
-            .simultaneousGesture(TapGesture().onEnded {
-                isSearchFocused = true
-            })
-            .background {
-                SearchOutsideClickView(isFocused: isSearchFocused) {
-                    isSearchFocused = false
-                }
-            }
+            SearchTextField(
+                placeholder: "Search tracks, users, and playlists",
+                text: $searchText,
+                isFocused: $isSearchFocused,
+                accessibilityLabel: "Search SoundCloud",
+                onSubmit: { search(searchText) },
+                onClear: { isSearchFocused = true }
+            )
             .frame(maxWidth: 400)
             .frame(maxWidth: .infinity, alignment: .center)
 

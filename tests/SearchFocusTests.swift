@@ -7,14 +7,14 @@ private struct FilterFixture: View {
 
     var body: some View {
         VStack {
-            TextField("Filter", text: $text)
-                .textFieldStyle(.plain)
-                .focused($focused)
-                .modifier(PreventAutomaticSearchFocus())
-                .padding(10)
-                .background {
-                    SearchOutsideClickView(isFocused: focused) { focused = false }
-                }
+            SearchTextField(
+                placeholder: "Filter",
+                text: $text,
+                isFocused: $focused,
+                accessibilityLabel: "Search liked tracks",
+                style: .compact,
+                preventsAutomaticFocus: true
+            )
             Color.gray.frame(height: 200)
         }
         .padding()

@@ -85,45 +85,14 @@ struct LikesView: View {
     }
 
     private var searchBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField("Filter", text: $searchText)
-                .textFieldStyle(.plain)
-                .focused($isSearchFocused)
-                .modifier(PreventAutomaticSearchFocus())
-                .onExitCommand {
-                    if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        searchText = ""
-                    }
-                    isSearchFocused = false
-                }
-                .accessibilityLabel("Search liked tracks")
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
-                .help("Clear search")
-            }
-        }
-        .padding(10)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
-        .contentShape(Rectangle())
-        .simultaneousGesture(TapGesture().onEnded {
-            isSearchFocused = true
-        })
-        .background {
-            SearchOutsideClickView(isFocused: isSearchFocused) {
-                if isSearchFocused {
-                    isSearchFocused = false
-                }
-            }
-        }
+        SearchTextField(
+            placeholder: "Filter",
+            text: $searchText,
+            isFocused: $isSearchFocused,
+            accessibilityLabel: "Search liked tracks",
+            style: .compact,
+            preventsAutomaticFocus: true
+        )
     }
 
     private var searchQuery: String {
