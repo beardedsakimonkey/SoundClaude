@@ -330,6 +330,7 @@ struct TrackWaveformView: View {
                         )
                         .id(track.urn)
                         .frame(height: layout.reflectionHeight)
+                        .offset(y: -6)
                     }
                 }
             }
@@ -810,7 +811,7 @@ private struct WaveformCommentMarkersContent: View {
                         .modifier(FadeInOnAppear())
                         .scaleEffect(showsComments || reduceMotion ? 1 : 0.6)
                         .animation(
-                            reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.45),
+                            reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15),
                             value: showsComments
                         )
                         .position(x: position(for: comment, width: width), y: proxy.size.height / 2)
@@ -834,8 +835,8 @@ private struct WaveformCommentMarkersContent: View {
                     hoveredID = nil
                 }
             }
-            .animation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.45), value: interactionID)
-            .animation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.45), value: playbackID)
+            .animation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15), value: interactionID)
+            .animation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15), value: playbackID)
         }
         .opacity(showsComments ? 1 : 0)
         .allowsHitTesting(showsComments)
@@ -863,7 +864,7 @@ private struct WaveformCommentMarkersContent: View {
     ) -> some View {
         let x = position(for: comment, width: width)
         let textOnLeft = x > width / 2
-        let textWidth = min(280, max(0, (textOnLeft ? x : width - x) + 18))
+        let textWidth = min(280, max(0, (textOnLeft ? x : width - x) + 16))
         return Button {
             guard duration > 0 else { return }
             seekRequest = seconds(for: comment) / duration
@@ -871,7 +872,7 @@ private struct WaveformCommentMarkersContent: View {
             TrackArtworkView(
                 artworkURL: comment.user?.avatarURL,
                 loader: model.artworkLoader,
-                size: 36,
+                size: 32,
                 showsBorder: false,
                 animatesChanges: true,
                 showsPlaceholderIcon: false
@@ -880,9 +881,9 @@ private struct WaveformCommentMarkersContent: View {
             .overlay { Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1) }
             .overlay { Circle().fill(.black.opacity(isActive ? 0 : 0.5)) }
             .shadow(color: .black.opacity(isActive ? 0.4 : 0), radius: 5, y: 2)
-            // Nearby avatars grow from 16 to 30 points; only the active one reaches 36.
-            .scaleEffect(isActive ? 1 : (16 + 14 * proximity) / 36)
-            .frame(width: 36, height: 36)
+            // Nearby avatars grow from 16 to 30 points; the active one reaches 32.
+            .scaleEffect((isActive ? 32 : 16 + 14 * proximity) / 32)
+            .frame(width: 32, height: 32)
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -903,7 +904,7 @@ private struct WaveformCommentMarkersContent: View {
                             .strokeBorder(.primary.opacity(0.2), lineWidth: 1)
                     }
                     .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
-                    .offset(y: 42)
+                    .offset(y: 38)
                     .transition(.opacity.combined(with: .scale(
                         scale: 0.85, anchor: textOnLeft ? .topTrailing : .topLeading
                     )))
@@ -922,7 +923,7 @@ private struct WaveformCommentMarkersContent: View {
 
     private func position(for comment: SoundCloudComment, width: CGFloat) -> CGFloat {
         guard duration > 0 else { return 0 }
-        let inset = min(18, width / 2)
+        let inset = min(16, width / 2)
         return min(max(CGFloat(seconds(for: comment) / duration) * width, inset), width - inset)
     }
 }
