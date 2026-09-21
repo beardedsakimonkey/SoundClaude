@@ -150,17 +150,11 @@ struct StationDetailView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     VStack(alignment: .leading, spacing: 6) {
                         if seedTrack == nil || reduceMotion || hasAppeared {
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Label(stationType, systemImage: "dot.radiowaves.left.and.right")
-                                    .labelStyle(.titleAndIcon)
-                                RelativeTimestampView(
-                                    timestamp: station?.lastUpdated,
-                                    accessibilityPrefix: "Last updated", prefix: "Updated"
-                                )
-                            }
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                            .transition(.opacity)
+                            Label(stationType, systemImage: "dot.radiowaves.left.and.right")
+                                .labelStyle(.titleAndIcon)
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .transition(.opacity)
                         }
                         stationTitle
                     }
