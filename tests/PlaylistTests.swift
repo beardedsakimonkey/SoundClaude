@@ -93,6 +93,32 @@ struct PlaylistTests {
             return (200, "{\"collection\":[]}")
         }
         _ = try await client.likedPlaylists(accessToken: "test-token", pageURL: likedPage.nextURL)
+        let likedArtistURN = "soundcloud:users:1"
+        let artistLikesNextURL = URL(string: "https://api.soundcloud.com/users/\(likedArtistURN)/likes/playlists?cursor=next")!
+        PlaylistURLProtocol.respond { request in
+            precondition(request.httpMethod == "GET")
+            precondition(request.url?.path == "/users/\(likedArtistURN)/likes/playlists")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            precondition(query.contains(URLQueryItem(name: "limit", value: "25")))
+            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "true")))
+            precondition(!query.contains { $0.name == "access" || $0.name == "show_tracks" })
+            return (200, """
+                {"collection":[\(playlist)],"next_href":"\(artistLikesNextURL.absoluteString)"}
+                """)
+        }
+        let artistLikes = try await client.artistPlaylistLikes(urn: likedArtistURN, accessToken: "test-token")
+        precondition(artistLikes.playlists == page.playlists)
+        precondition(artistLikes.nextURL == artistLikesNextURL)
+        PlaylistURLProtocol.respond { request in
+            precondition(request.url == artistLikesNextURL)
+            return (200, #"{"collection":[],"next_href":null}"#)
+        }
+        let artistLikesLastPage = try await client.artistPlaylistLikes(
+            urn: likedArtistURN, accessToken: "test-token", pageURL: artistLikes.nextURL
+        )
+        precondition(artistLikesLastPage.playlists.isEmpty && artistLikesLastPage.nextURL == nil)
+
         for isLiked in [true, false] {
             PlaylistURLProtocol.respond { request in
                 precondition(request.url?.path == "/likes/playlists/soundcloud:playlists:42")

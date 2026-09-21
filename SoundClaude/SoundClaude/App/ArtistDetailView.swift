@@ -120,6 +120,12 @@ struct ArtistDetailView: View {
     @State private var hasLoadedRepostedPlaylists = false
     @State private var isLoadingRepostedPlaylists = false
     @State private var repostedPlaylistsErrorMessage: String?
+    @State private var likedPlaylists: [SoundCloudPlaylist] = []
+    @State private var likedPlaylistsNextPageURL: URL?
+    @State private var loadedLikedPlaylistsPageURLs: Set<URL> = []
+    @State private var hasLoadedLikedPlaylists = false
+    @State private var isLoadingLikedPlaylists = false
+    @State private var likedPlaylistsErrorMessage: String?
     @State private var likes: [SoundCloudTrack] = []
     @State private var likesNextPageURL: URL?
     @State private var loadedLikesPageURLs: Set<URL> = []
@@ -866,34 +872,11 @@ struct ArtistDetailView: View {
     private var repostList: some View {
         let items = sortedReposts
         return LazyVStack(alignment: .leading, spacing: 16) {
-            ForEach(items, id: \.urn) { item in
-                switch item {
-                case let .track(track):
-                    TrackCardView(
-                        track: track,
-                        model: model,
-                        onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist,
-                        onPlayTrack: { selected in
-                            await model.play(selected, queue: TrackQueue(
-                                source: .artistReposts(details?.user.urn ?? artist.urn ?? ""),
-                                tracks: items.compactMap(\.track),
-                                nextPageURL: repostsNextPageURL
-                            ))
-                        }
-                    )
-                case let .playlist(playlist):
-                    PlaylistCardView(
-                        playlist: playlist,
-                        model: model,
-                        playlists: model.playlists,
-                        onSelectPlaylist: onSelectPlaylist,
-                        onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist
-                    )
-                    .modifier(FadeInOnAppear())
-                }
-            }
+            contentCards(
+                items,
+                source: .artistReposts(details?.user.urn ?? artist.urn ?? ""),
+                nextPageURL: repostsNextPageURL
+            )
             if let repostsErrorMessage {
                 Text(repostsErrorMessage).foregroundStyle(.secondary)
                 Button("Try Again") { Task { await loadReposts() } }
@@ -939,35 +922,69 @@ struct ArtistDetailView: View {
         }
     }
 
-    private var likesList: some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
-            ForEach(likes) { track in
-                TrackListRow(
+    private func contentCards(
+        _ items: [SoundCloudFeedContent],
+        source: TrackQueue.Source,
+        nextPageURL: URL?
+    ) -> some View {
+        ForEach(items, id: \.urn) { item in
+            switch item {
+            case let .track(track):
+                TrackCardView(
                     track: track,
-                    playback: model.playback,
-                    analyzer: model.analyzer,
-                    artworkLoader: model.artworkLoader,
-                    likes: model.likes,
-                    onAddToQueue: model.addToQueue,
+                    model: model,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
                     onPlayTrack: { selected in
                         await model.play(selected, queue: TrackQueue(
-                            source: .artistLikes(details?.user.urn ?? artist.urn ?? ""),
-                            tracks: likes,
-                            nextPageURL: likesNextPageURL
+                            source: source,
+                            tracks: items.compactMap(\.track),
+                            nextPageURL: nextPageURL
                         ))
                     }
                 )
+            case let .playlist(playlist):
+                PlaylistCardView(
+                    playlist: playlist,
+                    model: model,
+                    playlists: model.playlists,
+                    onSelectPlaylist: onSelectPlaylist,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist
+                )
                 .modifier(FadeInOnAppear())
             }
+        }
+    }
+
+    private var sortedLikes: [SoundCloudFeedContent] {
+        SoundCloudFeedContent.sortedByCreationDate(
+            likes.map(SoundCloudFeedContent.track)
+                + likedPlaylists.map(SoundCloudFeedContent.playlist)
+        )
+    }
+
+    private var likesList: some View {
+        let items = sortedLikes
+        return LazyVStack(alignment: .leading, spacing: 16) {
+            contentCards(
+                items,
+                source: .artistLikes(details?.user.urn ?? artist.urn ?? ""),
+                nextPageURL: likesNextPageURL
+            )
             if let likesErrorMessage {
                 Text(likesErrorMessage).foregroundStyle(.secondary)
                 Button("Try Again") { Task { await loadLikes() } }
                     .disabled(isLoadingLikes)
             }
-            if isLoadingLikes
-                || (likesNextPageURL != nil && likesErrorMessage == nil) {
+            if let likedPlaylistsErrorMessage {
+                Text(likedPlaylistsErrorMessage).foregroundStyle(.secondary)
+                Button("Try Again") { Task { await loadLikedPlaylists() } }
+                    .disabled(isLoadingLikedPlaylists)
+            }
+            if isLoadingLikes || isLoadingLikedPlaylists
+                || (likesNextPageURL != nil && likesErrorMessage == nil)
+                || (likedPlaylistsNextPageURL != nil && likedPlaylistsErrorMessage == nil) {
                 ProgressView()
                     .accessibilityLabel("Loading likes")
                     .frame(maxWidth: .infinity)
@@ -976,18 +993,31 @@ struct ArtistDetailView: View {
                               likesErrorMessage == nil else { return }
                         await loadLikes()
                     }
-            } else if hasLoadedLikes, likes.isEmpty,
-                      likesErrorMessage == nil {
+                    .task(id: likedPlaylistsNextPageURL) {
+                        guard likedPlaylistsNextPageURL != nil,
+                              likedPlaylistsErrorMessage == nil else { return }
+                        await loadLikedPlaylists()
+                    }
+            }
+            if hasLoadedLikes, hasLoadedLikedPlaylists,
+               likes.isEmpty, likedPlaylists.isEmpty,
+               !isLoadingLikes, !isLoadingLikedPlaylists,
+               likesNextPageURL == nil, likedPlaylistsNextPageURL == nil,
+               likesErrorMessage == nil, likedPlaylistsErrorMessage == nil {
                 ContentUnavailableView(
-                    "No playable likes",
+                    "No likes",
                     systemImage: "heart",
-                    description: Text("This artist has no liked tracks available for playback here.")
+                    description: Text("This artist has no liked tracks or playlists available here.")
                 )
             }
         }
-        .task {
+        .task(id: details?.user.urn) {
             guard !hasLoadedLikes else { return }
             await loadLikes()
+        }
+        .task(id: details?.user.urn) {
+            guard !hasLoadedLikedPlaylists else { return }
+            await loadLikedPlaylists()
         }
     }
 
@@ -1188,6 +1218,33 @@ struct ArtistDetailView: View {
         } catch {
             guard !Task.isCancelled else { return }
             repostedPlaylistsErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func loadLikedPlaylists() async {
+        guard !isLoadingLikedPlaylists, let details,
+              !hasLoadedLikedPlaylists || likedPlaylistsNextPageURL != nil else { return }
+        isLoadingLikedPlaylists = true
+        likedPlaylistsErrorMessage = nil
+        defer { isLoadingLikedPlaylists = false }
+        do {
+            let pageURL = likedPlaylistsNextPageURL
+            let page = try await model.artistPlaylistLikes(for: details.user, pageURL: pageURL)
+            try Task.checkCancellation()
+            if let nextURL = page.nextURL,
+               nextURL == pageURL || loadedLikedPlaylistsPageURLs.contains(nextURL) {
+                throw SoundCloudError.invalidData
+            }
+            var knownURNs = Set(likedPlaylists.map(\.urn))
+            likedPlaylists.append(contentsOf: page.playlists.filter {
+                knownURNs.insert($0.urn).inserted
+            })
+            if let pageURL { loadedLikedPlaylistsPageURLs.insert(pageURL) }
+            likedPlaylistsNextPageURL = page.nextURL
+            hasLoadedLikedPlaylists = true
+        } catch {
+            guard !Task.isCancelled else { return }
+            likedPlaylistsErrorMessage = error.localizedDescription
         }
     }
 
