@@ -211,6 +211,11 @@ struct LikesView: View {
                                 onSelectArtist: onSelectArtist,
                                 onPlayTrack: onPlayTrack
                             )
+                            .opacity(likes.isLiked(track) ? 1 : 0.5)
+                            .animation(
+                                reduceMotion ? nil : .easeInOut(duration: 0.2),
+                                value: likes.isLiked(track)
+                            )
                             .transition(
                                 reduceMotion ? .identity : .scale(scale: 0.9).combined(with: .opacity)
                             )
@@ -229,6 +234,11 @@ struct LikesView: View {
                             onSelectTrack: onSelectTrack,
                             onSelectArtist: onSelectArtist,
                             onPlayTrack: onPlayTrack
+                        )
+                        .opacity(likes.isLiked(track) ? 1 : 0.5)
+                        .animation(
+                            reduceMotion ? nil : .easeInOut(duration: 0.2),
+                            value: likes.isLiked(track)
                         )
                         .transition(
                             reduceMotion ? .identity : .move(edge: .top).combined(with: .opacity)
