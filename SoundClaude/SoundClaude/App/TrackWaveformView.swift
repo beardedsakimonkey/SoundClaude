@@ -641,9 +641,7 @@ private struct WaveformCommentsView: View {
         model.playback.currentTrack?.urn == track.urn && model.playback.isPlaybackActive
     }
 
-    private var activeID: String? {
-        if contentHoverEnabled, let hoveredID { return hoveredID }
-        if let focusedID { return focusedID }
+    private var playbackCommentID: String? {
         let playback = model.playback
         guard playback.currentTrack?.urn == track.urn, playback.isPlaying else { return nil }
         return comments.filter { abs(seconds(for: $0) - playback.currentTime) <= 2 }
@@ -653,21 +651,42 @@ private struct WaveformCommentsView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let activeID = activeID
+            let playbackID = playbackCommentID
+            let interactionID = (contentHoverEnabled ? hoveredID : nil) ?? focusedID
             let width = proxy.size.width
             ZStack(alignment: .topLeading) {
-                ForEach(visibleComments(width: width, activeID: activeID)) { comment in
-                    marker(comment, width: width, isActive: comment.id == activeID)
+                ForEach(visibleComments) { comment in
+                    marker(comment, width: width, isActive: comment.id == interactionID || comment.id == playbackID)
                         .scaleEffect(showsComments || reduceMotion ? 1 : 0.6)
                         .animation(
                             reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.45),
                             value: showsComments
                         )
                         .position(x: position(for: comment, width: width), y: proxy.size.height / 2)
-                        .zIndex(comment.id == activeID ? 1 : 0)
+                        .zIndex(comment.id == interactionID ? 2 : comment.id == playbackID ? 1 : 0)
                 }
             }
-            .animation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.45), value: activeID)
+            .frame(width: width, height: proxy.size.height, alignment: .topLeading)
+            .contentShape(Rectangle())
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location):
+                    guard contentHoverEnabled else { return }
+                    // Select by distance, independent of the avatars' overlap and
+                    // the active avatar's larger size and higher drawing order.
+                    hoveredID = visibleComments.min {
+                        abs(position(for: $0, width: width) - location.x)
+                            < abs(position(for: $1, width: width) - location.x)
+                    }.flatMap { comment in
+                        abs(position(for: comment, width: width) - location.x) <= 14
+                            ? comment.id : nil
+                    }
+                case .ended:
+                    hoveredID = nil
+                }
+            }
+            .animation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.45), value: interactionID)
+            .animation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.45), value: playbackID)
         }
         .opacity(showsComments ? 1 : 0)
         .allowsHitTesting(showsComments)
@@ -681,9 +700,13 @@ private struct WaveformCommentsView: View {
             }
         }
         .onChange(of: contentHoverEnabled) { _, enabled in
-            if !enabled { hoveredID = nil }
+            if !enabled {
+                hoveredID = nil
+            }
         }
-        .onDisappear { hoveredID = nil }
+        .onDisappear {
+            hoveredID = nil
+        }
     }
 
     private func marker(_ comment: SoundCloudComment, width: CGFloat, isActive: Bool) -> some View {
@@ -709,10 +732,6 @@ private struct WaveformCommentsView: View {
         }
         .buttonStyle(.plain)
         .focused($focusedID, equals: comment.id)
-        .onHover { hovering in
-            if hovering { hoveredID = comment.id }
-            else if hoveredID == comment.id { hoveredID = nil }
-        }
         .overlay(alignment: textOnLeft ? .topTrailing : .topLeading) {
             if isActive, textWidth > 0 {
                 Text(comment.body.replacingOccurrences(of: "\n", with: " "))
@@ -751,18 +770,16 @@ private struct WaveformCommentsView: View {
         return min(max(CGFloat(seconds(for: comment) / duration) * width, inset), width - inset)
     }
 
-    private func visibleComments(width: CGFloat, activeID: String?) -> [SoundCloudComment] {
-        guard duration > 0, width > 0 else { return [] }
-        // Keep dense sections readable and avoid loading hundreds of avatars.
-        // The active comment takes its section's place during playback.
-        var sections: [Int: SoundCloudComment] = [:]
-        for comment in comments where seconds(for: comment) <= duration {
-            let section = Int(position(for: comment, width: width) / 28)
-            if sections[section] == nil || comment.id == activeID {
-                sections[section] = comment
+    private var visibleComments: [SoundCloudComment] {
+        guard duration > 0 else { return [] }
+        // Retain every timed comment, including those covered by another avatar.
+        return comments.filter { seconds(for: $0) <= duration }
+            .sorted {
+                if $0.timestampMilliseconds == $1.timestampMilliseconds {
+                    return $0.id < $1.id
+                }
+                return seconds(for: $0) < seconds(for: $1)
             }
-        }
-        return sections.sorted { $0.key < $1.key }.map(\.value)
     }
 
     private func loadComments() async {
