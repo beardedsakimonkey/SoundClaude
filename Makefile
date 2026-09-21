@@ -18,7 +18,7 @@ build:
 		build
 
 release:
-	$(MAKE) build CONFIGURATION=Release
+	$(MAKE) run CONFIGURATION=Release
 
 run: build
 	open "$(APP)"
