@@ -75,8 +75,6 @@ struct SearchView<Results: View>: View {
                         .accessibilityLabel("Clear search")
                         .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
-                    Button("Search") { search(searchText) }
-                        .disabled(searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: searchText.isEmpty)
                 .padding(12)
