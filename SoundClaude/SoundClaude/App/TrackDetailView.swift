@@ -123,6 +123,7 @@ struct TrackDetailView: View {
             loader: model.artworkLoader,
             fadesToBottom: false
         )
+        .modifier(FadeInOnAppear())
         .frame(height: 600)
         .mask {
             LinearGradient(
