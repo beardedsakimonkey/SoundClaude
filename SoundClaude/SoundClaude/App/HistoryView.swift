@@ -16,13 +16,7 @@ struct HistoryView: View {
         ZStack(alignment: .top) {
             RouteGradientBackdrop()
 
-            if !hasLoaded, errorMessage == nil {
-                ProgressView()
-                    .accessibilityLabel("Loading history")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                historyContent
-            }
+            historyContent
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("History")
@@ -47,7 +41,7 @@ struct HistoryView: View {
 
                 trackList
 
-                if isLoading {
+                if isLoading || (!hasLoaded && errorMessage == nil) {
                     ProgressView()
                         .accessibilityLabel("Loading history")
                         .frame(maxWidth: .infinity)
