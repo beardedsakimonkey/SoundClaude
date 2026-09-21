@@ -78,6 +78,10 @@ struct SearchView<Results: View>: View {
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: searchText.isEmpty)
             .padding(12)
             .background(.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+            .contentShape(Rectangle())
+            .simultaneousGesture(TapGesture().onEnded {
+                isSearchFocused = true
+            })
             .background {
                 SearchOutsideClickView(isFocused: isSearchFocused) {
                     isSearchFocused = false

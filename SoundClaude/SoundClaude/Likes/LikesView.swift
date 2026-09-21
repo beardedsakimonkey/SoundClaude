@@ -113,6 +113,10 @@ struct LikesView: View {
         }
         .padding(10)
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+        .contentShape(Rectangle())
+        .simultaneousGesture(TapGesture().onEnded {
+            isSearchFocused = true
+        })
         .background {
             SearchOutsideClickView(isFocused: isSearchFocused) {
                 if isSearchFocused {
