@@ -255,8 +255,8 @@ private struct SidebarRowStyle: ViewModifier {
         Button(action: onSelect) {
             content
                 .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
                 .contentShape(Rectangle())
         }
             .buttonStyle(.plain)
