@@ -260,6 +260,9 @@ struct SignedInView: View {
                                     onSelectArtist: showArtist
                                 )
                             }
+                            .background(alignment: .top) {
+                                RouteGradientBackdrop()
+                            }
                             .id(route)
                             .navigationBarBackButtonHidden(true)
                             .toolbar { navigationToolbar }
@@ -273,6 +276,9 @@ struct SignedInView: View {
                                     onSelectPlaylist: showPlaylist,
                                     onSelectArtist: showArtist
                                 )
+                            }
+                            .background(alignment: .top) {
+                                RouteGradientBackdrop()
                             }
                             .id(route)
                             .navigationBarBackButtonHidden(true)
