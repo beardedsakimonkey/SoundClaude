@@ -1,8 +1,8 @@
 import SwiftUI
 
 enum TrackLayout: String, CaseIterable {
-    case grid
     case list
+    case grid
 
     var title: String { self == .grid ? "Grid view" : "List view" }
     var symbol: String { self == .grid ? "square.grid.2x2.fill" : "list.bullet" }
