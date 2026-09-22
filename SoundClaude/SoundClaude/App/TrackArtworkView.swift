@@ -357,6 +357,7 @@ struct DetailArtworkView: View {
     var animatesChanges = false
     var showsPlaceholderIcon = true
     var cornerRadius: CGFloat = 6
+    var dragTrack: SoundCloudTrack? = nil
     let onShowArtwork: () -> Void
 
     private var reflectionHeight: CGFloat { size * 0.45 }
@@ -366,7 +367,7 @@ struct DetailArtworkView: View {
 
     var body: some View {
         VStack(spacing: 1) {
-            artworkControl
+            draggableArtworkControl
 
             artworkThumbnail
                 .scaleEffect(x: 1, y: -1)
@@ -391,6 +392,17 @@ struct DetailArtworkView: View {
                 .accessibilityHidden(true)
                 // Reserve space for the visible reflection; let its faint tail overflow.
                 .frame(height: 32, alignment: .top)
+        }
+    }
+
+    @ViewBuilder
+    private var draggableArtworkControl: some View {
+        if let dragTrack {
+            artworkControl
+                .draggable(TrackPlaylistDrag(track: dragTrack))
+                .help(artworkURL != nil ? "View full-size artwork or drag to a playlist" : "Drag to a playlist")
+        } else {
+            artworkControl
         }
     }
 

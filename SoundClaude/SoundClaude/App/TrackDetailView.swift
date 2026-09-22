@@ -156,6 +156,7 @@ struct TrackDetailView: View {
                         animatesChanges: true,
                         showsPlaceholderIcon: false,
                         cornerRadius: 12,
+                        dragTrack: details.track,
                         onShowArtwork: { isShowingArtwork = true }
                     )
 

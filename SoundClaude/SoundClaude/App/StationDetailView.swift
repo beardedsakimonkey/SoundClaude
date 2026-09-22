@@ -41,6 +41,14 @@ struct StationDetailView: View {
     }
     private var artworkTitle: String { currentStationTrack?.title ?? title }
 
+    private var artworkTrack: SoundCloudTrack? {
+        if let currentStationTrack, currentStationTrack.displayArtworkURL != nil {
+            return currentStationTrack
+        }
+        if let seedTrack, seedTrack.displayArtworkURL != nil { return seedTrack }
+        return tracks.first(where: { $0.displayArtworkURL != nil })
+    }
+
     private var initialExpandedWaveform: SoundCloudWaveform? {
         guard currentStationTrack == nil,
               let seedTrack,
@@ -140,6 +148,7 @@ struct StationDetailView: View {
                 artworkURL: artworkURL, title: artworkTitle,
                 loader: model.artworkLoader, size: 250, animatesChanges: true,
                 cornerRadius: 12,
+                dragTrack: artworkTrack,
                 onShowArtwork: { isShowingArtwork = true }
             )
             VStack(alignment: .leading, spacing: 10) {

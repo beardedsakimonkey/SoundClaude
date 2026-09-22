@@ -47,6 +47,12 @@ struct PlaylistDetailView: View {
 
     private var artworkTitle: String { currentPlaylistTrack?.title ?? displayedPlaylist.title }
 
+    private var artworkTrack: SoundCloudTrack? {
+        if let currentPlaylistTrack { return currentPlaylistTrack }
+        guard displayedPlaylist.artworkURL == nil else { return nil }
+        return tracks.first(where: { $0.displayArtworkURL != nil })
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             artworkBackdrop
@@ -235,6 +241,7 @@ struct PlaylistDetailView: View {
             size: artworkSize,
             animatesChanges: true,
             cornerRadius: 12,
+            dragTrack: artworkTrack,
             onShowArtwork: { isShowingArtwork = true }
         )
     }
