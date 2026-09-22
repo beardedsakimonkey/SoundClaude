@@ -125,12 +125,14 @@ private struct SearchResultList: View {
                             )
                         }
                     case .users:
-                        UserGridView(
-                            users: users,
-                            artworkLoader: model.artworkLoader,
-                            showsAvatarGlass: true,
-                            onSelectArtist: onSelectArtist
-                        )
+                        if !users.isEmpty {
+                            UserGridView(
+                                users: users,
+                                artworkLoader: model.artworkLoader,
+                                showsAvatarGlass: true,
+                                onSelectArtist: onSelectArtist
+                            )
+                        }
                     }
 
                     Group {
