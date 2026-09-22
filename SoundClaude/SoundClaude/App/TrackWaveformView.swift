@@ -22,7 +22,6 @@ struct TrackWaveformView: View {
     let invertsBarsOnTrackChange: Bool
     let collapsesBarsWhenPaused: Bool
     let keepsBarsVisible: Bool
-    let commentsAppearanceDelay: Duration
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
 
     private let playback: PlaybackController
@@ -36,7 +35,7 @@ struct TrackWaveformView: View {
     @State private var accentArtworkURL: URL?
     @State private var hoverFraction: Double = 0
     @State private var isHovering = false
-    @State private var commentsReadyTrackURN: String?
+    @State private var commentsReadyAppearance: CommentsAppearance?
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -53,7 +52,6 @@ struct TrackWaveformView: View {
         collapsesBarsWhenPaused: Bool? = nil,
         keepsBarsVisible: Bool = false,
         initialExpandedWaveform: SoundCloudWaveform? = nil,
-        commentsAppearanceDelay: Duration = .zero,
         onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
     ) {
         self.track = track
@@ -64,7 +62,6 @@ struct TrackWaveformView: View {
         self.invertsBarsOnTrackChange = invertsBarsOnTrackChange
         self.collapsesBarsWhenPaused = collapsesBarsWhenPaused ?? (layout == .detail)
         self.keepsBarsVisible = keepsBarsVisible
-        self.commentsAppearanceDelay = commentsAppearanceDelay
         _initialExpandedWaveform = State(initialValue: initialExpandedWaveform)
         self.onPlayTrack = onPlayTrack
         playback = model.playback
@@ -111,19 +108,22 @@ struct TrackWaveformView: View {
         .task(id: [track?.urn ?? "", track?.waveformURL?.absoluteString ?? ""]) {
             await load()
         }
-        .task(id: track?.urn) {
-            commentsReadyTrackURN = nil
-            guard let track else { return }
-            // Defer the comment subtree during appearance and track-change animations.
-            if !reduceMotion, commentsAppearanceDelay > .zero {
+        .task(id: commentsAppearance) {
+            let appearance = commentsAppearance
+            commentsReadyAppearance = nil
+            guard appearance.trackURN != nil,
+                  appearance.hasWaveform,
+                  !appearance.barsAreCollapsed else { return }
+            // Start only when this track's bars can expand, including on first load.
+            if !appearance.reduceMotion {
                 do {
-                    try await Task.sleep(for: commentsAppearanceDelay)
+                    try await Task.sleep(for: .milliseconds(100))
                 } catch {
                     return
                 }
             }
             guard !Task.isCancelled else { return }
-            commentsReadyTrackURN = track.urn
+            commentsReadyAppearance = appearance
         }
         .task {
             // Present the source view's bars before animating to the station's state.
@@ -318,7 +318,7 @@ struct TrackWaveformView: View {
                 )
                 .overlay(alignment: .bottom) {
                     if layout == .detail,
-                       commentsReadyTrackURN == track?.urn || commentsAppearanceDelay == .zero || reduceMotion,
+                       commentsReadyAppearance == commentsAppearance || reduceMotion,
                        let track {
                         WaveformCommentsView(
                             track: track,
@@ -488,6 +488,22 @@ struct TrackWaveformView: View {
         return min(max(displayedCurrentTime / displayedDuration, 0), 1)
     }
 
+    private struct CommentsAppearance: Equatable {
+        let trackURN: String?
+        let hasWaveform: Bool
+        let barsAreCollapsed: Bool
+        let reduceMotion: Bool
+    }
+
+    private var commentsAppearance: CommentsAppearance {
+        CommentsAppearance(
+            trackURN: track?.urn,
+            hasWaveform: waveform != nil && waveformTrackURN == track?.urn,
+            barsAreCollapsed: barsAreCollapsed,
+            reduceMotion: reduceMotion
+        )
+    }
+
     private var barsAreCollapsed: Bool {
         if !reduceMotion, initialExpandedWaveform != nil { return false }
         return track == nil || (keepsBarsVisible && waveform == nil)
@@ -650,18 +666,14 @@ private struct WaveformCommentsView: View {
     @State private var index = WaveformCommentIndex([])
     @State private var playbackID: String?
     @State private var seekRequest: Double?
-    @State private var commentsReady = true
-
-    private var isPlaybackActive: Bool {
-        model.playback.currentTrack?.urn == track.urn && model.playback.isPlaybackActive
-    }
 
     var body: some View {
         WaveformCommentMarkers(
             index: index,
             model: model,
             duration: duration,
-            showsComments: isPlaybackActive && commentsReady,
+            showsComments: model.playback.currentTrack?.urn == track.urn
+                && model.playback.isPlaybackActive,
             playbackID: playbackID,
             seekRequest: $seekRequest
         )
@@ -673,21 +685,6 @@ private struct WaveformCommentsView: View {
             )
         }
         .task { await loadComments() }
-        .task(id: isPlaybackActive) {
-            guard isPlaybackActive else {
-                commentsReady = false
-                return
-            }
-            guard !commentsReady else { return }
-            // Let the waveform expand before comments return after a pause.
-            do {
-                try await Task.sleep(for: .milliseconds(350))
-                try Task.checkCancellation()
-                commentsReady = true
-            } catch {
-                return
-            }
-        }
         .onChange(of: seekRequest) { _, fraction in
             guard let fraction else { return }
             onSeek(fraction)

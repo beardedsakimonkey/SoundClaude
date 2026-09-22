@@ -180,8 +180,7 @@ struct StationDetailView: View {
                     track: currentStationTrack, model: model,
                     invertsBarsOnTrackChange: true, collapsesBarsWhenPaused: true,
                     keepsBarsVisible: true,
-                    initialExpandedWaveform: initialExpandedWaveform,
-                    commentsAppearanceDelay: .milliseconds(350)
+                    initialExpandedWaveform: initialExpandedWaveform
                 )
                 .offset(y: -2)
             }
