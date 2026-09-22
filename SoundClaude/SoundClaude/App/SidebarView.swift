@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SidebarView: View {
     @Binding var selection: SidebarDestination?
+    let currentPlaylistURN: String?
     @ObservedObject var playlists: PlaylistsController
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
@@ -171,7 +172,7 @@ struct SidebarView: View {
         }
             .lineLimit(1)
             .help(playlist.title)
-            .modifier(SidebarRowStyle(isSelected: false) {
+            .modifier(SidebarRowStyle(isSelected: false, usesPrimaryForeground: currentPlaylistURN == playlist.urn) {
                 onSelectPlaylist(playlist)
             })
     }

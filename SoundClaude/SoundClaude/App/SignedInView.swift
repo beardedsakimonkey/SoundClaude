@@ -38,6 +38,11 @@ struct SignedInView: View {
         nonmutating set { navigationHistories[destinationID, default: NavigationHistory()].forwardPath = newValue }
     }
 
+    private var currentPlaylistURN: String? {
+        guard case let .playlist(playlist) = path.last else { return nil }
+        return playlist.urn
+    }
+
     var body: some View {
         // Keep overlays anchored to the window when a pushed page changes the split view's layout.
         GeometryReader { geometry in
@@ -183,6 +188,7 @@ struct SignedInView: View {
         NavigationSplitView {
             SidebarView(
                 selection: sidebarSelection,
+                currentPlaylistURN: currentPlaylistURN,
                 playlists: model.playlists,
                 user: user,
                 artworkLoader: model.artworkLoader,
