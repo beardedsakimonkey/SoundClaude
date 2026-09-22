@@ -120,8 +120,6 @@ struct SignedInView: View {
                     onSelectArtist: showArtist,
                     onSelectPlaylist: { playlist in
                         isShowingQueue = false
-                        if case let .playlist(current) = path.last,
-                           current.urn == playlist.urn { return }
                         showPlaylist(playlist)
                     },
                     onSelectStation: { urn, title in
@@ -483,6 +481,8 @@ struct SignedInView: View {
     }
 
     private func showPlaylist(_ playlist: SoundCloudPlaylist) {
+        if case let .playlist(current) = path.last,
+           current.urn == playlist.urn { return }
         forwardPath.removeAll()
         path.append(.playlist(playlist))
     }
