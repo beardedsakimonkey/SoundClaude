@@ -14,7 +14,7 @@ struct TrackQueueStore {
         // The current track may have been removed, or the queue deliberately cleared.
         // Use playback as a fallback only when no valid queue was saved.
         var queue = saved ?? TrackQueue(source: .single, tracks: currentTrack.map { [$0] } ?? [])
-        queue.replaceLikes(likes)
+        queue.replaceLikes(likes, currentURN: currentTrack?.urn)
         queue.setShuffle(shuffleEnabled, currentURN: currentTrack?.urn)
         return queue
     }
@@ -55,6 +55,16 @@ struct TrackQueue: Codable {
     // Optional for compatibility with previously saved queues.
     private var removedURNs: Set<String>?
 
+    // Keep a navigation anchor when the playing track leaves the queue.
+    // Optional so older saved queues still decode.
+    private var removedCurrentTrack: RemovedCurrentTrack?
+
+    private struct RemovedCurrentTrack: Codable {
+        let urn: String
+        let precedingURNs: [String]
+        var followingURNs: [String]
+    }
+
     init(source: Source, tracks: [SoundCloudTrack], nextPageURL: URL? = nil, stationTitle: String? = nil) {
         self.source = source
         self.stationTitle = stationTitle
@@ -86,13 +96,15 @@ struct TrackQueue: Codable {
     }
 
     @discardableResult
-    mutating func remove(_ track: SoundCloudTrack) -> Bool {
+    mutating func remove(_ track: SoundCloudTrack, currentURN: String? = nil) -> Bool {
         guard tracks.contains(where: { $0.urn == track.urn }) else { return false }
+        let previousOrder = playbackTracks.map(\.urn)
         removedURNs = (removedURNs ?? []).union([track.urn])
         tracks.removeAll { $0.urn == track.urn }
         shuffledURNs.removeAll { $0 == track.urn }
         reorderedLikesURNs?.removeAll { $0 == track.urn }
         addedLikesTracks?.removeAll { $0.urn == track.urn }
+        preserveRemovedPosition(currentURN: currentURN, previousOrder: previousOrder)
         return true
     }
 
@@ -104,18 +116,38 @@ struct TrackQueue: Codable {
         if let nextPageURL { loadedPageURLs.insert(nextPageURL) }
         var known = Set(tracks.map(\.urn))
         known.formUnion(removedURNs ?? [])
-        tracks.append(contentsOf: page.tracks.filter { known.insert($0.urn).inserted })
+        let additions = page.tracks.filter { known.insert($0.urn).inserted }
+        tracks.append(contentsOf: additions)
+        removedCurrentTrack?.followingURNs.append(contentsOf: additions.map(\.urn))
         updateShuffleOrder()
         nextPageURL = page.nextURL
     }
 
-    mutating func replaceLikes(_ likes: [SoundCloudTrack]) {
+    mutating func replaceLikes(_ likes: [SoundCloudTrack], currentURN: String? = nil) {
         guard source == .likes else { return }
+        let previousOrder = playbackTracks.map(\.urn)
         let likedURNs = Set(likes.map(\.urn))
         let additions = (addedLikesTracks ?? []).filter { !likedURNs.contains($0.urn) }
         tracks = ordered((likes + additions).filter { !(removedURNs?.contains($0.urn) ?? false) },
                          by: reorderedLikesURNs)
         updateShuffleOrder()
+        preserveRemovedPosition(currentURN: currentURN, previousOrder: previousOrder)
+    }
+
+    private mutating func preserveRemovedPosition(currentURN: String?, previousOrder: [String]) {
+        if let currentURN, removedCurrentTrack?.urn != currentURN {
+            removedCurrentTrack = nil
+        }
+        if let currentURN, !tracks.contains(where: { $0.urn == currentURN }),
+           let index = previousOrder.firstIndex(of: currentURN) {
+            removedCurrentTrack = RemovedCurrentTrack(
+                urn: currentURN,
+                precedingURNs: Array(previousOrder[..<index]),
+                followingURNs: Array(previousOrder[(index + 1)...])
+            )
+        } else if tracks.contains(where: { $0.urn == removedCurrentTrack?.urn }) {
+            removedCurrentTrack = nil
+        }
     }
 
     func resolvedTracks(likes: [SoundCloudTrack]) -> [SoundCloudTrack] {
@@ -184,14 +216,34 @@ struct TrackQueue: Codable {
     }
 
     func needsNextPage(after urn: String?) -> Bool {
-        nextPageURL != nil && (tracks.isEmpty || tracks.last?.urn == urn)
+        guard nextPageURL != nil else { return false }
+        if let anchor = removedCurrentTrack, anchor.urn == urn,
+           !tracks.contains(where: { $0.urn == urn }) {
+            return relativeTrack(to: urn, offset: 1, wraps: false) == nil
+        }
+        return tracks.isEmpty || tracks.last?.urn == urn
     }
 
     func relativeTrack(to urn: String?, offset: Int, wraps: Bool = true) -> SoundCloudTrack? {
         let ordered = playbackTracks
         guard !ordered.isEmpty else { return nil }
-        let index = ordered.firstIndex { $0.urn == urn } ?? (offset > 0 ? -1 : 0)
-        let destination = index + offset
+        let destination: Int
+        if let index = ordered.firstIndex(where: { $0.urn == urn }) {
+            destination = index + offset
+        } else if let anchor = removedCurrentTrack, anchor.urn == urn {
+            let indices = Dictionary(uniqueKeysWithValues: ordered.enumerated().map { ($0.element.urn, $0.offset) })
+            if offset > 0 {
+                let nextIndex = anchor.followingURNs.lazy.compactMap { indices[$0] }.first ?? ordered.count
+                destination = nextIndex + offset - 1
+            } else if offset < 0 {
+                let previousIndex = anchor.precedingURNs.reversed().lazy.compactMap { indices[$0] }.first ?? -1
+                destination = previousIndex + offset + 1
+            } else {
+                return nil
+            }
+        } else {
+            destination = (offset > 0 ? -1 : 0) + offset
+        }
         guard wraps || ordered.indices.contains(destination) else { return nil }
         return ordered[((destination % ordered.count) + ordered.count) % ordered.count]
     }

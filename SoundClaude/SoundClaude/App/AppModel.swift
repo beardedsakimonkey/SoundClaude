@@ -99,6 +99,8 @@ final class AppModel: ObservableObject {
         }
         likesObservation = likes.$tracks.dropFirst().sink { [weak self] tracks in
             guard let self, queue.source == .likes else { return }
+            queue.replaceLikes(tracks, currentURN: playback.currentTrack?.urn)
+            saveQueue()
             prefetchNextTrack(likedTracks: tracks)
         }
     }
@@ -182,7 +184,7 @@ final class AppModel: ObservableObject {
         shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
         self.queue = queue
-        self.queue.replaceLikes(likes.tracks)
+        self.queue.replaceLikes(likes.tracks, currentURN: playback.currentTrack?.urn)
         self.queue.setShuffle(playback.isShuffleEnabled, currentURN: track.urn)
         saveQueue()
         if loadRemainingTracks {
@@ -230,7 +232,7 @@ final class AppModel: ObservableObject {
     }
 
     func addToQueue(_ track: SoundCloudTrack) {
-        queue.replaceLikes(likes.tracks)
+        queue.replaceLikes(likes.tracks, currentURN: playback.currentTrack?.urn)
         queue.setShuffle(playback.isShuffleEnabled, currentURN: playback.currentTrack?.urn)
         guard queue.add(track, after: playback.currentTrack?.urn) else { return }
         shuffleQueueTask?.cancel()
@@ -240,8 +242,8 @@ final class AppModel: ObservableObject {
     }
 
     func removeFromQueue(_ track: SoundCloudTrack) {
-        queue.replaceLikes(likes.tracks)
-        guard queue.remove(track) else { return }
+        queue.replaceLikes(likes.tracks, currentURN: playback.currentTrack?.urn)
+        guard queue.remove(track, currentURN: playback.currentTrack?.urn) else { return }
         shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
         saveQueue()
@@ -258,7 +260,7 @@ final class AppModel: ObservableObject {
     }
 
     func moveQueueTracks(fromOffsets offsets: IndexSet, toOffset destination: Int) {
-        queue.replaceLikes(likes.tracks)
+        queue.replaceLikes(likes.tracks, currentURN: playback.currentTrack?.urn)
         guard queue.move(fromOffsets: offsets, toOffset: destination) else { return }
         shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
@@ -697,7 +699,7 @@ final class AppModel: ObservableObject {
         shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
         playback.toggleShuffle()
-        queue.replaceLikes(likes.tracks)
+        queue.replaceLikes(likes.tracks, currentURN: playback.currentTrack?.urn)
         queue.setShuffle(playback.isShuffleEnabled, currentURN: playback.currentTrack?.urn)
         saveQueue()
         prefetchNextTrack()
@@ -705,7 +707,7 @@ final class AppModel: ObservableObject {
 
     private func prefetchNextTrack(likedTracks: [SoundCloudTrack]? = nil) {
         var resolvedQueue = queue
-        resolvedQueue.replaceLikes(likedTracks ?? likes.tracks)
+        resolvedQueue.replaceLikes(likedTracks ?? likes.tracks, currentURN: playback.currentTrack?.urn)
         let currentURN = playback.currentTrack?.urn
         // A sequential page boundary has no known next track yet.
         let needsPage = !playback.isShuffleEnabled && resolvedQueue.needsNextPage(after: currentURN)
@@ -748,7 +750,7 @@ final class AppModel: ObservableObject {
             guard let self, !Task.isCancelled else { return }
             do {
                 // Likes use the disk-backed library, including pages added during playback.
-                queue.replaceLikes(likes.tracks)
+                queue.replaceLikes(likes.tracks, currentURN: playback.currentTrack?.urn)
                 if !playback.isShuffleEnabled, offset > 0 {
                     while queue.needsNextPage(after: playback.currentTrack?.urn) {
                         let page = try await nextQueuePage()

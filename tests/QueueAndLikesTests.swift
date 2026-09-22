@@ -73,6 +73,69 @@ struct QueueAndLikesTests {
             }
         }
 
+        // Unliking the playing track preserves navigation in the active playback order.
+        for shuffled in [false, true] {
+            for position in 0..<4 {
+                var unliked = TrackQueue(source: .likes, tracks: (1...4).map(track))
+                unliked.setShuffle(shuffled, currentURN: "track:1")
+                let order = unliked.playbackTracks
+                let current = order[position]
+                let remaining = order.filter { $0 != current }
+                unliked.replaceLikes(remaining, currentURN: current.urn)
+                precondition(unliked.playbackTracks == remaining)
+                let expectedNext = position == 3 ? nil : order[position + 1]
+                let expectedPrevious = position == 0 ? nil : order[position - 1]
+                precondition(unliked.relativeTrack(to: current.urn, offset: 1, wraps: false) == expectedNext)
+                precondition(unliked.relativeTrack(to: current.urn, offset: -1, wraps: false) == expectedPrevious)
+                precondition(unliked.relativeTrack(to: current.urn, offset: 1) == (expectedNext ?? remaining.first))
+                precondition(unliked.relativeTrack(to: current.urn, offset: -1) == (expectedPrevious ?? remaining.last))
+                // Repeated refreshes and restart retain the anchor without retaining the removed song.
+                unliked.replaceLikes(remaining, currentURN: current.urn)
+                queueStore.save(unliked)
+                unliked = queueStore.restore(likes: remaining, currentTrack: current, shuffleEnabled: shuffled)
+                precondition(unliked.playbackTracks == remaining)
+                precondition(unliked.relativeTrack(to: current.urn, offset: 1, wraps: false) == expectedNext)
+            }
+        }
+        var unliked = TrackQueue(source: .likes, tracks: (1...5).map(track))
+        unliked.replaceLikes([track(1), track(3), track(4), track(5)], currentURN: "track:2")
+        // Further library changes skip removed neighbors and do not jump to new likes at the head.
+        unliked.replaceLikes([track(6), track(1), track(4), track(5)], currentURN: "track:2")
+        precondition(unliked.relativeTrack(to: "track:2", offset: 1) == track(4))
+        precondition(unliked.relativeTrack(to: "track:2", offset: -1) == track(1))
+        // Re-liking the current track uses its new library position.
+        unliked.replaceLikes([track(2), track(6), track(1), track(4), track(5)], currentURN: "track:2")
+        precondition(unliked.relativeTrack(to: "track:2", offset: 1) == track(6))
+        var lastLike = TrackQueue(source: .likes, tracks: [track(1)])
+        lastLike.replaceLikes([], currentURN: "track:1")
+        precondition(lastLike.relativeTrack(to: "track:1", offset: 1) == nil)
+
+        // Direct removal uses the same navigation anchor for every queue source.
+        for source: TrackQueue.Source in [.likes, .feed, .playlist("playlist:1")] {
+            for shuffled in [false, true] {
+                var removed = TrackQueue(source: source, tracks: (1...5).map(track))
+                removed.setShuffle(shuffled, currentURN: "track:1")
+                let order = removed.playbackTracks
+                let current = order[2]
+                precondition(removed.remove(current, currentURN: current.urn))
+                precondition(removed.relativeTrack(to: current.urn, offset: 1) == order[3])
+                precondition(removed.relativeTrack(to: current.urn, offset: -1) == order[1])
+                // Removing another upcoming track must retain the playing track's anchor.
+                precondition(removed.remove(order[3], currentURN: current.urn))
+                queueStore.save(removed)
+                removed = queueStore.restore(likes: (1...5).map(track), currentTrack: current, shuffleEnabled: shuffled)
+                precondition(removed.relativeTrack(to: current.urn, offset: 1) == order[4])
+                precondition(removed.relativeTrack(to: current.urn, offset: -1) == order[1])
+            }
+        }
+        // Removing the page's last track still loads and advances into the next page.
+        var removedPageEnd = TrackQueue(source: .feed, tracks: [track(1), track(2)], nextPageURL: next)
+        precondition(removedPageEnd.remove(track(2), currentURN: "track:2"))
+        precondition(removedPageEnd.needsNextPage(after: "track:2"))
+        try removedPageEnd.append(SoundCloudTrackPage(tracks: [track(3), track(4)], nextURL: nil))
+        precondition(removedPageEnd.relativeTrack(to: "track:2", offset: 1, wraps: false) == track(3))
+        precondition(!removedPageEnd.needsNextPage(after: "track:2"))
+
         // A deliberate clear survives restart while a track is still playing.
         queueStore.save(TrackQueue(source: .single, tracks: []))
         precondition(queueStore.restore(likes: [], currentTrack: track(1), shuffleEnabled: false).tracks.isEmpty)
