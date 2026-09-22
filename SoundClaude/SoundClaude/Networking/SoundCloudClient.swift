@@ -671,6 +671,24 @@ actor SoundCloudClient {
         return playlist
     }
 
+    func updatePlaylist(
+        urn: String, title: String, description: String, isPrivate: Bool, accessToken: String
+    ) async throws -> SoundCloudPlaylist {
+        // Omit tracks so metadata edits preserve every track and its order.
+        let body = try JSONSerialization.data(withJSONObject: [
+            "playlist": ["title": title, "description": description,
+                         "sharing": isPrivate ? "private" : "public"]
+        ])
+        let (data, response) = try await authenticatedRequest(
+            url: configuration.apiBaseURL.appending(path: "playlists").appending(path: urn),
+            accessToken: accessToken, method: "PUT", body: body
+        )
+        try validate(response: response, data: data)
+        guard let playlist = try decoder.decode(RawPlaylist.self, from: data).normalized(),
+              playlist.urn == urn else { throw SoundCloudError.invalidData }
+        return playlist
+    }
+
     func addTrackToPlaylist(trackURN: String, playlistURN: String, accessToken: String) async throws {
         try await updatePlaylistTrack(trackURN: trackURN, playlistURN: playlistURN,
                                       removing: false, accessToken: accessToken)

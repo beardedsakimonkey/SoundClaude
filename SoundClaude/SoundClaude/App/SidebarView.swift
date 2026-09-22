@@ -20,6 +20,7 @@ struct SidebarView: View {
     @State private var dropTargetURN: String?
     @State private var addingToPlaylistURNs: Set<String> = []
     @State private var playlistDropError: String?
+    @State private var editingPlaylist: SoundCloudPlaylist?
     @State private var playlistDeletion = PlaylistDeletionState()
     @AppStorage("sidebarPlaylistsExpanded") private var isPlaylistsExpanded = true
     @AppStorage("sidebarLikedPlaylistsExpanded") private var isLikedPlaylistsExpanded = true
@@ -31,7 +32,10 @@ struct SidebarView: View {
         }
         .navigationTitle("SoundClaude")
         .sheet(isPresented: $isShowingCreatePlaylist) {
-            CreatePlaylistView(playlists: playlists, onCreated: onSelectPlaylist)
+            PlaylistEditorView(playlists: playlists, onSaved: onSelectPlaylist)
+        }
+        .sheet(item: $editingPlaylist) { playlist in
+            PlaylistEditorView(playlists: playlists, playlist: playlist)
         }
         .modifier(PlaylistDeletionModifier(
             state: $playlistDeletion, playlists: playlists, onDeleted: onDeletePlaylist
@@ -197,6 +201,13 @@ struct SidebarView: View {
             || playlist.owner.permalinkURL == user.permalinkURL {
             row
                 .contextMenu {
+                    Button {
+                        editingPlaylist = contents?.playlist ?? playlist
+                    } label: {
+                        Label("Edit playlist", systemImage: "pencil")
+                    }
+                    .disabled(playlists.updatingPlaylistURNs.contains(playlist.urn)
+                        || playlistDeletion.deletingURNs.contains(playlist.urn))
                     DeletePlaylistButton(playlist: playlist, state: $playlistDeletion)
                 }
                 .background {

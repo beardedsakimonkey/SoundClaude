@@ -166,6 +166,45 @@ struct PlaylistTests {
             fatalError("Unauthorized creation was accepted")
         } catch SoundCloudError.unauthorized {}
 
+        for isPrivate in [true, false] {
+            PlaylistURLProtocol.respond { request in
+                precondition(request.url?.path == "/playlists/soundcloud:playlists:42")
+                precondition(request.httpMethod == "PUT")
+                precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+                var body = request.httpBody ?? Data()
+                if let stream = request.httpBodyStream {
+                    stream.open()
+                    defer { stream.close() }
+                    var buffer = [UInt8](repeating: 0, count: 1024)
+                    while stream.hasBytesAvailable {
+                        let count = stream.read(&buffer, maxLength: buffer.count)
+                        precondition(count >= 0)
+                        if count == 0 { break }
+                        body.append(contentsOf: buffer.prefix(count))
+                    }
+                }
+                let payload = try! JSONSerialization.jsonObject(with: body) as! [String: [String: Any]]
+                precondition(payload["playlist"]?["title"] as? String == "Edited 🎶")
+                precondition(payload["playlist"]?["description"] as? String == "")
+                precondition(payload["playlist"]?["sharing"] as? String == (isPrivate ? "private" : "public"))
+                precondition(payload["playlist"]?["tracks"] == nil)
+                return (200, playlist)
+            }
+            let updated = try await client.updatePlaylist(
+                urn: "soundcloud:playlists:42", title: "Edited 🎶", description: "",
+                isPrivate: isPrivate, accessToken: "test-token"
+            )
+            precondition(updated.urn == "soundcloud:playlists:42")
+        }
+        PlaylistURLProtocol.respond { _ in (401, "{}") }
+        do {
+            _ = try await client.updatePlaylist(
+                urn: "soundcloud:playlists:42", title: "Edited", description: "",
+                isPrivate: true, accessToken: "test-token"
+            )
+            fatalError("Unauthorized update was accepted")
+        } catch SoundCloudError.unauthorized {}
+
         let artistURN = "soundcloud:users:7"
         let artistNextURL = "https://api.soundcloud.com/users/\(artistURN)/playlists?cursor=next"
         PlaylistURLProtocol.respond { request in

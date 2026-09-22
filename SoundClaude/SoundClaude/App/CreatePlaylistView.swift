@@ -1,21 +1,32 @@
 import SwiftUI
 
-struct CreatePlaylistView: View {
+struct PlaylistEditorView: View {
     @ObservedObject var playlists: PlaylistsController
-    let onCreated: (SoundCloudPlaylist) -> Void
+    let onSaved: (SoundCloudPlaylist) -> Void
+    let playlist: SoundCloudPlaylist?
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
     @State private var description = ""
     @State private var isPrivate = true
-    @State private var isCreating = false
+    @State private var isSaving = false
     @State private var errorMessage: String?
     @FocusState private var isTitleFocused: Bool
+
+    init(playlists: PlaylistsController, playlist: SoundCloudPlaylist? = nil,
+         onSaved: @escaping (SoundCloudPlaylist) -> Void = { _ in }) {
+        self.playlists = playlists
+        self.playlist = playlist
+        self.onSaved = onSaved
+        _title = State(initialValue: playlist?.title ?? "")
+        _description = State(initialValue: playlist?.description ?? "")
+        _isPrivate = State(initialValue: playlist?.isPrivate ?? true)
+    }
 
     private var trimmedTitle: String { title.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Create playlist")
+            Text(playlist == nil ? "Create playlist" : "Edit playlist")
                 .font(.title2.bold())
             Form {
                 TextField("Title", text: $title)
@@ -27,7 +38,7 @@ struct CreatePlaylistView: View {
                     Text("Public").tag(false)
                 }
             }
-            .disabled(isCreating)
+            .disabled(isSaving)
             if let errorMessage {
                 Text(errorMessage)
                     .foregroundStyle(.red)
@@ -35,28 +46,35 @@ struct CreatePlaylistView: View {
                     .textSelection(.enabled)
             }
             HStack {
-                if isCreating {
+                if isSaving {
                     ProgressView()
                         .controlSize(.small)
-                        .accessibilityLabel("Creating playlist")
+                        .accessibilityLabel(playlist == nil ? "Creating playlist" : "Saving playlist")
                 }
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                    .disabled(isCreating)
-                Button("Create") {
-                    isCreating = true
+                    .disabled(isSaving)
+                Button(playlist == nil ? "Create" : "Save") {
+                    isSaving = true
                     errorMessage = nil
                     Task { @MainActor in
-                        defer { isCreating = false }
+                        defer { isSaving = false }
                         do {
-                            let playlist = try await playlists.createPlaylist(
-                                title: trimmedTitle,
-                                description: description.trimmingCharacters(in: .whitespacesAndNewlines),
-                                isPrivate: isPrivate
-                            )
+                            let saved: SoundCloudPlaylist
+                            let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if let playlist {
+                                saved = try await playlists.updatePlaylist(
+                                    playlist, title: trimmedTitle, description: trimmedDescription,
+                                    isPrivate: isPrivate
+                                )
+                            } else {
+                                saved = try await playlists.createPlaylist(
+                                    title: trimmedTitle, description: trimmedDescription, isPrivate: isPrivate
+                                )
+                            }
                             dismiss()
-                            onCreated(playlist)
+                            onSaved(saved)
                         } catch is CancellationError {
                             dismiss()
                         } catch {
@@ -65,13 +83,13 @@ struct CreatePlaylistView: View {
                     }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(trimmedTitle.isEmpty || isCreating)
+                .disabled(trimmedTitle.isEmpty || isSaving)
             }
         }
         .padding(24)
         .frame(width: 420)
-        .interactiveDismissDisabled(isCreating)
-        .dismissOnOutsideClick(isEnabled: !isCreating)
+        .interactiveDismissDisabled(isSaving)
+        .dismissOnOutsideClick(isEnabled: !isSaving)
         .onAppear { isTitleFocused = true }
     }
 }

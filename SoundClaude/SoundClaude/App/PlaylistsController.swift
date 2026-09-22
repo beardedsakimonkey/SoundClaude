@@ -134,6 +134,45 @@ final class PlaylistsController: ObservableObject {
         return playlist
     }
 
+    func updatePlaylist(
+        _ playlist: SoundCloudPlaylist, title: String, description: String, isPrivate: Bool
+    ) async throws -> SoundCloudPlaylist {
+        await restoreCache()
+        let session = sessionID
+        guard let accountID else { throw CancellationError() }
+        guard case let .signedIn(user) = auth.state,
+              playlist.owner.urn == user.urn && user.urn != nil
+                || playlist.owner.permalinkURL == user.permalinkURL else {
+            throw SoundCloudError.invalidData
+        }
+        guard updatingPlaylistURNs.insert(playlist.urn).inserted else { throw SoundCloudError.invalidData }
+        defer { if sessionID == session { updatingPlaylistURNs.remove(playlist.urn) } }
+        let token = try await accessToken(session: session)
+        let updated = try await client.updatePlaylist(
+            urn: playlist.urn, title: title, description: description,
+            isPrivate: isPrivate, accessToken: token
+        )
+        try checkSession(session)
+        // Let existing refreshes finish before publishing the saved metadata.
+        if let syncTask { await syncTask.value }
+        if let task = playlistTasks[playlist.urn] { await task.value }
+        if let likesTask { await likesTask.value }
+        try checkSession(session)
+        if let index = cache.playlists.firstIndex(where: { $0.urn == playlist.urn }) {
+            cache.playlists[index] = updated
+        }
+        var contents = cache.contents[playlist.urn] ?? PlaylistContents(playlist: updated)
+        contents.playlist = updated
+        cache.contents[playlist.urn] = contents
+        if let index = likedPlaylists.firstIndex(where: { $0.urn == playlist.urn }) {
+            likedPlaylists[index] = updated
+        }
+        // The remote save succeeded even if the disk cache cannot be written.
+        try? await save(accountID: accountID, session: session)
+        try checkSession(session)
+        return updated
+    }
+
     func addTrack(_ track: SoundCloudTrack, to playlist: SoundCloudPlaylist) async throws {
         try await updateTrack(track, in: playlist, removing: false)
     }

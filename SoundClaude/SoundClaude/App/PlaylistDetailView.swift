@@ -21,6 +21,7 @@ struct PlaylistDetailView: View {
     @State private var isShowingArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var likeErrorMessage: String?
+    @State private var editingPlaylist: SoundCloudPlaylist?
     @State private var playlistDeletion = PlaylistDeletionState()
     @State private var removeTrackErrorMessage: String?
 
@@ -98,6 +99,13 @@ struct PlaylistDetailView: View {
             if isOwnedByCurrentUser {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
+                        Button {
+                            editingPlaylist = displayedPlaylist
+                        } label: {
+                            Label("Edit playlist", systemImage: "pencil")
+                        }
+                        .disabled(playlists.updatingPlaylistURNs.contains(playlist.urn)
+                            || playlistDeletion.deletingURNs.contains(playlist.urn))
                         DeletePlaylistButton(playlist: displayedPlaylist, state: $playlistDeletion)
                     } label: {
                         Label("Playlist actions", systemImage: "ellipsis")
@@ -125,6 +133,9 @@ struct PlaylistDetailView: View {
             Button("OK", role: .cancel) { likeErrorMessage = nil }
         } message: {
             Text(likeErrorMessage ?? "Please try again.")
+        }
+        .sheet(item: $editingPlaylist) { playlist in
+            PlaylistEditorView(playlists: playlists, playlist: playlist)
         }
         .modifier(PlaylistDeletionModifier(
             state: $playlistDeletion, playlists: playlists, onDeleted: onDeletePlaylist

@@ -32,6 +32,14 @@ final class SoundCloudClient {
         if failCreation { throw SoundCloudError.invalidData }
         return makePlaylist(99, isPrivate: isPrivate)
     }
+    var failUpdate = false
+    func updatePlaylist(urn: String, title: String, description: String, isPrivate: Bool,
+                        accessToken: String) async throws -> SoundCloudPlaylist {
+        if failUpdate { throw SoundCloudError.invalidData }
+        return SoundCloudPlaylist(urn: urn, title: title, owner: user, artworkURL: nil,
+                                  permalinkURL: user.permalinkURL, description: description,
+                                  trackCount: 3, durationMilliseconds: 3000, isPrivate: isPrivate)
+    }
     var listRequests: [URL?] = []
     var trackRequests: [URL?] = []
     var fetchList: (URL?) async throws -> SoundCloudPlaylistPage = { _ in
@@ -282,6 +290,30 @@ struct PlaylistsCacheTests {
         try await controller.toggleLike(makePlaylist(1))
         precondition(client.likeWrites.count == 3)
         controller.clear()
+        try await store.save(baseline, accountID: "user:1")
+        await controller.restoreCache()
+        let updated = try await controller.updatePlaylist(
+            makePlaylist(1), title: "Edited", description: "", isPrivate: false
+        )
+        precondition(controller.playlists.first == updated)
+        precondition(controller.cache.contents[updated.urn]?.playlist == updated)
+        precondition(controller.cache.contents[updated.urn]?.tracks == [track(1), track(2), track(3)])
+        precondition(controller.cache.contents[updated.urn]?.isComplete == true)
+        let savedUpdate = try await store.load(accountID: "user:1")
+        precondition(savedUpdate?.playlists.first == updated)
+        client.failUpdate = true
+        do {
+            _ = try await controller.updatePlaylist(updated, title: "Failed", description: "", isPrivate: true)
+            fatalError("Failed update was accepted")
+        } catch is SoundCloudError {}
+        precondition(controller.playlists.first == updated)
+        precondition(controller.updatingPlaylistURNs.isEmpty)
+        client.failUpdate = false
+        // Restore the baseline for the remaining sync checks.
+        controller.clear()
+        try await store.save(baseline, accountID: "user:1")
+        await controller.restoreCache()
+
         precondition(controller.likedPlaylistURNs.isEmpty && !controller.hasLoadedLikes)
         precondition(controller.likedPlaylists.isEmpty && !controller.isLoadingLikes)
         await controller.restoreCache()
