@@ -27,7 +27,7 @@ struct PlayerFooterView: View {
     @State private var isHoveringArtwork = false
     @State private var isHoveringWaveform = false
     @State private var footerWidth: CGFloat = 0
-    @State private var waveformTrailingInset: CGFloat = 0
+    @State private var waveformHorizontalInset: CGFloat = 0
 
     @Bindable private var playback: PlaybackController
     @ObservedObject private var likes: LikesController
@@ -321,8 +321,8 @@ struct PlayerFooterView: View {
                         Text(format(seconds: playback.currentTime))
                         Spacer()
                         Text(format(seconds: playback.duration))
-                            .padding(.trailing, playback.currentTrack == nil ? 0 : waveformTrailingInset)
                     }
+                    .padding(.horizontal, playback.currentTrack == nil ? 0 : waveformHorizontalInset)
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.tertiary)
                     // Follow the lower edge as centered bars collapse to 4 points.
@@ -336,12 +336,9 @@ struct PlayerFooterView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .onGeometryChange(for: CGFloat.self) { geometry in
-                    // Match TrackWaveformView's 2-point bars on a 4-point step.
-                    let width = geometry.size.width
-                    let barCount = max(Int(width / 4), 1)
-                    return max(0, width - (CGFloat(barCount - 1) * 4 + 2))
+                    TrackWaveformView.Layout.compact.horizontalBarInset(for: geometry.size.width)
                 } action: { inset in
-                    waveformTrailingInset = inset
+                    waveformHorizontalInset = inset
                 }
                 // Compensate for the timestamps below the waveform.
                 .offset(y: 8)

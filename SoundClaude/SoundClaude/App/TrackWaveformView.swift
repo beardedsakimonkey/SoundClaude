@@ -12,6 +12,13 @@ struct TrackWaveformView: View {
         func availableBarHeight(for height: CGFloat) -> CGFloat {
             self == .compact ? height - 4 : height - reflectionHeight - 2
         }
+
+        func horizontalBarInset(for width: CGFloat) -> CGFloat {
+            guard self == .compact else { return 0 }
+            let barCount = max(Int(width / 4), 1)
+            let barsWidth = CGFloat(barCount - 1) * 4 + 2
+            return max(0, (width - barsWidth) / 2)
+        }
     }
 
     let track: SoundCloudTrack?
@@ -546,9 +553,10 @@ struct TrackWaveformView: View {
                 count: barCount
             ))
         }
-        // Measure from the bar centers (x = index * 4 + 1). Normalize the
+        // Measure from the inset bar centers. Normalize the
         // distance so the nearest bar reveals fully and the farthest stays flat.
-        let pointerIndex = (hoverFraction * Double(width) - 1) / 4
+        let inset = layout.horizontalBarInset(for: width)
+        let pointerIndex = (hoverFraction * Double(width) - Double(inset) - 1) / 4
         let nearestIndex = min(max(pointerIndex.rounded(), 0), Double(barCount - 1))
         let nearestDistance = abs(pointerIndex - nearestIndex)
         let farthestDistance = max(abs(pointerIndex), abs(pointerIndex - Double(barCount - 1)))
@@ -584,13 +592,14 @@ struct TrackWaveformView: View {
     ) -> [CGRect] {
         let barWidth: CGFloat = 2
         let step: CGFloat = 4
+        let inset = layout.horizontalBarInset(for: size.width)
         let availableHeight = layout.availableBarHeight(for: size.height)
         return amplitudes.values.enumerated().map { index, amplitude in
             // Signed amplitudes collapse during track changes. Take the
             // absolute value after spring interpolation.
             let height = max(CGFloat(abs(amplitude)) * availableHeight, 2)
             return CGRect(
-                x: CGFloat(index) * step,
+                x: inset + CGFloat(index) * step,
                 y: layout == .compact ? (size.height - height) / 2 : layout.reflectionHeight,
                 width: barWidth,
                 height: height
