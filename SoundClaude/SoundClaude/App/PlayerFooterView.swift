@@ -58,7 +58,7 @@ struct PlayerFooterView: View {
     var body: some View {
         HStack(spacing: 6) {
             trackIdentity
-                .frame(width: min(340, max(140, footerWidth * 0.35)), alignment: .leading)
+                .frame(width: min(340, max(140, footerWidth * 0.3)), alignment: .leading)
             playbackControls
                 .frame(maxWidth: .infinity)
         }
@@ -195,7 +195,7 @@ struct PlayerFooterView: View {
                 .foregroundStyle(isLiked ? Color.accentColor : Color.primary)
                 .frame(width: 32, height: 32)
                 .modifier(PlayerFooterButtonBackground(color: .accentColor, isActive: isLiked))
-                .padding(.horizontal, 6)
+                .padding(.leading, 6)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -298,7 +298,7 @@ struct PlayerFooterView: View {
             && !playback.isPlaybackActive && !isHoveringWaveform
 
         return VStack(spacing: 10) {
-            HStack(spacing: 16) {
+            HStack(spacing: 8) {
                 transportControls
                 VStack(spacing: 4) {
                     if let track = playback.currentTrack {
@@ -378,7 +378,7 @@ struct PlayerFooterView: View {
                 .accessibilityValue(isShowingVisualizer ? "Open" : "Closed")
 
                 PlayerVolumeControl(playback: playback, usesCompactVolume: footerWidth < 1_000)
-                    .padding(.trailing, 8)
+                    .padding(.trailing, 4)
             }
             .buttonStyle(.borderless)
 
@@ -399,7 +399,7 @@ struct PlayerFooterView: View {
     }
 
     private var transportButtons: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 6) {
             Button(action: playback.previous) {
                 Image(systemName: "backward.fill")
                     .font(.system(size: 14, weight: .semibold))
