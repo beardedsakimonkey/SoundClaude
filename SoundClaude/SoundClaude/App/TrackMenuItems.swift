@@ -14,22 +14,22 @@ struct TrackMenuItems: View {
     var body: some View {
         let isLiked = likes.isLiked(track)
 
+        if let onRemoveFromQueue {
+            Button("Remove from queue", systemImage: "text.badge.minus") {
+                onRemoveFromQueue(track)
+            }
+        } else if let onAddToQueue {
+            Button("Play next", systemImage: "text.line.first.and.arrowtriangle.forward") {
+                onAddToQueue(track)
+            }
+        }
         if let onRemoveFromPlaylist {
             Button("Remove from playlist", systemImage: "text.badge.minus", role: .destructive) {
                 onRemoveFromPlaylist(track)
             }
             .disabled(isUpdatingPlaylist)
         }
-        if let onRemoveFromQueue {
-            Button("Remove from queue", systemImage: "text.badge.minus") {
-                onRemoveFromQueue(track)
-            }
-        } else if let onAddToQueue {
-            Button("Add to queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
-                onAddToQueue(track)
-            }
-        }
-        Button("Add to playlist", systemImage: "music.note.list") {
+        Button("Add to playlist", systemImage: "text.badge.plus") {
             addToPlaylist(track)
         }
         Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
