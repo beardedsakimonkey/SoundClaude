@@ -151,6 +151,7 @@ final class PlaybackController {
         isShuffleEnabled = defaults.bool(forKey: SettingsKey.isShuffleEnabled)
         repeatMode = RepeatMode(rawValue: defaults.string(forKey: SettingsKey.repeatMode) ?? "") ?? .off
         player = AVPlayer()
+        player.automaticallyWaitsToMinimizeStalling = true
         player.volume = volume
         player.isMuted = isMuted
         player.preventsDisplaySleepDuringVideoPlayback = false
@@ -243,6 +244,7 @@ final class PlaybackController {
         if let timeObserver { player.removeTimeObserver(timeObserver) }
         player.replaceCurrentItem(with: nil)
         player = prepared
+        player.automaticallyWaitsToMinimizeStalling = true
         isWaitingForPlayback = false
         player.cancelPendingPrerolls()
         player.volume = volume
@@ -598,6 +600,10 @@ final class PlaybackController {
 
         // Let this seek finish while newer requests replace only the target.
         isSeekInProgress = true
+        // Keep audio silent until the final seek completes. Resuming from a
+        // paused rate lets AVPlayer evaluate buffering at the new position.
+        // Do not use pause(), which would clear the user's playback intent.
+        player.pause()
         player.seek(
             to: CMTime(seconds: target, preferredTimescale: 600),
             toleranceBefore: .zero,

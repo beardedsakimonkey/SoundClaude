@@ -197,6 +197,35 @@ struct PlaybackTests {
         playback.pause()
         precondition(playback.savedSession?.wasPlaying == false)
         bufferingPlayer.simulateStatus(nil)
+        try await until { !playback.isPlaying }
+
+        // Seeking during playback stops audio immediately, preserves intent,
+        // and resumes only after the latest target has been reached.
+        playback.togglePlayPause()
+        try await until { playback.isPlaying }
+        playback.seek(to: 0.25)
+        precondition(playback.player.rate == 0)
+        precondition(playback.isBuffering && playback.isPlaybackActive)
+        precondition(playback.savedSession?.wasPlaying == true)
+        playback.seek(to: 0.75)
+        precondition(playback.player.rate == 0)
+        try await until { !playback.isBuffering && playback.isPlaying }
+        precondition(abs(playback.currentTime - 0.75) < 0.15)
+
+        // Pause during a seek must prevent its completion from restarting audio.
+        playback.seek(to: 0.5)
+        playback.pause()
+        try await until { !playback.isBuffering }
+        precondition(playback.player.rate == 0)
+        precondition(!playback.isPlaybackActive)
+        precondition(playback.savedSession?.wasPlaying == false)
+
+        // Play during a paused seek waits for that seek to complete too.
+        playback.seek(to: 0.25)
+        playback.togglePlayPause()
+        precondition(playback.player.rate == 0)
+        try await until { !playback.isBuffering && playback.isPlaying }
+        playback.pause()
 
         // Queue edits drop an obsolete player and retain only the new next track.
         playback.prefetch(track(3)) { source }

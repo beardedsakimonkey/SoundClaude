@@ -298,16 +298,7 @@ struct TrackWaveformView: View {
                 }
                 .onDisappear { isHovering = false }
                 .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            guard isCurrentTrack else { return }
-                            seek(
-                                to: fraction(
-                                    at: value.location.x,
-                                    width: proxy.size.width
-                                )
-                            )
-                        }
+                    SpatialTapGesture()
                         .onEnded { value in
                             seek(
                                 to: fraction(
@@ -319,7 +310,7 @@ struct TrackWaveformView: View {
                 )
                 .help(
                     track == nil ? "Start playback to see the waveform."
-                        : isCurrentTrack ? "Click or drag to seek."
+                        : isCurrentTrack ? "Click to seek."
                         : "Click to play from this position."
                 )
                 .overlay(alignment: .bottom) {
