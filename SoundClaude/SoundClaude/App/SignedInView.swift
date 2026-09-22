@@ -430,7 +430,14 @@ struct SignedInView: View {
                 onSelectArtist: showArtist,
                 onSelectTrack: showTrack,
                 onAddToQueue: model.addToQueue,
-                onPlayTrack: model.playLikedTrack
+                onPlayTrack: model.playLikedTrack,
+                onShuffle: {
+                    guard let track = model.likes.tracks.randomElement() else { return }
+                    if !model.playback.isShuffleEnabled {
+                        model.toggleShuffle()
+                    }
+                    await model.playLikedTrack(track)
+                }
             )
         }
     }
