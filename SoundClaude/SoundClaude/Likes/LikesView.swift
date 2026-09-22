@@ -12,7 +12,7 @@ struct LikesView: View {
 
     @ObservedObject private var likes: LikesController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var searchText = ""
+    @Binding private var searchText: String
     @AppStorage("likesTrackLayout") private var trackLayout = TrackLayout.list
     @FocusState private var isSearchFocused: Bool
     private let playback: PlaybackController
@@ -20,6 +20,7 @@ struct LikesView: View {
 
     init(
         user: SoundCloudUser,
+        searchText: Binding<String>,
         likes: LikesController,
         playback: PlaybackController,
         analyzer: SpectrumAnalyzer,
@@ -31,6 +32,7 @@ struct LikesView: View {
         onPlayTrack: @escaping (SoundCloudTrack) async -> Void
     ) {
         self.user = user
+        _searchText = searchText
         self.artworkLoader = artworkLoader
         self.appErrorMessage = appErrorMessage
         self.onSelectArtist = onSelectArtist

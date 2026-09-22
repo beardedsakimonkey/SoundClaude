@@ -9,6 +9,7 @@ struct SignedInView: View {
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
     @State private var playlistTrack: SoundCloudTrack?
     @State private var searchText = ""
+    @State private var likesSearchText = ""
     @State private var searchFocusRequest = UUID()
     @State private var isShowingVisualizer = false
     @State private var isShowingQueue = false
@@ -392,6 +393,7 @@ struct SignedInView: View {
         case .liked:
             LikesView(
                 user: user,
+                searchText: $likesSearchText,
                 likes: model.likes,
                 playback: model.playback,
                 analyzer: model.analyzer,
