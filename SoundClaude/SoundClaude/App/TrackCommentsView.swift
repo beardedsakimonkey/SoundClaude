@@ -14,14 +14,6 @@ enum CommentSortOrder: String, CaseIterable {
         }
     }
 
-    var symbol: String {
-        switch self {
-        case .newest: "arrow.down"
-        case .oldest: "arrow.up"
-        case .trackTime: "waveform"
-        }
-    }
-
     func precedes(_ lhs: SoundCloudComment, _ rhs: SoundCloudComment) -> Bool {
         if self == .trackTime, lhs.timestampMilliseconds != rhs.timestampMilliseconds {
             guard let left = lhs.timestampMilliseconds else { return false }
@@ -44,7 +36,7 @@ struct CommentSortMenu: View {
         Menu {
             Picker("Sort comments", selection: $sortOrder) {
                 ForEach(CommentSortOrder.allCases, id: \.self) { order in
-                    Label(order.title, systemImage: order.symbol)
+                    Text(order.title)
                         .tag(order)
                 }
             }
