@@ -4,8 +4,10 @@ struct SidebarView: View {
     @Binding var selection: SidebarDestination?
     let currentPlaylistURN: String?
     @ObservedObject var playlists: PlaylistsController
+    @ObservedObject var likes: LikesController
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
+    let onShuffleLikes: () async -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onShufflePlaylist: (SoundCloudPlaylist, PlaylistContents) async -> Void
     let onDeletePlaylist: (SoundCloudPlaylist) -> Void
@@ -18,6 +20,7 @@ struct SidebarView: View {
     @State private var isShowingCreatePlaylist = false
     @State private var isProfileHovered = false
     @State private var isSignOutHovered = false
+    @State private var isLikesHovered = false
     @State private var dropTargetURN: String?
     @State private var addingToPlaylistURNs: Set<String> = []
     @State private var playlistDropError: String?
@@ -80,9 +83,36 @@ struct SidebarView: View {
                     } icon: {
                         Image(systemName: destination.systemImage)
                     }
+                        .padding(.trailing, destination == .liked ? 28 : 0)
                         .modifier(SidebarRowStyle(isSelected: selection == destination, usesPrimaryForeground: true) {
                             select(destination)
                         })
+                        .overlay(alignment: .trailing) {
+                            if destination == .liked {
+                                Button {
+                                    Task { await onShuffleLikes() }
+                                } label: {
+                                    Image(systemName: "shuffle")
+                                        .frame(width: 24, height: 24)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .modifier(SidebarForegroundHover())
+                                .disabled(likes.tracks.isEmpty)
+                                .help("Shuffle likes")
+                                .accessibilityLabel("Shuffle likes")
+                                .opacity(isLikesHovered ? 1 : 0)
+                                .animation(
+                                    reduceMotion ? nil : .easeInOut(duration: 0.2),
+                                    value: isLikesHovered
+                                )
+                                .allowsHitTesting(isLikesHovered)
+                                .padding(.trailing, 8)
+                            }
+                        }
+                        .onContentHover { isHovered in
+                            if destination == .liked { isLikesHovered = isHovered }
+                        }
                 }
                 VStack(alignment: .leading, spacing: 0) {
                     sectionHeader("Playlists", isExpanded: $isPlaylistsExpanded)

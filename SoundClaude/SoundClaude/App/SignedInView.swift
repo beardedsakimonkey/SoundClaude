@@ -194,8 +194,10 @@ struct SignedInView: View {
                 selection: sidebarSelection,
                 currentPlaylistURN: currentPlaylistURN,
                 playlists: model.playlists,
+                likes: model.likes,
                 user: user,
                 artworkLoader: model.artworkLoader,
+                onShuffleLikes: shuffleLikes,
                 onSelectPlaylist: showPlaylist,
                 onShufflePlaylist: { playlist, contents in
                     guard let track = contents.tracks.randomElement() else { return }
@@ -446,13 +448,7 @@ struct SignedInView: View {
                 onSelectTrack: showTrack,
                 onAddToQueue: model.addToQueue,
                 onPlayTrack: model.playLikedTrack,
-                onShuffle: {
-                    guard let track = model.likes.tracks.randomElement() else { return }
-                    if !model.playback.isShuffleEnabled {
-                        model.toggleShuffle()
-                    }
-                    await model.playLikedTrack(track)
-                }
+                onShuffle: shuffleLikes
             )
         }
     }
@@ -507,6 +503,14 @@ struct SignedInView: View {
            current.urn == track.urn { return }
         forwardPath.removeAll()
         path.append(.track(track))
+    }
+
+    private func shuffleLikes() async {
+        guard !Task.isCancelled, let track = model.likes.tracks.randomElement() else { return }
+        if !model.playback.isShuffleEnabled {
+            model.toggleShuffle()
+        }
+        await model.playLikedTrack(track)
     }
 
     private func showPlaylist(_ playlist: SoundCloudPlaylist) {
