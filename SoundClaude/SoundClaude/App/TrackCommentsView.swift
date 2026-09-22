@@ -50,7 +50,8 @@ struct CommentSortMenu: View {
             }
             .pickerStyle(.inline)
         } label: {
-            Label(sortOrder.title, systemImage: sortOrder.symbol)
+            Text(sortOrder.title)
+                .font(.subheadline)
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
