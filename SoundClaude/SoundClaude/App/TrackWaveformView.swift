@@ -39,6 +39,7 @@ struct TrackWaveformView: View {
     private let commentsAppearanceDelay: Duration = .milliseconds(100)
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
+    @Environment(\.contentHoverSuppression) private var hoverSuppression
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
@@ -510,7 +511,7 @@ struct TrackWaveformView: View {
     }
 
     private var showsHoverPreview: Bool {
-        track != nil && isHovering && contentHoverEnabled
+        track != nil && isHovering && contentHoverEnabled && hoverSuppression?.isSuppressed != true
     }
 
     private func barAmplitudes(
@@ -776,11 +777,12 @@ private struct WaveformCommentMarkersContent: View {
     @State private var hoveredID: String?
     @FocusState private var focusedID: String?
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
+    @Environment(\.contentHoverSuppression) private var hoverSuppression
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { proxy in
-            let interactionID = (contentHoverEnabled ? hoveredID : nil) ?? focusedID
+            let interactionID = (hoveredID != nil && isHoverAllowed ? hoveredID : nil) ?? focusedID
             let width = proxy.size.width
             let comments = index.visibleComments(duration: duration)
             let interactionX = comments.first { $0.id == interactionID }
@@ -815,7 +817,7 @@ private struct WaveformCommentMarkersContent: View {
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let location):
-                    guard contentHoverEnabled else { return }
+                    guard isHoverAllowed else { return }
                     // Select by distance, independent of the avatars' overlap and
                     // the active avatar's larger size and higher drawing order.
                     let nextID = index.hoverCommentID(
@@ -839,7 +841,7 @@ private struct WaveformCommentMarkersContent: View {
                 focusedID = nil
             }
         }
-        .onChange(of: contentHoverEnabled) { _, enabled in
+        .onChange(of: hoveredID != nil && isHoverAllowed) { _, enabled in
             if !enabled {
                 hoveredID = nil
             }
@@ -847,6 +849,10 @@ private struct WaveformCommentMarkersContent: View {
         .onDisappear {
             hoveredID = nil
         }
+    }
+
+    private var isHoverAllowed: Bool {
+        contentHoverEnabled && hoverSuppression?.isSuppressed != true
     }
 
     private func marker(

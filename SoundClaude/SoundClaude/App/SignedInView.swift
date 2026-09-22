@@ -13,7 +13,7 @@ struct SignedInView: View {
     @State private var searchFocusRequest = UUID()
     @State private var isShowingVisualizer = false
     @State private var isShowingQueue = false
-    @State private var isHoveringQueue = false
+    @State private var queueHoverSuppression = ContentHoverSuppression()
     @State private var footerHeight: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
@@ -55,7 +55,7 @@ struct SignedInView: View {
         .toolbar(isShowingVisualizer ? .hidden : .automatic, for: .windowToolbar)
         .allowsHitTesting(!isShowingVisualizer)
         .accessibilityHidden(isShowingVisualizer)
-        .environment(\.contentHoverEnabled, !isShowingQueue || !isHoveringQueue)
+        .environment(\.contentHoverSuppression, queueHoverSuppression)
         .overlay {
             if isShowingVisualizer {
                 VisualizerView(
@@ -101,8 +101,8 @@ struct SignedInView: View {
                                 .allowsHitTesting(false)
                         }
                         .contentShape(RoundedRectangle(cornerRadius: 16))
-                        .onHover { isHoveringQueue = $0 }
-                        .onDisappear { isHoveringQueue = false }
+                        .onHover { queueHoverSuppression.isSuppressed = $0 }
+                        .onDisappear { queueHoverSuppression.isSuppressed = false }
                         .padding(14)
                         .transition(
                             .move(edge: .bottom)
@@ -254,7 +254,7 @@ struct SignedInView: View {
                 ) { destination, active in
                     rootView(destination, isActive: active)
                         .environment(\.contentAnimationsPaused, isShowingVisualizer || !active)
-                        .environment(\.contentHoverEnabled, active && (!isShowingQueue || !isHoveringQueue))
+                        .environment(\.contentHoverEnabled, active)
                 }
                 .navigationTitle((selectedDestination ?? .liked).title)
             } destination: { route in
