@@ -158,7 +158,6 @@ struct TrackDetailView: View {
                         cornerRadius: 12,
                         onShowArtwork: { isShowingArtwork = true }
                     )
-                    .modifier(FadeInOnAppear())
 
                     VStack(alignment: .leading, spacing: 10) {
                         if details.track.access == .preview {
