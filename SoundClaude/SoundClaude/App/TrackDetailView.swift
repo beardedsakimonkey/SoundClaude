@@ -13,12 +13,6 @@ struct TrackDetailView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectStation: (String, SoundCloudTrack) -> Void
 
-    @State private var relatedTracks: [SoundCloudTrack] = []
-    @State private var nextPageURL: URL?
-    @State private var loadedPageURLs: Set<URL> = []
-    @State private var hasLoadedRelatedTracks = false
-    @State private var isLoadingRelatedTracks = false
-    @State private var relatedTracksErrorMessage: String?
     @State private var details: SoundCloudTrackDetails?
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -91,9 +85,6 @@ struct TrackDetailView: View {
         .task(id: track.urn) {
             await load()
         }
-        .task(id: track.urn) {
-            if !hasLoadedRelatedTracks { await loadRelatedTracks() }
-        }
         .task {
             // Retry on click and show any error there.
             try? await reposts.load()
@@ -145,7 +136,7 @@ struct TrackDetailView: View {
     }
 
     private func detailsView(_ details: SoundCloudTrackDetails) -> some View {
-        ScrollView {
+        ScrollbarReservedScrollView { _ in
             VStack(alignment: .leading, spacing: 24) {
                 HStack(alignment: .top, spacing: 24) {
                     DetailArtworkView(
@@ -254,97 +245,18 @@ struct TrackDetailView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .topLeading)
 
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Related tracks")
-                            .font(.headline)
-                            .opacity(0.96)
-                            .modifier(FadeInOnAppear())
-                        if let message = model.errorMessage {
-                            Label(message, systemImage: "exclamationmark.triangle")
-                                .foregroundStyle(Color.accentColor)
-                                .modifier(FadeInOnAppear())
-                        }
-                        relatedTrackList
-                    }
+                    TrackDetailRelatedTracks(
+                        track: track,
+                        model: model,
+                        onSelectTrack: onSelectTrack,
+                        onSelectArtist: onSelectArtist
+                    )
+                    .id(track.urn)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
-        }
-    }
-
-    private var relatedTrackList: some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
-            ForEach(relatedTracks) { relatedTrack in
-                TrackListRow(
-                    track: relatedTrack,
-                    playback: model.playback,
-                    analyzer: model.analyzer,
-                    artworkLoader: model.artworkLoader,
-                    likes: model.likes,
-                    onAddToQueue: model.addToQueue,
-                    onSelectTrack: onSelectTrack,
-                    onSelectArtist: onSelectArtist,
-                    onPlayTrack: { selected in
-                        await model.play(selected, queue: TrackQueue(
-                            source: .related(track.urn),
-                            tracks: relatedTracks,
-                            nextPageURL: nextPageURL
-                        ))
-                    }
-                )
-                .modifier(FadeInOnAppear())
-            }
-            if let relatedTracksErrorMessage {
-                Text(relatedTracksErrorMessage).foregroundStyle(.secondary)
-                    .modifier(FadeInOnAppear())
-                Button("Try Again") { Task { await loadRelatedTracks() } }
-                    .disabled(isLoadingRelatedTracks)
-                    .modifier(FadeInOnAppear())
-            }
-            if isLoadingRelatedTracks || (nextPageURL != nil && relatedTracksErrorMessage == nil) {
-                ProgressView()
-                    .accessibilityLabel("Loading related tracks")
-                    .frame(maxWidth: .infinity)
-                    .modifier(FadeInOnAppear())
-                    .task(id: nextPageURL) {
-                        guard nextPageURL != nil, relatedTracksErrorMessage == nil else { return }
-                        await loadRelatedTracks()
-                    }
-            } else if hasLoadedRelatedTracks, relatedTracks.isEmpty,
-                      relatedTracksErrorMessage == nil {
-                EmptyStateView("No related tracks")
-                .modifier(FadeInOnAppear())
-            }
-        }
-    }
-
-    private func loadRelatedTracks() async {
-        guard !isLoadingRelatedTracks,
-              !hasLoadedRelatedTracks || nextPageURL != nil else { return }
-        isLoadingRelatedTracks = true
-        relatedTracksErrorMessage = nil
-        defer { isLoadingRelatedTracks = false }
-        do {
-            let pageURL = nextPageURL
-            let page = try await model.relatedTracks(for: track, pageURL: pageURL)
-            try Task.checkCancellation()
-            if let nextURL = page.nextURL,
-               nextURL == pageURL || loadedPageURLs.contains(nextURL) {
-                throw SoundCloudError.invalidData
-            }
-            var knownURNs = Set(relatedTracks.map(\.urn))
-            knownURNs.insert(track.urn)
-            relatedTracks.append(contentsOf: page.tracks.filter {
-                knownURNs.insert($0.urn).inserted
-            })
-            if let pageURL { loadedPageURLs.insert(pageURL) }
-            nextPageURL = page.nextURL
-            hasLoadedRelatedTracks = true
-        } catch {
-            guard !Task.isCancelled else { return }
-            relatedTracksErrorMessage = error.localizedDescription
         }
     }
 
@@ -484,6 +396,112 @@ struct TrackDetailView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+}
+
+// Pagination changes only this column, keeping the header and comments out of its updates.
+private struct TrackDetailRelatedTracks: View {
+    let track: SoundCloudTrack
+    @ObservedObject var model: AppModel
+    let onSelectTrack: (SoundCloudTrack) -> Void
+    let onSelectArtist: (SoundCloudUser) -> Void
+
+    @State private var relatedTracks: [SoundCloudTrack] = []
+    @State private var nextPageURL: URL?
+    @State private var loadedPageURLs: Set<URL> = []
+    @State private var hasLoadedRelatedTracks = false
+    @State private var isLoadingRelatedTracks = false
+    @State private var relatedTracksErrorMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Related tracks")
+                .font(.headline)
+                .opacity(0.96)
+                .modifier(FadeInOnAppear())
+            if let message = model.errorMessage {
+                Label(message, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(Color.accentColor)
+                    .modifier(FadeInOnAppear())
+            }
+            relatedTrackList
+        }
+        .task(id: track.urn) {
+            if !hasLoadedRelatedTracks { await loadRelatedTracks() }
+        }
+    }
+
+    private var relatedTrackList: some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            ForEach(relatedTracks) { relatedTrack in
+                TrackListRow(
+                    track: relatedTrack,
+                    playback: model.playback,
+                    analyzer: model.analyzer,
+                    artworkLoader: model.artworkLoader,
+                    likes: model.likes,
+                    onAddToQueue: model.addToQueue,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist,
+                    onPlayTrack: { selected in
+                        await model.play(selected, queue: TrackQueue(
+                            source: .related(track.urn),
+                            tracks: relatedTracks,
+                            nextPageURL: nextPageURL
+                        ))
+                    }
+                )
+            }
+            if let relatedTracksErrorMessage {
+                Text(relatedTracksErrorMessage).foregroundStyle(.secondary)
+                    .modifier(FadeInOnAppear())
+                Button("Try Again") { Task { await loadRelatedTracks() } }
+                    .disabled(isLoadingRelatedTracks)
+                    .modifier(FadeInOnAppear())
+            }
+            if isLoadingRelatedTracks || (nextPageURL != nil && relatedTracksErrorMessage == nil) {
+                ProgressView()
+                    .accessibilityLabel("Loading related tracks")
+                    .frame(maxWidth: .infinity)
+                    .modifier(FadeInOnAppear())
+                    .task(id: nextPageURL) {
+                        guard nextPageURL != nil, relatedTracksErrorMessage == nil else { return }
+                        await loadRelatedTracks()
+                    }
+            } else if hasLoadedRelatedTracks, relatedTracks.isEmpty,
+                      relatedTracksErrorMessage == nil {
+                EmptyStateView("No related tracks")
+                    .modifier(FadeInOnAppear())
+            }
+        }
+    }
+
+    private func loadRelatedTracks() async {
+        guard !isLoadingRelatedTracks,
+              !hasLoadedRelatedTracks || nextPageURL != nil else { return }
+        isLoadingRelatedTracks = true
+        relatedTracksErrorMessage = nil
+        defer { isLoadingRelatedTracks = false }
+        do {
+            let pageURL = nextPageURL
+            let page = try await model.relatedTracks(for: track, pageURL: pageURL)
+            try Task.checkCancellation()
+            if let nextURL = page.nextURL,
+               nextURL == pageURL || loadedPageURLs.contains(nextURL) {
+                throw SoundCloudError.invalidData
+            }
+            var knownURNs = Set(relatedTracks.map(\.urn))
+            knownURNs.insert(track.urn)
+            relatedTracks.append(contentsOf: page.tracks.filter {
+                knownURNs.insert($0.urn).inserted
+            })
+            if let pageURL { loadedPageURLs.insert(pageURL) }
+            nextPageURL = page.nextURL
+            hasLoadedRelatedTracks = true
+        } catch {
+            guard !Task.isCancelled else { return }
+            relatedTracksErrorMessage = error.localizedDescription
+        }
     }
 }
 
