@@ -224,6 +224,16 @@ struct StationDetailView: View {
     }
 
     private var playbackControls: some View {
+        ViewThatFits(in: .horizontal) {
+            playbackControls(iconOnly: false)
+                .labelStyle(.titleAndIcon)
+                .fixedSize(horizontal: true, vertical: false)
+            playbackControls(iconOnly: true)
+                .labelStyle(.iconOnly)
+        }
+    }
+
+    private func playbackControls(iconOnly: Bool) -> some View {
         let isPlaying = currentStationTrack != nil && model.playback.isPlaybackActive
         return HStack(spacing: 12) {
             Button {
@@ -243,8 +253,8 @@ struct StationDetailView: View {
                     Label("Pause", systemImage: "pause.fill")
                         .opacity(isPlaying ? 1 : 0).accessibilityHidden(!isPlaying)
                 }
-                .labelStyle(.titleAndIcon)
-                .padding(.horizontal, 24)
+                .padding(.horizontal, iconOnly ? 0 : 24)
+                .frame(width: iconOnly ? 44 : nil)
                 .frame(minHeight: 24)
             }
             .disabled(currentStationTrack == nil && tracks.isEmpty)

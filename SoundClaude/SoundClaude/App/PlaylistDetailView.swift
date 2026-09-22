@@ -202,10 +202,12 @@ struct PlaylistDetailView: View {
                 .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: 16) {
-                    HStack(spacing: 12) {
-                        playButton
-                        trackNavigationButtons
-                        if !displayedPlaylist.isPrivate { likeButton }
+                    ViewThatFits(in: .horizontal) {
+                        playbackControls(iconOnly: false)
+                            .labelStyle(.titleAndIcon)
+                            .fixedSize(horizontal: true, vertical: false)
+                        playbackControls(iconOnly: true)
+                            .labelStyle(.iconOnly)
                     }
                     if !displayedPlaylist.isPrivate, let error = playlists.likesErrorMessage {
                         Text(error).font(.caption).foregroundStyle(.secondary)
@@ -261,7 +263,15 @@ struct PlaylistDetailView: View {
         )
     }
 
-    private var playButton: some View {
+    private func playbackControls(iconOnly: Bool) -> some View {
+        HStack(spacing: 12) {
+            playButton(iconOnly: iconOnly)
+            trackNavigationButtons
+            if !displayedPlaylist.isPrivate { likeButton }
+        }
+    }
+
+    private func playButton(iconOnly: Bool) -> some View {
         let isPlaying = currentPlaylistTrack != nil && model.playback.isPlaybackActive
         return Button {
             if currentPlaylistTrack != nil {
@@ -282,9 +292,9 @@ struct PlaylistDetailView: View {
                     .opacity(isPlaying ? 1 : 0)
                     .accessibilityHidden(!isPlaying)
             }
-            .labelStyle(.titleAndIcon)
             .font(.title3.weight(.semibold))
-            .padding(.horizontal, 24)
+            .padding(.horizontal, iconOnly ? 0 : 24)
+            .frame(width: iconOnly ? 44 : nil)
             .frame(minHeight: 24)
         }
         .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
