@@ -36,6 +36,7 @@ struct TrackWaveformView: View {
     @State private var hoverFraction: Double = 0
     @State private var isHovering = false
     @State private var commentsReadyAppearance: CommentsAppearance?
+    private let commentsAppearanceDelay: Duration = .milliseconds(100)
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -108,21 +109,26 @@ struct TrackWaveformView: View {
         .task(id: [track?.urn ?? "", track?.waveformURL?.absoluteString ?? ""]) {
             await load()
         }
+        .onChange(of: commentsAppearance) { _, _ in
+            // Clear readiness during the update, before a quick resume can reuse it.
+            commentsReadyAppearance = nil
+        }
         .task(id: commentsAppearance) {
             let appearance = commentsAppearance
             commentsReadyAppearance = nil
             guard appearance.trackURN != nil,
                   appearance.hasWaveform,
+                  appearance.isPlaybackActive,
                   !appearance.barsAreCollapsed else { return }
             // Start only when this track's bars can expand, including on first load.
             if !appearance.reduceMotion {
                 do {
-                    try await Task.sleep(for: .milliseconds(100))
+                    try await Task.sleep(for: commentsAppearanceDelay)
                 } catch {
                     return
                 }
             }
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, appearance == commentsAppearance else { return }
             commentsReadyAppearance = appearance
         }
         .task {
@@ -317,13 +323,13 @@ struct TrackWaveformView: View {
                         : "Click to play from this position."
                 )
                 .overlay(alignment: .bottom) {
-                    if layout == .detail,
-                       commentsReadyAppearance == commentsAppearance || reduceMotion,
-                       let track {
+                    if layout == .detail, let track {
                         WaveformCommentsView(
                             track: track,
                             model: model,
                             duration: displayedDuration,
+                            showsComments: commentsAppearance.isPlaybackActive
+                                && (commentsReadyAppearance == commentsAppearance || reduceMotion),
                             onSeek: { seek(to: $0) }
                         )
                         .id(track.urn)
@@ -492,6 +498,7 @@ struct TrackWaveformView: View {
         let trackURN: String?
         let hasWaveform: Bool
         let barsAreCollapsed: Bool
+        let isPlaybackActive: Bool
         let reduceMotion: Bool
     }
 
@@ -500,6 +507,7 @@ struct TrackWaveformView: View {
             trackURN: track?.urn,
             hasWaveform: waveform != nil && waveformTrackURN == track?.urn,
             barsAreCollapsed: barsAreCollapsed,
+            isPlaybackActive: isCurrentTrack && playback.isPlaybackActive,
             reduceMotion: reduceMotion
         )
     }
@@ -661,6 +669,7 @@ private struct WaveformCommentsView: View {
     let track: SoundCloudTrack
     let model: AppModel
     let duration: Double
+    let showsComments: Bool
     let onSeek: (Double) -> Void
 
     @State private var index = WaveformCommentIndex([])
@@ -672,8 +681,7 @@ private struct WaveformCommentsView: View {
             index: index,
             model: model,
             duration: duration,
-            showsComments: model.playback.currentTrack?.urn == track.urn
-                && model.playback.isPlaybackActive,
+            showsComments: showsComments,
             playbackID: playbackID,
             seekRequest: $seekRequest
         )
