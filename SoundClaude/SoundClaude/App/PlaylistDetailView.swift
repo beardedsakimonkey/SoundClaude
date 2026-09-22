@@ -166,10 +166,27 @@ struct PlaylistDetailView: View {
         HStack(alignment: .top, spacing: 24) {
             playlistArtwork
             VStack(alignment: .leading, spacing: 10) {
-                Text("\(Text(Image(systemName: "music.note.list")).foregroundStyle(.primary.opacity(0.7))) \(displayedPlaylist.title)")
-                    .font(.system(size: 28, weight: .semibold))
-                    .textSelection(.enabled)
-                    .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
+                HStack(alignment: .center, spacing: 8) {
+                    Text("\(Text(Image(systemName: "music.note.list")).foregroundStyle(.primary.opacity(0.7))) \(displayedPlaylist.title)")
+                        .font(.system(size: 28, weight: .semibold))
+                        .textSelection(.enabled)
+                        .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
+
+                    if displayedPlaylist.isPrivate {
+                        Text("Private")
+                            .font(.callout.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .overlay {
+                                Capsule()
+                                    .strokeBorder(.secondary.opacity(0.35), lineWidth: 1)
+                            }
+                            .fixedSize()
+                            .help("Private playlist")
+                            .accessibilityLabel("Private playlist")
+                    }
+                }
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     ArtistLink(
                         artist: displayedPlaylist.owner,
@@ -183,20 +200,6 @@ struct PlaylistDetailView: View {
                         prefix: "Updated"
                     )
 
-                    if displayedPlaylist.isPrivate {
-                        Text("·")
-                            .accessibilityHidden(true)
-                        Label {
-                            Text("Private")
-                        } icon: {
-                            Image(systemName: "lock.fill")
-                                .opacity(0.7)
-                        }
-                            .labelStyle(.titleAndIcon)
-                            .foregroundStyle(.secondary)
-                            .fixedSize()
-                            .accessibilityLabel("Private playlist")
-                    }
                 }
                 .font(.title3)
                 .foregroundStyle(.secondary)
