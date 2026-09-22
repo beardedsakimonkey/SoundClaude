@@ -88,7 +88,7 @@ struct SoundClaudeApp: App {
             Button("Toggle Shuffle") {
                 model.toggleShuffle()
             }
-            .keyboardShortcut("s", modifiers: [])
+            .keyboardShortcut("s", modifiers: [.shift])
 
             Button("Cycle Repeat") {
                 model.playback.cycleRepeatMode()

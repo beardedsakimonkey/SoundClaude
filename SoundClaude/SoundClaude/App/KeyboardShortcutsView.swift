@@ -10,7 +10,7 @@ struct KeyboardShortcutsView: View {
             Shortcut(title: "Mute or unmute", keys: ["M"]),
             Shortcut(title: "Increase volume", keys: ["⇧", "↑"]),
             Shortcut(title: "Decrease volume", keys: ["⇧", "↓"]),
-            Shortcut(title: "Toggle shuffle", keys: ["S"]),
+            Shortcut(title: "Toggle shuffle", keys: ["⇧", "S"]),
             Shortcut(title: "Cycle repeat", keys: ["R"]),
             Shortcut(title: "Seek back 5 seconds", keys: ["←"]),
             Shortcut(title: "Seek forward 5 seconds", keys: ["→"]),
@@ -20,6 +20,7 @@ struct KeyboardShortcutsView: View {
         // Track actions and views
         [
             Shortcut(title: "Like or unlike current track", keys: ["L"]),
+            Shortcut(title: "Open station for current track", keys: ["S"]),
             Shortcut(title: "Toggle track queue", keys: ["Q"]),
             Shortcut(title: "Toggle visualizer", keys: ["V"]),
             Shortcut(title: "Cycle shaders in visualizer", keys: ["Enter"]),
