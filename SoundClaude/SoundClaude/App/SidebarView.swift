@@ -20,6 +20,7 @@ struct SidebarView: View {
     @State private var dropTargetURN: String?
     @State private var addingToPlaylistURNs: Set<String> = []
     @State private var playlistDropError: String?
+    @State private var playlistLikeError: String?
     @State private var editingPlaylist: SoundCloudPlaylist?
     @State private var playlistDeletion = PlaylistDeletionState()
     @AppStorage("sidebarPlaylistsExpanded") private var isPlaylistsExpanded = true
@@ -47,6 +48,14 @@ struct SidebarView: View {
             Button("OK", role: .cancel) { playlistDropError = nil }
         } message: {
             Text(playlistDropError ?? "Please try again.")
+        }
+        .alert("Could not unlike playlist", isPresented: Binding(
+            get: { playlistLikeError != nil },
+            set: { if !$0 { playlistLikeError = nil } }
+        )) {
+            Button("OK", role: .cancel) { playlistLikeError = nil }
+        } message: {
+            Text(playlistLikeError ?? "Please try again.")
         }
     }
 
@@ -176,6 +185,8 @@ struct SidebarView: View {
 
     @ViewBuilder
     private func playlistRow(_ playlist: SoundCloudPlaylist) -> some View {
+        let isOwned = (playlist.owner.urn == user.urn && user.urn != nil)
+            || playlist.owner.permalinkURL == user.permalinkURL
         let contents = playlists.cache.contents[playlist.urn]
         let artworkURL = contents?.playlist.artworkURL
             ?? playlist.artworkURL
@@ -196,11 +207,22 @@ struct SidebarView: View {
             .modifier(SidebarRowStyle(isSelected: false, usesPrimaryForeground: currentPlaylistURN == playlist.urn) {
                 onSelectPlaylist(playlist)
             })
-
-        if (playlist.owner.urn == user.urn && user.urn != nil)
-            || playlist.owner.permalinkURL == user.permalinkURL {
-            row
-                .contextMenu {
+            .contextMenu {
+                if playlists.likedPlaylistURNs.contains(playlist.urn) {
+                    Button("Unlike playlist", systemImage: "heart.slash") {
+                        Task { @MainActor in
+                            guard playlists.likedPlaylistURNs.contains(playlist.urn) else { return }
+                            do {
+                                try await playlists.toggleLike(playlist)
+                            } catch is CancellationError {
+                            } catch {
+                                playlistLikeError = "\(playlist.title): \(error.localizedDescription)"
+                            }
+                        }
+                    }
+                    .disabled(playlists.updatingLikeURNs.contains(playlist.urn))
+                }
+                if isOwned {
                     Button {
                         editingPlaylist = contents?.playlist ?? playlist
                     } label: {
@@ -210,6 +232,10 @@ struct SidebarView: View {
                         || playlistDeletion.deletingURNs.contains(playlist.urn))
                     DeletePlaylistButton(playlist: playlist, state: $playlistDeletion)
                 }
+            }
+
+        if isOwned {
+            row
                 .background {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.accentColor.opacity(dropTargetURN == playlist.urn ? 0.18 : 0))

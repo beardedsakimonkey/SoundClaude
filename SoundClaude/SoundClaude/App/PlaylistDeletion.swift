@@ -11,7 +11,7 @@ struct DeletePlaylistButton: View {
     @Binding var state: PlaylistDeletionState
 
     var body: some View {
-        Button("Delete Playlist…", systemImage: "trash", role: .destructive) {
+        Button("Delete Playlist", systemImage: "trash", role: .destructive) {
             state.pendingPlaylist = playlist
         }
         .disabled(state.deletingURNs.contains(playlist.urn))
