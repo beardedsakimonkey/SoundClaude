@@ -211,14 +211,11 @@ struct TrackDetailView: View {
                 }
 
                 if let description = nonempty(details.description) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ExpandableDescriptionText(
-                            description: description,
-                            onSelectArtist: onSelectArtist
-                        )
-                        .id(track.urn)
-                    }
-                    .modifier(FadeInOnAppear())
+                    ExpandableDescriptionText(
+                        description: description,
+                        onSelectArtist: onSelectArtist
+                    )
+                    .id(track.urn)
                 }
 
                 if !details.tags.isEmpty {

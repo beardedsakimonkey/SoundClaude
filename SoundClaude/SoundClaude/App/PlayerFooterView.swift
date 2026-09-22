@@ -398,7 +398,7 @@ struct PlayerFooterView: View {
                         .accessibilityLabel("Volume")
                         .accessibilityValue("\(Int(displayedVolume * 100)) percent")
                 }
-                .padding(.trailing, 12)
+                .padding(.trailing, 8)
             }
             .buttonStyle(.borderless)
 
