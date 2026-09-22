@@ -7,6 +7,7 @@ struct SidebarView: View {
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
+    let onDeletePlaylist: (SoundCloudPlaylist) -> Void
     let onSelectProfile: (SoundCloudUser) -> Void
     let onReselect: () -> Void
     let onSignOut: () async -> Void
@@ -19,6 +20,7 @@ struct SidebarView: View {
     @State private var dropTargetURN: String?
     @State private var addingToPlaylistURNs: Set<String> = []
     @State private var playlistDropError: String?
+    @State private var playlistDeletion = PlaylistDeletionState()
     @AppStorage("sidebarPlaylistsExpanded") private var isPlaylistsExpanded = true
     @AppStorage("sidebarLikedPlaylistsExpanded") private var isLikedPlaylistsExpanded = true
 
@@ -31,6 +33,9 @@ struct SidebarView: View {
         .sheet(isPresented: $isShowingCreatePlaylist) {
             CreatePlaylistView(playlists: playlists, onCreated: onSelectPlaylist)
         }
+        .modifier(PlaylistDeletionModifier(
+            state: $playlistDeletion, playlists: playlists, onDeleted: onDeletePlaylist
+        ))
         .alert("Could not add track to playlist", isPresented: Binding(
             get: { playlistDropError != nil },
             set: { if !$0 { playlistDropError = nil } }
@@ -191,6 +196,9 @@ struct SidebarView: View {
         if (playlist.owner.urn == user.urn && user.urn != nil)
             || playlist.owner.permalinkURL == user.permalinkURL {
             row
+                .contextMenu {
+                    DeletePlaylistButton(playlist: playlist, state: $playlistDeletion)
+                }
                 .background {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.accentColor.opacity(dropTargetURN == playlist.urn ? 0.18 : 0))

@@ -21,9 +21,7 @@ struct PlaylistDetailView: View {
     @State private var isShowingArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var likeErrorMessage: String?
-    @State private var isConfirmingDeletion = false
-    @State private var isDeleting = false
-    @State private var deleteErrorMessage: String?
+    @State private var playlistDeletion = PlaylistDeletionState()
     @State private var removeTrackErrorMessage: String?
 
     private var isOwnedByCurrentUser: Bool {
@@ -94,14 +92,12 @@ struct PlaylistDetailView: View {
             if isOwnedByCurrentUser {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
-                        Button("Delete Playlist…", systemImage: "trash", role: .destructive) {
-                            isConfirmingDeletion = true
-                        }
+                        DeletePlaylistButton(playlist: displayedPlaylist, state: $playlistDeletion)
                     } label: {
                         Label("Playlist actions", systemImage: "ellipsis")
                     }
                     .menuIndicator(.hidden)
-                    .disabled(isDeleting)
+                    .disabled(playlistDeletion.deletingURNs.contains(playlist.urn))
                     .help("Playlist actions")
                 }
             }
@@ -124,32 +120,9 @@ struct PlaylistDetailView: View {
         } message: {
             Text(likeErrorMessage ?? "Please try again.")
         }
-        .confirmationDialog("Delete \(displayedPlaylist.title)?", isPresented: $isConfirmingDeletion,
-                            titleVisibility: .visible) {
-            Button("Delete Playlist", role: .destructive) {
-                isDeleting = true
-                Task {
-                    defer { isDeleting = false }
-                    do {
-                        try await playlists.deletePlaylist(displayedPlaylist)
-                        onDeletePlaylist(playlist)
-                    } catch {
-                        deleteErrorMessage = error.localizedDescription
-                    }
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will permanently delete the playlist from SoundCloud.")
-        }
-        .alert("Could not delete playlist", isPresented: Binding(
-            get: { deleteErrorMessage != nil },
-            set: { if !$0 { deleteErrorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { deleteErrorMessage = nil }
-        } message: {
-            Text(deleteErrorMessage ?? "Please try again.")
-        }
+        .modifier(PlaylistDeletionModifier(
+            state: $playlistDeletion, playlists: playlists, onDeleted: onDeletePlaylist
+        ))
         .alert("Could not remove track", isPresented: Binding(
             get: { removeTrackErrorMessage != nil },
             set: { if !$0 { removeTrackErrorMessage = nil } }

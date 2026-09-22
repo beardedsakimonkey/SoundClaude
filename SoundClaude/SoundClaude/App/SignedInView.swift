@@ -193,6 +193,7 @@ struct SignedInView: View {
                 user: user,
                 artworkLoader: model.artworkLoader,
                 onSelectPlaylist: showPlaylist,
+                onDeletePlaylist: removeDeletedPlaylist,
                 onSelectProfile: showArtist,
                 onReselect: {
                     navigationHistories[destinationID] = NavigationHistory()
