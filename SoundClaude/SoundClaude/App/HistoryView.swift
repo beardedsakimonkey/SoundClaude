@@ -32,11 +32,11 @@ struct HistoryView: View {
 
                     Spacer()
 
-                    TrackLayoutPicker(trackLayout: $trackLayout)
-
                     RefreshButton(title: "Refresh history", isLoading: isLoading) {
                         reloadID = UUID()
                     }
+
+                    TrackLayoutPicker(trackLayout: $trackLayout)
                 }
 
                 trackList

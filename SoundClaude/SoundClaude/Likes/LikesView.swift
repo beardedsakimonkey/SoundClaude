@@ -85,9 +85,9 @@ struct LikesView: View {
                     .accessibilityLabel("Syncing likes")
                     .controlSize(.small)
             }
-            TrackLayoutPicker(trackLayout: $trackLayout)
             searchBar
                 .frame(maxWidth: 280)
+            TrackLayoutPicker(trackLayout: $trackLayout)
         }
         .padding(20)
     }
