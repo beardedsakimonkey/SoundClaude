@@ -115,7 +115,7 @@ struct SidebarView: View {
                         }
                 }
                 VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader("Playlists", isExpanded: $isPlaylistsExpanded)
+                    sectionHeader("Playlists", isExpanded: $isPlaylistsExpanded, isLoading: playlists.isLoading)
                     if isPlaylistsExpanded {
                         Label {
                             Text("New")
@@ -133,12 +133,7 @@ struct SidebarView: View {
                                 playlistRow(playlist)
                                     .transition(.opacity)
                             }
-                            if playlists.isLoading {
-                                ProgressView()
-                                    .accessibilityLabel("Loading playlists")
-                                    .controlSize(.small)
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                            } else if let errorMessage = playlists.errorMessage {
+                            if !playlists.isLoading, let errorMessage = playlists.errorMessage {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(errorMessage)
                                         .font(.caption)
@@ -146,7 +141,7 @@ struct SidebarView: View {
                                     Button("Try Again") { Task { await playlists.load() } }
                                         .modifier(SidebarHoverBackground())
                                 }
-                            } else if playlists.playlists.isEmpty {
+                            } else if !playlists.isLoading && playlists.playlists.isEmpty {
                                 Text("No playlists")
                                     .foregroundStyle(.secondary)
                             }
@@ -156,19 +151,14 @@ struct SidebarView: View {
                     }
                 }
                 VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader("Liked Playlists", isExpanded: $isLikedPlaylistsExpanded)
+                    sectionHeader("Liked Playlists", isExpanded: $isLikedPlaylistsExpanded, isLoading: playlists.isLoadingLikes)
                     if isLikedPlaylistsExpanded {
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(playlists.likedPlaylists) { playlist in
                                 playlistRow(playlist)
                                     .transition(.opacity)
                             }
-                            if playlists.isLoadingLikes {
-                                ProgressView()
-                                    .accessibilityLabel("Loading liked playlists")
-                                    .controlSize(.small)
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                            } else if let errorMessage = playlists.likesErrorMessage {
+                            if !playlists.isLoadingLikes, let errorMessage = playlists.likesErrorMessage {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(errorMessage)
                                         .font(.caption)
@@ -176,7 +166,7 @@ struct SidebarView: View {
                                     Button("Try Again") { Task { await playlists.loadLikes() } }
                                         .modifier(SidebarHoverBackground())
                                 }
-                            } else if playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
+                            } else if !playlists.isLoadingLikes && playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
                                 Text("No liked playlists")
                                     .foregroundStyle(.secondary)
                             }
@@ -371,7 +361,7 @@ struct SidebarView: View {
         }
     }
 
-    private func sectionHeader(_ title: String, isExpanded: Binding<Bool>) -> some View {
+    private func sectionHeader(_ title: String, isExpanded: Binding<Bool>, isLoading: Bool) -> some View {
         Button {
             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
                 isExpanded.wrappedValue.toggle()
@@ -386,6 +376,12 @@ struct SidebarView: View {
                         value: isExpanded.wrappedValue
                     )
                     .accessibilityHidden(true)
+                Spacer()
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .accessibilityHidden(true)
+                }
             }
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 10)
@@ -396,7 +392,7 @@ struct SidebarView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
-        .accessibilityValue(isExpanded.wrappedValue ? "Expanded" : "Collapsed")
+        .accessibilityValue("\(isExpanded.wrappedValue ? "Expanded" : "Collapsed")\(isLoading ? ", Loading" : "")")
         .help("\(isExpanded.wrappedValue ? "Collapse" : "Expand") \(title)")
     }
 
