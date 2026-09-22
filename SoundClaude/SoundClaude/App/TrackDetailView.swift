@@ -147,7 +147,9 @@ struct TrackDetailView: View {
                         animatesChanges: true,
                         showsPlaceholderIcon: false,
                         cornerRadius: 12,
-                        dragTrack: details.track,
+                        track: details.track,
+                        likes: model.likes,
+                        onAddToQueue: model.addToQueue,
                         onShowArtwork: { isShowingArtwork = true }
                     )
 

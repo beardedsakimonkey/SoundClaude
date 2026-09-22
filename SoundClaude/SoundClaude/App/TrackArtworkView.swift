@@ -357,17 +357,34 @@ struct DetailArtworkView: View {
     var animatesChanges = false
     var showsPlaceholderIcon = true
     var cornerRadius: CGFloat = 6
-    var dragTrack: SoundCloudTrack? = nil
+    var track: SoundCloudTrack? = nil
+    @ObservedObject var likes: LikesController
+    let onAddToQueue: (SoundCloudTrack) -> Void
+    var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
+    var isUpdatingPlaylist = false
     let onShowArtwork: () -> Void
 
     private var reflectionHeight: CGFloat { size * 0.45 }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHoveringArtwork = false
+    @State private var likeErrorMessage: String?
 
     var body: some View {
         VStack(spacing: 1) {
             draggableArtworkControl
+                .contextMenu {
+                    if let track {
+                        TrackMenuItems(
+                            track: track,
+                            likes: likes,
+                            likeErrorMessage: $likeErrorMessage,
+                            onAddToQueue: onAddToQueue,
+                            onRemoveFromPlaylist: onRemoveFromPlaylist,
+                            isUpdatingPlaylist: isUpdatingPlaylist
+                        )
+                    }
+                }
 
             artworkThumbnail
                 .scaleEffect(x: 1, y: -1)
@@ -393,13 +410,21 @@ struct DetailArtworkView: View {
                 // Reserve space for the visible reflection; let its faint tail overflow.
                 .frame(height: 32, alignment: .top)
         }
+        .alert("Could not update like", isPresented: Binding(
+            get: { likeErrorMessage != nil },
+            set: { if !$0 { likeErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { likeErrorMessage = nil }
+        } message: {
+            Text(likeErrorMessage ?? "Please try again.")
+        }
     }
 
     @ViewBuilder
     private var draggableArtworkControl: some View {
-        if let dragTrack {
+        if let track {
             artworkControl
-                .draggable(TrackPlaylistDrag(track: dragTrack))
+                .draggable(TrackPlaylistDrag(track: track))
                 .help(artworkURL != nil ? "View full-size artwork or drag to a playlist" : "Drag to a playlist")
         } else {
             artworkControl

@@ -252,7 +252,11 @@ struct PlaylistDetailView: View {
             size: artworkSize,
             animatesChanges: true,
             cornerRadius: 12,
-            dragTrack: artworkTrack,
+            track: artworkTrack,
+            likes: model.likes,
+            onAddToQueue: model.addToQueue,
+            onRemoveFromPlaylist: isOwnedByCurrentUser ? removeTrack : nil,
+            isUpdatingPlaylist: playlists.updatingPlaylistURNs.contains(playlist.urn),
             onShowArtwork: { isShowingArtwork = true }
         )
     }
