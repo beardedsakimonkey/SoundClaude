@@ -27,6 +27,7 @@
 		A1000000000000000000000F /* MetalVisualizerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000010 /* MetalVisualizerView.swift */; };
 		A10000000000000000000010 /* VisualizerRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* VisualizerRenderer.swift */; };
 		A10000000000000000000011 /* AudioVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* AudioVisualizer.metal */; };
+		E91000000000000000000001 /* RibbonVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = E92000000000000000000001 /* RibbonVisualizer.metal */; };
 		A10000000000000000000012 /* ArtworkLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* ArtworkLoader.swift */; };
 		A10000000000000000000013 /* KeyboardShortcutsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002B /* KeyboardShortcutsView.swift */; };
 		A10000000000000000000014 /* TrackDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002C /* TrackDetailView.swift */; };
@@ -131,6 +132,7 @@
 		A20000000000000000000010 /* MetalVisualizerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalVisualizerView.swift; sourceTree = "<group>"; };
 		A20000000000000000000011 /* VisualizerRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerRenderer.swift; sourceTree = "<group>"; };
 		A20000000000000000000012 /* AudioVisualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = AudioVisualizer.metal; sourceTree = "<group>"; };
+		E92000000000000000000001 /* RibbonVisualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = RibbonVisualizer.metal; sourceTree = "<group>"; };
 		A20000000000000000000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000000000000000000014 /* SoundClaude.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SoundClaude.entitlements; sourceTree = "<group>"; };
 		A20000000000000000000015 /* SoundClaude-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SoundClaude-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -418,6 +420,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000012 /* AudioVisualizer.metal */,
+				E92000000000000000000001 /* RibbonVisualizer.metal */,
 				8D06FA75D610477E98EECAA2 /* PlayerArtworkGlass.metal */,
 			);
 			path = Shaders;
@@ -632,6 +635,7 @@
 				A1000000000000000000000F /* MetalVisualizerView.swift in Sources */,
 				A10000000000000000000010 /* VisualizerRenderer.swift in Sources */,
 				A10000000000000000000011 /* AudioVisualizer.metal in Sources */,
+				E91000000000000000000001 /* RibbonVisualizer.metal in Sources */,
 				C9FA7C0ECE4247239C5F652B /* PlayerArtworkGlass.metal in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -1,8 +1,25 @@
 import Foundation
 import MetalKit
 
+enum VisualizerShader: String, CaseIterable {
+    case bars
+    case ribbon
+
+    var next: Self {
+        let shaders = Self.allCases
+        let index = shaders.firstIndex(of: self)!
+        return shaders[(index + 1) % shaders.count]
+    }
+
+    var title: String { self == .bars ? "Bars" : "Ribbon" }
+    var sourceFile: String { self == .bars ? "AudioVisualizer.metal" : "RibbonVisualizer.metal" }
+    var vertexFunction: String { self == .bars ? "visualizerVertex" : "ribbonVisualizerVertex" }
+    var fragmentFunction: String { self == .bars ? "visualizerFragment" : "ribbonVisualizerFragment" }
+}
+
 final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var accent: ArtworkAccent
+    var shader: VisualizerShader = .bars
 
     private let spectrumBuffer: OpaquePointer
     private let commandQueue: MTLCommandQueue
@@ -10,11 +27,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private let fallbackTexture: MTLTexture
     private var artworkTexture: MTLTexture?
     private var artworkImage: CGImage?
-    private var pipelineState: MTLRenderPipelineState
+    private var pipelines: [VisualizerShader: MTLRenderPipelineState] = [:]
     private var bands = [Float](repeating: 0, count: Int(SCSpectrumBandCount))
     private let animationStartTime = ProcessInfo.processInfo.systemUptime
 #if DEBUG
-    private var shaderReloader: VisualizerShaderReloader?
+    private var shaderReloaders: [VisualizerShader: VisualizerShaderReloader] = [:]
 #endif
 
     init?(view: MTKView, spectrumBuffer: OpaquePointer, accent: ArtworkAccent) {
@@ -25,9 +42,12 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         }
 
         do {
-            pipelineState = try Self.makePipeline(
-                device: device, library: library, pixelFormat: view.colorPixelFormat
-            )
+            for shader in VisualizerShader.allCases {
+                pipelines[shader] = try Self.makePipeline(
+                    device: device, library: library, pixelFormat: view.colorPixelFormat,
+                    shader: shader
+                )
+            }
         } catch {
             return nil
         }
@@ -49,9 +69,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         self.commandQueue = commandQueue
         super.init()
 #if DEBUG
-        shaderReloader = VisualizerShaderReloader(
-            device: device, pixelFormat: view.colorPixelFormat
-        )
+        for shader in VisualizerShader.allCases {
+            shaderReloaders[shader] = VisualizerShaderReloader(
+                device: device, pixelFormat: view.colorPixelFormat, shader: shader
+            )
+        }
 #endif
     }
 
@@ -89,15 +111,16 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     }
 
     fileprivate static func makePipeline(
-        device: MTLDevice, library: MTLLibrary, pixelFormat: MTLPixelFormat
+        device: MTLDevice, library: MTLLibrary, pixelFormat: MTLPixelFormat,
+        shader: VisualizerShader
     ) throws -> MTLRenderPipelineState {
         let descriptor = MTLRenderPipelineDescriptor()
-        descriptor.label = "Audio visualizer"
-        descriptor.vertexFunction = library.makeFunction(name: "visualizerVertex")
-        descriptor.fragmentFunction = library.makeFunction(name: "visualizerFragment")
+        descriptor.label = "Audio visualizer: \(shader.title)"
+        descriptor.vertexFunction = library.makeFunction(name: shader.vertexFunction)
+        descriptor.fragmentFunction = library.makeFunction(name: shader.fragmentFunction)
         guard descriptor.vertexFunction != nil, descriptor.fragmentFunction != nil else {
             throw NSError(domain: "VisualizerShader", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Shader must define visualizerVertex and visualizerFragment."
+                NSLocalizedDescriptionKey: "Shader must define \(shader.vertexFunction) and \(shader.fragmentFunction)."
             ])
         }
         descriptor.colorAttachments[0].pixelFormat = pixelFormat
@@ -108,11 +131,14 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 
     func draw(in view: MTKView) {
 #if DEBUG
-        if let replacement = shaderReloader?.takePipeline() {
-            pipelineState = replacement
+        for (shader, reloader) in shaderReloaders {
+            if let replacement = reloader.takePipeline() {
+                pipelines[shader] = replacement
+            }
         }
 #endif
-        guard let renderPassDescriptor = view.currentRenderPassDescriptor,
+        guard let pipelineState = pipelines[shader],
+              let renderPassDescriptor = view.currentRenderPassDescriptor,
               let drawable = view.currentDrawable,
               let commandBuffer = commandQueue.makeCommandBuffer(),
               let encoder = commandBuffer.makeRenderCommandEncoder(
@@ -164,17 +190,20 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 private final class VisualizerShaderReloader {
     private let device: MTLDevice
     private let pixelFormat: MTLPixelFormat
-    private let sourceURL = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .appendingPathComponent("Shaders/AudioVisualizer.metal")
+    private let shader: VisualizerShader
+    private let sourceURL: URL
     private let timer: DispatchSourceTimer
     private var lastSource: String?
     private var lastReadError: String?
     private let lock = NSLock()
     private var pendingPipeline: MTLRenderPipelineState?
 
-    init(device: MTLDevice, pixelFormat: MTLPixelFormat) {
+    init(device: MTLDevice, pixelFormat: MTLPixelFormat, shader: VisualizerShader) {
+        self.shader = shader
+        sourceURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Shaders/\(shader.sourceFile)")
         self.device = device
         self.pixelFormat = pixelFormat
         timer = DispatchSource.makeTimerSource(queue: DispatchQueue(
@@ -215,7 +244,7 @@ private final class VisualizerShaderReloader {
             // Compile off the render thread. Publish only a complete, valid pipeline.
             let library = try device.makeLibrary(source: source, options: nil)
             let pipeline = try VisualizerRenderer.makePipeline(
-                device: device, library: library, pixelFormat: pixelFormat
+                device: device, library: library, pixelFormat: pixelFormat, shader: shader
             )
             lock.lock()
             pendingPipeline = pipeline

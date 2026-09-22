@@ -12,6 +12,7 @@ struct SignedInView: View {
     @State private var likesSearchText = ""
     @State private var searchFocusRequest = UUID()
     @State private var isShowingVisualizer = false
+    @State private var visualizerShader: VisualizerShader = .bars
     @State private var isShowingQueue = false
     @State private var queueHoverSuppression = ContentHoverSuppression()
     @State private var footerHeight: CGFloat = 0
@@ -60,6 +61,7 @@ struct SignedInView: View {
             if isShowingVisualizer {
                 VisualizerView(
                     playback: model.playback,
+                    shader: visualizerShader,
                     spectrumBuffer: model.analyzer.spectrumBuffer,
                     artworkLoader: model.artworkLoader
                 )
@@ -160,6 +162,8 @@ struct SignedInView: View {
     // The footer owns these shortcuts in normal mode. Keep them available when it is absent.
     private var visualizerShortcuts: some View {
         Group {
+            Button("Next visualizer shader") { visualizerShader = visualizerShader.next }
+                .keyboardShortcut(.return, modifiers: [])
             Button("Close visualizer") { isShowingVisualizer = false }
                 .keyboardShortcut("v", modifiers: [])
             Button("Close visualizer") { isShowingVisualizer = false }
