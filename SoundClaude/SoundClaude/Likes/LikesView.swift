@@ -81,7 +81,8 @@ struct LikesView: View {
                     .font(.largeTitle.weight(.semibold))
                 Text("(\(likes.tracks.count))")
                     .font(.largeTitle.weight(.regular))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
+                    .opacity(0.6)
             }
             Button {
                 Task { await onShuffle() }
