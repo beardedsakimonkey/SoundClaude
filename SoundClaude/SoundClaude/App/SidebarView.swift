@@ -156,10 +156,7 @@ struct SidebarView: View {
                     }
                 }
                 VStack(alignment: .leading, spacing: 0) {
-                    if !playlists.likedPlaylists.isEmpty {
-                        sectionHeader("Liked Playlists", isExpanded: $isLikedPlaylistsExpanded)
-                            .transition(.opacity)
-                    }
+                    sectionHeader("Liked Playlists", isExpanded: $isLikedPlaylistsExpanded)
                     if isLikedPlaylistsExpanded {
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(playlists.likedPlaylists) { playlist in
@@ -167,12 +164,10 @@ struct SidebarView: View {
                                     .transition(.opacity)
                             }
                             if playlists.isLoadingLikes {
-                                if !playlists.likedPlaylists.isEmpty {
-                                    ProgressView()
-                                        .accessibilityLabel("Loading liked playlists")
-                                        .controlSize(.small)
-                                        .frame(maxWidth: .infinity, alignment: .center)
-                                }
+                                ProgressView()
+                                    .accessibilityLabel("Loading liked playlists")
+                                    .controlSize(.small)
+                                    .frame(maxWidth: .infinity, alignment: .center)
                             } else if let errorMessage = playlists.likesErrorMessage {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(errorMessage)
@@ -221,8 +216,14 @@ struct SidebarView: View {
             default: break
             }
         }
-        .task { await playlists.load() }
-        .task { await playlists.loadLikes() }
+        .task(id: isPlaylistsExpanded) {
+            guard isPlaylistsExpanded else { return }
+            await playlists.load()
+        }
+        .task(id: isLikedPlaylistsExpanded) {
+            guard isLikedPlaylistsExpanded else { return }
+            await playlists.loadLikes()
+        }
     }
 
     @ViewBuilder
