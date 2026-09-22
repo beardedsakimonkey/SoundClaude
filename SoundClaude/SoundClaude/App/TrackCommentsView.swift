@@ -33,6 +33,21 @@ struct CommentSortMenu: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) {
+                Text("Sort by")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+
+                sortMenu
+            }
+            .fixedSize(horizontal: true, vertical: false)
+
+            sortMenu
+        }
+    }
+
+    private var sortMenu: some View {
         Menu {
             Picker("Sort comments", selection: $sortOrder) {
                 ForEach(CommentSortOrder.allCases, id: \.self) { order in
