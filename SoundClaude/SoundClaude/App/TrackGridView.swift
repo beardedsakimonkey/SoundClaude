@@ -179,6 +179,7 @@ struct TrackGridTile: View {
             }
         }
         .contentShape(Rectangle())
+        .draggable(TrackPlaylistDrag(track: track))
         .contextMenu {
             trackMenuItems
         }

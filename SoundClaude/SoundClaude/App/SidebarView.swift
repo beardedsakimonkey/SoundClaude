@@ -16,6 +16,9 @@ struct SidebarView: View {
     @State private var isShowingCreatePlaylist = false
     @State private var isProfileHovered = false
     @State private var isSignOutHovered = false
+    @State private var dropTargetURN: String?
+    @State private var addingToPlaylistURNs: Set<String> = []
+    @State private var playlistDropError: String?
     @AppStorage("sidebarPlaylistsExpanded") private var isPlaylistsExpanded = true
     @AppStorage("sidebarLikedPlaylistsExpanded") private var isLikedPlaylistsExpanded = true
 
@@ -27,6 +30,14 @@ struct SidebarView: View {
         .navigationTitle("SoundClaude")
         .sheet(isPresented: $isShowingCreatePlaylist) {
             CreatePlaylistView(playlists: playlists, onCreated: onSelectPlaylist)
+        }
+        .alert("Could not add track to playlist", isPresented: Binding(
+            get: { playlistDropError != nil },
+            set: { if !$0 { playlistDropError = nil } }
+        )) {
+            Button("OK", role: .cancel) { playlistDropError = nil }
+        } message: {
+            Text(playlistDropError ?? "Please try again.")
         }
     }
 
@@ -154,13 +165,14 @@ struct SidebarView: View {
         .task { await playlists.loadLikes() }
     }
 
+    @ViewBuilder
     private func playlistRow(_ playlist: SoundCloudPlaylist) -> some View {
         let contents = playlists.cache.contents[playlist.urn]
         let artworkURL = contents?.playlist.artworkURL
             ?? playlist.artworkURL
             ?? contents?.tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
 
-        return Label {
+        let row = Label {
             Text(playlist.title)
         } icon: {
             TrackArtworkView(
@@ -175,6 +187,49 @@ struct SidebarView: View {
             .modifier(SidebarRowStyle(isSelected: false, usesPrimaryForeground: currentPlaylistURN == playlist.urn) {
                 onSelectPlaylist(playlist)
             })
+
+        if (playlist.owner.urn == user.urn && user.urn != nil)
+            || playlist.owner.permalinkURL == user.permalinkURL {
+            row
+                .background {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.accentColor.opacity(dropTargetURN == playlist.urn ? 0.18 : 0))
+                }
+                .overlay(alignment: .trailing) {
+                    if addingToPlaylistURNs.contains(playlist.urn) {
+                        ProgressView()
+                            .controlSize(.small)
+                            .padding(.trailing, 8)
+                            .accessibilityLabel("Adding track to \(playlist.title)")
+                            .allowsHitTesting(false)
+                    }
+                }
+                .dropDestination(for: TrackPlaylistDrag.self) { items, _ in
+                    guard !items.isEmpty,
+                          addingToPlaylistURNs.insert(playlist.urn).inserted else { return false }
+                    dropTargetURN = nil
+                    Task { @MainActor in
+                        defer { addingToPlaylistURNs.remove(playlist.urn) }
+                        do {
+                            for item in items {
+                                try await playlists.addTrack(item.track, to: playlist)
+                            }
+                        } catch is CancellationError {
+                        } catch {
+                            playlistDropError = "\(playlist.title): \(error.localizedDescription)"
+                        }
+                    }
+                    return true
+                } isTargeted: { isTargeted in
+                    if isTargeted && !addingToPlaylistURNs.contains(playlist.urn) {
+                        dropTargetURN = playlist.urn
+                    } else if dropTargetURN == playlist.urn {
+                        dropTargetURN = nil
+                    }
+                }
+        } else {
+            row
+        }
     }
 
     private func sectionHeader(_ title: String, isExpanded: Binding<Bool>) -> some View {

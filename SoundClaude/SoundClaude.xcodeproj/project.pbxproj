@@ -37,6 +37,7 @@
 		A10000000000000000000016 /* SignedInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002E /* SignedInView.swift */; };
 		C2F91168AE4C486180421476 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E86C82775C864E97AE14574B /* SidebarView.swift */; };
 		BC0ED1B190114B328E6B6C7B /* CreatePlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8DE812CED624347B28935A9 /* CreatePlaylistView.swift */; };
+		E92100000000000000000001 /* TrackPlaylistDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92100000000000000000002 /* TrackPlaylistDrag.swift */; };
 		D63C43493BD540DFA98B4577 /* AddToPlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5545C4EAD79D4CA0B2D6090C /* AddToPlaylistView.swift */; };
 		A10000000000000000000017 /* LikesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002F /* LikesView.swift */; };
 		A10000000000000000000071 /* SearchOutsideClickView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000071 /* SearchOutsideClickView.swift */; };
@@ -150,6 +151,7 @@
 		A2000000000000000000002E /* SignedInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedInView.swift; sourceTree = "<group>"; };
 		E86C82775C864E97AE14574B /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		E8DE812CED624347B28935A9 /* CreatePlaylistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreatePlaylistView.swift; sourceTree = "<group>"; };
+		E92100000000000000000002 /* TrackPlaylistDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackPlaylistDrag.swift; sourceTree = "<group>"; };
 		5545C4EAD79D4CA0B2D6090C /* AddToPlaylistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddToPlaylistView.swift; sourceTree = "<group>"; };
 		A2000000000000000000002F /* LikesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikesView.swift; sourceTree = "<group>"; };
 		A20000000000000000000071 /* SearchOutsideClickView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchOutsideClickView.swift; sourceTree = "<group>"; };
@@ -305,6 +307,7 @@
 				F7334E245AF2450E9BCD9B0E /* SearchTextField.swift */,
 				E86C82775C864E97AE14574B /* SidebarView.swift */,
 				E8DE812CED624347B28935A9 /* CreatePlaylistView.swift */,
+				E92100000000000000000002 /* TrackPlaylistDrag.swift */,
 				5545C4EAD79D4CA0B2D6090C /* AddToPlaylistView.swift */,
 				A20000000000000000000030 /* SidebarDestination.swift */,
 				A20000000000000000000032 /* FeedView.swift */,
@@ -567,6 +570,7 @@
 				48BB7006F5DA468DA33DBFD0 /* SearchTextField.swift in Sources */,
 				C2F91168AE4C486180421476 /* SidebarView.swift in Sources */,
 				BC0ED1B190114B328E6B6C7B /* CreatePlaylistView.swift in Sources */,
+				E92100000000000000000001 /* TrackPlaylistDrag.swift in Sources */,
 				D63C43493BD540DFA98B4577 /* AddToPlaylistView.swift in Sources */,
 				A10000000000000000000018 /* SidebarDestination.swift in Sources */,
 				A1000000000000000000001A /* FeedView.swift in Sources */,

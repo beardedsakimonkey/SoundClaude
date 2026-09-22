@@ -29,6 +29,19 @@
     <string>SoundClaude captures its own audio output to draw the music visualizer.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key>
+            <string>com.tim.soundclaude.native.track</string>
+            <key>UTTypeDescription</key>
+            <string>SoundClaude Track</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+        </dict>
+    </array>
     <key>SoundCloudClientID</key>
     <string>$(SOUNDCLOUD_CLIENT_ID)</string>
     <key>SoundCloudClientSecret</key>
