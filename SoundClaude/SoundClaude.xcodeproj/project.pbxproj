@@ -48,6 +48,7 @@
 		A10000000000000000000073 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000073 /* HistoryView.swift */; };
 		A10000000000000000000080 /* SearchResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000080 /* SearchResultsView.swift */; };
 		A1000000000000000000001B /* PlayerFooterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000033 /* PlayerFooterView.swift */; };
+		402E5CBBFF434B839270458A /* PlayerVolumeControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0BA3CD5DBE44BB49D0B96B6 /* PlayerVolumeControl.swift */; };
 		A10000000000000000000038 /* SpringGlassButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000038 /* SpringGlassButtonStyle.swift */; };
 		A10000000000000000000081 /* TabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000081 /* TabPicker.swift */; };
 		D92000000000000000000001 /* AnimatedPlayPauseIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D92000000000000000000002 /* AnimatedPlayPauseIcon.swift */; };
@@ -168,6 +169,7 @@
 		A20000000000000000000073 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		A20000000000000000000080 /* SearchResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultsView.swift; sourceTree = "<group>"; };
 		A20000000000000000000033 /* PlayerFooterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerFooterView.swift; sourceTree = "<group>"; };
+		E0BA3CD5DBE44BB49D0B96B6 /* PlayerVolumeControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerVolumeControl.swift; sourceTree = "<group>"; };
 		A20000000000000000000038 /* SpringGlassButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpringGlassButtonStyle.swift; sourceTree = "<group>"; };
 		A20000000000000000000081 /* TabPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabPicker.swift; sourceTree = "<group>"; };
 		D92000000000000000000002 /* AnimatedPlayPauseIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedPlayPauseIcon.swift; sourceTree = "<group>"; };
@@ -333,6 +335,7 @@
 				A20000000000000000000080 /* SearchResultsView.swift */,
 				4925E94F504F440FA2B06DBF /* PlayerArtworkGlass.swift */,
 				A20000000000000000000033 /* PlayerFooterView.swift */,
+				E0BA3CD5DBE44BB49D0B96B6 /* PlayerVolumeControl.swift */,
 				A20000000000000000000038 /* SpringGlassButtonStyle.swift */,
 				A20000000000000000000081 /* TabPicker.swift */,
 				D92000000000000000000002 /* AnimatedPlayPauseIcon.swift */,
@@ -602,6 +605,7 @@
 				A10000000000000000000080 /* SearchResultsView.swift in Sources */,
 				53FD266F04FB426AA01E2B0A /* PlayerArtworkGlass.swift in Sources */,
 				A1000000000000000000001B /* PlayerFooterView.swift in Sources */,
+				402E5CBBFF434B839270458A /* PlayerVolumeControl.swift in Sources */,
 				A10000000000000000000038 /* SpringGlassButtonStyle.swift in Sources */,
 				A10000000000000000000081 /* TabPicker.swift in Sources */,
 				D92000000000000000000001 /* AnimatedPlayPauseIcon.swift in Sources */,
