@@ -232,10 +232,14 @@ struct TrackDetailView: View {
 
                 HStack(alignment: .top, spacing: 24) {
                     VStack(alignment: .leading, spacing: 16) {
-                        CountedSectionHeader(
-                            title: "Comments",
-                            count: details.commentCount
-                        )
+                        HStack(alignment: .firstTextBaseline) {
+                            CountedSectionHeader(
+                                title: "Comments",
+                                count: details.commentCount
+                            )
+                            Spacer()
+                            CommentSortMenu()
+                        }
                         .modifier(FadeInOnAppear())
 
                         TrackCommentsView(

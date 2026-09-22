@@ -1,6 +1,68 @@
 import AppKit
 import SwiftUI
 
+enum CommentSortOrder: String, CaseIterable {
+    case newest
+    case oldest
+    case trackTime
+
+    var title: String {
+        switch self {
+        case .newest: "Newest"
+        case .oldest: "Oldest"
+        case .trackTime: "Track Time"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .newest: "arrow.down"
+        case .oldest: "arrow.up"
+        case .trackTime: "waveform"
+        }
+    }
+
+    func precedes(_ lhs: SoundCloudComment, _ rhs: SoundCloudComment) -> Bool {
+        if self == .trackTime, lhs.timestampMilliseconds != rhs.timestampMilliseconds {
+            guard let left = lhs.timestampMilliseconds else { return false }
+            guard let right = rhs.timestampMilliseconds else { return true }
+            return left < right
+        }
+        // Missing dates go last; equal dates retain their loaded order.
+        guard let left = lhs.createdAt else { return false }
+        guard let right = rhs.createdAt else { return true }
+        return self == .oldest ? left < right : left > right
+    }
+}
+
+struct CommentSortMenu: View {
+    @AppStorage("commentSortOrder") private var sortOrder = CommentSortOrder.newest
+    @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Menu {
+            Picker("Sort comments", selection: $sortOrder) {
+                ForEach(CommentSortOrder.allCases, id: \.self) { order in
+                    Label(order.title, systemImage: order.symbol)
+                        .tag(order)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Label(sortOrder.title, systemImage: sortOrder.symbol)
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .opacity(isHovered ? 1 : 0.7)
+        .onContentHover { isHovered = $0 }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovered)
+        .accessibilityLabel("Sort comments")
+        .accessibilityValue(sortOrder.title)
+        .help("Sort comments")
+    }
+}
+
 struct TrackCommentsView: View {
     let track: SoundCloudTrack
     @ObservedObject var model: AppModel
@@ -8,6 +70,7 @@ struct TrackCommentsView: View {
 
     let onCommentAdded: () -> Void
 
+    @AppStorage("commentSortOrder") private var sortOrder = CommentSortOrder.newest
     @State private var draft = ""
     @FocusState private var isCommentFocused: Bool
     @State private var isCommentHovered = false
@@ -30,7 +93,7 @@ struct TrackCommentsView: View {
             commentComposer
                 .modifier(FadeInOnAppear())
 
-            ForEach(comments) { comment in
+            ForEach(comments.sorted(by: sortOrder.precedes)) { comment in
                 commentRow(comment)
                     .modifier(FadeInOnAppear())
             }
