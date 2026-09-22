@@ -50,7 +50,8 @@ struct PlayerVolumeControl: View {
                 isHoveringVolumeButton = hovering
                 if hovering && usesCompactVolume { isShowingVolume = true }
             }
-            .popover(isPresented: $isShowingVolume, arrowEdge: .bottom) {
+            // The arrow edge refers to the button's attachment anchor.
+            .popover(isPresented: $isShowingVolume, arrowEdge: .top) {
                 volumeSlider(axis: .vertical)
                     .frame(width: 24, height: sliderLength)
                     .padding(12)
