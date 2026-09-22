@@ -173,7 +173,7 @@ struct SignedInView: View {
             Button("Focus current track") {
                 if let track = model.playback.currentTrack { showTrack(track) }
             }
-            .keyboardShortcut("f", modifiers: [])
+            .keyboardShortcut("t", modifiers: [])
             Button("Focus current artist") {
                 if let track = model.playback.currentTrack { showArtist(track.artist) }
             }
