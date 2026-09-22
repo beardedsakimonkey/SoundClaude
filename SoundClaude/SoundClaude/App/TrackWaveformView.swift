@@ -26,7 +26,7 @@ struct TrackWaveformView: View {
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
 
     private let playback: PlaybackController
-    @State private var gradientCache = WaveformGradientCache()
+    @State private var shadingCache = WaveformShadingCache()
     @State private var waveform: SoundCloudWaveform?
     @State private var waveformTrackURN: String?
     @State private var initialExpandedWaveform: SoundCloudWaveform?
@@ -207,40 +207,38 @@ struct TrackWaveformView: View {
                     let drawBars: (inout GraphicsContext) -> Void = { drawing in
                         drawing.clip(to: Path(path))
                         drawing.drawLayer { layer in
-                            layer.withCGContext { cg in
-                                cg.setShouldAntialias(false)
-                                fillBars(background, in: cg, bars: bars, rect: CGRect(origin: .zero, size: size))
-                                fillBars(color, in: cg, bars: bars, rect: CGRect(
-                                    x: 0, y: 0,
-                                    width: size.width * progress,
-                                    height: size.height
-                                ))
+                            fillBars(background, in: layer, bars: bars, rect: CGRect(origin: .zero, size: size))
+                            fillBars(color, in: layer, bars: bars, rect: CGRect(
+                                x: 0, y: 0,
+                                width: size.width * progress,
+                                height: size.height
+                            ))
 
-                                if hoverOpacity > 0 {
-                                    let hoverRegion = CGRect(
-                                        x: size.width * min(progress, renderedHoverFraction),
-                                        y: 0,
-                                        width: size.width * abs(renderedHoverFraction - progress),
-                                        height: size.height
-                                    )
-                                    cg.saveGState()
-                                    cg.setAlpha(hoverOpacity)
-                                    cg.beginTransparencyLayer(auxiliaryInfo: nil)
+                            if hoverOpacity > 0 {
+                                let hoverRegion = CGRect(
+                                    x: size.width * min(progress, renderedHoverFraction),
+                                    y: 0,
+                                    width: size.width * abs(renderedHoverFraction - progress),
+                                    height: size.height
+                                )
+                                var hover = layer
+                                hover.opacity = hoverOpacity
+                                hover.drawLayer { preview in
                                     if renderedHoverFraction < progress {
-                                        cg.setFillColor(shadow)
-                                        cg.fill(hoverRegion)
+                                        preview.fill(
+                                            Path(hoverRegion), with: .color(Color(cgColor: shadow)),
+                                            style: FillStyle(antialiased: false)
+                                        )
                                     } else {
-                                        fillBars(color, in: cg, bars: bars, rect: hoverRegion)
-                                        fillBars(highlight, in: cg, bars: bars, rect: hoverRegion)
+                                        fillBars(color, in: preview, bars: bars, rect: hoverRegion)
+                                        fillBars(highlight, in: preview, bars: bars, rect: hoverRegion)
                                     }
-                                    cg.endTransparencyLayer()
-                                    cg.restoreGState()
                                 }
                             }
                         }
                     }
-                    // Canvas records drawing commands. No CPU bitmap allocation
-                    // or image snapshot is needed for animated bar heights.
+                    // Bar geometry stays live; only the color shading is cached.
+                    // No bitmap allocation is needed for animated bar heights.
                     context.translateBy(x: 0, y: size.height)
                     context.scaleBy(x: 1, y: -1)
                     var main = context
@@ -419,35 +417,32 @@ struct TrackWaveformView: View {
     }
 
     private func fillBars(
-        _ color: CGColor, in context: CGContext, bars: [CGRect], rect: CGRect
+        _ color: CGColor, in context: GraphicsContext, bars: [CGRect], rect: CGRect
     ) {
         guard !rect.isEmpty else { return }
         if layout == .compact {
-            context.setFillColor(color)
-            context.fill(rect)
+            context.fill(
+                Path(rect), with: .color(Color(cgColor: color)),
+                style: FillStyle(antialiased: false)
+            )
             return
         }
-        guard let gradient = gradientCache.gradient(
+        guard let shading = shadingCache.image(
             for: color, isDark: colorScheme == .dark
         ) else { return }
 
-        context.saveGState()
-        context.clip(to: rect)
-        // Reuse the gradient, but fit its full range to each animated bar.
-        // Playback and hover only clip the fill; they do not move the shading.
+        var drawing = context
+        drawing.clip(to: Path(rect), style: FillStyle(antialiased: false))
+        // Keep the fill in Canvas's native rendering path. A withCGContext
+        // block rasterizes the gradients again for every animation frame.
+        let image = drawing.resolve(Image(decorative: shading, scale: 1).interpolation(.low))
+        // Images use top-down coordinates; bars use bottom-up coordinates.
+        drawing.scaleBy(x: 1, y: -1)
         for bar in bars where bar.intersects(rect) {
-            context.saveGState()
-            context.clip(to: bar)
-            // Bar coordinates start at the bottom.
-            context.drawLinearGradient(
-                gradient,
-                start: CGPoint(x: bar.midX, y: bar.maxY),
-                end: CGPoint(x: bar.midX, y: bar.minY),
-                options: []
-            )
-            context.restoreGState()
+            drawing.draw(image, in: CGRect(
+                x: bar.minX, y: -bar.maxY, width: bar.width, height: bar.height
+            ))
         }
-        context.restoreGState()
     }
 
     private var progressColor: Color {
@@ -1029,19 +1024,34 @@ private struct WaveformAmplitudes: VectorArithmetic {
 
 // Each view retains a small palette across animation frames. Key by resolved
 // CGColor and appearance so color and highlight changes get fresh shading.
-private final class WaveformGradientCache {
-    private var entries: [(color: CGColor, isDark: Bool, gradient: CGGradient)] = []
+private final class WaveformShadingCache {
+    private var entries: [(color: CGColor, isDark: Bool, image: CGImage)] = []
 
-    func gradient(for color: CGColor, isDark: Bool) -> CGGradient? {
+    func image(for color: CGColor, isDark: Bool) -> CGImage? {
         if let entry = entries.first(where: { $0.color == color && $0.isDark == isDark }) {
-            return entry.gradient
+            return entry.image
         }
-        guard let gradient = makeGradient(for: color, isDark: isDark) else { return nil }
+        guard let gradient = makeGradient(for: color, isDark: isDark),
+              let context = CGContext(
+                data: nil, width: 1, height: 256,
+                bitsPerComponent: 8, bytesPerRow: 0,
+                space: CGColorSpace(name: CGColorSpace.linearSRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else { return nil }
+        // Match the bottom-up bar coordinates. The strip has enough samples
+        // for Retina detail bars and is independent of their animated heights.
+        context.drawLinearGradient(
+            gradient,
+            start: CGPoint(x: 0, y: 256),
+            end: .zero,
+            options: []
+        )
+        guard let image = context.makeImage() else { return nil }
         if entries.count == 8 {
             entries.removeFirst()
         }
-        entries.append((color, isDark, gradient))
-        return gradient
+        entries.append((color, isDark, image))
+        return image
     }
 
     private func makeGradient(for color: CGColor, isDark: Bool) -> CGGradient? {
