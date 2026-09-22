@@ -89,7 +89,7 @@ struct LikesView: View {
             searchBar
                 .frame(maxWidth: 280)
         }
-        .padding()
+        .padding(20)
     }
 
     private var searchBar: some View {
@@ -207,8 +207,10 @@ struct LikesView: View {
                     paginationRow
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 20)
+            // The header supplies the other 20 points of the 24-point gap.
+            .padding(.top, 4)
+            .padding(.bottom, 20)
         }
     }
 
