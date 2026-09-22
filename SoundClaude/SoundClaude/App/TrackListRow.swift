@@ -16,7 +16,6 @@ struct TrackListRow: View {
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
 
-    @Environment(\.addToPlaylist) private var addToPlaylist
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
     @State private var isHoveringArtwork = false
@@ -202,39 +201,16 @@ struct TrackListRow: View {
         }
     }
 
-    @ViewBuilder
     private var trackMenuItems: some View {
-        let isLiked = likes.isLiked(track)
-
-        if let onRemoveFromPlaylist {
-            Button("Remove from playlist", systemImage: "text.badge.minus", role: .destructive) {
-                onRemoveFromPlaylist(track)
-            }
-            .disabled(isUpdatingPlaylist)
-        }
-        if let onRemoveFromQueue {
-            Button("Remove from queue", systemImage: "text.badge.minus") {
-                onRemoveFromQueue(track)
-            }
-        } else if let onAddToQueue {
-            Button("Add to queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
-                onAddToQueue(track)
-            }
-        }
-        Button("Add to playlist", systemImage: "music.note.list") {
-            addToPlaylist(track)
-        }
-        Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
-            Task {
-                do {
-                    try await likes.toggleLike(track)
-                } catch is CancellationError {
-                } catch {
-                    likeErrorMessage = error.localizedDescription
-                }
-            }
-        }
-        .disabled(likes.updatingTrackURNs.contains(track.urn))
+        TrackMenuItems(
+            track: track,
+            likes: likes,
+            likeErrorMessage: $likeErrorMessage,
+            onAddToQueue: onAddToQueue,
+            onRemoveFromQueue: onRemoveFromQueue,
+            onRemoveFromPlaylist: onRemoveFromPlaylist,
+            isUpdatingPlaylist: isUpdatingPlaylist
+        )
     }
 
     private func playOrPauseTrack() {

@@ -33,6 +33,7 @@
 		D17A11CE0000000000000001 /* DetailLikeButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17A11CE0000000000000002 /* DetailLikeButton.swift */; };
 		B7DC513A84E2467A901BD001 /* CountedSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7DC513A84E2467A901BD002 /* CountedSectionHeader.swift */; };
 		D91400000000000000000001 /* TrackGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91400000000000000000002 /* TrackGridView.swift */; };
+		D922AA000000000000000001 /* TrackMenuItems.swift in Sources */ = {isa = PBXBuildFile; fileRef = D922AA000000000000000002 /* TrackMenuItems.swift */; };
 		A10000000000000000000015 /* TrackArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002D /* TrackArtworkView.swift */; };
 		A10000000000000000000016 /* SignedInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002E /* SignedInView.swift */; };
 		C2F91168AE4C486180421476 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E86C82775C864E97AE14574B /* SidebarView.swift */; };
@@ -152,6 +153,7 @@
 		D17A11CE0000000000000002 /* DetailLikeButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailLikeButton.swift; sourceTree = "<group>"; };
 		B7DC513A84E2467A901BD002 /* CountedSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountedSectionHeader.swift; sourceTree = "<group>"; };
 		D91400000000000000000002 /* TrackGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackGridView.swift; sourceTree = "<group>"; };
+		D922AA000000000000000002 /* TrackMenuItems.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMenuItems.swift; sourceTree = "<group>"; };
 		A2000000000000000000002D /* TrackArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackArtworkView.swift; sourceTree = "<group>"; };
 		A2000000000000000000002E /* SignedInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedInView.swift; sourceTree = "<group>"; };
 		E86C82775C864E97AE14574B /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
@@ -310,6 +312,7 @@
 				D17A11CE0000000000000002 /* DetailLikeButton.swift */,
 				B7DC513A84E2467A901BD002 /* CountedSectionHeader.swift */,
 				D91400000000000000000002 /* TrackGridView.swift */,
+				D922AA000000000000000002 /* TrackMenuItems.swift */,
 				A20000000000000000000036 /* TrackWaveformView.swift */,
 				D922C0000000000000000002 /* WaveformCommentsView.swift */,
 				D922C0000000000000000004 /* WaveformShadingCache.swift */,
@@ -578,6 +581,7 @@
 				D17A11CE0000000000000001 /* DetailLikeButton.swift in Sources */,
 				B7DC513A84E2467A901BD001 /* CountedSectionHeader.swift in Sources */,
 				D91400000000000000000001 /* TrackGridView.swift in Sources */,
+				D922AA000000000000000001 /* TrackMenuItems.swift in Sources */,
 				A1000000000000000000001E /* TrackWaveformView.swift in Sources */,
 				D922C0000000000000000001 /* WaveformCommentsView.swift in Sources */,
 				D922C0000000000000000003 /* WaveformShadingCache.swift in Sources */,
