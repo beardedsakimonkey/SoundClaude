@@ -57,7 +57,7 @@ struct PlayerFooterView: View {
     var body: some View {
         HStack(spacing: 6) {
             trackIdentity
-                .frame(width: min(340, max(140, footerWidth * 0.25)), alignment: .leading)
+                .frame(width: min(340, max(140, footerWidth * 0.35)), alignment: .leading)
             playbackControls
                 .frame(maxWidth: .infinity)
         }
