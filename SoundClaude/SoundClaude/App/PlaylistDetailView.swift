@@ -200,6 +200,7 @@ struct PlaylistDetailView: View {
                 }
                 .font(.title3)
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
 
                 VStack(alignment: .leading, spacing: 16) {
                     ViewThatFits(in: .horizontal) {
