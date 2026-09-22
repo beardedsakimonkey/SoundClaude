@@ -20,6 +20,12 @@ struct StationDetailView: View {
     @State private var isOpeningSource = false
     @State private var sourceErrorMessage: String?
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
+    #if DEBUG
+    @State private var isShowingArtworkControls = false
+    @State private var artworkTransform = StationArtworkTransform()
+    #else
+    private let artworkTransform = StationArtworkTransform()
+    #endif
 
     private var seedTrackURN: String? { seedTrack?.urn }
     private var tracks: [SoundCloudTrack] { station?.tracks ?? [] }
@@ -64,6 +70,11 @@ struct StationDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     header
+                    #if DEBUG
+                    if isShowingArtworkControls {
+                        artworkControls
+                    }
+                    #endif
                     HStack {
                         CountedSectionHeader(title: "Tracks", count: station?.trackCount ?? tracks.count)
                         Spacer()
@@ -100,6 +111,16 @@ struct StationDetailView: View {
         }
         .navigationTitle(title)
         .toolbar {
+            #if DEBUG
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isShowingArtworkControls.toggle()
+                } label: {
+                    Label("Artwork transform", systemImage: "slider.horizontal.3")
+                }
+                .help("Adjust artwork 3D transform (development only)")
+            }
+            #endif
             if #available(macOS 26.0, *) {
                 ToolbarSpacer(.flexible, placement: .primaryAction)
             } else {
@@ -158,12 +179,22 @@ struct StationDetailView: View {
                 .transition(StationArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
             }
             .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
-            // Tilt the artwork and its reflection together, with the left edge closer.
+            // Transform the artwork and its reflection together.
             .animation(seedTrack != nil && !reduceMotion ? .easeInOut(duration: 0.5) : nil) { artwork in
                 artwork.rotation3DEffect(
-                    .degrees(seedTrack == nil || reduceMotion || hasAppeared ? 22 : 0),
+                    .degrees(artworkTransform.x),
+                    axis: (x: 1, y: 0, z: 0),
+                    perspective: artworkTransform.perspective
+                )
+                .rotation3DEffect(
+                    .degrees(seedTrack == nil || reduceMotion || hasAppeared ? artworkTransform.y : 0),
                     axis: (x: 0, y: 1, z: 0),
-                    perspective: 0.5
+                    perspective: artworkTransform.perspective
+                )
+                .rotation3DEffect(
+                    .degrees(artworkTransform.z),
+                    axis: (x: 0, y: 0, z: 1),
+                    perspective: 0
                 )
             }
             VStack(alignment: .leading, spacing: 10) {
@@ -211,6 +242,45 @@ struct StationDetailView: View {
             )
         }
     }
+
+    #if DEBUG
+    // Temporary controls for tuning the artwork and reflection together.
+    private var artworkControls: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Artwork 3D transform").font(.headline)
+                Spacer()
+                Button("Reset") { artworkTransform = StationArtworkTransform() }
+                Button("Hide") { isShowingArtworkControls = false }
+            }
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                artworkSlider("X rotation", value: $artworkTransform.x, range: -180...180, step: 1, unit: "°")
+                artworkSlider("Y rotation", value: $artworkTransform.y, range: -180...180, step: 1, unit: "°")
+                artworkSlider("Z rotation", value: $artworkTransform.z, range: -180...180, step: 1, unit: "°")
+                artworkSlider("Perspective", value: $artworkTransform.perspective, range: 0...1, step: 0.01)
+            }
+        }
+        .padding(20)
+        .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func artworkSlider(
+        _ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double, unit: String = ""
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text("\(value.wrappedValue, specifier: unit.isEmpty ? "%.2f" : "%.0f")\(unit)")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: value, in: range, step: step) {
+                Text(title)
+            }
+        }
+    }
+    #endif
 
     private var stationTitle: some View {
         Button {
@@ -309,6 +379,13 @@ struct StationDetailView: View {
             errorMessage = error.localizedDescription
         }
     }
+}
+
+private struct StationArtworkTransform {
+    var x = 0.0
+    var y = 22.0
+    var z = 0.0
+    var perspective = 0.5
 }
 
 private struct StationArtworkTransition: Transition {
