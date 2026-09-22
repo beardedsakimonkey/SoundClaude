@@ -131,34 +131,49 @@ struct PlaylistTests {
         }
 
         for isPrivate in [true, false] {
-            PlaylistURLProtocol.respond { request in
-                precondition(request.url?.path == "/playlists")
-                precondition(request.httpMethod == "POST")
-                precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
-                precondition(request.value(forHTTPHeaderField: "Content-Type") == "application/json; charset=utf-8")
-                var body = request.httpBody ?? Data()
-                if let stream = request.httpBodyStream {
-                    stream.open()
-                    defer { stream.close() }
-                    var buffer = [UInt8](repeating: 0, count: 1024)
-                    while stream.hasBytesAvailable {
-                        let count = stream.read(&buffer, maxLength: buffer.count)
-                        precondition(count >= 0)
-                        if count == 0 { break }
-                        body.append(contentsOf: buffer.prefix(count))
+            for format in [nil, PlaylistArtwork.Format.gif, .jpeg, .png] {
+                let artwork = format.map { PlaylistArtwork(data: Data([0, 255, 13, 10, 128]), format: $0) }
+                PlaylistURLProtocol.respond { request in
+                    precondition(request.url?.path == "/playlists")
+                    precondition(request.httpMethod == "POST")
+                    precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+                    let contentType = request.value(forHTTPHeaderField: "Content-Type")!
+                    precondition(contentType.hasPrefix("multipart/form-data; boundary="))
+                    let boundary = String(contentType.dropFirst("multipart/form-data; boundary=".count))
+                    precondition(!boundary.isEmpty)
+                    var body = request.httpBody ?? Data()
+                    if let stream = request.httpBodyStream {
+                        stream.open()
+                        defer { stream.close() }
+                        var buffer = [UInt8](repeating: 0, count: 1024)
+                        while stream.hasBytesAvailable {
+                            let count = stream.read(&buffer, maxLength: buffer.count)
+                            precondition(count >= 0)
+                            if count == 0 { break }
+                            body.append(contentsOf: buffer.prefix(count))
+                        }
                     }
+                    var expected = Data()
+                    func append(_ value: String) { expected.append(contentsOf: value.utf8) }
+                    for (name, value) in [("title", "Mix 🎶 & friends"), ("description", "A new mix\r\nSecond line"),
+                                          ("sharing", isPrivate ? "private" : "public")] {
+                        append("--\(boundary)\r\nContent-Disposition: form-data; name=\"playlist[\(name)]\"\r\n\r\n\(value)\r\n")
+                    }
+                    if let artwork {
+                        append("--\(boundary)\r\nContent-Disposition: form-data; name=\"playlist[artwork_data]\"; filename=\"artwork.\(artwork.format.rawValue)\"\r\n")
+                        append("Content-Type: \(artwork.format.mimeType)\r\n\r\n")
+                        expected.append(artwork.data)
+                        append("\r\n")
+                    }
+                    append("--\(boundary)--\r\n")
+                    precondition(body == expected)
+                    return (201, playlist)
                 }
-                let payload = try! JSONSerialization.jsonObject(with: body) as! [String: [String: Any]]
-                precondition(payload["playlist"]?["title"] as? String == "Mix 🎶 & friends")
-                precondition(payload["playlist"]?["description"] as? String == "A new mix")
-                precondition(payload["playlist"]?["sharing"] as? String == (isPrivate ? "private" : "public"))
-                precondition((payload["playlist"]?["tracks"] as? [Any])?.isEmpty == true)
-                return (201, playlist)
+                let created = try await client.createPlaylist(
+                    title: "Mix 🎶 & friends", description: "A new mix\r\nSecond line", isPrivate: isPrivate, artwork: artwork, accessToken: "test-token"
+                )
+                precondition(created.urn == "soundcloud:playlists:42")
             }
-            let created = try await client.createPlaylist(
-                title: "Mix 🎶 & friends", description: "A new mix", isPrivate: isPrivate, accessToken: "test-token"
-            )
-            precondition(created.urn == "soundcloud:playlists:42")
         }
         PlaylistURLProtocol.respond { _ in (401, "{}") }
         do {

@@ -113,13 +113,13 @@ final class PlaylistsController: ObservableObject {
         await task.value
     }
 
-    func createPlaylist(title: String, description: String, isPrivate: Bool) async throws -> SoundCloudPlaylist {
+    func createPlaylist(title: String, description: String, isPrivate: Bool, artwork: PlaylistArtwork? = nil) async throws -> SoundCloudPlaylist {
         await restoreCache()
         let session = sessionID
         guard let accountID else { throw CancellationError() }
         let token = try await accessToken(session: session)
         let playlist = try await client.createPlaylist(
-            title: title, description: description, isPrivate: isPrivate, accessToken: token
+            title: title, description: description, isPrivate: isPrivate, artwork: artwork, accessToken: token
         )
         try checkSession(session)
         // Finish any list refresh before inserting so it cannot erase the new playlist.

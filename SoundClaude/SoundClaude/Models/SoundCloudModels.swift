@@ -805,3 +805,14 @@ enum SoundCloudProfileHeader {
     }
 
 }
+
+struct PlaylistArtwork: Sendable {
+    enum Format: String, Sendable {
+        case gif, jpeg, png
+
+        var mimeType: String { "image/\(rawValue)" }
+    }
+
+    let data: Data
+    let format: Format
+}

@@ -28,7 +28,7 @@ final class SoundCloudClient {
         deletedURNs.append(urn)
     }
     var failCreation = false
-    func createPlaylist(title: String, description: String, isPrivate: Bool, accessToken: String) async throws -> SoundCloudPlaylist {
+    func createPlaylist(title: String, description: String, isPrivate: Bool, artwork: PlaylistArtwork? = nil, accessToken: String) async throws -> SoundCloudPlaylist {
         if failCreation { throw SoundCloudError.invalidData }
         return makePlaylist(99, isPrivate: isPrivate)
     }

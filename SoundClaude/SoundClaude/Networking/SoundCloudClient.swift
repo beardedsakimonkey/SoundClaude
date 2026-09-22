@@ -650,19 +650,32 @@ actor SoundCloudClient {
     }
 
     func createPlaylist(
-        title: String, description: String, isPrivate: Bool, accessToken: String
+        title: String, description: String, isPrivate: Bool,
+        artwork: PlaylistArtwork? = nil, accessToken: String
     ) async throws -> SoundCloudPlaylist {
-        let body = try JSONSerialization.data(withJSONObject: [
-            "playlist": [
-                "title": title,
-                "description": description,
-                "sharing": isPrivate ? "private" : "public",
-                "tracks": []
-            ] as [String: Any]
-        ])
+        let boundary = "SoundClaude-\(UUID().uuidString)"
+        var body = Data()
+        func append(_ text: String) { body.append(contentsOf: text.utf8) }
+        for (name, value) in [
+            ("title", title), ("description", description),
+            ("sharing", isPrivate ? "private" : "public")
+        ] {
+            append("--\(boundary)\r\n")
+            append("Content-Disposition: form-data; name=\"playlist[\(name)]\"\r\n\r\n")
+            append("\(value)\r\n")
+        }
+        if let artwork {
+            append("--\(boundary)\r\n")
+            append("Content-Disposition: form-data; name=\"playlist[artwork_data]\"; filename=\"artwork.\(artwork.format.rawValue)\"\r\n")
+            append("Content-Type: \(artwork.format.mimeType)\r\n\r\n")
+            body.append(artwork.data)
+            append("\r\n")
+        }
+        append("--\(boundary)--\r\n")
         let (data, response) = try await authenticatedRequest(
             url: configuration.apiBaseURL.appending(path: "playlists"),
-            accessToken: accessToken, method: "POST", body: body
+            accessToken: accessToken, method: "POST", body: body,
+            contentType: "multipart/form-data; boundary=\(boundary)"
         )
         try validate(response: response, data: data)
         guard let playlist = try decoder.decode(RawPlaylist.self, from: data).normalized() else {
@@ -1074,13 +1087,14 @@ actor SoundCloudClient {
         url: URL,
         accessToken: String,
         method: String = "GET",
-        body: Data? = nil
+        body: Data? = nil,
+        contentType: String = "application/json; charset=utf-8"
     ) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
         request.httpMethod = method
         if let body {
             request.httpBody = body
-            request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+            request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         }
         request.setValue(
             "application/json; charset=utf-8",
