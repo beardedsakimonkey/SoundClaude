@@ -48,13 +48,12 @@ struct TrackPlaybackIndicator: View {
 
     private func loadingOffset(for index: Int, at date: Date) -> CGFloat {
         guard isLoading, !reduceMotion else { return 0 }
-        let bounceDuration = 0.9
-        let pauseDuration = 0.6
-        let cycleTime = (date.timeIntervalSinceReferenceDate - Double(index) * 0.15)
-            .truncatingRemainder(dividingBy: bounceDuration + pauseDuration)
-        guard cycleTime < bounceDuration else { return 0 }
-        let phase = cycleTime / bounceDuration
-        return -1.5 * CGFloat(1 - cos(phase * 2 * .pi))
+        let cycleDuration = 1.5
+        let time = date.timeIntervalSinceReferenceDate
+            .truncatingRemainder(dividingBy: cycleDuration)
+        let phase = -Double(index) * 0.15
+        let bounce = max(0, sin((time + phase) / cycleDuration * 2 * .pi))
+        return -3 * CGFloat(bounce * bounce)
     }
 
     private func updateLevels() {
