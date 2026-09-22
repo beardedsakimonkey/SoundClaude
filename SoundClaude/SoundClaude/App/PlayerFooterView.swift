@@ -99,14 +99,14 @@ struct PlayerFooterView: View {
                         .id(playlist.urn)
                         .transition(reduceMotion ? .identity : .opacity)
                     }
-                    if track.access == .preview {
+                    if showsPreviewBadge {
                         TrackPreviewBadge(font: .caption2)
                     }
                     Button {
                         onSelectTrack(track)
                     } label: {
                         Text(track.title)
-                            .lineLimit(stationURN != nil || currentPlaylist != nil || track.access == .preview ? 1 : 2)
+                            .lineLimit(stationURN != nil || currentPlaylist != nil || showsPreviewBadge ? 1 : 2)
                             .multilineTextAlignment(.leading)
                             .underline(isHoveringTitle)
                             .foregroundStyle(.primary)
@@ -156,6 +156,15 @@ struct PlayerFooterView: View {
         .onContentHover { isHoveringSource = $0 }
         .help("View \(kind): \(title)")
         .accessibilityLabel("View \(kind): \(title)")
+    }
+
+    private var showsPreviewBadge: Bool {
+        switch model.queue.source {
+        case .station, .playlist:
+            return false
+        default:
+            return playback.currentTrack?.access == .preview
+        }
     }
 
     private var currentPlaylist: SoundCloudPlaylist? {
