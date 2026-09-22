@@ -35,6 +35,7 @@ struct TrackWaveformView: View {
     @State private var accentArtworkURL: URL?
     @State private var hoverFraction: Double = 0
     @State private var isHovering = false
+    @State private var pendingSeek: (trackURN: String, fraction: Double, id: UUID)?
     @State private var commentsReadyAppearance: CommentsAppearance?
     private let commentsAppearanceDelay: Duration = .milliseconds(100)
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
@@ -113,6 +114,14 @@ struct TrackWaveformView: View {
         .onChange(of: commentsAppearance) { _, _ in
             // Clear readiness during the update, before a quick resume can reuse it.
             commentsReadyAppearance = nil
+        }
+        .onChange(of: playback.currentTrack?.urn) { _, urn in
+            if let pendingSeek, pendingSeek.trackURN != urn {
+                self.pendingSeek = nil
+            }
+        }
+        .onChange(of: track?.urn) { _, _ in
+            pendingSeek = nil
         }
         .task(id: commentsAppearance) {
             let appearance = commentsAppearance
@@ -470,7 +479,10 @@ struct TrackWaveformView: View {
     }
 
     private var displayedCurrentTime: Double {
-        isCurrentTrack ? playback.currentTime : 0
+        if let pendingSeek, pendingSeek.trackURN == track?.urn {
+            return pendingSeek.fraction * displayedDuration
+        }
+        return isCurrentTrack ? playback.currentTime : 0
     }
 
     private var displayedDuration: Double {
@@ -481,6 +493,9 @@ struct TrackWaveformView: View {
     }
 
     private var progress: Double {
+        if let pendingSeek, pendingSeek.trackURN == track?.urn {
+            return pendingSeek.fraction
+        }
         guard isCurrentTrack, displayedDuration > 0 else { return 0 }
         return min(max(displayedCurrentTime / displayedDuration, 0), 1)
     }
@@ -591,17 +606,24 @@ struct TrackWaveformView: View {
     private func seek(to fraction: Double) {
         guard let track else { return }
         if isCurrentTrack {
+            pendingSeek = nil
             playback.seek(toFraction: fraction)
             return
         }
 
+        let requestID = UUID()
+        pendingSeek = (track.urn, fraction, requestID)
         Task { @MainActor in
+            defer {
+                if pendingSeek?.id == requestID { pendingSeek = nil }
+            }
             if let onPlayTrack {
                 await onPlayTrack(track)
             } else {
                 await model.play(track)
             }
-            guard playback.currentTrack?.urn == track.urn else { return }
+            guard pendingSeek?.id == requestID,
+                  playback.currentTrack?.urn == track.urn else { return }
             playback.seek(toFraction: fraction)
         }
     }
