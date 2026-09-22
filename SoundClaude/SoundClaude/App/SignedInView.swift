@@ -197,6 +197,17 @@ struct SignedInView: View {
                 user: user,
                 artworkLoader: model.artworkLoader,
                 onSelectPlaylist: showPlaylist,
+                onShufflePlaylist: { playlist, contents in
+                    guard let track = contents.tracks.randomElement() else { return }
+                    if !model.playback.isShuffleEnabled {
+                        model.toggleShuffle()
+                    }
+                    await model.play(track, queue: TrackQueue(
+                        source: .playlist(playlist.urn),
+                        tracks: contents.tracks,
+                        nextPageURL: contents.nextPageURL
+                    ))
+                },
                 onDeletePlaylist: removeDeletedPlaylist,
                 onSelectProfile: showArtist,
                 onReselect: {

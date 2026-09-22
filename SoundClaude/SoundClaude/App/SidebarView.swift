@@ -7,6 +7,7 @@ struct SidebarView: View {
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
+    let onShufflePlaylist: (SoundCloudPlaylist, PlaylistContents) async -> Void
     let onDeletePlaylist: (SoundCloudPlaylist) -> Void
     let onSelectProfile: (SoundCloudUser) -> Void
     let onReselect: () -> Void
@@ -21,6 +22,9 @@ struct SidebarView: View {
     @State private var addingToPlaylistURNs: Set<String> = []
     @State private var playlistDropError: String?
     @State private var playlistLikeError: String?
+    @State private var hoveredPlaylistURN: String?
+    @State private var shufflingPlaylistURN: String?
+    @State private var playlistShuffleError: String?
     @State private var editingPlaylist: SoundCloudPlaylist?
     @State private var playlistDeletion = PlaylistDeletionState()
     @AppStorage("sidebarPlaylistsExpanded") private var isPlaylistsExpanded = true
@@ -56,6 +60,14 @@ struct SidebarView: View {
             Button("OK", role: .cancel) { playlistLikeError = nil }
         } message: {
             Text(playlistLikeError ?? "Please try again.")
+        }
+        .alert("Could not shuffle playlist", isPresented: Binding(
+            get: { playlistShuffleError != nil },
+            set: { if !$0 { playlistShuffleError = nil } }
+        )) {
+            Button("OK", role: .cancel) { playlistShuffleError = nil }
+        } message: {
+            Text(playlistShuffleError ?? "Please try again.")
         }
     }
 
@@ -203,10 +215,61 @@ struct SidebarView: View {
             )
         }
             .lineLimit(1)
+            .padding(.trailing, 28)
             .help(playlist.title)
             .modifier(SidebarRowStyle(isSelected: false, usesPrimaryForeground: currentPlaylistURN == playlist.urn) {
                 onSelectPlaylist(playlist)
             })
+            .overlay(alignment: .trailing) {
+                if shufflingPlaylistURN == playlist.urn {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(width: 24, height: 24)
+                        .padding(.trailing, 8)
+                        .accessibilityLabel("Loading \(playlist.title) for shuffle")
+                } else if !addingToPlaylistURNs.contains(playlist.urn) {
+                    Button {
+                        shufflingPlaylistURN = playlist.urn
+                        Task { @MainActor in
+                            defer { shufflingPlaylistURN = nil }
+                            if playlists.cache.contents[playlist.urn]?.isComplete != true {
+                                await playlists.loadPlaylist(playlist)
+                            }
+                            guard !Task.isCancelled else { return }
+                            guard let contents = playlists.cache.contents[playlist.urn],
+                                  contents.isComplete, !contents.tracks.isEmpty else {
+                                playlistShuffleError = playlists.playlistErrors[playlist.urn]
+                                    ?? "This playlist has no playable tracks."
+                                return
+                            }
+                            await onShufflePlaylist(playlist, contents)
+                        }
+                    } label: {
+                        Image(systemName: "shuffle")
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .modifier(SidebarForegroundHover())
+                    .disabled(shufflingPlaylistURN != nil)
+                    .help("Shuffle \(playlist.title)")
+                    .accessibilityLabel("Shuffle \(playlist.title)")
+                    .opacity(hoveredPlaylistURN == playlist.urn ? 1 : 0)
+                    .animation(
+                        reduceMotion ? nil : .easeInOut(duration: 0.2),
+                        value: hoveredPlaylistURN == playlist.urn
+                    )
+                    .allowsHitTesting(hoveredPlaylistURN == playlist.urn)
+                    .padding(.trailing, 8)
+                }
+            }
+            .onContentHover { isHovered in
+                if isHovered {
+                    hoveredPlaylistURN = playlist.urn
+                } else if hoveredPlaylistURN == playlist.urn {
+                    hoveredPlaylistURN = nil
+                }
+            }
             .contextMenu {
                 if playlists.likedPlaylistURNs.contains(playlist.urn) {
                     Button("Unlike playlist", systemImage: "heart.slash") {
@@ -241,7 +304,7 @@ struct SidebarView: View {
                         .fill(Color.accentColor.opacity(dropTargetURN == playlist.urn ? 0.18 : 0))
                 }
                 .overlay(alignment: .trailing) {
-                    if addingToPlaylistURNs.contains(playlist.urn) {
+                    if addingToPlaylistURNs.contains(playlist.urn), shufflingPlaylistURN != playlist.urn {
                         ProgressView()
                             .controlSize(.small)
                             .padding(.trailing, 8)
