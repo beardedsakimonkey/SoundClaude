@@ -7,8 +7,9 @@ struct FadeInOnAppear: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .opacity(!isEnabled || reduceMotion || hasAppeared ? 1 : 0)
-            .animation(!isEnabled || reduceMotion ? nil : .easeInOut(duration: 0.3), value: hasAppeared)
+            .animation(!isEnabled || reduceMotion ? nil : .easeInOut(duration: 0.3)) { view in
+                view.opacity(!isEnabled || reduceMotion || hasAppeared ? 1 : 0)
+            }
             .onAppear {
                 // Lazy rows can appear after the data insertion transaction has finished.
                 hasAppeared = true
