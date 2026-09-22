@@ -311,6 +311,7 @@ struct SignedInView: View {
                 model: model,
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist,
+                onDeletePlaylist: removeDeletedPlaylist,
                 playlists: model.playlists
             )
             .id(playlist.urn)
@@ -472,6 +473,21 @@ struct SignedInView: View {
     private func showPlaylist(_ playlist: SoundCloudPlaylist) {
         forwardPath.removeAll()
         path.append(.playlist(playlist))
+    }
+
+    private func removeDeletedPlaylist(_ playlist: SoundCloudPlaylist) {
+        // These pages use custom history, so SwiftUI's dismiss can close the window.
+        // Remove all visits, including forward history, so deletion cannot be undone by navigation.
+        navigationHistories = navigationHistories.mapValues { history in
+            var history = history
+            let isDeletedPlaylist: (Route) -> Bool = { route in
+                guard case let .playlist(candidate) = route else { return false }
+                return candidate.urn == playlist.urn
+            }
+            history.path.removeAll(where: isDeletedPlaylist)
+            history.forwardPath.removeAll(where: isDeletedPlaylist)
+            return history
+        }
     }
 
     private func showStation(_ urn: String, seedArtistName: String) {

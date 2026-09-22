@@ -7,6 +7,7 @@ struct PlaylistDetailView: View {
     @ObservedObject var model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
+    let onDeletePlaylist: (SoundCloudPlaylist) -> Void
 
     @ObservedObject var playlists: PlaylistsController
 
@@ -20,7 +21,6 @@ struct PlaylistDetailView: View {
     @State private var isShowingArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var likeErrorMessage: String?
-    @Environment(\.dismiss) private var dismiss
     @State private var isConfirmingDeletion = false
     @State private var isDeleting = false
     @State private var deleteErrorMessage: String?
@@ -131,7 +131,7 @@ struct PlaylistDetailView: View {
                     defer { isDeleting = false }
                     do {
                         try await playlists.deletePlaylist(displayedPlaylist)
-                        dismiss()
+                        onDeletePlaylist(playlist)
                     } catch {
                         deleteErrorMessage = error.localizedDescription
                     }
