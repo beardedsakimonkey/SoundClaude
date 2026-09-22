@@ -239,12 +239,23 @@ struct SignedInView: View {
 
     // Keep browser history as data. Rendering a native stack of all visited pages
     // makes layout and row updates grow with browsing depth, even when pages hide.
+    // Retain visited top-level pages to preserve their content and scroll position.
     private var selectedView: some View {
         NavigationStack {
-            CurrentNavigationPage(route: path.last) {
-                rootView
+            CurrentNavigationPage(route: path.last, retainsRoot: true) {
+                RetainedRootPages(
+                    selections: SidebarDestination.libraryDestinations,
+                    selection: selectedDestination ?? .liked,
+                    isActive: path.isEmpty
+                ) { destination, active in
+                    rootView(destination, isActive: active)
+                        .environment(\.contentAnimationsPaused, isShowingVisualizer || !active)
+                        .environment(\.contentHoverEnabled, active && (!isShowingQueue || !isHoveringQueue))
+                }
+                .navigationTitle((selectedDestination ?? .liked).title)
             } destination: { route in
                 routeView(route)
+                    .id(destinationID)
             }
             .modifier(NavigationPageActivity())
             .safeAreaPadding(.bottom, footerHeight)
@@ -254,7 +265,6 @@ struct SignedInView: View {
             .modifier(NavigationPageViewport())
             .toolbar { navigationToolbar }
         }
-        .id(destinationID)
     }
 
     @ViewBuilder
@@ -370,9 +380,9 @@ struct SignedInView: View {
     }
 
     @ViewBuilder
-    private var rootView: some View {
-        switch selectedDestination {
-        case .feed, .none:
+    private func rootView(_ destination: SidebarDestination, isActive: Bool) -> some View {
+        switch destination {
+        case .feed:
             FeedView(
                 model: model,
                 onSelectPlaylist: showPlaylist,
@@ -384,7 +394,8 @@ struct SignedInView: View {
             SearchView(
                 user: user,
                 searchText: $searchText,
-                focusRequest: searchFocusRequest
+                focusRequest: searchFocusRequest,
+                isActive: isActive
             ) { query in
                 SearchResultsView(
                     query: query,
@@ -405,6 +416,7 @@ struct SignedInView: View {
             LikesView(
                 user: user,
                 searchText: $likesSearchText,
+                isActive: isActive,
                 likes: model.likes,
                 playback: model.playback,
                 analyzer: model.analyzer,

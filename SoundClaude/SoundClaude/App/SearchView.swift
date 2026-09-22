@@ -15,6 +15,7 @@ struct SearchView<Results: View>: View {
     let user: SoundCloudUser
     @Binding var searchText: String
     let focusRequest: UUID
+    var isActive = true
     @ViewBuilder let results: (String) -> Results
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -37,13 +38,16 @@ struct SearchView<Results: View>: View {
             recentSearches = store.restore(for: user)
             // Wait until the navigation stack has mounted the text field.
             await Task.yield()
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, isActive else { return }
             isSearchFocused = true
         }
         .onChange(of: searchText) { _, text in
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 submittedQuery = nil
             }
+        }
+        .onChange(of: isActive) { _, active in
+            if !active { isSearchFocused = false }
         }
         .onDisappear { isSearchFocused = false }
     }

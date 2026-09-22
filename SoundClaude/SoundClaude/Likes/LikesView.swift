@@ -3,6 +3,7 @@ import SwiftUI
 
 struct LikesView: View {
     let user: SoundCloudUser
+    let isActive: Bool
     let artworkLoader: ArtworkLoader
     let appErrorMessage: String?
     let onSelectArtist: (SoundCloudUser) -> Void
@@ -21,6 +22,7 @@ struct LikesView: View {
     init(
         user: SoundCloudUser,
         searchText: Binding<String>,
+        isActive: Bool = true,
         likes: LikesController,
         playback: PlaybackController,
         analyzer: SpectrumAnalyzer,
@@ -32,6 +34,7 @@ struct LikesView: View {
         onPlayTrack: @escaping (SoundCloudTrack) async -> Void
     ) {
         self.user = user
+        self.isActive = isActive
         _searchText = searchText
         self.artworkLoader = artworkLoader
         self.appErrorMessage = appErrorMessage
@@ -62,6 +65,9 @@ struct LikesView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task { await likes.loadLikedTracks() }
+        .onChange(of: isActive) { _, active in
+            if !active { isSearchFocused = false }
+        }
     }
 
     private var header: some View {

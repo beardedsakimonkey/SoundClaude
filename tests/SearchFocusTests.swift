@@ -91,8 +91,22 @@ private struct SearchFocusTests {
                             )
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                 precondition(searchField.currentEditor() != nil, "Reselecting Search must restore input focus")
-                                print("Search focus tests passed")
-                                app.terminate(nil)
+                                searchHost.rootView = SearchView(
+                                    user: user, searchText: .constant(""), focusRequest: UUID(), isActive: false,
+                                    results: { Text("Results for \($0)") }
+                                )
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    precondition(searchField.currentEditor() == nil, "A retained hidden search page must release focus")
+                                    searchHost.rootView = SearchView(
+                                        user: user, searchText: .constant(""), focusRequest: UUID(),
+                                        results: { Text("Results for \($0)") }
+                                    )
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                        precondition(searchField.currentEditor() != nil, "Returning to retained Search must restore requested focus")
+                                        print("Search focus tests passed")
+                                        app.terminate(nil)
+                                    }
+                                }
                             }
                         }
                     }
