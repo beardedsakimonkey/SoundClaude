@@ -41,6 +41,8 @@ struct TrackCollectionTracks: View {
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
     var fadesInTracks = false
+    var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
+    var isUpdatingPlaylist = false
 
     var body: some View {
         if trackLayout == .grid {
@@ -57,6 +59,8 @@ struct TrackCollectionTracks: View {
                         artworkLoader: model.artworkLoader,
                         likes: model.likes,
                         onAddToQueue: model.addToQueue,
+                        onRemoveFromPlaylist: onRemoveFromPlaylist,
+                        isUpdatingPlaylist: isUpdatingPlaylist,
                         onSelectTrack: onSelectTrack,
                         onSelectArtist: onSelectArtist,
                         onPlayTrack: onPlayTrack
@@ -74,6 +78,8 @@ struct TrackCollectionTracks: View {
                     artworkLoader: model.artworkLoader,
                     likes: model.likes,
                     onAddToQueue: model.addToQueue,
+                    onRemoveFromPlaylist: onRemoveFromPlaylist,
+                    isUpdatingPlaylist: isUpdatingPlaylist,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
                     onPlayTrack: onPlayTrack

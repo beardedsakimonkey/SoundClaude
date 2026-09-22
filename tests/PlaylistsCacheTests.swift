@@ -15,6 +15,12 @@ final class SoundCloudClient {
         if failAddition { throw SoundCloudError.invalidData }
         addedTrackURNs.append(trackURN)
     }
+    var removedTrackURNs: [String] = []
+    var failRemoval = false
+    func removeTrackFromPlaylist(trackURN: String, playlistURN: String, accessToken: String) async throws {
+        if failRemoval { throw SoundCloudError.invalidData }
+        removedTrackURNs.append(trackURN)
+    }
     var failDeletion = false
     var deletedURNs: [String] = []
     func deletePlaylist(urn: String, accessToken: String) async throws {
@@ -115,6 +121,29 @@ struct PlaylistsCacheTests {
         } catch SoundCloudError.invalidData {}
         precondition(controller.cache.contents["playlist:1"]?.tracks == [track(1), track(2), track(3)])
         client.failAddition = false
+
+        client.failRemoval = true
+        do {
+            try await controller.removeTrack(track(2), from: makePlaylist(1))
+            fatalError("Failed removal was accepted")
+        } catch SoundCloudError.invalidData {}
+        precondition(controller.cache.contents["playlist:1"]?.tracks == [track(1), track(2), track(3)])
+        precondition(controller.updatingPlaylistURNs.isEmpty)
+        client.failRemoval = false
+        client.fetchTracks = { _ in
+            SoundCloudTrackPage(tracks: [track(1), track(3)], nextURL: nil)
+        }
+        try await controller.removeTrack(track(2), from: makePlaylist(1))
+        precondition(client.removedTrackURNs == [track(2).urn])
+        precondition(controller.cache.contents["playlist:1"]?.tracks == [track(1), track(3)])
+        precondition(controller.updatingPlaylistURNs.isEmpty)
+        let removedCache = try await store.load(accountID: user.urn!)
+        precondition(removedCache?.contents["playlist:1"]?.tracks == [track(1), track(3)])
+        // Restore the fixture used by the remaining refresh checks.
+        client.fetchTracks = { _ in
+            SoundCloudTrackPage(tracks: [track(1), track(2), track(3)], nextURL: nil)
+        }
+        await controller.loadPlaylist(makePlaylist(1))
 
         // A failed later page keeps the complete old list and track order, on disk too.
         client.fetchList = { url in

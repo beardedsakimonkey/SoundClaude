@@ -24,6 +24,7 @@ struct PlaylistDetailView: View {
     @State private var isConfirmingDeletion = false
     @State private var isDeleting = false
     @State private var deleteErrorMessage: String?
+    @State private var removeTrackErrorMessage: String?
 
     private var isOwnedByCurrentUser: Bool {
         guard case let .signedIn(user) = model.auth.state,
@@ -148,6 +149,14 @@ struct PlaylistDetailView: View {
             Button("OK", role: .cancel) { deleteErrorMessage = nil }
         } message: {
             Text(deleteErrorMessage ?? "Please try again.")
+        }
+        .alert("Could not remove track", isPresented: Binding(
+            get: { removeTrackErrorMessage != nil },
+            set: { if !$0 { removeTrackErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { removeTrackErrorMessage = nil }
+        } message: {
+            Text(removeTrackErrorMessage ?? "Please try again.")
         }
         .sheet(isPresented: $isShowingArtwork) {
             FullSizeArtworkView(
@@ -332,7 +341,9 @@ struct PlaylistDetailView: View {
             TrackCollectionTracks(
                 tracks: tracks, trackLayout: trackLayout, model: model,
                 onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
-                onPlayTrack: playTrack
+                onPlayTrack: playTrack,
+                onRemoveFromPlaylist: isOwnedByCurrentUser ? removeTrack : nil,
+                isUpdatingPlaylist: playlists.updatingPlaylistURNs.contains(playlist.urn)
             )
             if let errorMessage {
                 Text(errorMessage).foregroundStyle(.secondary)
@@ -351,6 +362,17 @@ struct PlaylistDetailView: View {
                         ? "This playlist has no tracks."
                         : "This playlist has no tracks available for playback here.")
                 )
+            }
+        }
+    }
+
+    private func removeTrack(_ track: SoundCloudTrack) {
+        Task {
+            do {
+                try await playlists.removeTrack(track, from: displayedPlaylist)
+            } catch is CancellationError {
+            } catch {
+                removeTrackErrorMessage = error.localizedDescription
             }
         }
     }

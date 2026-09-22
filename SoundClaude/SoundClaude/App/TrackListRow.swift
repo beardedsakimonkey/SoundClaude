@@ -10,6 +10,8 @@ struct TrackListRow: View {
     var isCompact = false
     var onAddToQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromQueue: ((SoundCloudTrack) -> Void)? = nil
+    var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
+    var isUpdatingPlaylist = false
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
@@ -204,6 +206,12 @@ struct TrackListRow: View {
     private var trackMenuItems: some View {
         let isLiked = likes.isLiked(track)
 
+        if let onRemoveFromPlaylist {
+            Button("Remove from playlist", systemImage: "text.badge.minus", role: .destructive) {
+                onRemoveFromPlaylist(track)
+            }
+            .disabled(isUpdatingPlaylist)
+        }
         if let onRemoveFromQueue {
             Button("Remove from queue", systemImage: "text.badge.minus") {
                 onRemoveFromQueue(track)

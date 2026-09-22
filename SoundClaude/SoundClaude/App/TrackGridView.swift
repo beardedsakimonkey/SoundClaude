@@ -59,6 +59,8 @@ struct TrackGridTile: View {
     let artworkLoader: ArtworkLoader
     @ObservedObject var likes: LikesController
     let onAddToQueue: (SoundCloudTrack) -> Void
+    var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
+    var isUpdatingPlaylist = false
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
@@ -197,6 +199,12 @@ struct TrackGridTile: View {
     private var trackMenuItems: some View {
         let isLiked = likes.isLiked(track)
 
+        if let onRemoveFromPlaylist {
+            Button("Remove from playlist", systemImage: "text.badge.minus", role: .destructive) {
+                onRemoveFromPlaylist(track)
+            }
+            .disabled(isUpdatingPlaylist)
+        }
         Button("Add to queue", systemImage: "text.line.last.and.arrowtriangle.forward") {
             onAddToQueue(track)
         }

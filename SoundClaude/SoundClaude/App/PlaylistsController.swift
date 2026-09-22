@@ -14,6 +14,8 @@ final class PlaylistsController: ObservableObject {
     @Published private(set) var likesErrorMessage: String?
     @Published private(set) var updatingLikeURNs: Set<String> = []
 
+    @Published private(set) var updatingPlaylistURNs: Set<String> = []
+
     var playlists: [SoundCloudPlaylist] { cache.playlists }
     var likedPlaylistURNs: Set<String> { Set(likedPlaylists.map(\.urn)) }
 
@@ -133,6 +135,14 @@ final class PlaylistsController: ObservableObject {
     }
 
     func addTrack(_ track: SoundCloudTrack, to playlist: SoundCloudPlaylist) async throws {
+        try await updateTrack(track, in: playlist, removing: false)
+    }
+
+    func removeTrack(_ track: SoundCloudTrack, from playlist: SoundCloudPlaylist) async throws {
+        try await updateTrack(track, in: playlist, removing: true)
+    }
+
+    private func updateTrack(_ track: SoundCloudTrack, in playlist: SoundCloudPlaylist, removing: Bool) async throws {
         await restoreCache()
         let session = sessionID
         guard case let .signedIn(user) = auth.state,
@@ -140,10 +150,20 @@ final class PlaylistsController: ObservableObject {
                 || playlist.owner.permalinkURL == user.permalinkURL else {
             throw SoundCloudError.invalidData
         }
+        guard updatingPlaylistURNs.insert(playlist.urn).inserted else { throw SoundCloudError.invalidData }
+        defer {
+            if sessionID == session { updatingPlaylistURNs.remove(playlist.urn) }
+        }
         let token = try await accessToken(session: session)
-        try await client.addTrackToPlaylist(
-            trackURN: track.urn, playlistURN: playlist.urn, accessToken: token
-        )
+        if removing {
+            try await client.removeTrackFromPlaylist(
+                trackURN: track.urn, playlistURN: playlist.urn, accessToken: token
+            )
+        } else {
+            try await client.addTrackToPlaylist(
+                trackURN: track.urn, playlistURN: playlist.urn, accessToken: token
+            )
+        }
         try checkSession(session)
         if let syncTask { await syncTask.value }
         if let task = playlistTasks[playlist.urn] { await task.value }
@@ -333,5 +353,6 @@ final class PlaylistsController: ObservableObject {
         errorMessage = nil
         loadingPlaylistURNs = []
         playlistErrors = [:]
+        updatingPlaylistURNs = []
     }
 }

@@ -672,6 +672,18 @@ actor SoundCloudClient {
     }
 
     func addTrackToPlaylist(trackURN: String, playlistURN: String, accessToken: String) async throws {
+        try await updatePlaylistTrack(trackURN: trackURN, playlistURN: playlistURN,
+                                      removing: false, accessToken: accessToken)
+    }
+
+    func removeTrackFromPlaylist(trackURN: String, playlistURN: String, accessToken: String) async throws {
+        try await updatePlaylistTrack(trackURN: trackURN, playlistURN: playlistURN,
+                                      removing: true, accessToken: accessToken)
+    }
+
+    private func updatePlaylistTrack(
+        trackURN: String, playlistURN: String, removing: Bool, accessToken: String
+    ) async throws {
         let playlistURL = configuration.apiBaseURL.appending(path: "playlists").appending(path: playlistURN)
         var nextURL: URL? = playlistURL.appending(path: "tracks").appending(queryItems: [
             URLQueryItem(name: "linked_partitioning", value: "true"),
@@ -691,8 +703,13 @@ actor SoundCloudClient {
             }
             nextURL = page.nextURL
         }
-        guard !trackURNs.contains(trackURN) else { return }
-        trackURNs.append(trackURN)
+        if removing {
+            guard trackURNs.contains(trackURN) else { return }
+            trackURNs.removeAll { $0 == trackURN }
+        } else {
+            guard !trackURNs.contains(trackURN) else { return }
+            trackURNs.append(trackURN)
+        }
         let body = try JSONSerialization.data(withJSONObject: [
             "playlist": ["tracks": trackURNs.map { ["urn": $0] }]
         ])

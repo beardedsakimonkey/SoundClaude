@@ -255,6 +255,72 @@ struct PlaylistTests {
             fatalError("Incomplete track identities must not overwrite a playlist")
         } catch SoundCloudError.invalidData {}
 
+        // Removal reads every page and preserves blocked tracks and their order.
+        for remaining in [["soundcloud:tracks:2", "soundcloud:tracks:3"], []] {
+            var requests = 0
+            PlaylistURLProtocol.respond { request in
+                requests += 1
+                precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+                if request.httpMethod == "PUT" {
+                    precondition(requests == 3)
+                    precondition(request.url?.path == "/playlists/soundcloud:playlists:42")
+                    var body = request.httpBody ?? Data()
+                    if let stream = request.httpBodyStream {
+                        stream.open()
+                        defer { stream.close() }
+                        var buffer = [UInt8](repeating: 0, count: 1024)
+                        while stream.hasBytesAvailable {
+                            let count = stream.read(&buffer, maxLength: buffer.count)
+                            precondition(count >= 0)
+                            if count == 0 { break }
+                            body.append(contentsOf: buffer.prefix(count))
+                        }
+                    }
+                    let payload = try! JSONSerialization.jsonObject(with: body) as! [String: [String: [[String: String]]]]
+                    precondition(payload["playlist"]?["tracks"]?.compactMap { $0["urn"] } == remaining)
+                    return (200, playlist)
+                }
+                if requests == 1 {
+                    let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+                    precondition(query.contains(URLQueryItem(name: "access", value: "playable,preview,blocked")))
+                    return (200, "{\"collection\":[\(track)],\"next_href\":\"\(updateNext)\"}")
+                }
+                precondition(request.url?.absoluteString == updateNext)
+                let tracks = remaining.map { ["urn": $0, "access": "blocked"] }
+                return (200, String(data: try! JSONSerialization.data(withJSONObject: tracks), encoding: .utf8)!)
+            }
+            try await client.removeTrackFromPlaylist(
+                trackURN: "soundcloud:tracks:1", playlistURN: details.urn, accessToken: "test-token"
+            )
+            precondition(requests == 3)
+        }
+        PlaylistURLProtocol.respond { request in
+            precondition(request.httpMethod == "GET")
+            return (200, "[\(track)]")
+        }
+        try await client.removeTrackFromPlaylist(
+            trackURN: "soundcloud:tracks:missing", playlistURN: details.urn, accessToken: "test-token"
+        )
+        PlaylistURLProtocol.respond { request in
+            precondition(request.httpMethod == "GET")
+            return (200, "[{}]")
+        }
+        do {
+            try await client.removeTrackFromPlaylist(
+                trackURN: "soundcloud:tracks:1", playlistURN: details.urn, accessToken: "test-token"
+            )
+            fatalError("Incomplete identities must not overwrite a playlist during removal")
+        } catch SoundCloudError.invalidData {}
+        PlaylistURLProtocol.respond { request in
+            request.httpMethod == "PUT" ? (403, "{}") : (200, "[\(track)]")
+        }
+        do {
+            try await client.removeTrackFromPlaylist(
+                trackURN: "soundcloud:tracks:1", playlistURN: details.urn, accessToken: "test-token"
+            )
+            fatalError("Failed removal was accepted")
+        } catch SoundCloudError.api {}
+
         let stationURN = "soundcloud:system-playlists:artist-stations:42"
         for field in ["", ",\"station_urn\":null", ",\"station_urn\":\"\(stationURN)\""] {
             let json = "{\"username\":\"Owner\",\"permalink_url\":\"https://soundcloud.com/owner\"\(field)}"
