@@ -78,6 +78,7 @@
 		D92100000000000000000003 /* NavigationPageViewport.swift in Sources */ = {isa = PBXBuildFile; fileRef = D92100000000000000000004 /* NavigationPageViewport.swift */; };
 		D93800000000000000000001 /* ScrollbarReservedScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D93800000000000000000002 /* ScrollbarReservedScrollView.swift */; };
 		A10000000000000000000060 /* ExpandableDescriptionText.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000060 /* ExpandableDescriptionText.swift */; };
+		3894CA2131E44E95AC777B1C /* ArtistMentionText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 812DC087B3544382982A2A78 /* ArtistMentionText.swift */; };
 		A1000000000000000000003B /* TrackListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003B /* TrackListRow.swift */; };
 		A10000000000000000000063 /* TrackQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000063 /* TrackQueueView.swift */; };
 		D91800000000000000000001 /* TrackQueueDragDrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91800000000000000000002 /* TrackQueueDragDrop.swift */; };
@@ -184,6 +185,7 @@
 		D92100000000000000000004 /* NavigationPageViewport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationPageViewport.swift; sourceTree = "<group>"; };
 		D93800000000000000000002 /* ScrollbarReservedScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollbarReservedScrollView.swift; sourceTree = "<group>"; };
 		A20000000000000000000060 /* ExpandableDescriptionText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpandableDescriptionText.swift; sourceTree = "<group>"; };
+		812DC087B3544382982A2A78 /* ArtistMentionText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistMentionText.swift; sourceTree = "<group>"; };
 		A2000000000000000000003B /* TrackListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackListRow.swift; sourceTree = "<group>"; };
 		A20000000000000000000063 /* TrackQueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackQueueView.swift; sourceTree = "<group>"; };
 		D91800000000000000000002 /* TrackQueueDragDrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackQueueDragDrop.swift; sourceTree = "<group>"; };
@@ -289,6 +291,7 @@
 				D92100000000000000000004 /* NavigationPageViewport.swift */,
 				D93800000000000000000002 /* ScrollbarReservedScrollView.swift */,
 				A20000000000000000000060 /* ExpandableDescriptionText.swift */,
+				812DC087B3544382982A2A78 /* ArtistMentionText.swift */,
 				A2000000000000000000003B /* TrackListRow.swift */,
 				A20000000000000000000063 /* TrackQueueView.swift */,
 				D91800000000000000000002 /* TrackQueueDragDrop.swift */,
@@ -554,6 +557,7 @@
 				D92100000000000000000003 /* NavigationPageViewport.swift in Sources */,
 				D93800000000000000000001 /* ScrollbarReservedScrollView.swift in Sources */,
 				A10000000000000000000060 /* ExpandableDescriptionText.swift in Sources */,
+				3894CA2131E44E95AC777B1C /* ArtistMentionText.swift in Sources */,
 				A1000000000000000000003B /* TrackListRow.swift in Sources */,
 				A10000000000000000000063 /* TrackQueueView.swift in Sources */,
 				D91800000000000000000001 /* TrackQueueDragDrop.swift in Sources */,

@@ -113,6 +113,7 @@ struct TrackCommentsView: View {
                     timestampColor: rowTimestampColor,
                     onSelectArtist: onSelectArtist
                 )
+                .modifier(FadeInOnAppear())
             }
 
             if isLoading {
