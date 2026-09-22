@@ -38,6 +38,6 @@ struct PlayerArtworkGlass: ViewModifier {
                 .accessibilityHidden(true)
             }
             .shadow(color: .black.opacity(0.20), radius: 1, x: 0, y: 1)
-            .shadow(color: .black.opacity(isHovering ? 0.30 : 0.24), radius: 4, x: 0, y: 4)
+            .shadow(color: .black.opacity(0.24), radius: 4, x: 0, y: 4)
     }
 }
