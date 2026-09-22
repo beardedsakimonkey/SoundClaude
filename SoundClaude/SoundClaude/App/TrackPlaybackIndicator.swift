@@ -31,6 +31,11 @@ struct TrackPlaybackIndicator: View {
                 updateLevels()
             }
         }
+        .opacity(isPlaying || isLoading ? 1 : 0.4)
+        .animation(
+            reduceMotion || contentAnimationsPaused ? nil : .easeInOut(duration: 0.2),
+            value: isPlaying || isLoading
+        )
         .onAppear { updateLevels() }
         .onChange(of: isPlaying) { _, _ in updateLevels() }
         .onChange(of: isAnimating) { _, _ in updateLevels() }
