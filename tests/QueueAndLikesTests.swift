@@ -42,6 +42,55 @@ struct QueueAndLikesTests {
     @MainActor
     static func main() async throws {
         let next = URL(string: "https://api.soundcloud.com/tracks?cursor=next")!
+        let suite = "QueuePersistenceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let queueStore = TrackQueueStore(defaults: defaults)
+
+        // Reopening preserves edits even when playback's current track was removed.
+        for source: TrackQueue.Source in [.feed, .likes, .station("track:1")] {
+            for shuffled in [false, true] {
+                var saved = TrackQueue(source: source, tracks: (1...4).map(track),
+                                       nextPageURL: next, stationTitle: "Test station")
+                saved.setShuffle(shuffled, currentURN: "track:1")
+                precondition(saved.add(track(5)))
+                precondition(saved.remove(track(1)))
+                precondition(saved.move(fromOffsets: IndexSet(integer: 3), toOffset: 0))
+                queueStore.save(saved)
+
+                let reopenedStore = TrackQueueStore(defaults: UserDefaults(suiteName: suite)!)
+                for currentTrack in [track(1), nil] {
+                    var restored = reopenedStore.restore(
+                        likes: (1...4).map(track), currentTrack: currentTrack, shuffleEnabled: shuffled
+                    )
+                    precondition(restored.playbackTracks == saved.playbackTracks)
+                    precondition(restored.source == source && restored.stationTitle == "Test station")
+                    precondition(restored.isShuffled == shuffled && restored.nextPageURL == next)
+                    try restored.append(SoundCloudTrackPage(tracks: [track(1), track(6)], nextURL: nil))
+                    precondition(!restored.tracks.contains(track(1)))
+                    precondition(restored.playbackTracks.last == track(6))
+                }
+            }
+        }
+
+        // A deliberate clear survives restart while a track is still playing.
+        queueStore.save(TrackQueue(source: .single, tracks: []))
+        precondition(queueStore.restore(likes: [], currentTrack: track(1), shuffleEnabled: false).tracks.isEmpty)
+
+        // Only a missing or damaged saved queue falls back to the playback session.
+        queueStore.clear()
+        precondition(queueStore.restore(likes: [], currentTrack: track(1), shuffleEnabled: false).tracks == [track(1)])
+        precondition(queueStore.restore(likes: [], currentTrack: nil, shuffleEnabled: false).tracks.isEmpty)
+        defaults.set(Data("broken".utf8), forKey: "playback.queue")
+        precondition(queueStore.restore(likes: [], currentTrack: track(1), shuffleEnabled: false).tracks == [track(1)])
+
+        // Existing installations keep the same defaults key and encoded queue format.
+        let legacyStoredQueue = TrackQueue(source: .playlist("playlist:1"), tracks: [track(3), track(2)], nextPageURL: next)
+        defaults.set(try JSONEncoder().encode(legacyStoredQueue), forKey: "playback.queue")
+        let legacyRestored = queueStore.restore(likes: [], currentTrack: track(1), shuffleEnabled: false)
+        precondition(legacyRestored.playbackTracks == legacyStoredQueue.playbackTracks)
+        precondition(legacyRestored.source == legacyStoredQueue.source && legacyRestored.nextPageURL == next)
+
         // Removal survives shuffle, likes refresh, saved queues, and overlapping pages.
         for source: TrackQueue.Source in [.likes, .feed] {
             for shuffled in [false, true] {

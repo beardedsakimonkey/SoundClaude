@@ -1,5 +1,29 @@
 import Foundation
 
+struct TrackQueueStore {
+    var defaults: UserDefaults = .standard
+    private let key = "playback.queue"
+
+    func save(_ queue: TrackQueue) {
+        guard let data = try? JSONEncoder().encode(queue.withoutLikesMetadata()) else { return }
+        defaults.set(data, forKey: key)
+    }
+
+    func restore(likes: [SoundCloudTrack], currentTrack: SoundCloudTrack?, shuffleEnabled: Bool) -> TrackQueue {
+        let saved = defaults.data(forKey: key).flatMap { try? JSONDecoder().decode(TrackQueue.self, from: $0) }
+        // The current track may have been removed, or the queue deliberately cleared.
+        // Use playback as a fallback only when no valid queue was saved.
+        var queue = saved ?? TrackQueue(source: .single, tracks: currentTrack.map { [$0] } ?? [])
+        queue.replaceLikes(likes)
+        queue.setShuffle(shuffleEnabled, currentURN: currentTrack?.urn)
+        return queue
+    }
+
+    func clear() {
+        defaults.removeObject(forKey: key)
+    }
+}
+
 struct TrackQueue: Codable {
     enum Source: Codable, Equatable {
         case feed

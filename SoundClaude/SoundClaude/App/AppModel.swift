@@ -36,7 +36,7 @@ final class AppModel: ObservableObject {
     private var followingOverrides: [String: Bool] = [:]
     private var hasStarted = false
     @Published private(set) var queue = TrackQueue(source: .single, tracks: [])
-    private let queueSettingsKey = "playback.queue"
+    private let queueStore = TrackQueueStore()
     // These limits bound cache growth as liked-track pages load.
     private let trackDetailsCache = MemoryCache<
         TrackCacheKey,
@@ -141,7 +141,7 @@ final class AppModel: ObservableObject {
         playbackRequestID = nil
         playback.clearSession()
         queue = TrackQueue(source: .single, tracks: [])
-        UserDefaults.standard.removeObject(forKey: queueSettingsKey)
+        queueStore.clear()
         audioTap.stop()
         followingTask?.cancel()
         followingTask = nil
@@ -267,25 +267,19 @@ final class AppModel: ObservableObject {
     }
 
     private func saveQueue() {
-        let saved = queue.withoutLikesMetadata()
-        guard let data = try? JSONEncoder().encode(saved) else { return }
-        UserDefaults.standard.set(data, forKey: queueSettingsKey)
+        queueStore.save(queue)
     }
 
     private func restorePlayback() async {
         guard playback.currentTrack == nil, playbackTask == nil else { return }
-        if let data = UserDefaults.standard.data(forKey: queueSettingsKey),
-           let saved = try? JSONDecoder().decode(TrackQueue.self, from: data) {
-            queue = saved
-        }
-        queue.replaceLikes(likes.tracks)
-        guard let session = playback.savedSession else { return }
-        if queue.source != .likes && !queue.tracks.isEmpty
-            && !queue.tracks.contains(where: { $0.urn == session.track.urn }) {
-            queue = TrackQueue(source: .single, tracks: [session.track])
-        }
-        queue.setShuffle(playback.isShuffleEnabled, currentURN: session.track.urn)
+        let session = playback.savedSession
+        queue = queueStore.restore(
+            likes: likes.tracks,
+            currentTrack: session?.track,
+            shuffleEnabled: playback.isShuffleEnabled
+        )
         saveQueue()
+        guard let session else { return }
         await loadPlayback(session.track, position: session.position, autoplay: session.wasPlaying)
     }
 
