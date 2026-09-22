@@ -336,6 +336,8 @@ struct QueueAndLikesTests {
         let likes = LikesController(client: client, auth: auth, store: store)
         await likes.restoreCache()
         precondition(likes.tracks == baseline.tracks && client.requestedURLs.isEmpty)
+        precondition(baseline.tracks.allSatisfy { likes.isLiked($0) })
+        precondition(!likes.isLiked(track(99)))
 
         // Counts follow successful toggles even when callers retain the original track.
         var countedTrack = track(20)
@@ -400,6 +402,7 @@ struct QueueAndLikesTests {
         precondition(likes.errorMessage != nil && likes.tracks.contains(track(5)))
         likes.clear()
         precondition(likes.tracks.isEmpty)
+        precondition(!likes.isLiked(track(5)))
         await likes.restoreCache()
         precondition(likes.tracks.contains(track(5)))
 
@@ -436,6 +439,8 @@ struct QueueAndLikesTests {
         editResponse?.resume(returning: SoundCloudTrackPage(tracks: [track(5), track(1)], nextURL: next))
         await editSync.value
         precondition(likes.tracks == [track(8), track(5), track(2)])
+        precondition([8, 5, 2].allSatisfy { likes.isLiked(track($0)) })
+        precondition(!likes.isLiked(track(1)))
 
         // Sign-out during a request must not repopulate another account's state.
         var pending: CheckedContinuation<SoundCloudTrackPage, Never>?

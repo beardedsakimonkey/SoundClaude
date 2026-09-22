@@ -3,7 +3,11 @@ import Foundation
 
 @MainActor
 final class LikesController: ObservableObject {
-    @Published private(set) var tracks: [SoundCloudTrack] = []
+    @Published private(set) var tracks: [SoundCloudTrack] = [] {
+        didSet { likedTrackURNs = Set(tracks.map(\.urn)) }
+    }
+    // Rows query this frequently; do not scan the full library for every row.
+    private var likedTrackURNs: Set<String> = []
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
     @Published private var pendingLikes: [String: Bool] = [:]
@@ -54,7 +58,7 @@ final class LikesController: ObservableObject {
     }
 
     func isLiked(_ track: SoundCloudTrack) -> Bool {
-        pendingLikes[track.urn] ?? tracks.contains { $0.urn == track.urn }
+        pendingLikes[track.urn] ?? likedTrackURNs.contains(track.urn)
     }
 
     func likeCount(for track: SoundCloudTrack) -> Int? {

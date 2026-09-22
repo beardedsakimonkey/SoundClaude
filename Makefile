@@ -7,7 +7,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := run
 
-.PHONY: build release run lsp icon test test-focus test-queue-drag
+.PHONY: build release run lsp icon test test-focus test-queue-drag test-navigation
 
 build:
 	xcodebuild \
@@ -172,3 +172,11 @@ test-queue-drag:
 		SoundClaude/SoundClaude/App/TrackPlaybackIndicator.swift \
 		tests/QueueDragTests.swift
 	/tmp/soundclaude-tests/queue-drag
+
+# Layout regression uses AppKit hosting and requires a macOS GUI session.
+test-navigation:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/navigation-viewport \
+		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
+		tests/NavigationViewportTests.swift
+	/tmp/soundclaude-tests/navigation-viewport

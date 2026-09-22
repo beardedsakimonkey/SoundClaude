@@ -236,126 +236,111 @@ struct SignedInView: View {
         sidebarSelection.wrappedValue = .search
     }
 
-    // Apply the clearance and fade to each page inside the navigation stack.
-    // The scroll views still draw behind the footer, but can scroll their last row above it.
+    // Keep browser history as data. Rendering a native stack of all visited pages
+    // makes layout and row updates grow with browsing depth, even when pages hide.
     private var selectedView: some View {
-        NavigationStack(path: navigationPath) {
-            rootView
-                .safeAreaPadding(.bottom, footerHeight)
-                .mask { bottomFade }
-                .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                .background(Color(nsColor: .windowBackgroundColor))
-                .toolbar { navigationToolbar }
-                .navigationDestination(for: Route.self) { route in
-                    Group {
-                        switch route {
-                        case let .tag(tag):
-                            ScrollView {
-                                SearchResultsView(
-                                    query: tag,
-                                    isTagSearch: true,
-                                    model: model,
-                                    onSelectTrack: showTrack,
-                                    onSelectPlaylist: showPlaylist,
-                                    onSelectArtist: showArtist
-                                )
-                            }
-                            .background(alignment: .top) {
-                                RouteGradientBackdrop()
-                            }
-                            .id(route)
-                            .navigationBarBackButtonHidden(true)
-                            .toolbar { navigationToolbar }
-                        case let .genre(genre):
-                            ScrollView {
-                                SearchResultsView(
-                                    query: genre,
-                                    isGenreSearch: true,
-                                    model: model,
-                                    onSelectTrack: showTrack,
-                                    onSelectPlaylist: showPlaylist,
-                                    onSelectArtist: showArtist
-                                )
-                            }
-                            .background(alignment: .top) {
-                                RouteGradientBackdrop()
-                            }
-                            .id(route)
-                            .navigationBarBackButtonHidden(true)
-                            .toolbar { navigationToolbar }
-                        case let .track(track):
-                            TrackDetailView(
-                                track: track,
-                                model: model,
-                                onSelectTrack: showTrack,
-                                onSelectArtist: showArtist,
-                                onSelectStation: { urn, seedTrack in
-                                    forwardPath.removeAll()
-                                    path.append(.station(
-                                        urn,
-                                        seedTrack: seedTrack
-                                    ))
-                                }
-                            )
-                            .id(track.urn)
-                            .navigationBarBackButtonHidden(true)
-                            .toolbar { navigationToolbar }
-                        case let .playlist(playlist):
-                            PlaylistDetailView(
-                                playlist: playlist,
-                                model: model,
-                                onSelectTrack: showTrack,
-                                onSelectArtist: showArtist,
-                                playlists: model.playlists
-                            )
-                            .id(playlist.urn)
-                            .navigationBarBackButtonHidden(true)
-                            .toolbar { navigationToolbar }
-                        case let .station(urn, seedTrack, seedArtistName):
-                            StationDetailView(
-                                urn: urn,
-                                seedTrack: seedTrack,
-                                seedArtistName: seedArtistName,
-                                model: model,
-                                onSelectTrack: showTrack,
-                                onSelectArtist: showArtist
-                            )
-                            .id(urn)
-                            .navigationBarBackButtonHidden(true)
-                            .toolbar { navigationToolbar }
-                        case let .artist(artist):
-                            ArtistDetailView(
-                                artist: artist,
-                                model: model,
-                                onSelectTrack: showTrack,
-                                onSelectArtist: showArtist,
-                                onSelectPlaylist: showPlaylist,
-                                onSelectUsers: showArtistUsers,
-                                onSelectStation: showStation
-                            )
-                            .id(artist.permalinkURL)
-                            .navigationBarBackButtonHidden(true)
-                            .toolbar { navigationToolbar }
-                        case let .artistUsers(artist, list):
-                            ArtistUsersView(
-                                artist: artist, list: list, model: model,
-                                onSelectArtist: showArtist
-                            )
-                            .id(route)
-                            .navigationBarBackButtonHidden(true)
-                            .toolbar { navigationToolbar }
-                        }
-                    }
-                    .safeAreaPadding(.bottom, footerHeight)
-                    .mask { bottomFade }
-                    // Let tall artwork fit the window without enlarging the split view.
-                    .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                    // Keep the page opaque when the visualizer restores the stack.
-                    // The background must remain outside the footer fade mask.
-                    .background(Color(nsColor: .windowBackgroundColor))
-                }
+        NavigationStack {
+            CurrentNavigationPage(route: path.last) {
+                rootView
+            } destination: { route in
+                routeView(route)
+            }
+            .modifier(NavigationPageActivity())
+            .safeAreaPadding(.bottom, footerHeight)
+            .mask { bottomFade }
+            .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .modifier(NavigationPageViewport())
+            .toolbar { navigationToolbar }
         }
         .id(destinationID)
+    }
+
+    @ViewBuilder
+    private func routeView(_ route: Route) -> some View {
+        switch route {
+        case let .tag(tag):
+            ScrollView {
+                SearchResultsView(
+                    query: tag,
+                    isTagSearch: true,
+                    model: model,
+                    onSelectTrack: showTrack,
+                    onSelectPlaylist: showPlaylist,
+                    onSelectArtist: showArtist
+                )
+            }
+            .background(alignment: .top) {
+                RouteGradientBackdrop()
+            }
+            .id(route)
+        case let .genre(genre):
+            ScrollView {
+                SearchResultsView(
+                    query: genre,
+                    isGenreSearch: true,
+                    model: model,
+                    onSelectTrack: showTrack,
+                    onSelectPlaylist: showPlaylist,
+                    onSelectArtist: showArtist
+                )
+            }
+            .background(alignment: .top) {
+                RouteGradientBackdrop()
+            }
+            .id(route)
+        case let .track(track):
+            TrackDetailView(
+                track: track,
+                model: model,
+                onSelectTrack: showTrack,
+                onSelectArtist: showArtist,
+                onSelectStation: { urn, seedTrack in
+                    forwardPath.removeAll()
+                    path.append(.station(
+                        urn,
+                        seedTrack: seedTrack
+                    ))
+                }
+            )
+            .id(track.urn)
+        case let .playlist(playlist):
+            PlaylistDetailView(
+                playlist: playlist,
+                model: model,
+                onSelectTrack: showTrack,
+                onSelectArtist: showArtist,
+                playlists: model.playlists
+            )
+            .id(playlist.urn)
+        case let .station(urn, seedTrack, seedArtistName):
+            StationDetailView(
+                urn: urn,
+                seedTrack: seedTrack,
+                seedArtistName: seedArtistName,
+                model: model,
+                onSelectTrack: showTrack,
+                onSelectArtist: showArtist
+            )
+            .id(urn)
+        case let .artist(artist):
+            ArtistDetailView(
+                artist: artist,
+                model: model,
+                onSelectTrack: showTrack,
+                onSelectArtist: showArtist,
+                onSelectPlaylist: showPlaylist,
+                onSelectUsers: showArtistUsers,
+                onSelectStation: showStation
+            )
+            .id(artist.permalinkURL)
+        case let .artistUsers(artist, list):
+            ArtistUsersView(
+                artist: artist, list: list, model: model,
+                onSelectArtist: showArtist
+            )
+            .id(route)
+        }
     }
 
     private var bottomFade: some View {
@@ -420,7 +405,7 @@ struct SignedInView: View {
         }
     }
 
-    // Each stack page owns its toolbar; pushed pages replace the parent toolbar.
+    // Only the current page contributes toolbar content.
     @ToolbarContentBuilder
     private var navigationToolbar: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
@@ -534,27 +519,17 @@ struct SignedInView: View {
         )
     }
 
-    private var navigationPath: Binding<[Route]> {
-        // Bind to this section so a departing stack cannot change another section's history.
-        let destinationID = destinationID
-        return Binding(
-            get: { navigationHistories[destinationID, default: NavigationHistory()].path },
-            set: { newPath in
-                guard self.destinationID == destinationID else { return }
-                let oldPath = path
-                guard newPath != oldPath else { return }
+}
 
-                if newPath.count < oldPath.count,
-                   oldPath.starts(with: newPath) {
-                    forwardPath.append(
-                        contentsOf: oldPath.dropFirst(newPath.count).reversed()
-                    )
-                } else {
-                    forwardPath.removeAll()
-                }
-                path = newPath
-            }
-        )
+private struct NavigationPageActivity: ViewModifier {
+    @Environment(\.contentAnimationsPaused) private var animationsPaused
+    @State private var isVisible = false
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.contentAnimationsPaused, animationsPaused || !isVisible)
+            .onAppear { isVisible = true }
+            .onDisappear { isVisible = false }
     }
 }
 
