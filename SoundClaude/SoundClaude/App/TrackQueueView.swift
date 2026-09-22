@@ -46,11 +46,7 @@ struct TrackQueueView: View {
             }
 
             if tracks.isEmpty {
-                ContentUnavailableView(
-                    "The queue is empty",
-                    systemImage: "music.note.list",
-                    description: Text("Play a track to start a queue.")
-                )
+                EmptyStateView("The queue is empty")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 TrackQueueList(

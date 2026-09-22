@@ -57,13 +57,7 @@ struct ArtistUsersView: View {
                         .frame(maxWidth: .infinity)
                         .task(id: nextPageURL) { await loadPage() }
                 } else if users.isEmpty {
-                    ContentUnavailableView(
-                        list == .followers ? "No followers" : "Not following anyone",
-                        systemImage: "person.2",
-                        description: Text(list == .followers
-                            ? "This artist has no followers yet."
-                            : "This artist is not following anyone yet.")
-                    )
+                    EmptyStateView(list == .followers ? "No followers" : "Not following anyone")
                 }
             }
             .padding(24)

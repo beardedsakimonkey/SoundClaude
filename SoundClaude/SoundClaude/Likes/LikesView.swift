@@ -140,20 +140,13 @@ struct LikesView: View {
         if likes.tracks.isEmpty,
            !likes.isLoading,
            !likes.canLoadMore {
-            ContentUnavailableView(
-                "No liked tracks",
-                systemImage: "heart.slash"
-            )
+            EmptyStateView("No liked tracks")
             .frame(maxWidth: .infinity, minHeight: 240)
         } else {
             let tracks = filteredTracks
             LazyVStack(alignment: .leading, spacing: 0) {
                 if tracks.isEmpty, !searchQuery.isEmpty {
-                    ContentUnavailableView(
-                        "No matching tracks",
-                        systemImage: "magnifyingglass",
-                        description: Text("No loaded liked tracks match your search.")
-                    )
+                    EmptyStateView("No matching tracks")
                     .frame(maxWidth: .infinity, minHeight: 240)
                 }
 

@@ -50,11 +50,7 @@ struct HistoryView: View {
                         .foregroundStyle(.secondary)
                     Button("Try Again") { reloadID = UUID() }
                 } else if tracks.isEmpty {
-                    ContentUnavailableView(
-                        "No listening history",
-                        systemImage: "clock.arrow.circlepath",
-                        description: Text("Recently played tracks available for playback will appear here.")
-                    )
+                    EmptyStateView("No listening history")
                     .frame(maxWidth: .infinity)
                 }
             }

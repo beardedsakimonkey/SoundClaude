@@ -82,11 +82,7 @@ struct StationDetailView: View {
                                 .accessibilityLabel("Loading station")
                                 .frame(maxWidth: .infinity)
                         } else if station != nil, tracks.isEmpty, errorMessage == nil {
-                            ContentUnavailableView(
-                                "No playable tracks",
-                                systemImage: "dot.radiowaves.left.and.right",
-                                description: Text("This station has no tracks available for playback here.")
-                            )
+                            EmptyStateView("No playable tracks")
                         }
                     }
                 }

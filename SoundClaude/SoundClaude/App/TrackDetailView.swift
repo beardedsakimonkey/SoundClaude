@@ -313,11 +313,7 @@ struct TrackDetailView: View {
                     }
             } else if hasLoadedRelatedTracks, relatedTracks.isEmpty,
                       relatedTracksErrorMessage == nil {
-                ContentUnavailableView(
-                    "No related tracks",
-                    systemImage: "music.note",
-                    description: Text("No related tracks are available for playback here.")
-                )
+                EmptyStateView("No related tracks")
                 .modifier(FadeInOnAppear())
             }
         }

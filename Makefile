@@ -168,6 +168,7 @@ test-queue-drag:
 	swiftc -o /tmp/soundclaude-tests/queue-drag \
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
 		SoundClaude/SoundClaude/App/TrackQueueView.swift \
+		SoundClaude/SoundClaude/App/EmptyStateView.swift \
 		SoundClaude/SoundClaude/App/TrackQueueDragDrop.swift \
 		SoundClaude/SoundClaude/App/TrackPlaybackIndicator.swift \
 		tests/QueueDragTests.swift

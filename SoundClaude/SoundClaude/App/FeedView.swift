@@ -115,11 +115,7 @@ struct FeedView: View {
                         .frame(maxWidth: .infinity)
                         .task(id: nextPageURL) { await feed.loadMore() }
                 } else if items.isEmpty, feed.errorMessage == nil {
-                    ContentUnavailableView(
-                        "Your feed is empty",
-                        systemImage: "music.note",
-                        description: Text("Tracks and playlists posted or reposted by people you follow will appear here.")
-                    )
+                    EmptyStateView("Your feed is empty")
                     .frame(maxWidth: .infinity)
                 }
             }

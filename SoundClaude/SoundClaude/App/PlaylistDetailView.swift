@@ -355,13 +355,7 @@ struct PlaylistDetailView: View {
                     .accessibilityLabel("Loading playlist")
                     .frame(maxWidth: .infinity)
             } else if hasLoadedTracks, tracks.isEmpty, errorMessage == nil {
-                ContentUnavailableView(
-                    displayedPlaylist.trackCount == 0 ? "Empty playlist" : "No playable tracks",
-                    systemImage: "music.note.list",
-                    description: Text(displayedPlaylist.trackCount == 0
-                        ? "This playlist has no tracks."
-                        : "This playlist has no tracks available for playback here.")
-                )
+                EmptyStateView(displayedPlaylist.trackCount == 0 ? "Empty playlist" : "No playable tracks")
             }
         }
     }

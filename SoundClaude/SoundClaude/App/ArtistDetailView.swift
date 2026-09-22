@@ -834,11 +834,7 @@ struct ArtistDetailView: View {
                         await loadTracks()
                     }
             } else if hasLoadedTracks, tracks.isEmpty, tracksErrorMessage == nil {
-                ContentUnavailableView(
-                    "No playable tracks",
-                    systemImage: "music.note",
-                    description: Text("This artist has no tracks available for playback here.")
-                )
+                EmptyStateView("No playable tracks")
             }
         }
     }
@@ -890,11 +886,7 @@ struct ArtistDetailView: View {
                !isLoadingReposts, !isLoadingRepostedPlaylists,
                repostsNextPageURL == nil, repostedPlaylistsNextPageURL == nil,
                repostsErrorMessage == nil, repostedPlaylistsErrorMessage == nil {
-                ContentUnavailableView(
-                    "No reposts",
-                    systemImage: "arrow.2.squarepath",
-                    description: Text("This artist has no reposted tracks or playlists available here.")
-                )
+                EmptyStateView("No reposts")
             }
         }
         .task(id: details?.user.urn) {
@@ -989,11 +981,7 @@ struct ArtistDetailView: View {
                !isLoadingLikes, !isLoadingLikedPlaylists,
                likesNextPageURL == nil, likedPlaylistsNextPageURL == nil,
                likesErrorMessage == nil, likedPlaylistsErrorMessage == nil {
-                ContentUnavailableView(
-                    "No likes",
-                    systemImage: "heart",
-                    description: Text("This artist has no liked tracks or playlists available here.")
-                )
+                EmptyStateView("No likes")
             }
         }
         .task(id: details?.user.urn) {
@@ -1036,11 +1024,7 @@ struct ArtistDetailView: View {
                     }
             } else if hasLoadedPlaylists, playlists.isEmpty,
                       playlistsErrorMessage == nil {
-                ContentUnavailableView(
-                    "No playlists",
-                    systemImage: "music.note.list",
-                    description: Text("This artist has no playlists available here.")
-                )
+                EmptyStateView("No playlists")
             }
         }
         .task {

@@ -145,11 +145,7 @@ private struct SearchResultList: View {
                         } else if nextPageURL != nil {
                             Button("Load More") { requestID = UUID() }
                         } else if isEmpty {
-                            ContentUnavailableView(
-                                "No \(category.rawValue.lowercased()) found",
-                                systemImage: "magnifyingglass",
-                                description: Text(isTagSearch ? "Tracks tagged “\(query)”" : isGenreSearch ? "Try another genre or search." : "Try another search or result type.")
-                            )
+                            EmptyStateView("No \(category.rawValue.lowercased()) found")
                         }
                     }
                     .frame(maxWidth: .infinity)
