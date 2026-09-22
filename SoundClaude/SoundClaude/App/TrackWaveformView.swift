@@ -326,7 +326,6 @@ struct TrackWaveformView: View {
                         )
                         .id(track.urn)
                         .frame(height: layout.reflectionHeight)
-                        .offset(y: -6)
                     }
                 }
             }
