@@ -328,6 +328,7 @@ struct SignedInView: View {
             ArtistDetailView(
                 artist: artist,
                 model: model,
+                selectedTab: artistTabSelection(for: artist),
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist,
                 onSelectPlaylist: showPlaylist,
@@ -342,6 +343,15 @@ struct SignedInView: View {
             )
             .id(route)
         }
+    }
+
+    private func artistTabSelection(for artist: SoundCloudUser) -> Binding<ArtistDetailView.ContentTab> {
+        let historyID = destinationID
+        let artistURL = artist.permalinkURL
+        return Binding(
+            get: { navigationHistories[historyID]?.artistTabs[artistURL] ?? .tracks },
+            set: { navigationHistories[historyID, default: NavigationHistory()].artistTabs[artistURL] = $0 }
+        )
     }
 
     private var bottomFade: some View {
@@ -538,6 +548,8 @@ private struct NavigationPageActivity: ViewModifier {
 private struct NavigationHistory {
     var path: [Route] = []
     var forwardPath: [Route] = []
+    // Page views are recreated on navigation, so keep each artist's tab with its history.
+    var artistTabs: [URL: ArtistDetailView.ContentTab] = [:]
 }
 
 private struct QueueBlurModifier: AnimatableModifier {

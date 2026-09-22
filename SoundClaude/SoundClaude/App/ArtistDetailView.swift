@@ -47,7 +47,7 @@ struct ArtistDetailView: View {
         }
     }
 
-    private enum ContentTab: String, CaseIterable, Identifiable {
+    enum ContentTab: String, CaseIterable, Identifiable {
         case tracks = "Tracks"
         case reposts = "Reposts"
         case playlists = "Playlists"
@@ -105,7 +105,7 @@ struct ArtistDetailView: View {
     @State private var hasLoadedTracks = false
     @State private var isLoadingTracks = false
     @State private var tracksErrorMessage: String?
-    @State private var selectedTab = ContentTab.tracks
+    @Binding private var selectedTab: ContentTab
     @State private var reposts: [SoundCloudTrack] = []
     @State private var repostsNextPageURL: URL?
     @State private var loadedRepostsPageURLs: Set<URL> = []
@@ -143,6 +143,7 @@ struct ArtistDetailView: View {
     init(
         artist: SoundCloudUser,
         model: AppModel,
+        selectedTab: Binding<ContentTab>,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
         onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void,
@@ -151,6 +152,7 @@ struct ArtistDetailView: View {
     ) {
         self.artist = artist
         self.model = model
+        _selectedTab = selectedTab
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
         self.onSelectUsers = onSelectUsers
@@ -223,10 +225,6 @@ struct ArtistDetailView: View {
         }
         .task(id: details?.user.urn) {
             await loadRelatedArtists()
-        }
-        .onChange(of: selectedTab) { _, tab in
-            guard tab == .reposts, !hasLoadedReposts else { return }
-            Task { await loadReposts() }
         }
         .sheet(isPresented: $isShowingArtwork) {
             FullSizeArtworkView(
@@ -902,6 +900,10 @@ struct ArtistDetailView: View {
         .task(id: details?.user.urn) {
             guard !hasLoadedRepostedPlaylists else { return }
             await loadRepostedPlaylists()
+        }
+        .task(id: details?.user.urn) {
+            guard !hasLoadedReposts else { return }
+            await loadReposts()
         }
     }
 
