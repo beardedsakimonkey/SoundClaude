@@ -192,12 +192,10 @@ struct StationDetailView: View {
                         .labelStyle(.titleAndIcon)
                         .font(.body)
                         .foregroundStyle(.secondary)
-                        .opacity(seedTrack == nil || reduceMotion || hasAppeared ? 1 : 0)
-                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: hasAppeared)
                     stationTitle
                 }
                 .onAppear { hasAppeared = true }
-                .modifier(FadeInOnAppear(isEnabled: seedTrack == nil))
+                .modifier(FadeInOnAppear())
                 playbackControls
                     .padding(.top, 8)
                     .modifier(FadeInOnAppear())
