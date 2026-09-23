@@ -92,7 +92,6 @@ private struct SpinningRecordIcon: View {
 
     var body: some View {
         TimelineView(.animation(
-            minimumInterval: 1.0 / 30,
             paused: reduceMotion || contentAnimationsPaused || (!isSpinning && !isCoasting)
         )) { context in
             let angle = motion.value(at: context.date).angle
@@ -106,6 +105,7 @@ private struct SpinningRecordIcon: View {
                             .stroke(style: StrokeStyle(lineWidth: 1, lineCap: .round))
                             .frame(width: diameter, height: diameter)
                             .rotationEffect(.degrees(rotation))
+                            .opacity(0.8)
                     }
                 }
                 Circle().strokeBorder(lineWidth: 2.5)
@@ -122,7 +122,7 @@ private struct SpinningRecordIcon: View {
             motion = RecordMotion(
                 angle: current.angle.truncatingRemainder(dividingBy: 360),
                 speed: stopImmediately ? 0 : current.speed,
-                targetSpeed: isSpinning ? 120 : 0,
+                targetSpeed: isSpinning ? 100 : 0,
                 startedAt: now
             )
             isCoasting = !isSpinning && motion.speed > 0
