@@ -353,7 +353,7 @@ struct DetailArtworkTransform {
     var x = 0.0
     var y = 22.0
     var z = 0.0
-    var perspective = 0.5
+    var perspective = 0.7
 }
 
 /// Rotates the artwork and its reflection together, flattening perspective on hover or while viewing artwork.
@@ -370,7 +370,7 @@ struct DetailArtworkRotation: ViewModifier {
     func body(content: Content) -> some View {
         content
             .animation(
-                reduceMotion ? nil : .spring(response: isPerspectiveFlat ? 0.5 : 0.75, dampingFraction: 0.75)
+                reduceMotion ? nil : .spring(response: isPerspectiveFlat ? 0.5 : 0.75, dampingFraction: 0.85)
             ) { artwork in
                 artwork.rotation3DEffect(
                     .degrees(transform.x),
