@@ -258,6 +258,7 @@ struct PlaylistDetailView: View {
             size: artworkSize,
             animatesChanges: true,
             cornerRadius: 12,
+            scalesOnHover: false,
             track: artworkTrack,
             likes: model.likes,
             onAddToQueue: model.addToQueue,
@@ -265,6 +266,7 @@ struct PlaylistDetailView: View {
             isUpdatingPlaylist: playlists.updatingPlaylistURNs.contains(playlist.urn),
             onShowArtwork: { isShowingArtwork = true }
         )
+        .modifier(DetailArtworkRotation())
     }
 
     private func playbackControls(iconOnly: Bool) -> some View {

@@ -16,16 +16,15 @@ struct StationDetailView: View {
     @State private var errorMessage: String?
     @State private var loadAttempt = 0
     @State private var isShowingArtwork = false
-    @State private var isHoveringArtwork = false
     @State private var isHoveringStationTitle = false
     @State private var isOpeningSource = false
     @State private var sourceErrorMessage: String?
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     #if DEBUG
     @State private var isShowingArtworkControls = false
-    @State private var artworkTransform = StationArtworkTransform()
+    @State private var artworkTransform = DetailArtworkTransform()
     #else
-    private let artworkTransform = StationArtworkTransform()
+    private let artworkTransform = DetailArtworkTransform()
     #endif
 
     private var seedTrackURN: String? { seedTrack?.urn }
@@ -181,27 +180,10 @@ struct StationDetailView: View {
                 .transition(StationArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
             }
             .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
-            // Transform the artwork and its reflection together.
-            .animation(
-                reduceMotion ? nil : .spring(response: isHoveringArtwork ? 0.5 : 0.75, dampingFraction: 0.75)
-            ) { artwork in
-                artwork.rotation3DEffect(
-                    .degrees(artworkTransform.x),
-                    axis: (x: 1, y: 0, z: 0),
-                    perspective: isHoveringArtwork ? 0 : artworkTransform.perspective
-                )
-                .rotation3DEffect(
-                    .degrees(seedTrack == nil || reduceMotion || hasAppeared ? artworkTransform.y : 0),
-                    axis: (x: 0, y: 1, z: 0),
-                    perspective: isHoveringArtwork ? 0 : artworkTransform.perspective
-                )
-                .rotation3DEffect(
-                    .degrees(artworkTransform.z),
-                    axis: (x: 0, y: 0, z: 1),
-                    perspective: 0
-                )
-            }
-            .onContentHover { isHoveringArtwork = $0 }
+            .modifier(DetailArtworkRotation(
+                transform: artworkTransform,
+                isRotated: seedTrack == nil || hasAppeared
+            ))
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 10) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -255,7 +237,7 @@ struct StationDetailView: View {
             HStack {
                 Text("Artwork 3D transform").font(.headline)
                 Spacer()
-                Button("Reset") { artworkTransform = StationArtworkTransform() }
+                Button("Reset") { artworkTransform = DetailArtworkTransform() }
                 Button("Hide") { isShowingArtworkControls = false }
             }
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -384,13 +366,6 @@ struct StationDetailView: View {
             errorMessage = error.localizedDescription
         }
     }
-}
-
-private struct StationArtworkTransform {
-    var x = 0.0
-    var y = 22.0
-    var z = 0.0
-    var perspective = 0.5
 }
 
 private struct StationArtworkTransition: Transition {

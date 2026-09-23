@@ -349,6 +349,46 @@ struct TrackArtworkBackdropView: View {
 }
 
 // Shared artwork treatment for track and playlist detail headers.
+struct DetailArtworkTransform {
+    var x = 0.0
+    var y = 22.0
+    var z = 0.0
+    var perspective = 0.5
+}
+
+/// Rotates the artwork and its reflection together, flattening perspective on hover.
+struct DetailArtworkRotation: ViewModifier {
+    var transform = DetailArtworkTransform()
+    var isRotated = true
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .animation(
+                reduceMotion ? nil : .spring(response: isHovering ? 0.5 : 0.75, dampingFraction: 0.75)
+            ) { artwork in
+                artwork.rotation3DEffect(
+                    .degrees(transform.x),
+                    axis: (x: 1, y: 0, z: 0),
+                    perspective: isHovering ? 0 : transform.perspective
+                )
+                .rotation3DEffect(
+                    .degrees(reduceMotion || isRotated ? transform.y : 0),
+                    axis: (x: 0, y: 1, z: 0),
+                    perspective: isHovering ? 0 : transform.perspective
+                )
+                .rotation3DEffect(
+                    .degrees(transform.z),
+                    axis: (x: 0, y: 0, z: 1),
+                    perspective: 0
+                )
+            }
+            .onContentHover { isHovering = $0 }
+    }
+}
+
 struct DetailArtworkView: View {
     let artworkURL: URL?
     let title: String
