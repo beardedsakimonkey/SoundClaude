@@ -208,7 +208,7 @@ struct StationDetailView: View {
                     onSelectArtist: onSelectArtist,
                     appearanceDelay: .milliseconds(350)
                 )
-                .offset(y: 8)
+                .offset(y: 12)
                 Spacer(minLength: 6)
                 TrackWaveformView(
                     track: currentStationTrack, model: model,

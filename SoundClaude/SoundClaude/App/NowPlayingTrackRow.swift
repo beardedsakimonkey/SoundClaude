@@ -21,18 +21,15 @@ struct NowPlayingTrackRow: View {
     var body: some View {
         ZStack(alignment: .leading) {
             Text(" ")
-                .font(.title3)
                 .hidden()
                 .accessibilityHidden(true)
             if let track = visibleTrack {
                 HStack(spacing: 10) {
-                    TrackPlaybackIndicator(
-                        isPlaying: isPlaying,
-                        isLoading: isLoading,
-                        analyzer: analyzer,
-                        color: (colorScheme == .dark ? Color.white : Color.black).opacity(0.6)
-                    )
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Image(systemName: "speaker.wave.2.fill")
+                        .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(0.8))
+                        .fixedSize()
+                        .accessibilityLabel(isLoading ? "Loading" : isPlaying ? "Now playing" : "Paused")
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Button {
                             onSelectTrack(track)
                         } label: {
@@ -46,19 +43,19 @@ struct NowPlayingTrackRow: View {
                         .help("View track: \(track.title)")
                         .accessibilityLabel("View track: \(track.title)")
                         Text("by")
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(.secondary)
                             .fixedSize()
                         ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                     }
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
+                    .opacity(0.9)
                 }
-                // Keep row movement separate from the indicator's bar animations.
                 .geometryGroup()
                 .id(track.urn)
                 .transition(reduceMotion ? .identity : .opacity)
             }
         }
+        .font(.title2)
         .animation(
             reduceMotion ? nil : .easeInOut(duration: 0.3),
             value: visibleTrack?.urn
@@ -67,8 +64,7 @@ struct NowPlayingTrackRow: View {
             readyTrackURN = nil
             isHoveringTrackTitle = false
             guard let track else { return }
-            // Defer constructing the indicator so its timeline does not compete
-            // with the waveform's bar animation on appearance or track changes.
+            // Delay the row's appearance until the waveform animation has started.
             if !reduceMotion, appearanceDelay > .zero {
                 do {
                     try await Task.sleep(for: appearanceDelay)
