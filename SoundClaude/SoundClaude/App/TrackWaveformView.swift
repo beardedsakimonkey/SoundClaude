@@ -344,25 +344,30 @@ struct TrackWaveformView: View {
                         .frame(height: layout.reflectionHeight)
                     }
                 }
+                .overlay(alignment: .topLeading) {
+                    if layout == .detail {
+                        let showsTimestamps = !barsAreCollapsed || showsHoverPreview
+                        HStack(spacing: 0) {
+                            timestamp(timestampCurrentTime, color: accentColor(isDark: true))
+                                .scaleEffect(showsTimestamps ? 1 : 0.5, anchor: .bottom)
+                                .frame(width: 0)
+                            Spacer(minLength: 0)
+                            timestamp(displayedDuration, color: Color(white: 0.65))
+                                .scaleEffect(showsTimestamps ? 1 : 0.5, anchor: .bottom)
+                                .frame(width: 0)
+                        }
+                        .opacity(showsTimestamps ? 1 : 0)
+                        .frame(height: height - layout.reflectionHeight, alignment: .bottom)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(!showsTimestamps)
+                        .animation(
+                            reduceMotion ? nil : .easeInOut(duration: 0.2),
+                            value: showsTimestamps
+                        )
+                    }
+                }
             }
             .frame(height: height)
-
-            if layout == .detail {
-                let reflectionHeight = layout.reflectionHeight
-                VStack(alignment: .trailing, spacing: 0) {
-                    Text(format(seconds: displayedCurrentTime))
-                        .bold()
-                        .padding(.bottom, 2)
-                        .frame(height: height - reflectionHeight, alignment: .bottom)
-                    Text(format(seconds: displayedDuration))
-                        .opacity(0.6)
-                        .padding(.top, 2)
-                        .frame(height: reflectionHeight, alignment: .top)
-                }
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: true, vertical: false)
-            }
         }
         // Keep a visible focus ring for keyboard navigation without focusing on click.
         .focusable(isCurrentTrack, interactions: .activate)
@@ -393,6 +398,20 @@ struct TrackWaveformView: View {
                 break
             }
         }
+    }
+
+    private func timestamp(_ seconds: Double, color: Color) -> some View {
+        Text(format(seconds: seconds))
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(color)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .background(.black, in: RoundedRectangle(cornerRadius: 3))
+            .fixedSize()
+    }
+
+    private var timestampCurrentTime: Double {
+        showsHoverPreview ? hoverFraction * displayedDuration : displayedCurrentTime
     }
 
     private func addGroundReflection(
@@ -459,11 +478,15 @@ struct TrackWaveformView: View {
     }
 
     private var progressColor: Color {
+        accentColor(isDark: colorScheme == .dark)
+    }
+
+    private func accentColor(isDark: Bool) -> Color {
         let fallback = ArtworkAccent.fallback
         let accent = accentArtworkURL == track?.displayArtworkURL
             ? artworkAccent ?? fallback : fallback
         let contrastedAccent = accent.contrasted(
-            isDark: colorScheme == .dark,
+            isDark: isDark,
             increasedContrast: colorSchemeContrast == .increased
         )
         return Color(
