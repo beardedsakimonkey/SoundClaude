@@ -16,6 +16,7 @@ struct StationDetailView: View {
     @State private var errorMessage: String?
     @State private var loadAttempt = 0
     @State private var isShowingArtwork = false
+    @State private var isHoveringArtwork = false
     @State private var isHoveringStationTitle = false
     @State private var isOpeningSource = false
     @State private var sourceErrorMessage: String?
@@ -170,6 +171,7 @@ struct StationDetailView: View {
                     artworkURL: artworkURL, title: artworkTitle,
                     loader: model.artworkLoader, size: 250, animatesChanges: true,
                     cornerRadius: 12,
+                    scalesOnHover: false,
                     track: artworkTrack,
                     likes: model.likes,
                     onAddToQueue: model.addToQueue,
@@ -180,16 +182,18 @@ struct StationDetailView: View {
             }
             .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
             // Transform the artwork and its reflection together.
-            .animation(seedTrack != nil && !reduceMotion ? .easeInOut(duration: 0.5) : nil) { artwork in
+            .animation(
+                reduceMotion ? nil : .spring(response: isHoveringArtwork ? 0.5 : 0.75, dampingFraction: 0.75)
+            ) { artwork in
                 artwork.rotation3DEffect(
                     .degrees(artworkTransform.x),
                     axis: (x: 1, y: 0, z: 0),
-                    perspective: artworkTransform.perspective
+                    perspective: isHoveringArtwork ? 0 : artworkTransform.perspective
                 )
                 .rotation3DEffect(
                     .degrees(seedTrack == nil || reduceMotion || hasAppeared ? artworkTransform.y : 0),
                     axis: (x: 0, y: 1, z: 0),
-                    perspective: artworkTransform.perspective
+                    perspective: isHoveringArtwork ? 0 : artworkTransform.perspective
                 )
                 .rotation3DEffect(
                     .degrees(artworkTransform.z),
@@ -197,6 +201,7 @@ struct StationDetailView: View {
                     perspective: 0
                 )
             }
+            .onContentHover { isHoveringArtwork = $0 }
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 10) {
                     VStack(alignment: .leading, spacing: 6) {

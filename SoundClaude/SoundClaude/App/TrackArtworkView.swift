@@ -357,6 +357,7 @@ struct DetailArtworkView: View {
     var animatesChanges = false
     var showsPlaceholderIcon = true
     var cornerRadius: CGFloat = 6
+    var scalesOnHover = true
     var track: SoundCloudTrack? = nil
     @ObservedObject var likes: LikesController
     let onAddToQueue: (SoundCloudTrack) -> Void
@@ -462,7 +463,7 @@ struct DetailArtworkView: View {
             animatesChanges: animatesChanges,
             showsPlaceholderIcon: showsPlaceholderIcon
         )
-        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
+        .scaleEffect(scalesOnHover && isHoveringArtwork && !reduceMotion ? 1.08 : 1)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius,
