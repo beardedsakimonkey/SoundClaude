@@ -100,7 +100,7 @@ private struct SpinningRecordIcon: View {
             ZStack {
                 Circle().strokeBorder(lineWidth: 1.5)
                 ForEach([0.0, 180.0], id: \.self) { rotation in
-                    ForEach([14.0, 18.0], id: \.self) { diameter in
+                    ForEach([12.0, 16.0], id: \.self) { diameter in
                         Circle()
                             .trim(from: 0.03, to: 0.23)
                             .stroke(style: StrokeStyle(lineWidth: 1, lineCap: .round))
