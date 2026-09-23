@@ -138,12 +138,15 @@ private struct WaveformCommentMarkersContent: View {
                         let strength = max(0, 1 - $0 / 72)
                         return strength * strength * strength
                     } ?? 0
-                    marker(
-                        comment, width: width,
+                    WaveformCommentMarker(
+                        index: index, comment: comment, loader: model.artworkLoader,
+                        width: width, x: position(for: comment, width: width), duration: duration,
                         isActive: comment.id == interactionID || comment.id == playbackID,
                         showsComment: comment.id == commentID,
-                        proximity: proximity
+                        proximity: proximity,
+                        focusedID: $focusedID, seekRequest: $seekRequest
                     )
+                        .equatable()
                         .modifier(FadeInOnAppear())
                         .scaleEffect(showsComments || reduceMotion ? 1 : 0.6)
                         .animation(
@@ -198,26 +201,46 @@ private struct WaveformCommentMarkersContent: View {
         contentHoverEnabled && hoverSuppression?.isSuppressed != true
     }
 
-    private func marker(
-        _ comment: SoundCloudComment, width: CGFloat, isActive: Bool,
-        showsComment: Bool, proximity: CGFloat
-    ) -> some View {
-        let x = position(for: comment, width: width)
+    private func position(for comment: SoundCloudComment, width: CGFloat) -> CGFloat {
+        guard duration > 0 else { return 0 }
+        let seconds = Double(comment.timestampMilliseconds ?? 0) / 1_000
+        let inset = min(16, width / 2)
+        return min(max(CGFloat(seconds / duration) * width, inset), width - inset)
+    }
+}
+
+// Hover and playback only rebuild markers whose appearance changes. Keep the
+// immutable snapshot in equality so newly loaded comment data is never stale.
+private struct WaveformCommentMarker: View, Equatable {
+    let index: WaveformCommentIndex
+    let comment: SoundCloudComment
+    let loader: ArtworkLoader
+    let width: CGFloat
+    let x: CGFloat
+    let duration: Double
+    let isActive: Bool
+    let showsComment: Bool
+    let proximity: CGFloat
+    let focusedID: FocusState<String?>.Binding
+    @Binding var seekRequest: Double?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        // Both bindings address stable state owned by the marker layer.
+        lhs.index === rhs.index && lhs.comment.id == rhs.comment.id
+            && lhs.loader === rhs.loader && lhs.width == rhs.width && lhs.x == rhs.x
+            && lhs.duration == rhs.duration && lhs.isActive == rhs.isActive
+            && lhs.showsComment == rhs.showsComment && lhs.proximity == rhs.proximity
+    }
+
+    var body: some View {
         let textOnLeft = x > width / 2
         let textWidth = min(280, max(0, (textOnLeft ? x : width - x) + 16))
         return Button {
             guard duration > 0 else { return }
             seekRequest = seconds(for: comment) / duration
         } label: {
-            TrackArtworkView(
-                artworkURL: comment.user?.avatarURL,
-                loader: model.artworkLoader,
-                size: 32,
-                showsBorder: false,
-                animatesChanges: true,
-                showsPlaceholderIcon: false
-            )
-            .clipShape(Circle())
+            WaveformCommentAvatar(url: comment.user?.avatarURL, loader: loader)
+            .equatable()
             .overlay { Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1) }
             .overlay { Circle().fill(.black.opacity(isActive ? 0 : 0.5)) }
             .shadow(color: .black.opacity(isActive ? 0.4 : 0), radius: 5, y: 2)
@@ -227,7 +250,7 @@ private struct WaveformCommentMarkersContent: View {
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .focused($focusedID, equals: comment.id)
+        .focused(focusedID, equals: comment.id)
         .overlay(alignment: textOnLeft ? .topTrailing : .topLeading) {
             if showsComment, textWidth > 0 {
                 Text(comment.body.replacingOccurrences(of: "\n", with: " "))
@@ -260,10 +283,27 @@ private struct WaveformCommentMarkersContent: View {
     private func seconds(for comment: SoundCloudComment) -> Double {
         Double(comment.timestampMilliseconds ?? 0) / 1_000
     }
+}
 
-    private func position(for comment: SoundCloudComment, width: CGFloat) -> CGFloat {
-        guard duration > 0 else { return 0 }
-        let inset = min(16, width / 2)
-        return min(max(CGFloat(seconds(for: comment) / duration) * width, inset), width - inset)
+// Scaling or highlighting a marker does not need to rebuild its image loader,
+// image transition, or clipping hierarchy.
+private struct WaveformCommentAvatar: View, Equatable {
+    let url: URL?
+    let loader: ArtworkLoader
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.url == rhs.url && lhs.loader === rhs.loader
+    }
+
+    var body: some View {
+        TrackArtworkView(
+            artworkURL: url,
+            loader: loader,
+            size: 32,
+            showsBorder: false,
+            animatesChanges: true,
+            showsPlaceholderIcon: false
+        )
+        .clipShape(Circle())
     }
 }
