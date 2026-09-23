@@ -166,7 +166,7 @@ struct TrackListRow: View {
         .padding(.vertical, isCompact ? 4 : 6)
         .padding(.horizontal, 8)
         .contentShape(Rectangle())
-        .draggable(TrackPlaylistDrag(track: track))
+        .trackDraggable(track)
         .contextMenu {
             trackMenuItems
         }

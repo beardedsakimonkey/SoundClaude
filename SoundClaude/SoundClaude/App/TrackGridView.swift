@@ -180,7 +180,7 @@ struct TrackGridTile: View {
             }
         }
         .contentShape(Rectangle())
-        .draggable(TrackPlaylistDrag(track: track))
+        .trackDraggable(track)
         .contextMenu {
             trackMenuItems
         }

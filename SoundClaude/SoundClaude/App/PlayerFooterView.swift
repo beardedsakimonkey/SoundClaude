@@ -223,7 +223,7 @@ struct PlayerFooterView: View {
                 dampingFraction: 0.45
             ))
             .contentShape(artworkShape)
-            .draggable(TrackPlaylistDrag(track: track))
+            .trackDraggable(track)
             .help("View track or drag to a playlist")
             .accessibilityLabel("View track: \(track.title)")
         } else {

@@ -485,7 +485,7 @@ struct DetailArtworkView: View {
     private var draggableArtworkControl: some View {
         if let track {
             artworkControl
-                .draggable(TrackPlaylistDrag(track: track))
+                .trackDraggable(track)
                 .help(artworkURL != nil ? "View full-size artwork or drag to a playlist" : "Drag to a playlist")
         } else {
             artworkControl

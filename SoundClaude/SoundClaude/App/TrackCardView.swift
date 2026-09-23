@@ -44,7 +44,7 @@ struct TrackCardView: View {
                 )
             }
             .buttonStyle(.plain)
-            .draggable(TrackPlaylistDrag(track: track))
+            .trackDraggable(track)
             .help("View track or drag to a playlist")
             .accessibilityLabel("Open track: \(track.title)")
 
