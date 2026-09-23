@@ -37,10 +37,10 @@ struct TrackPlaybackIndicator: View {
                     RoundedRectangle(cornerRadius: 1)
                         .fill(color)
                         .frame(width: 2, height: height)
-                        .animation(
-                            reduceMotion || contentAnimationsPaused ? nil : .easeOut(duration: 0.2),
-                            value: height
-                        )
+                        // The timeline already supplies each frame's height.
+                        // Do not start another animation on every tick or inherit
+                        // a parent animation when playback resumes.
+                        .animation(nil, value: height)
                 }
             }
             .frame(width: 10, height: 9, alignment: .bottom)
