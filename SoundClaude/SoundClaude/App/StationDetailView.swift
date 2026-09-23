@@ -278,7 +278,8 @@ struct StationDetailView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .foregroundStyle(.primary)
-                .opacity(0.9)
+                .opacity(currentStationTrack != nil ? 0.6 : 0.9)
+                .animation(.easeInOut(duration: 0.2), value: currentStationTrack != nil)
                 .underline(isHoveringStationTitle)
                 .contentShape(Rectangle())
         }
