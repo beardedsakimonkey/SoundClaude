@@ -282,7 +282,7 @@ final class AppModel: ObservableObject {
         )
         saveQueue()
         guard let session else { return }
-        await loadPlayback(session.track, position: session.position, autoplay: session.wasPlaying)
+        await loadPlayback(session.track, position: session.position, autoplay: false)
     }
 
     private func loadPlayback(

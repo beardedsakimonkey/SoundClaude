@@ -52,28 +52,29 @@ struct PlaybackTests {
             bitrateKilobitsPerSecond: 160, isPreview: false
         )
 
-        // Older sessions have no playback state and must still restore paused.
+        // Sessions save the track and position without playback state.
         let encoded = try JSONEncoder().encode(
-            SavedPlayback(track: track(1), position: 0.75, wasPlaying: true)
+            SavedPlayback(track: track(1), position: 0.75)
         )
         var legacy = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
-        legacy.removeValue(forKey: "wasPlaying")
-        defaults.set(try JSONSerialization.data(withJSONObject: legacy), forKey: "playback.session")
-        precondition(playback.savedSession?.wasPlaying == false)
+        precondition(legacy["wasPlaying"] == nil)
+        defaults.set(encoded, forKey: "playback.session")
         precondition(playback.savedSession?.position == 0.75)
 
-        // A new controller resumes an active session at its saved position.
-        defaults.set(encoded, forKey: "playback.session")
+        // Previously active sessions still restore paused at their saved position.
+        legacy["wasPlaying"] = true
+        defaults.set(try JSONSerialization.data(withJSONObject: legacy), forKey: "playback.session")
         let relaunched = PlaybackController(defaults: defaults)
         let session = relaunched.savedSession!
         let resume = relaunched.beginLoading(
-            track: session.track, position: session.position, autoplay: session.wasPlaying
+            track: session.track, position: session.position, autoplay: false
         )
         relaunched.load(source: source, requestID: resume)
-        try await until { relaunched.isPlaying }
-        precondition(relaunched.player.currentTime().seconds >= 0.7)
-        relaunched.pause()
-        precondition(relaunched.savedSession?.wasPlaying == false)
+        try await until {
+            !relaunched.isLoading && abs(relaunched.player.currentTime().seconds - 0.75) < 0.05
+        }
+        precondition(!relaunched.isPlaybackActive && !relaunched.isPlaying)
+        precondition(relaunched.player.rate == 0)
 
         // Selection and saved position update before a stream URL is available.
         let first = playback.beginLoading(track: track(1), position: 0.5)
@@ -83,7 +84,10 @@ struct PlaybackTests {
         precondition(playback.currentTime == 0.5 && playback.duration == 2)
         precondition(playback.savedSession?.track == track(1))
         precondition(playback.savedSession?.position == 0.5)
-        precondition(playback.savedSession?.wasPlaying == true)
+        let saved = try JSONSerialization.jsonObject(
+            with: defaults.data(forKey: "playback.session")!
+        ) as! [String: Any]
+        precondition(saved["wasPlaying"] == nil)
 
         // Pause and seek during resolution must survive source attachment.
         playback.togglePlayPause()
@@ -93,7 +97,6 @@ struct PlaybackTests {
         try await until { !playback.isLoading && abs(playback.player.currentTime().seconds - 1) < 0.05 }
         precondition(!playback.isPlaybackActive && !playback.isPlaying)
         precondition(playback.savedSession?.position == 1)
-        precondition(playback.savedSession?.wasPlaying == false)
 
         // Remove the old item immediately; late status/time callbacks cannot
         // restore its position or duration while the next source is resolving.
@@ -113,7 +116,6 @@ struct PlaybackTests {
         playback.failLoading(requestID: third, message: "Stream unavailable")
         precondition(!playback.isLoading && !playback.isPlaybackActive)
         precondition(playback.errorMessage == "Stream unavailable")
-        precondition(playback.savedSession?.wasPlaying == false)
         playback.load(source: source, requestID: third)
         precondition(playback.player.currentItem == nil)
 
@@ -122,7 +124,6 @@ struct PlaybackTests {
         precondition(!playback.isPlaybackActive && playback.errorMessage == nil)
         playback.togglePlayPause()
         precondition(playback.isPlaybackActive)
-        precondition(playback.savedSession?.wasPlaying == true)
         playback.pause()
         playback.load(source: source, requestID: restored)
         try await until { !playback.isLoading && abs(playback.player.currentTime().seconds - 0.75) < 0.05 }
@@ -138,8 +139,6 @@ struct PlaybackTests {
         precondition(playback.isPlaybackActive)
         try await until { didEnd }
         precondition(!playback.isPlaybackActive && !playback.isPlaying)
-
-        precondition(playback.savedSession?.wasPlaying == false)
 
         // Preparation readies audio without changing the selected track or position.
         let beforePrefetch = playback.beginLoading(track: track(1), autoplay: false)
@@ -187,7 +186,6 @@ struct PlaybackTests {
         try await until { playback.isBuffering }
         precondition(!playback.isLoading)
         playback.saveSession()
-        precondition(playback.savedSession?.wasPlaying == true)
         playback.pause()
         precondition(!playback.isBuffering)
         playback.togglePlayPause()
@@ -195,7 +193,6 @@ struct PlaybackTests {
         bufferingPlayer.simulateStatus(.playing)
         try await until { !playback.isBuffering && playback.isPlaying }
         playback.pause()
-        precondition(playback.savedSession?.wasPlaying == false)
         bufferingPlayer.simulateStatus(nil)
         try await until { !playback.isPlaying }
 
@@ -206,7 +203,6 @@ struct PlaybackTests {
         playback.seek(to: 0.25)
         precondition(playback.player.rate == 0)
         precondition(playback.isBuffering && playback.isPlaybackActive)
-        precondition(playback.savedSession?.wasPlaying == true)
         playback.seek(to: 0.75)
         precondition(playback.player.rate == 0)
         try await until { !playback.isBuffering && playback.isPlaying }
@@ -218,7 +214,6 @@ struct PlaybackTests {
         try await until { !playback.isBuffering }
         precondition(playback.player.rate == 0)
         precondition(!playback.isPlaybackActive)
-        precondition(playback.savedSession?.wasPlaying == false)
 
         // Play during a paused seek waits for that seek to complete too.
         playback.seek(to: 0.25)
