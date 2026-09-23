@@ -48,6 +48,7 @@ struct FeedView: View {
                             ArtistLink(
                                 artist: item.user,
                                 artworkLoader: model.artworkLoader,
+                                showsAvatarBorder: true,
                                 onSelect: onSelectArtist
                             )
                             .fontWeight(.medium)

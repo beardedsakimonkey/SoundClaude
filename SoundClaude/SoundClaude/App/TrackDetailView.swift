@@ -169,6 +169,7 @@ struct TrackDetailView: View {
                             ArtistLink(
                                 artist: details.track.artist,
                                 artworkLoader: model.artworkLoader,
+                                showsAvatarBorder: true,
                                 onSelect: onSelectArtist
                             )
 

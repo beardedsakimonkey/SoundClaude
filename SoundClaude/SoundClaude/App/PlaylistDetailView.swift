@@ -200,6 +200,7 @@ struct PlaylistDetailView: View {
                     ArtistLink(
                         artist: displayedPlaylist.owner,
                         artworkLoader: model.artworkLoader,
+                        showsAvatarBorder: true,
                         onSelect: onSelectArtist
                     )
 

@@ -4,6 +4,7 @@ struct ArtistLink: View {
     let artist: SoundCloudUser
     var artworkLoader: ArtworkLoader? = nil
     var avatarSize: CGFloat = 24
+    var showsAvatarBorder = false
     let onSelect: (SoundCloudUser) -> Void
 
     @State private var isHovering = false
@@ -22,6 +23,12 @@ struct ArtistLink: View {
                         showsPlaceholderIcon: false
                     )
                     .clipShape(Circle())
+                    .overlay {
+                        if showsAvatarBorder {
+                            Circle()
+                                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                        }
+                    }
                 }
                 Text(artist.username)
                     .underline(isHovering)

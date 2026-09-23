@@ -415,9 +415,14 @@ struct SidebarView: View {
                         artworkURL: user.avatarURL,
                         loader: artworkLoader,
                         size: 24,
+                        showsBorder: false,
                         showsPlaceholderIcon: false
                     )
                     .clipShape(Circle())
+                    .overlay {
+                        Circle()
+                            .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                    }
                     Text(user.username)
                         .font(.callout.weight(.medium))
                         .underline(isProfileHovered)
