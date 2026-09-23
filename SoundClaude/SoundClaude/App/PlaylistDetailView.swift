@@ -168,10 +168,18 @@ struct PlaylistDetailView: View {
             playlistArtwork
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .center, spacing: 8) {
-                    Text("\(Text(Image(systemName: "music.note.list")).foregroundStyle(.primary.opacity(0.7))) \(displayedPlaylist.title)")
-                        .font(.system(size: 28, weight: .semibold))
-                        .textSelection(.enabled)
-                        .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Image(systemName: "music.note.list")
+                            .foregroundStyle(.primary.opacity(0.6))
+                            .accessibilityHidden(true)
+                        Text(displayedPlaylist.title)
+                            .foregroundStyle(.primary)
+                            .opacity(currentPlaylistTrack != nil ? 0.6 : 0.9)
+                            .animation(.easeInOut(duration: 0.2), value: currentPlaylistTrack != nil)
+                            .textSelection(.enabled)
+                            .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
+                    }
+                    .font(.system(size: 24, weight: .semibold))
 
                     if displayedPlaylist.isPrivate {
                         Text("Private")
@@ -202,7 +210,7 @@ struct PlaylistDetailView: View {
                     )
 
                 }
-                .font(.title3)
+                .font(.body)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
 
