@@ -3,7 +3,6 @@ import SwiftUI
 struct UserGridView: View {
     let users: [SoundCloudUser]
     let artworkLoader: ArtworkLoader
-    var showsAvatarGlass = false
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -21,20 +20,19 @@ struct UserGridView: View {
                             loader: artworkLoader,
                             size: 120,
                             rendition: .square500,
-                            showsBorder: !showsAvatarGlass,
+                            showsBorder: false,
                             showsPlaceholderIcon: false
                         )
                         .scaleEffect(
-                            showsAvatarGlass && hoveredUserURL == user.permalinkURL && !reduceMotion
-                                ? 1.08 : 1
+                            hoveredUserURL == user.permalinkURL && !reduceMotion ? 1.08 : 1
                         )
                         .animation(
                             reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8),
                             value: hoveredUserURL == user.permalinkURL
                         )
                         .clipShape(Circle())
-                        .modifier(UserAvatarGlass(
-                            isEnabled: showsAvatarGlass,
+                        .modifier(PlayerArtworkGlass(
+                            cornerRadius: 60,
                             isHovering: hoveredUserURL == user.permalinkURL && !reduceMotion
                         ))
                         .scaleEffect(
@@ -82,20 +80,6 @@ struct UserGridView: View {
                 .accessibilityLabel("View profile: \(user.username)")
                 .modifier(UserFadeIn())
             }
-        }
-    }
-}
-
-private struct UserAvatarGlass: ViewModifier {
-    let isEnabled: Bool
-    let isHovering: Bool
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if isEnabled {
-            content.modifier(PlayerArtworkGlass(cornerRadius: 60, isHovering: isHovering))
-        } else {
-            content
         }
     }
 }

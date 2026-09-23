@@ -129,7 +129,6 @@ private struct SearchResultList: View {
                             UserGridView(
                                 users: users,
                                 artworkLoader: model.artworkLoader,
-                                showsAvatarGlass: true,
                                 onSelectArtist: onSelectArtist
                             )
                         }
