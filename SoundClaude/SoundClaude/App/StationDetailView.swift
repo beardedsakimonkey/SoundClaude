@@ -301,6 +301,7 @@ struct StationDetailView: View {
 
     private func playbackControls(iconOnly: Bool) -> some View {
         let isPlaying = currentStationTrack != nil && model.playback.isPlaybackActive
+        let playLabel = currentStationTrack == nil ? "Start" : "Play"
         return HStack(spacing: 12) {
             Button {
                 if currentStationTrack != nil {
@@ -314,7 +315,7 @@ struct StationDetailView: View {
                 }
             } label: {
                 ZStack {
-                    Label("Play", systemImage: "play.fill")
+                    Label(playLabel, systemImage: "play.fill")
                         .opacity(isPlaying ? 0 : 1).accessibilityHidden(isPlaying)
                     Label("Pause", systemImage: "pause.fill")
                         .opacity(isPlaying ? 1 : 0).accessibilityHidden(!isPlaying)
@@ -324,8 +325,8 @@ struct StationDetailView: View {
                 .frame(minHeight: 24)
             }
             .disabled(currentStationTrack == nil && tracks.isEmpty)
-            .help(isPlaying ? "Pause station" : "Play station")
-            .accessibilityLabel(isPlaying ? "Pause station" : "Play station")
+            .help(isPlaying ? "Pause station" : "\(playLabel) station")
+            .accessibilityLabel(isPlaying ? "Pause station" : "\(playLabel) station")
             Group {
                 Button(action: model.playback.previous) {
                     Label("Previous track", systemImage: "backward.fill")
