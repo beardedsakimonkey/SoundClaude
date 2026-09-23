@@ -14,8 +14,6 @@ struct SignedInView: View {
     @State private var isShowingVisualizer = false
     @State private var visualizerShader: VisualizerShader = .bars
     @State private var isShowingQueue = false
-    @State private var isOpeningCurrentTrackStation = false
-    @State private var stationErrorMessage: String?
     @State private var queueHoverSuppression = ContentHoverSuppression()
     @State private var footerHeight: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -154,26 +152,10 @@ struct SignedInView: View {
         .environment(\.searchGenre, showGenreSearch)
         .environment(\.searchTag, showTagSearch)
         .background {
-            Button("Open Station for Current Track") {
-                isOpeningCurrentTrackStation = true
-            }
-            .keyboardShortcut("s", modifiers: [])
-            .disabled(model.playback.currentTrack == nil || isOpeningCurrentTrackStation)
-            .hidden()
-            .accessibilityHidden(true)
-        }
-        .task(id: isOpeningCurrentTrackStation) {
-            guard isOpeningCurrentTrackStation else { return }
-            defer { isOpeningCurrentTrackStation = false }
-            await showCurrentTrackStation()
-        }
-        .alert("Could not open track station", isPresented: Binding(
-            get: { stationErrorMessage != nil },
-            set: { if !$0 { stationErrorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { stationErrorMessage = nil }
-        } message: {
-            Text(stationErrorMessage ?? "Please try again.")
+            Button("Open Active Station or Playlist", action: showCurrentSource)
+                .keyboardShortcut("s", modifiers: [])
+                .hidden()
+                .accessibilityHidden(true)
         }
         .background {
             NavigationBackEventView(
@@ -560,29 +542,22 @@ struct SignedInView: View {
         }
     }
 
-    private func showCurrentTrackStation() async {
-        guard let track = model.playback.currentTrack else { return }
-        do {
-            var seedTrack = track
-            var urn = track.stationURN?.trimmingCharacters(in: .whitespacesAndNewlines)
-            if urn?.isEmpty != false {
-                seedTrack = try await model.trackDetails(for: track).track
-                urn = seedTrack.stationURN?.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            try Task.checkCancellation()
-            guard model.playback.currentTrack?.urn == track.urn else { return }
-            guard let urn, !urn.isEmpty else {
-                stationErrorMessage = "No station is available for this track."
-                return
-            }
+    private func showCurrentSource() {
+        guard model.playback.currentTrack != nil else { return }
+        switch model.queue.source {
+        case let .station(urn):
             isShowingVisualizer = false
             isShowingQueue = false
             if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
-            forwardPath.removeAll()
-            path.append(.station(urn, seedTrack: seedTrack))
-        } catch {
-            guard !Task.isCancelled, model.playback.currentTrack?.urn == track.urn else { return }
-            stationErrorMessage = error.localizedDescription
+            showStation(urn, seedArtistName: model.queue.stationTitle ?? "Station")
+        case let .playlist(urn):
+            guard let playlist = model.playlists.cache.contents[urn]?.playlist
+                ?? model.playlists.playlists.first(where: { $0.urn == urn }) else { return }
+            isShowingVisualizer = false
+            isShowingQueue = false
+            showPlaylist(playlist)
+        default:
+            return
         }
     }
 

@@ -20,12 +20,12 @@ struct KeyboardShortcutsView: View {
         // Track actions and views
         [
             Shortcut(title: "Like or unlike current track", keys: ["L"]),
-            Shortcut(title: "Open station for current track", keys: ["S"]),
             Shortcut(title: "Toggle track queue", keys: ["Q"]),
             Shortcut(title: "Toggle visualizer", keys: ["V"]),
             Shortcut(title: "Cycle shaders in visualizer", keys: ["Enter"]),
             Shortcut(title: "Focus current track", keys: ["F"]),
             Shortcut(title: "Focus current artist", keys: ["A"]),
+            Shortcut(title: "Focus active station or playlist", keys: ["S"]),
             Shortcut(title: "Focus search", keys: ["/"])
         ],
         // Number shortcuts / help
