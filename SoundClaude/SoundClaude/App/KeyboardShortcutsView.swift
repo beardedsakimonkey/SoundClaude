@@ -25,7 +25,7 @@ struct KeyboardShortcutsView: View {
             Shortcut(title: "Cycle shaders in visualizer", keys: ["Enter"]),
             Shortcut(title: "Focus current track", keys: ["F"]),
             Shortcut(title: "Focus current artist", keys: ["A"]),
-            Shortcut(title: "Focus active station or playlist", keys: ["S"]),
+            Shortcut(title: "Open active station or playlist, or current track station", keys: ["S"]),
             Shortcut(title: "Focus search", keys: ["/"])
         ],
         // Number shortcuts / help
