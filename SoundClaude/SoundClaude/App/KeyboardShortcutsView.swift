@@ -24,7 +24,7 @@ struct KeyboardShortcutsView: View {
             Shortcut(title: "Toggle track queue", keys: ["Q"]),
             Shortcut(title: "Toggle visualizer", keys: ["V"]),
             Shortcut(title: "Cycle shaders in visualizer", keys: ["Enter"]),
-            Shortcut(title: "Focus current track", keys: ["T"]),
+            Shortcut(title: "Focus current track", keys: ["F"]),
             Shortcut(title: "Focus current artist", keys: ["A"]),
             Shortcut(title: "Focus search", keys: ["/"])
         ],

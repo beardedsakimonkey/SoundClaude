@@ -112,9 +112,9 @@ struct PlayerFooterView: View {
                             .foregroundStyle(.primary)
                     }
                     .buttonStyle(.plain)
-                    .keyboardShortcut("t", modifiers: [])
+                    .keyboardShortcut("f", modifiers: [])
                     .onContentHover { isHoveringTitle = $0 }
-                    .help("Focus current track (T)")
+                    .help("Focus current track (F)")
                 } else {
                     Text("Select a track")
                 }
