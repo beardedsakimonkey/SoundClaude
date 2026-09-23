@@ -518,3 +518,23 @@ struct DetailArtworkView: View {
         )
     }
 }
+
+struct DetailArtworkTransition: Transition {
+    let playback: PlaybackController
+    let reduceMotion: Bool
+
+    func body(content: Content, phase: TransitionPhase) -> some View {
+        // Removed views retain their transition. Read the current direction from
+        // playback here so their exit does not reuse the direction of their entrance.
+        let distance: CGFloat = playback.trackChangeDirection == .forward ? 60 : -60
+        let offset: CGFloat = switch phase {
+        case .willAppear: distance
+        case .identity: 0
+        case .didDisappear: -distance
+        }
+
+        content
+            .offset(x: reduceMotion ? 0 : offset)
+            .opacity(phase.isIdentity ? 1 : 0)
+    }
+}

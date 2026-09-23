@@ -18,6 +18,7 @@ struct PlaylistDetailView: View {
     private var isLoading: Bool { playlists.loadingPlaylistURNs.contains(playlist.urn) }
     private var errorMessage: String? { playlists.playlistErrors[playlist.urn] }
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isShowingArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var likeErrorMessage: String?
@@ -251,21 +252,26 @@ struct PlaylistDetailView: View {
     }
 
     private var playlistArtwork: some View {
-        DetailArtworkView(
-            artworkURL: artworkURL,
-            title: artworkTitle,
-            loader: model.artworkLoader,
-            size: artworkSize,
-            animatesChanges: true,
-            cornerRadius: 12,
-            scalesOnHover: false,
-            track: artworkTrack,
-            likes: model.likes,
-            onAddToQueue: model.addToQueue,
-            onRemoveFromPlaylist: isOwnedByCurrentUser ? removeTrack : nil,
-            isUpdatingPlaylist: playlists.updatingPlaylistURNs.contains(playlist.urn),
-            onShowArtwork: { isShowingArtwork = true }
-        )
+        ZStack {
+            DetailArtworkView(
+                artworkURL: artworkURL,
+                title: artworkTitle,
+                loader: model.artworkLoader,
+                size: artworkSize,
+                animatesChanges: true,
+                cornerRadius: 12,
+                scalesOnHover: false,
+                track: artworkTrack,
+                likes: model.likes,
+                onAddToQueue: model.addToQueue,
+                onRemoveFromPlaylist: isOwnedByCurrentUser ? removeTrack : nil,
+                isUpdatingPlaylist: playlists.updatingPlaylistURNs.contains(playlist.urn),
+                onShowArtwork: { isShowingArtwork = true }
+            )
+            .id(artworkTrack?.urn)
+            .transition(DetailArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
+        }
+        .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
         .modifier(DetailArtworkRotation(isShowingArtwork: isShowingArtwork))
     }
 
