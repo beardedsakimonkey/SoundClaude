@@ -187,19 +187,15 @@ struct StationDetailView: View {
                 isShowingArtwork: isShowingArtwork
             ))
             VStack(alignment: .leading, spacing: 10) {
-                VStack(alignment: .leading, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        if seedTrack == nil || reduceMotion || hasAppeared {
-                            Label(stationType, systemImage: "dot.radiowaves.left.and.right")
-                                .labelStyle(.titleAndIcon)
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-                                .transition(.opacity)
-                        }
-                        stationTitle
-                    }
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(stationType, systemImage: "dot.radiowaves.left.and.right")
+                        .labelStyle(.titleAndIcon)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .opacity(seedTrack == nil || reduceMotion || hasAppeared ? 1 : 0)
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: hasAppeared)
+                    stationTitle
                 }
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: hasAppeared)
                 .onAppear { hasAppeared = true }
                 .modifier(FadeInOnAppear(isEnabled: seedTrack == nil))
                 playbackControls
@@ -280,7 +276,7 @@ struct StationDetailView: View {
             }
         } label: {
             Text(title)
-                .font(.system(size: 36, weight: .semibold))
+                .font(.system(size: 24, weight: .semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .foregroundStyle(.primary)
