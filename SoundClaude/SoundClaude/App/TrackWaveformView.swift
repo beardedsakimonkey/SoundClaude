@@ -404,6 +404,7 @@ struct TrackWaveformView: View {
         Text(format(seconds: seconds))
             .font(.caption.monospacedDigit())
             .foregroundStyle(color)
+            .animation(.easeInOut(duration: 0.3), value: color)
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
             .background(.black, in: RoundedRectangle(cornerRadius: 3))
