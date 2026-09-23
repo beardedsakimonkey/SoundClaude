@@ -356,7 +356,7 @@ struct TrackWaveformView: View {
                                 .scaleEffect(showsTimestamps ? 1 : 0.5, anchor: .bottom)
                                 .frame(width: 0)
                         }
-                        .opacity(showsTimestamps ? 1 : 0)
+                        .opacity(showsTimestamps ? 0.8 : 0)
                         .frame(height: height - layout.reflectionHeight, alignment: .bottom)
                         .allowsHitTesting(false)
                         .accessibilityHidden(!showsTimestamps)
