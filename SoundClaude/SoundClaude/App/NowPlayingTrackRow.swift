@@ -25,7 +25,7 @@ struct NowPlayingTrackRow: View {
                 .accessibilityHidden(true)
             if let track = visibleTrack {
                 HStack(spacing: 10) {
-                    Image(systemName: "speaker.wave.2.fill")
+                    SpinningRecordIcon(isPlaying: isPlaying && !isLoading)
                         .foregroundStyle((colorScheme == .dark ? Color.white : Color.black).opacity(0.8))
                         .fixedSize()
                         .accessibilityLabel(isLoading ? "Loading" : isPlaying ? "Now playing" : "Paused")
@@ -75,5 +75,85 @@ struct NowPlayingTrackRow: View {
             guard !Task.isCancelled else { return }
             readyTrackURN = track.urn
         }
+    }
+}
+
+private struct SpinningRecordIcon: View {
+    let isPlaying: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
+    @State private var motion = RecordMotion()
+    @State private var isCoasting = false
+
+    private var isSpinning: Bool {
+        isPlaying && !reduceMotion && !contentAnimationsPaused
+    }
+
+    var body: some View {
+        TimelineView(.animation(
+            minimumInterval: 1.0 / 30,
+            paused: reduceMotion || contentAnimationsPaused || (!isSpinning && !isCoasting)
+        )) { context in
+            let angle = motion.value(at: context.date).angle
+
+            ZStack {
+                Circle().strokeBorder(lineWidth: 1.5)
+                ForEach([0.0, 180.0], id: \.self) { rotation in
+                    ForEach([14.0, 18.0], id: \.self) { diameter in
+                        Circle()
+                            .trim(from: 0.03, to: 0.23)
+                            .stroke(style: StrokeStyle(lineWidth: 1, lineCap: .round))
+                            .frame(width: diameter, height: diameter)
+                            .rotationEffect(.degrees(rotation))
+                    }
+                }
+                Circle().strokeBorder(lineWidth: 2.5)
+                    .frame(width: 7, height: 7)
+            }
+            .frame(width: 22, height: 22)
+            .rotationEffect(.degrees(angle))
+            .animation(nil, value: angle)
+        }
+        .task(id: [isPlaying, reduceMotion, contentAnimationsPaused]) {
+            let now = Date.now
+            let current = motion.value(at: now)
+            let stopImmediately = reduceMotion || contentAnimationsPaused
+            motion = RecordMotion(
+                angle: current.angle.truncatingRemainder(dividingBy: 360),
+                speed: stopImmediately ? 0 : current.speed,
+                targetSpeed: isSpinning ? 120 : 0,
+                startedAt: now
+            )
+            isCoasting = !isSpinning && motion.speed > 0
+            guard isCoasting else { return }
+            do {
+                try await Task.sleep(for: .seconds(RecordMotion.duration))
+            } catch {
+                return
+            }
+            isCoasting = false
+        }
+        .accessibilityElement(children: .ignore)
+    }
+}
+
+private struct RecordMotion {
+    static let duration: TimeInterval = 0.6
+
+    var angle = 0.0
+    var speed = 0.0
+    var targetSpeed = 0.0
+    var startedAt = Date.now
+
+    func value(at date: Date) -> (angle: Double, speed: Double) {
+        let elapsed = max(0, date.timeIntervalSince(startedAt))
+        let progress = min(elapsed / Self.duration, 1)
+        let easedProgress = progress * progress * (3 - 2 * progress)
+        // Integrate the eased speed so rotation stays continuous during interruptions.
+        let easedDistance = progress * progress * progress * (1 - progress / 2)
+        let rampAngle = Self.duration * (speed * progress + (targetSpeed - speed) * easedDistance)
+        let steadyAngle = targetSpeed * max(0, elapsed - Self.duration)
+        return (angle + rampAngle + steadyAngle, speed + (targetSpeed - speed) * easedProgress)
     }
 }
