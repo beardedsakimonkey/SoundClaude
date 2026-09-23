@@ -353,7 +353,7 @@ struct DetailArtworkTransform {
     var x = 0.0
     var y = 22.0
     var z = 0.0
-    var perspective = 0.7
+    var perspective = 0.8
 }
 
 /// Rotates the artwork and its reflection together, flattening perspective on hover or while viewing artwork.
