@@ -33,41 +33,34 @@ struct CommentSortMenu: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 6) {
-                Text("Sort by")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-
-                sortMenu
-            }
-            .fixedSize(horizontal: true, vertical: false)
-
-            sortMenu
-        }
-    }
-
-    private var sortMenu: some View {
-        Menu {
-            Picker("Sort comments", selection: $sortOrder) {
-                ForEach(CommentSortOrder.allCases, id: \.self) { order in
-                    Text(order.title)
-                        .tag(order)
-                }
-            }
-            .pickerStyle(.inline)
-        } label: {
-            Text(sortOrder.title)
+        HStack(spacing: 4) {
+            Image(systemName: "arrow.down")
                 .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+
+            Menu {
+                Picker("Sort comments", selection: $sortOrder) {
+                    ForEach(CommentSortOrder.allCases, id: \.self) { order in
+                        Text(order.title)
+                            .tag(order)
+                    }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Text(sortOrder.title)
+                    .font(.subheadline)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .opacity(isHovered ? 1 : 0.7)
+            .onContentHover { isHovered = $0 }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovered)
+            .accessibilityLabel("Sort comments")
+            .accessibilityValue(sortOrder.title)
+            .help("Sort comments")
         }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
-        .opacity(isHovered ? 1 : 0.7)
-        .onContentHover { isHovered = $0 }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovered)
-        .accessibilityLabel("Sort comments")
-        .accessibilityValue(sortOrder.title)
-        .help("Sort comments")
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 
