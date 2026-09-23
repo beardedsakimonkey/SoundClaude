@@ -5,6 +5,7 @@ struct StationDetailView: View {
     let seedTrack: SoundCloudTrack?
     let seedArtistName: String?
     @ObservedObject var model: AppModel
+    @ObservedObject var likes: LikesController
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
@@ -345,6 +346,22 @@ struct StationDetailView: View {
             }
             .labelStyle(.iconOnly)
             .disabled(currentStationTrack == nil)
+            if let track = currentStationTrack {
+                DetailLikeButton(
+                    isLiked: likes.isLiked(track),
+                    isUpdating: likes.updatingTrackURNs.contains(track.urn),
+                    iconOnly: true,
+                    subject: "track: \(track.title)"
+                ) {
+                    Task {
+                        do {
+                            try await likes.toggleLike(track)
+                        } catch {
+                            model.likeErrorMessage = error.localizedDescription
+                        }
+                    }
+                }
+            }
         }
         .font(.title3.weight(.semibold))
         .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))

@@ -377,6 +377,7 @@ struct SignedInView: View {
                 seedTrack: seedTrack,
                 seedArtistName: seedArtistName,
                 model: model,
+                likes: model.likes,
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist
             )
