@@ -356,28 +356,31 @@ struct DetailArtworkTransform {
     var perspective = 0.5
 }
 
-/// Rotates the artwork and its reflection together, flattening perspective on hover.
+/// Rotates the artwork and its reflection together, flattening perspective on hover or while viewing artwork.
 struct DetailArtworkRotation: ViewModifier {
     var transform = DetailArtworkTransform()
     var isRotated = true
+    var isShowingArtwork = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
 
+    private var isPerspectiveFlat: Bool { isHovering || isShowingArtwork }
+
     func body(content: Content) -> some View {
         content
             .animation(
-                reduceMotion ? nil : .spring(response: isHovering ? 0.5 : 0.75, dampingFraction: 0.75)
+                reduceMotion ? nil : .spring(response: isPerspectiveFlat ? 0.5 : 0.75, dampingFraction: 0.75)
             ) { artwork in
                 artwork.rotation3DEffect(
                     .degrees(transform.x),
                     axis: (x: 1, y: 0, z: 0),
-                    perspective: isHovering ? 0 : transform.perspective
+                    perspective: isPerspectiveFlat ? 0 : transform.perspective
                 )
                 .rotation3DEffect(
                     .degrees(reduceMotion || isRotated ? transform.y : 0),
                     axis: (x: 0, y: 1, z: 0),
-                    perspective: isHovering ? 0 : transform.perspective
+                    perspective: isPerspectiveFlat ? 0 : transform.perspective
                 )
                 .rotation3DEffect(
                     .degrees(transform.z),

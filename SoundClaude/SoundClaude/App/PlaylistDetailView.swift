@@ -266,7 +266,7 @@ struct PlaylistDetailView: View {
             isUpdatingPlaylist: playlists.updatingPlaylistURNs.contains(playlist.urn),
             onShowArtwork: { isShowingArtwork = true }
         )
-        .modifier(DetailArtworkRotation())
+        .modifier(DetailArtworkRotation(isShowingArtwork: isShowingArtwork))
     }
 
     private func playbackControls(iconOnly: Bool) -> some View {

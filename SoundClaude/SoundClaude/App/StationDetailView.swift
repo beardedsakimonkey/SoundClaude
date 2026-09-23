@@ -182,7 +182,8 @@ struct StationDetailView: View {
             .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
             .modifier(DetailArtworkRotation(
                 transform: artworkTransform,
-                isRotated: seedTrack == nil || hasAppeared
+                isRotated: seedTrack == nil || hasAppeared,
+                isShowingArtwork: isShowingArtwork
             ))
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 10) {
