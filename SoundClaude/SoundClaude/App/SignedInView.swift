@@ -12,7 +12,7 @@ struct SignedInView: View {
     @State private var likesSearchText = ""
     @State private var searchFocusRequest = UUID()
     @State private var isShowingVisualizer = false
-    @State private var visualizerShader: VisualizerShader = .bars
+    @State private var visualizerShader: VisualizerShader = .inkPool
     @State private var isShowingQueue = false
     @State private var isOpeningCurrentTrackStation = false
     @State private var stationErrorMessage: String?
@@ -65,13 +65,10 @@ struct SignedInView: View {
                     playback: model.playback,
                     shader: visualizerShader,
                     spectrumBuffer: model.analyzer.spectrumBuffer,
-                    artworkLoader: model.artworkLoader
+                    artworkLoader: model.artworkLoader,
+                    onClose: { isShowingVisualizer = false }
                 )
                 .ignoresSafeArea()
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    isShowingVisualizer = false
-                }
                 .accessibilityAction(named: "Close visualizer") {
                     isShowingVisualizer = false
                 }

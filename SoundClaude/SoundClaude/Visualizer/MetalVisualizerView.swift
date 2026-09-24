@@ -8,6 +8,7 @@ private final class TransparentMetalView: MTKView {
 
 struct ArtworkVisualizerView: View {
     let shader: VisualizerShader
+    let inkPoolSettings: InkPoolSettings
     let spectrumBuffer: OpaquePointer
     let artworkURL: URL?
     let artworkLoader: ArtworkLoader
@@ -21,6 +22,7 @@ struct ArtworkVisualizerView: View {
     var body: some View {
         MetalVisualizerView(
             shader: shader,
+            inkPoolSettings: inkPoolSettings,
             spectrumBuffer: spectrumBuffer,
             accent: accent,
             artworkImage: accentArtworkURL == artworkURL ? artworkImage : nil
@@ -53,6 +55,7 @@ struct ArtworkVisualizerView: View {
 
 struct MetalVisualizerView: NSViewRepresentable {
     let shader: VisualizerShader
+    let inkPoolSettings: InkPoolSettings
     let spectrumBuffer: OpaquePointer
     let accent: ArtworkAccent
     let artworkImage: CGImage?
@@ -90,6 +93,7 @@ struct MetalVisualizerView: NSViewRepresentable {
         )
         context.coordinator.renderer = renderer
         renderer?.shader = shader
+        renderer?.inkPoolSettings = inkPoolSettings
         renderer?.updateArtwork(artworkImage)
         view.delegate = renderer
         return view
@@ -97,6 +101,7 @@ struct MetalVisualizerView: NSViewRepresentable {
 
     func updateNSView(_ view: MTKView, context: Context) {
         context.coordinator.renderer?.shader = shader
+        context.coordinator.renderer?.inkPoolSettings = inkPoolSettings
         context.coordinator.renderer?.accent = accent
         context.coordinator.renderer?.updateArtwork(artworkImage)
     }

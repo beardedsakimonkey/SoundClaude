@@ -3,7 +3,7 @@ import MetalKit
 
 enum VisualizerShader: String, CaseIterable {
     case bars
-    case ribbon
+    case inkPool
 
     var next: Self {
         let shaders = Self.allCases
@@ -11,15 +11,50 @@ enum VisualizerShader: String, CaseIterable {
         return shaders[(index + 1) % shaders.count]
     }
 
-    var title: String { self == .bars ? "Bars" : "Ribbon" }
-    var sourceFile: String { self == .bars ? "AudioVisualizer.metal" : "RibbonVisualizer.metal" }
-    var vertexFunction: String { self == .bars ? "visualizerVertex" : "ribbonVisualizerVertex" }
-    var fragmentFunction: String { self == .bars ? "visualizerFragment" : "ribbonVisualizerFragment" }
+    var title: String {
+        switch self {
+        case .bars: "Bars"
+        case .inkPool: "Ink Pool"
+        }
+    }
+
+    var sourceFile: String {
+        switch self {
+        case .bars: "AudioVisualizer.metal"
+        case .inkPool: "InkPoolVisualizer.metal"
+        }
+    }
+
+    private var functionPrefix: String {
+        switch self {
+        case .bars: "visualizer"
+        case .inkPool: "inkPoolVisualizer"
+        }
+    }
+
+    var vertexFunction: String { functionPrefix + "Vertex" }
+    var fragmentFunction: String { functionPrefix + "Fragment" }
+}
+
+// Keep the field order and Float types in sync with InkPoolSettings in the Metal shader.
+struct InkPoolSettings {
+    var speed: Float = 0.18
+    var flowScale: Float = 3.0
+    var warpStrength: Float = 0.32
+    var bassResponse: Float = 1.0
+    var rippleFrequency: Float = 16.0
+    var rippleStrength: Float = 0.3
+    var surfaceDepth: Float = 0.45
+    var artworkScale: Float = 0.19
+    var refraction: Float = 1.0
+    var sheen: Float = 0.17
+    var glints: Float = 2.8
 }
 
 final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var accent: ArtworkAccent
     var shader: VisualizerShader = .bars
+    var inkPoolSettings = InkPoolSettings()
 
     private let spectrumBuffer: OpaquePointer
     private let commandQueue: MTLCommandQueue
@@ -148,6 +183,12 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         }
 
         encoder.setRenderPipelineState(pipelineState)
+        if shader == .inkPool {
+            var settings = inkPoolSettings
+            encoder.setFragmentBytes(
+                &settings, length: MemoryLayout<InkPoolSettings>.stride, index: 4
+            )
+        }
         encoder.setFragmentTexture(artworkTexture ?? fallbackTexture, index: 0)
         var elapsedTime = Float(ProcessInfo.processInfo.systemUptime - animationStartTime)
         encoder.setFragmentBytes(
