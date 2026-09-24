@@ -7,6 +7,9 @@ struct VisualizerView: View {
     let artworkLoader: ArtworkLoader
     let onClose: () -> Void
 
+    @State private var clothSettings = ClothSettings()
+    @State private var clothCamera = ClothCamera()
+    @State private var orbitStart: ClothCamera?
     @State private var inkPoolSettings = InkPoolSettings()
     @State private var isShowingControls = false
 
@@ -14,6 +17,8 @@ struct VisualizerView: View {
         ArtworkVisualizerView(
             shader: shader,
             inkPoolSettings: inkPoolSettings,
+            clothSettings: clothSettings,
+            clothCamera: $clothCamera,
             spectrumBuffer: spectrumBuffer,
             artworkURL: playback.currentTrack?.displayArtworkURL,
             artworkLoader: artworkLoader
@@ -22,23 +27,88 @@ struct VisualizerView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .clipped()
         .contentShape(Rectangle())
-        .onTapGesture(perform: onClose)
+        .gesture(
+            DragGesture(minimumDistance: 2)
+                .onChanged { value in
+                    if orbitStart == nil { orbitStart = clothCamera }
+                    guard let start = orbitStart else { return }
+                    clothCamera.yaw = start.yaw + Float(value.translation.width) * 0.008
+                    clothCamera.pitch = min(1.45, max(-1.45,
+                        start.pitch + Float(value.translation.height) * 0.008))
+                }
+                .onEnded { _ in orbitStart = nil },
+            including: shader == .cloth ? .all : .none
+        )
+        .onChange(of: shader) { _, _ in
+            isShowingControls = false
+            orbitStart = nil
+        }
         .overlay(alignment: .topTrailing) {
-            if shader == .inkPool {
-                Button {
-                    isShowingControls.toggle()
-                } label: {
-                    Label("Ink Pool controls", systemImage: "slider.horizontal.3")
+            HStack {
+                if shader == .inkPool || shader == .cloth {
+                    Button {
+                        isShowingControls.toggle()
+                    } label: {
+                        Label("\(shader.title) controls", systemImage: "slider.horizontal.3")
+                    }
+                    .buttonStyle(.bordered)
+                    .popover(isPresented: $isShowingControls, arrowEdge: .bottom) {
+                        if shader == .cloth { clothControls } else { inkPoolControls }
+                    }
+                }
+                Button(action: onClose) {
+                    Label("Close visualizer", systemImage: "xmark")
+                        .labelStyle(.iconOnly)
                 }
                 .buttonStyle(.bordered)
-                .padding(20)
-                .popover(isPresented: $isShowingControls, arrowEdge: .bottom) {
-                    inkPoolControls
-                }
+                .help("Close visualizer (Escape)")
             }
+            .padding(20)
         }
         .accessibilityLabel("Audio visualizer")
         .accessibilityValue(shader.title)
+    }
+
+    private var clothControls: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Cloth").font(.headline)
+                Spacer()
+                Button("Reset") {
+                    clothSettings = ClothSettings()
+                    clothCamera = ClothCamera()
+                    orbitStart = nil
+                }
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    tuningSlider("Columns", value: $clothSettings.columns, range: 8...65)
+                    tuningSlider("Rows", value: $clothSettings.rows, range: 8...65)
+                    tuningSlider("Width", value: $clothSettings.width, range: 2...10)
+                    tuningSlider("Height", value: $clothSettings.height, range: 2...10)
+                    Text("Changing the mesh size resets the cloth.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Divider()
+                    tuningSlider("Damping", value: $clothSettings.damping, range: 0.001...0.1, format: "%.3f")
+                    tuningSlider("Stiffness", value: $clothSettings.stiffness, range: 0.1...1)
+                    tuningSlider("Gravity", value: $clothSettings.gravity, range: 0...3)
+                    tuningSlider("Bass impulse", value: $clothSettings.impulseStrength, range: 0...2)
+                    tuningSlider("Impulse radius", value: $clothSettings.impulseRadius, range: 0.3...5)
+                    Stepper("Solver passes: \(clothSettings.iterations)", value: $clothSettings.iterations, in: 2...10)
+                    Divider()
+                    Text("Drag to orbit. Scroll to zoom.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    tuningSlider("Camera distance", value: $clothCamera.zoom, range: 0.6...2)
+                    Button("Reset camera") {
+                        clothCamera = ClothCamera()
+                        orbitStart = nil
+                    }
+                }
+            }
+            .frame(maxHeight: 520)
+        }
+        .padding(20)
+        .frame(width: 320)
     }
 
     private var inkPoolControls: some View {
@@ -70,13 +140,35 @@ struct VisualizerView: View {
     }
 
     private func tuningSlider(
-        _ title: String, value: Binding<Float>, range: ClosedRange<Float>
+        _ title: String, value: Binding<Int>, range: ClosedRange<Int>
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(title)
                 Spacer()
-                Text("\(value.wrappedValue, specifier: "%.2f")")
+                Text(value.wrappedValue.formatted())
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            Slider(
+                value: Binding(
+                    get: { Double(value.wrappedValue) },
+                    set: { value.wrappedValue = Int($0.rounded()) }
+                ),
+                in: Double(range.lowerBound)...Double(range.upperBound),
+                step: 1
+            ) { Text(title) }
+        }
+    }
+
+    private func tuningSlider(
+        _ title: String, value: Binding<Float>, range: ClosedRange<Float>, format: String = "%.2f"
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(String(format: format, value.wrappedValue))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }

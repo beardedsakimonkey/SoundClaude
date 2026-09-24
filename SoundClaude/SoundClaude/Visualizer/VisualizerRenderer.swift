@@ -4,6 +4,7 @@ import MetalKit
 enum VisualizerShader: String, CaseIterable {
     case bars
     case inkPool
+    case cloth
 
     var next: Self {
         let shaders = Self.allCases
@@ -15,6 +16,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .bars: "Bars"
         case .inkPool: "Ink Pool"
+        case .cloth: "Cloth"
         }
     }
 
@@ -22,6 +24,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .bars: "AudioVisualizer.metal"
         case .inkPool: "InkPoolVisualizer.metal"
+        case .cloth: "ClothVisualizer.metal"
         }
     }
 
@@ -29,6 +32,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .bars: "visualizer"
         case .inkPool: "inkPoolVisualizer"
+        case .cloth: "clothVisualizer"
         }
     }
 
@@ -55,7 +59,13 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var accent: ArtworkAccent
     var shader: VisualizerShader = .bars
     var inkPoolSettings = InkPoolSettings()
+    var clothSettings = ClothSettings()
+    var clothCamera = ClothCamera()
 
+    private var cloth = ClothSimulation()
+    private var bassDetector = ClothBassDetector()
+    private var lastClothTime: Double?
+    private let depthState: MTLDepthStencilState?
     private let spectrumBuffer: OpaquePointer
     private let commandQueue: MTLCommandQueue
     private let textureLoader: MTKTextureLoader
@@ -87,6 +97,10 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             return nil
         }
 
+        let depth = MTLDepthStencilDescriptor()
+        depth.depthCompareFunction = .less
+        depth.isDepthWriteEnabled = true
+        depthState = device.makeDepthStencilState(descriptor: depth)
         self.accent = accent
         textureLoader = MTKTextureLoader(device: device)
         let textureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
@@ -159,6 +173,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             ])
         }
         descriptor.colorAttachments[0].pixelFormat = pixelFormat
+        descriptor.depthAttachmentPixelFormat = .depth32Float
         return try device.makeRenderPipelineState(descriptor: descriptor)
     }
 
@@ -219,7 +234,44 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 index: 0
             )
         }
-        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        if shader == .cloth {
+            cloth.configure(clothSettings)
+            let now = ProcessInfo.processInfo.systemUptime
+            let delta = lastClothTime.map { now - $0 } ?? ClothSimulation.step
+            lastClothTime = now
+            // Bands 0..<18 cover roughly 30–180 Hz in the logarithmic spectrum.
+            let bass = bands.prefix(18).reduce(0, +) / 18
+            if let strength = bassDetector.update(level: bass, delta: delta) {
+                cloth.impulse(strength: strength)
+            }
+            cloth.advance(delta: delta)
+            // Each command owns its snapshot until the GPU completes the frame.
+            let buffer = cloth.positions.withUnsafeBytes { bytes in
+                view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
+            }
+            if let buffer {
+                let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
+                let distance = sqrt(clothSettings.width * clothSettings.width +
+                                    clothSettings.height * clothSettings.height) * 1.35 * clothCamera.zoom
+                // Two float4s, matching ClothUniforms in the shader.
+                var uniforms = [
+                    SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
+                    SIMD4<Float>(aspect, clothCamera.yaw, clothCamera.pitch, distance)
+                ]
+                encoder.setVertexBuffer(buffer, offset: 0, index: 0)
+                uniforms.withUnsafeMutableBytes { bytes in
+                    encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                    encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+                }
+                encoder.setDepthStencilState(depthState)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0,
+                                       vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
+            }
+        } else {
+            lastClothTime = nil
+            bassDetector = ClothBassDetector()
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        }
         encoder.endEncoding()
         commandBuffer.present(drawable)
         commandBuffer.commit()

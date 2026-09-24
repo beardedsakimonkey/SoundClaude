@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C92410000000000000000003 /* ClothSolver.c in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000003; };
+		C92410000000000000000002 /* ClothVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000002; };
+		C92410000000000000000001 /* ClothSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000001; };
 		D91700000000000000000002 /* RecentSearchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91700000000000000000012 /* RecentSearchStore.swift */; };
 		D91700000000000000000001 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91700000000000000000011 /* SearchView.swift */; };
 		48BB7006F5DA468DA33DBFD0 /* SearchTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7334E245AF2450E9BCD9B0E /* SearchTextField.swift */; };
@@ -111,6 +114,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		C92400000000000000000004 /* ClothSolver.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ClothSolver.h; sourceTree = "<group>"; };
+		C92400000000000000000003 /* ClothSolver.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ClothSolver.c; sourceTree = "<group>"; };
+		C92400000000000000000002 /* ClothVisualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = ClothVisualizer.metal; sourceTree = "<group>"; };
+		C92400000000000000000001 /* ClothSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClothSimulation.swift; sourceTree = "<group>"; };
 		D91700000000000000000012 /* RecentSearchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentSearchStore.swift; sourceTree = "<group>"; };
 		D91700000000000000000011 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		F7334E245AF2450E9BCD9B0E /* SearchTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchTextField.swift; sourceTree = "<group>"; };
@@ -409,6 +416,9 @@
 		A4000000000000000000000A /* Visualizer */ = {
 			isa = PBXGroup;
 			children = (
+				C92400000000000000000004 /* ClothSolver.h */,
+				C92400000000000000000003 /* ClothSolver.c */,
+				C92400000000000000000001 /* ClothSimulation.swift */,
 				D74B0EAE0000000000000002 /* VisualizerView.swift */,
 				A20000000000000000000010 /* MetalVisualizerView.swift */,
 				A20000000000000000000011 /* VisualizerRenderer.swift */,
@@ -419,6 +429,7 @@
 		A4000000000000000000000B /* Shaders */ = {
 			isa = PBXGroup;
 			children = (
+				C92400000000000000000002 /* ClothVisualizer.metal */,
 				A20000000000000000000012 /* AudioVisualizer.metal */,
 				E92000000000000000000005 /* InkPoolVisualizer.metal */,
 				8D06FA75D610477E98EECAA2 /* PlayerArtworkGlass.metal */,
@@ -547,6 +558,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C92410000000000000000003 /* ClothSolver.c in Sources */,
+				C92410000000000000000002 /* ClothVisualizer.metal in Sources */,
+				C92410000000000000000001 /* ClothSimulation.swift in Sources */,
 				A10000000000000000000001 /* SoundClaudeApp.swift in Sources */,
 				A10000000000000000000013 /* KeyboardShortcutsView.swift in Sources */,
 				A10000000000000000000002 /* AppModel.swift in Sources */,
