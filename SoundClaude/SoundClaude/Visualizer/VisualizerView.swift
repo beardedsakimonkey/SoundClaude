@@ -82,11 +82,10 @@ struct VisualizerView: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    tuningSlider("Columns", value: $clothSettings.columns, range: 8...65)
-                    tuningSlider("Rows", value: $clothSettings.rows, range: 8...65)
-                    tuningSlider("Width", value: $clothSettings.width, range: 2...10)
-                    tuningSlider("Height", value: $clothSettings.height, range: 2...10)
-                    Text("Changing the mesh size resets the cloth.")
+                    tuningSlider("Columns", value: $clothSettings.columns, range: 8...257)
+                    tuningSlider("Rows", value: $clothSettings.rows, range: 8...257)
+                    tuningSlider("Size", value: $clothSettings.width, range: 2...10)
+                    Text("The cloth matches the artwork's proportions. Changing the mesh size resets the cloth.")
                         .font(.caption).foregroundStyle(.secondary)
                     Divider()
                     tuningSlider("Damping", value: $clothSettings.damping, range: 0.001...0.1, format: "%.3f")
@@ -96,9 +95,11 @@ struct VisualizerView: View {
                     tuningSlider("Impulse radius", value: $clothSettings.impulseRadius, range: 0.3...5)
                     Stepper("Solver passes: \(clothSettings.iterations)", value: $clothSettings.iterations, in: 2...10)
                     Divider()
-                    Text("Drag to orbit. Scroll to zoom.")
+                    tuningSlider("Shine intensity", value: $clothSettings.shineIntensity, range: 0...2)
+                    tuningSlider("Gridline opacity", value: $clothSettings.gridlineOpacity, range: 0...1)
+                    Text("Move the pointer to ripple the cloth. Drag to orbit. Scroll to zoom.")
                         .font(.caption).foregroundStyle(.secondary)
-                    tuningSlider("Camera distance", value: $clothCamera.zoom, range: 0.6...2)
+                    tuningSlider("Camera distance", value: $clothCamera.zoom, range: 0.2...2)
                     Button("Reset camera") {
                         clothCamera = ClothCamera()
                         orbitStart = nil

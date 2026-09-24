@@ -1,5 +1,6 @@
 import Foundation
 import MetalKit
+import simd
 
 enum VisualizerShader: String, CaseIterable {
     case bars
@@ -60,7 +61,27 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var shader: VisualizerShader = .bars
     var inkPoolSettings = InkPoolSettings()
     var clothSettings = ClothSettings()
-    var clothCamera = ClothCamera()
+    var clothCamera = ClothCamera() {
+        didSet {
+            if clothCamera != oldValue {
+                clothPointer = nil
+                previousClothPointer = nil
+            }
+        }
+    }
+
+    private var clothPointer: SIMD2<Float>?
+    private var previousClothPointer: SIMD2<Float>?
+
+    func updateClothPointer(_ point: SIMD2<Float>?) {
+        guard shader == .cloth else {
+            clothPointer = nil
+            previousClothPointer = nil
+            return
+        }
+        if point == nil || clothPointer == nil { previousClothPointer = point }
+        clothPointer = point
+    }
 
     private var cloth = ClothSimulation()
     private var bassDetector = ClothBassDetector()
@@ -235,6 +256,12 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             )
         }
         if shader == .cloth {
+            var clothSettings = self.clothSettings
+            let artworkAspect = artworkImage.map { Float($0.width) / Float($0.height) } ?? 1
+            // The size control sets the longest edge while preserving the artwork's proportions.
+            let size = clothSettings.width
+            clothSettings.width = size * min(1, artworkAspect)
+            clothSettings.height = size / max(1, artworkAspect)
             cloth.configure(clothSettings)
             let now = ProcessInfo.processInfo.systemUptime
             let delta = lastClothTime.map { now - $0 } ?? ClothSimulation.step
@@ -244,21 +271,46 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             if let strength = bassDetector.update(level: bass, delta: delta) {
                 cloth.impulse(strength: strength)
             }
+            let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
+            if view.window?.isKeyWindow == true, NSEvent.pressedMouseButtons == 0,
+               let point = clothPointer, let previous = previousClothPointer {
+                cloth.brush(from: previous, to: point, camera: clothCamera, aspect: aspect)
+            }
+            previousClothPointer = clothPointer
             cloth.advance(delta: delta)
             // Each command owns its snapshot until the GPU completes the frame.
             let buffer = cloth.positions.withUnsafeBytes { bytes in
                 view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
             }
-            if let buffer {
+            // Precompute unit normals once per grid node for bicubic fragment sampling.
+            let columns = cloth.columns, rows = cloth.rows
+            let normals: [SIMD4<Float>] = cloth.positions.indices.map { index in
+                let x = index % columns, y = index / columns
+                let tangent = cloth.positions[y * columns + min(x + 1, columns - 1)]
+                    - cloth.positions[y * columns + max(x - 1, 0)]
+                let bitangent = cloth.positions[min(y + 1, rows - 1) * columns + x]
+                    - cloth.positions[max(y - 1, 0) * columns + x]
+                let cross = simd_cross(SIMD3(bitangent.x, bitangent.y, bitangent.z),
+                                       SIMD3(tangent.x, tangent.y, tangent.z))
+                let length = simd_length(cross)
+                let normal = length > 0.00001 ? cross / length : SIMD3<Float>(0, 0, 1)
+                return SIMD4(normal.x, normal.y, normal.z, 0)
+            }
+            let normalBuffer = normals.withUnsafeBytes { bytes in
+                view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
+            }
+            if let buffer, let normalBuffer {
                 let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
                 let distance = sqrt(clothSettings.width * clothSettings.width +
                                     clothSettings.height * clothSettings.height) * 1.35 * clothCamera.zoom
-                // Two float4s, matching ClothUniforms in the shader.
+                // Three float4s, matching ClothUniforms in the shader.
                 var uniforms = [
                     SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
-                    SIMD4<Float>(aspect, clothCamera.yaw, clothCamera.pitch, distance)
+                    SIMD4<Float>(aspect, clothCamera.yaw, clothCamera.pitch, distance),
+                    SIMD4<Float>(clothSettings.shineIntensity, clothSettings.gridlineOpacity, 0, 0)
                 ]
                 encoder.setVertexBuffer(buffer, offset: 0, index: 0)
+                encoder.setFragmentBuffer(normalBuffer, offset: 0, index: 5)
                 uniforms.withUnsafeMutableBytes { bytes in
                     encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
                     encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
@@ -268,6 +320,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                                        vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
             }
         } else {
+            clothPointer = nil
+            previousClothPointer = nil
             lastClothTime = nil
             bassDetector = ClothBassDetector()
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)

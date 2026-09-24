@@ -2,22 +2,24 @@ import Foundation
 import simd
 
 struct ClothSettings: Equatable {
-    var columns = 65
-    var rows = 49
-    var width: Float = 6
-    var height: Float = 4.5
+    var columns = 97
+    var rows = 73
+    var width: Float = 8
+    var height: Float = 6
     var damping: Float = 0.015
     var stiffness: Float = 0.85
     var gravity: Float = 0.65
     var impulseStrength: Float = 1
-    var impulseRadius: Float = 1.8
-    var iterations = 6
+    var impulseRadius: Float = 2.0
+    var iterations = 4
+    var shineIntensity: Float = 0.25
+    var gridlineOpacity: Float = 0
 }
 
-struct ClothCamera {
-    var yaw: Float = 0.35
+struct ClothCamera: Equatable {
+    var yaw: Float = 0
     var pitch: Float = 0
-    var zoom: Float = 1
+    var zoom: Float = 0.8
 }
 
 /// A fixed-step Verlet cloth with structural and diagonal distance constraints.
@@ -80,12 +82,56 @@ struct ClothSimulation {
 
     mutating func impulse(strength: Float) {
         let amount = (min(1, max(0, strength)) * 0.13 + 0.035) * settings.impulseStrength
+        // Match see_the_music's bass scatter, with a fresh tilt for each hit.
+        let scatterAngle = Float.random(in: 0..<(2 * .pi))
+        let tilt: Float = 0.24 * (0.45 + Float.random(in: 0..<1) * 0.55)
+        let direction = SIMD4<Float>(cos(scatterAngle) * tilt, sin(scatterAngle) * tilt,
+                                     nextDirection * sqrt(max(0, 1 - tilt * tilt)), 0)
         for i in positions.indices where !isPinned(i) {
             let p = positions[i]
             let falloff = exp(-(p.x * p.x + p.y * p.y) / (settings.impulseRadius * settings.impulseRadius))
-            previous[i].z -= nextDirection * amount * falloff
+            previous[i] -= direction * amount * falloff
         }
         nextDirection *= -1
+    }
+
+    /// Sweep a soft brush over the projected mesh. Coordinates match Metal's
+    /// normalized device coordinates, with positive Y toward the top of the view.
+    mutating func brush(from start: SIMD2<Float>, to end: SIMD2<Float>,
+                        camera: ClothCamera, aspect: Float) {
+        guard aspect.isFinite, aspect > 0,
+              start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
+        // Measure screen distances in units of the shorter viewport dimension.
+        let metric = SIMD2<Float>(max(1, aspect), max(1, 1 / aspect))
+        let movement = (end - start) * metric
+        let length = simd_length(movement)
+        guard length > 0.00001 else { return }
+        let direction = movement / length
+        let amount = min(length, 0.2) * 0.9
+        let cy = cos(camera.yaw), sy = sin(camera.yaw)
+        let cp = cos(camera.pitch), sp = sin(camera.pitch)
+        let distance = sqrt(settings.width * settings.width + settings.height * settings.height)
+            * 1.35 * camera.zoom
+        let scale = min(2.6, 2.6 * aspect)
+        // The four pinned corners lie in the simulation's XY plane. Push along
+        // its fixed normal; camera rotation only affects where the brush lands.
+        let impulse = SIMD4<Float>(0, 0, -amount, 0)
+        let radius: Float = 0.09
+        for i in positions.indices where !isPinned(i) {
+            let p = positions[i]
+            let turned = SIMD3<Float>(cy * p.x + sy * p.z, p.y, -sy * p.x + cy * p.z)
+            let world = SIMD3<Float>(turned.x, cp * turned.y - sp * turned.z,
+                                      sp * turned.y + cp * turned.z)
+            let depth = distance - world.z
+            guard depth > 0.1 else { continue }
+            let projected = SIMD2(world.x * scale / aspect, world.y * scale) / depth
+            let offset = (projected - start) * metric
+            let t = min(1, max(0, simd_dot(offset, direction) / length))
+            let separation = simd_length(offset - movement * t) / radius
+            guard separation < 1 else { continue }
+            let falloff = (1 - separation * separation)
+            previous[i] -= impulse * falloff * falloff
+        }
     }
 
     mutating func advance(delta: Double) {
