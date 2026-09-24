@@ -335,6 +335,21 @@ struct PlayerFooterView: View {
                     )
                 }
                 .frame(maxWidth: .infinity)
+                .overlay(alignment: .top) {
+                    if let playbackError = playback.errorMessage {
+                        Text(playbackError)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: waveformHeight)
+                            .help(playbackError)
+                    }
+                }
                 .onGeometryChange(for: CGFloat.self) { geometry in
                     TrackWaveformView.Layout.compact.horizontalBarInset(for: geometry.size.width)
                 } action: { inset in
@@ -381,12 +396,6 @@ struct PlayerFooterView: View {
                     .padding(.trailing, 4)
             }
             .buttonStyle(.borderless)
-
-            if let playbackError = playback.errorMessage {
-                Text(playbackError)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
 
         }
     }
