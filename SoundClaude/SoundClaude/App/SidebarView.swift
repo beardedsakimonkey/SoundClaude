@@ -20,12 +20,10 @@ struct SidebarView: View {
     @State private var isShowingCreatePlaylist = false
     @State private var isProfileHovered = false
     @State private var isSignOutHovered = false
-    @State private var isLikesHovered = false
     @State private var dropTargetURN: String?
     @State private var addingToPlaylistURNs: Set<String> = []
     @State private var playlistDropError: String?
     @State private var playlistLikeError: String?
-    @State private var hoveredPlaylistURN: String?
     @State private var shufflingPlaylistURN: String?
     @State private var playlistShuffleError: String?
     @State private var editingPlaylist: SoundCloudPlaylist?
@@ -93,25 +91,17 @@ struct SidebarView: View {
                                     Task { await onShuffleLikes() }
                                 } label: {
                                     Image(systemName: "shuffle")
-                                        .frame(width: 24, height: 24)
+                                        .frame(width: 24)
+                                        .frame(maxHeight: .infinity)
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
-                                .modifier(SidebarForegroundHover())
+                                .modifier(SidebarForegroundHover(idleOpacity: 0.3))
                                 .disabled(likes.tracks.isEmpty)
                                 .help("Shuffle likes")
                                 .accessibilityLabel("Shuffle likes")
-                                .opacity(isLikesHovered ? 1 : 0)
-                                .animation(
-                                    reduceMotion ? nil : .easeInOut(duration: 0.2),
-                                    value: isLikesHovered
-                                )
-                                .allowsHitTesting(isLikesHovered)
                                 .padding(.trailing, 8)
                             }
-                        }
-                        .onContentHover { isHovered in
-                            if destination == .liked { isLikesHovered = isHovered }
                         }
                 }
                 VStack(alignment: .leading, spacing: 0) {
@@ -267,28 +257,16 @@ struct SidebarView: View {
                         }
                     } label: {
                         Image(systemName: "shuffle")
-                            .frame(width: 24, height: 24)
+                            .frame(width: 24)
+                            .frame(maxHeight: .infinity)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .modifier(SidebarForegroundHover())
+                    .modifier(SidebarForegroundHover(idleOpacity: 0.3))
                     .disabled(shufflingPlaylistURN != nil)
                     .help("Shuffle \(playlist.title)")
                     .accessibilityLabel("Shuffle \(playlist.title)")
-                    .opacity(hoveredPlaylistURN == playlist.urn ? 1 : 0)
-                    .animation(
-                        reduceMotion ? nil : .easeInOut(duration: 0.2),
-                        value: hoveredPlaylistURN == playlist.urn
-                    )
-                    .allowsHitTesting(hoveredPlaylistURN == playlist.urn)
                     .padding(.trailing, 8)
-                }
-            }
-            .onContentHover { isHovered in
-                if isHovered {
-                    hoveredPlaylistURN = playlist.urn
-                } else if hoveredPlaylistURN == playlist.urn {
-                    hoveredPlaylistURN = nil
                 }
             }
             .contextMenu {
@@ -484,6 +462,7 @@ private struct SidebarRowStyle: ViewModifier {
 private struct SidebarForegroundHover: ViewModifier {
     var isSelected = false
     var usesPrimaryForeground = false
+    var idleOpacity: Double = 1
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovered = false
@@ -501,6 +480,7 @@ private struct SidebarForegroundHover: ViewModifier {
     func body(content: Content) -> some View {
         content
             .foregroundStyle(foregroundColor)
+            .opacity(isHovered ? 1 : idleOpacity)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isHovered)
             .onContentHover { isHovered = $0 }
     }
