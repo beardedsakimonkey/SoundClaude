@@ -152,6 +152,10 @@ struct TrackDetailView: View {
                         onAddToQueue: model.addToQueue,
                         onShowArtwork: { isShowingArtwork = true }
                     )
+                    .modifier(DetailArtworkRotation(
+                        isRotated: false,
+                        isShowingArtwork: isShowingArtwork
+                    ))
 
                     VStack(alignment: .leading, spacing: 10) {
                         if details.track.access == .preview {

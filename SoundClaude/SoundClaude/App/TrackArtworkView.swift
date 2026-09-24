@@ -356,6 +356,10 @@ struct DetailArtworkTransform {
     var perspective = 0.8
 }
 
+extension EnvironmentValues {
+    @Entry var initialDetailArtworkRotation: Bool? = nil
+}
+
 /// Rotates the artwork and its reflection together, flattening perspective on hover or while viewing artwork.
 struct DetailArtworkRotation: ViewModifier {
     var transform = DetailArtworkTransform()
@@ -367,6 +371,14 @@ struct DetailArtworkRotation: ViewModifier {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
 
+    @Environment(\.initialDetailArtworkRotation) private var initialRotation
+    @State private var hasAppeared = false
+
+    private var displayedRotation: Bool {
+        if !reduceMotion, !hasAppeared, let initialRotation { return initialRotation }
+        return isRotated
+    }
+
     private var isPerspectiveFlat: Bool { isHovering || isShowingArtwork }
 
     func body(content: Content) -> some View {
@@ -374,8 +386,9 @@ struct DetailArtworkRotation: ViewModifier {
             .animation(
                 reduceMotion ? nil : .spring(response: isPerspectiveFlat ? 0.5 : 0.75, dampingFraction: 0.85)
             ) { artwork in
-                rotated(artwork, perspective: isPerspectiveFlat ? 0 : transform.perspective)
+                rotated(artwork, perspective: isPerspectiveFlat || !displayedRotation ? 0 : transform.perspective)
             }
+            .onAppear { hasAppeared = true }
             // Keep the adjusted hover bounds outside the transform.
             .padding(hoverInsets)
             .contentShape(Rectangle())
@@ -392,17 +405,17 @@ struct DetailArtworkRotation: ViewModifier {
     private func rotated<Artwork: View>(_ artwork: Artwork, perspective: Double) -> some View {
         artwork
             .rotation3DEffect(
-                .degrees(transform.x),
+                .degrees(displayedRotation ? transform.x : 0),
                 axis: (x: 1, y: 0, z: 0),
                 perspective: perspective
             )
             .rotation3DEffect(
-                .degrees(reduceMotion || isRotated ? transform.y : 0),
+                .degrees(displayedRotation ? transform.y : 0),
                 axis: (x: 0, y: 1, z: 0),
                 perspective: perspective
             )
             .rotation3DEffect(
-                .degrees(transform.z),
+                .degrees(displayedRotation ? transform.z : 0),
                 axis: (x: 0, y: 0, z: 1),
                 perspective: 0
             )

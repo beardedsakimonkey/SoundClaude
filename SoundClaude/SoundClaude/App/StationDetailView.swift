@@ -11,7 +11,6 @@ struct StationDetailView: View {
 
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var hasAppeared = false
     @State private var station: SoundCloudStation?
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -183,7 +182,6 @@ struct StationDetailView: View {
             .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
             .modifier(DetailArtworkRotation(
                 transform: artworkTransform,
-                isRotated: seedTrack == nil || hasAppeared,
                 isShowingArtwork: isShowingArtwork
             ))
             VStack(alignment: .leading, spacing: 10) {
@@ -194,7 +192,6 @@ struct StationDetailView: View {
                         .foregroundStyle(.secondary)
                     stationTitle
                 }
-                .onAppear { hasAppeared = true }
                 .modifier(FadeInOnAppear())
                 playbackControls
                     .padding(.top, 8)

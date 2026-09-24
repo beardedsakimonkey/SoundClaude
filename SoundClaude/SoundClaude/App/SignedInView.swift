@@ -7,6 +7,7 @@ struct SignedInView: View {
     @State private var selectedDestination: SidebarDestination?
     private let selectionStore = SidebarSelectionStore()
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
+    @State private var initialDetailArtworkRotation: Bool?
     @State private var playlistTrack: SoundCloudTrack?
     @State private var searchText = ""
     @State private var likesSearchText = ""
@@ -33,7 +34,20 @@ struct SignedInView: View {
 
     private var path: [Route] {
         get { navigationHistories[destinationID, default: NavigationHistory()].path }
-        nonmutating set { navigationHistories[destinationID, default: NavigationHistory()].path = newValue }
+        nonmutating set {
+            if path.last != newValue.last {
+                // Capture the source pose before replacing the page, including Back/Forward.
+                switch (path.last, newValue.last) {
+                case (.track, .playlist), (.track, .station):
+                    initialDetailArtworkRotation = false
+                case (.playlist, .track), (.station, .track):
+                    initialDetailArtworkRotation = true
+                default:
+                    initialDetailArtworkRotation = nil
+                }
+            }
+            navigationHistories[destinationID, default: NavigationHistory()].path = newValue
+        }
     }
 
     private var forwardPath: [Route] {
@@ -296,6 +310,7 @@ struct SignedInView: View {
                 .navigationTitle((selectedDestination ?? .liked).title)
             } destination: { route in
                 routeView(route)
+                    .environment(\.initialDetailArtworkRotation, initialDetailArtworkRotation)
                     .id(destinationID)
             }
             .modifier(NavigationPageActivity())
@@ -653,6 +668,7 @@ struct SignedInView: View {
                     navigationHistories[destination.id] = NavigationHistory()
                     searchFocusRequest = UUID()
                 }
+                initialDetailArtworkRotation = nil
                 selectedDestination = destination
                 selectionStore.save(destination, for: user)
             }
