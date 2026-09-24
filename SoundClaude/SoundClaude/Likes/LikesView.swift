@@ -10,14 +10,12 @@ struct LikesView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onAddToQueue: (SoundCloudTrack) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
-    let onShuffle: () async -> Void
 
     @ObservedObject private var likes: LikesController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding private var searchText: String
     @AppStorage("likesTrackLayout") private var trackLayout = TrackLayout.list
     @FocusState private var isSearchFocused: Bool
-    @State private var isHoveringShuffle = false
     private let playback: PlaybackController
     private let analyzer: SpectrumAnalyzer
 
@@ -33,8 +31,7 @@ struct LikesView: View {
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onAddToQueue: @escaping (SoundCloudTrack) -> Void,
-        onPlayTrack: @escaping (SoundCloudTrack) async -> Void,
-        onShuffle: @escaping () async -> Void
+        onPlayTrack: @escaping (SoundCloudTrack) async -> Void
     ) {
         self.user = user
         self.isActive = isActive
@@ -45,7 +42,6 @@ struct LikesView: View {
         self.onSelectTrack = onSelectTrack
         self.onAddToQueue = onAddToQueue
         self.onPlayTrack = onPlayTrack
-        self.onShuffle = onShuffle
         _likes = ObservedObject(wrappedValue: likes)
         self.playback = playback
         self.analyzer = analyzer
@@ -84,22 +80,6 @@ struct LikesView: View {
                     .foregroundStyle(.primary)
                     .opacity(0.6)
             }
-            Button {
-                Task { await onShuffle() }
-            } label: {
-                Label("Shuffle likes", systemImage: "shuffle")
-                    .labelStyle(.iconOnly)
-                    .font(.title.weight(.regular))
-                    .foregroundStyle(.primary)
-                    .opacity(likes.tracks.isEmpty ? 0.3 : (isHoveringShuffle ? 1 : 0.6))
-                    .frame(width: 32, height: 32)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(likes.tracks.isEmpty)
-            .onContentHover { isHoveringShuffle = $0 }
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isHoveringShuffle)
-            .help("Shuffle likes")
             Spacer()
             if likes.isLoading {
                 ProgressView()

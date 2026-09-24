@@ -470,8 +470,7 @@ struct SignedInView: View {
                 onSelectArtist: showArtist,
                 onSelectTrack: showTrack,
                 onAddToQueue: model.addToQueue,
-                onPlayTrack: model.playLikedTrack,
-                onShuffle: shuffleLikes
+                onPlayTrack: model.playLikedTrack
             )
         }
     }
