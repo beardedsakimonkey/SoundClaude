@@ -26,6 +26,12 @@ struct PlaylistDetailView: View {
     @State private var playlistDeletion = PlaylistDeletionState()
     @State private var removeTrackErrorMessage: String?
 
+    #if DEBUG
+    @State private var glassParameters = PlayerArtworkGlassParameters()
+    @State private var isShowingGlassControls = false
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    #endif
+
     private var isOwnedByCurrentUser: Bool {
         guard case let .signedIn(user) = model.auth.state,
               let urn = user.urn else { return false }
@@ -63,6 +69,11 @@ struct PlaylistDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     header
+                    #if DEBUG
+                    if isShowingGlassControls {
+                        glassControls
+                    }
+                    #endif
                     if let description = displayedPlaylist.description?
                         .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
                         ExpandableDescriptionText(
@@ -90,6 +101,16 @@ struct PlaylistDetailView: View {
         }
         .navigationTitle(displayedPlaylist.title)
         .toolbar {
+            #if DEBUG
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isShowingGlassControls.toggle()
+                } label: {
+                    Label("Artwork glass", systemImage: "slider.horizontal.3")
+                }
+                .help("Adjust artwork glass shader (development only)")
+            }
+            #endif
             if #available(macOS 26.0, *) {
                 ToolbarSpacer(.flexible, placement: .primaryAction)
             } else {
@@ -277,12 +298,68 @@ struct PlaylistDetailView: View {
                 isUpdatingPlaylist: playlists.updatingPlaylistURNs.contains(playlist.urn),
                 onShowArtwork: { isShowingArtwork = true }
             )
+            #if DEBUG
+            .environment(\.playerArtworkGlassParameters, glassParameters)
+            #endif
             .id(artworkTrack?.urn)
             .transition(DetailArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
         }
         .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
         .modifier(DetailArtworkRotation(isShowingArtwork: isShowingArtwork))
     }
+
+    #if DEBUG
+    private var glassControls: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Artwork glass").font(.headline)
+                Toggle("Enable shader", isOn: $glassParameters.isEnabled)
+                Spacer()
+                Button("Reset") { glassParameters = PlayerArtworkGlassParameters() }
+                Button("Hide") { isShowingGlassControls = false }
+            }
+            if reduceTransparency {
+                Text("Reduce Transparency is on. Turn it off in System Settings to preview the shader.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 24)], spacing: 12) {
+                glassSlider("Rim width (pt)", value: $glassParameters.rimWidth, range: 0.5...30, step: 0.1)
+                glassSlider("Refraction (pt)", value: $glassParameters.refraction, range: 0...20, step: 0.1)
+                glassSlider("Color dispersion (pt)", value: $glassParameters.dispersion, range: 0...5, step: 0.05)
+                glassSlider("Light angle (°)", value: $glassParameters.lightAngle, range: -180...180, step: 1)
+                glassSlider("Edge darkening", value: $glassParameters.edgeDarkening, range: 0...1, step: 0.01)
+                glassSlider("Lip position (pt)", value: $glassParameters.lipPosition, range: 0...10, step: 0.1)
+                glassSlider("Lip width (pt)", value: $glassParameters.lipWidth, range: 0.1...5, step: 0.05)
+                glassSlider("Edge reflection", value: $glassParameters.reflectionStrength, range: 0...3, step: 0.05)
+                glassSlider("Caustic strength", value: $glassParameters.causticStrength, range: 0...1, step: 0.01)
+                glassSlider("Face reflection", value: $glassParameters.sweepStrength, range: 0...1, step: 0.005)
+                glassSlider("Face reflection width", value: $glassParameters.sweepWidth, range: 0.01...1, step: 0.01)
+                glassSlider("Face reflection position", value: $glassParameters.sweepPosition, range: -0.5...1.5, step: 0.01)
+            }
+            .disabled(!glassParameters.isEnabled || reduceTransparency)
+        }
+        .padding(20)
+        .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func glassSlider(
+        _ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(value.wrappedValue, format: .number.precision(.fractionLength(0...3)))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: value, in: range, step: step) {
+                Text(title)
+            }
+        }
+    }
+    #endif
 
     private func playbackControls(iconOnly: Bool) -> some View {
         HStack(spacing: 12) {
