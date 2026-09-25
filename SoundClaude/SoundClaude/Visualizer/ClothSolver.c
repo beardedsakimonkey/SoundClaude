@@ -55,7 +55,8 @@ void SCClothStep(simd_float4 *positions, simd_float4 *previous,
     for (uint32_t i = 0; i < count; i++) {
         if (inverseMass(i, columns, rows) == 0) continue;
         const simd_float4 p = positions[i];
-        positions[i] = p + (p - previous[i]) * (1.0f - damping) + (simd_float4){0, -gravity / inverseDtSquared, 0, 0};
+        // Positive Z points toward the default camera, in front of the resting cloth.
+        positions[i] = p + (p - previous[i]) * (1.0f - damping) + (simd_float4){0, 0, gravity / inverseDtSquared, 0};
         previous[i] = p;
     }
     // XPBD multipliers persist across solver passes, but reset each time step.

@@ -100,7 +100,10 @@ struct VisualizerView: View {
                     Divider()
                     Toggle("Show mesh (debug)", isOn: $clothSettings.showMesh)
                     tuningSlider("Shine intensity", value: $clothSettings.shineIntensity, range: 0...2)
-                    Text("Move the pointer to ripple the cloth. Drag to orbit. Scroll to zoom.")
+                    tuningSlider("Chromatic aberration", value: $clothSettings.chromaticAberration, range: 0...1)
+                    tuningSlider("Iridescence", value: $clothSettings.iridescence, range: 0...1)
+                    tuningSlider("Ripple thickness", value: $clothSettings.rippleThickness, range: 0.25...4)
+                    Text("Drag to orbit. Scroll to zoom.")
                         .font(.caption).foregroundStyle(.secondary)
                     tuningSlider("Camera distance", value: $clothCamera.zoom, range: 0.2...2)
                     Button("Reset camera") {

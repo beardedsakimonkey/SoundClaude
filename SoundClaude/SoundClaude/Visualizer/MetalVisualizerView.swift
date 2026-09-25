@@ -5,37 +5,6 @@ import SwiftUI
 private final class TransparentMetalView: MTKView {
     override var isOpaque: Bool { false }
     var onZoom: ((Float) -> Void)?
-    var onPointerMove: ((SIMD2<Float>?) -> Void)?
-    private var pointerTrackingArea: NSTrackingArea?
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let pointerTrackingArea { removeTrackingArea(pointerTrackingArea) }
-        let area = NSTrackingArea(rect: .zero,
-                                  options: [.mouseMoved, .mouseEnteredAndExited,
-                                            .activeInKeyWindow, .inVisibleRect],
-                                  owner: self, userInfo: nil)
-        addTrackingArea(area)
-        pointerTrackingArea = area
-        onPointerMove?(nil)
-    }
-
-    override func mouseMoved(with event: NSEvent) {
-        guard bounds.width > 0, bounds.height > 0 else { return }
-        let point = convert(event.locationInWindow, from: nil)
-        guard bounds.contains(point), NSEvent.pressedMouseButtons == 0 else {
-            onPointerMove?(nil)
-            return
-        }
-        let x = Float((point.x - bounds.minX) / bounds.width) * 2 - 1
-        let y = Float((point.y - bounds.minY) / bounds.height) * 2 - 1
-        onPointerMove?(SIMD2(x, isFlipped ? -y : y))
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        onPointerMove?(nil)
-    }
-
 
     override func scrollWheel(with event: NSEvent) {
         guard let onZoom else {
@@ -197,9 +166,6 @@ struct MetalVisualizerView: NSViewRepresentable {
         renderer?.clothSettings = clothSettings
         renderer?.clothCamera = clothCamera
         renderer?.updateArtwork(artworkImage)
-        view.onPointerMove = { [weak renderer] point in
-            renderer?.updateClothPointer(point)
-        }
         view.onZoom = zoomHandler
         view.delegate = renderer
         return view

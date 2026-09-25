@@ -10,19 +10,22 @@ struct ClothSettings: Equatable {
     var compliance: Float = 0.0001
     var bendCompliance: Float = 0.1
     var gravity: Float = 3
-    var impulseStrength: Float = 2
+    var impulseStrength: Float = 5
     var impulseRadius: Float = 1.7
     var trebleImpulseStrength: Float = 0.14
     var trebleImpulseRadius: Float = 1.4
     var iterations = 1
     var shineIntensity: Float = 0.25
+    var chromaticAberration: Float = 0.7
+    var iridescence: Float = 0.75
+    var rippleThickness: Float = 2
     var showMesh = false
 }
 
 struct ClothCamera: Equatable {
     var yaw: Float = 0
     var pitch: Float = 0
-    var zoom: Float = 0.9
+    var zoom: Float = 0.7
 }
 
 struct ClothRipple {
@@ -129,7 +132,12 @@ struct ClothSimulation {
     }
 
     mutating func impulse(strength: Float) {
-        addRipple(origin: .zero, strength: strength, radius: settings.impulseRadius, isTreble: false)
+        // Scatter each hit within a central ellipse, sharing the visual and physical origin.
+        let rippleAngle = Float.random(in: 0..<(2 * .pi))
+        let rippleOffset = sqrt(Float.random(in: 0..<1)) * 0.12
+        let rippleOrigin = SIMD2(cos(rippleAngle) * settings.width,
+                                 sin(rippleAngle) * settings.height) * rippleOffset
+        addRipple(origin: rippleOrigin, strength: strength, radius: settings.impulseRadius, isTreble: false)
         bassPulse = 1
         bassPulseLevel = min(1, max(0, strength))
         let amount = (min(1, max(0, strength)) * 0.13 + 0.035) * settings.impulseStrength
@@ -139,8 +147,8 @@ struct ClothSimulation {
         let direction = SIMD4<Float>(cos(scatterAngle) * tilt, sin(scatterAngle) * tilt,
                                      nextDirection * sqrt(max(0, 1 - tilt * tilt)), 0)
         for i in positions.indices where !isPinned(i) {
-            let p = positions[i]
-            let falloff = exp(-(p.x * p.x + p.y * p.y) / (settings.impulseRadius * settings.impulseRadius))
+            let offset = SIMD2(positions[i].x, positions[i].y) - rippleOrigin
+            let falloff = exp(-simd_length_squared(offset) / (settings.impulseRadius * settings.impulseRadius))
             previous[i] -= direction * amount * falloff
         }
         nextDirection *= -1
@@ -167,45 +175,6 @@ struct ClothSimulation {
             previous[i] -= direction * amount * exp(-simd_length_squared(offset) / radiusSquared)
         }
         nextTrebleDirection *= -1
-    }
-
-    /// Sweep a soft brush over the projected mesh. Coordinates match Metal's
-    /// normalized device coordinates, with positive Y toward the top of the view.
-    mutating func brush(from start: SIMD2<Float>, to end: SIMD2<Float>,
-                        camera: ClothCamera, aspect: Float) {
-        guard aspect.isFinite, aspect > 0,
-              start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
-        // Measure screen distances in units of the shorter viewport dimension.
-        let metric = SIMD2<Float>(max(1, aspect), max(1, 1 / aspect))
-        let movement = (end - start) * metric
-        let length = simd_length(movement)
-        guard length > 0.00001 else { return }
-        let direction = movement / length
-        let amount = min(length, 0.2) * 0.45
-        let cy = cos(camera.yaw), sy = sin(camera.yaw)
-        let cp = cos(camera.pitch), sp = sin(camera.pitch)
-        let distance = sqrt(settings.width * settings.width + settings.height * settings.height)
-            * 1.35 * camera.zoom
-        let scale = min(2.6, 2.6 * aspect)
-        // The resting cloth lies in the simulation's XY plane. Push along
-        // its fixed normal; camera rotation only affects where the brush lands.
-        let impulse = SIMD4<Float>(0, 0, -amount, 0)
-        let radius: Float = 0.09
-        for i in positions.indices where !isPinned(i) {
-            let p = positions[i]
-            let turned = SIMD3<Float>(cy * p.x + sy * p.z, p.y, -sy * p.x + cy * p.z)
-            let world = SIMD3<Float>(turned.x, cp * turned.y - sp * turned.z,
-                                      sp * turned.y + cp * turned.z)
-            let depth = distance - world.z
-            guard depth > 0.1 else { continue }
-            let projected = SIMD2(world.x * scale / aspect, world.y * scale) / depth
-            let offset = (projected - start) * metric
-            let t = min(1, max(0, simd_dot(offset, direction) / length))
-            let separation = simd_length(offset - movement * t) / radius
-            guard separation < 1 else { continue }
-            let falloff = (1 - separation * separation)
-            previous[i] -= impulse * falloff * falloff
-        }
     }
 
     mutating func advance(delta: Double) {
@@ -245,7 +214,7 @@ struct ClothBassDetector {
     // Captured playback can have bass peaks below 0.02. Keep the noise floor
     // below those peaks; the relative threshold still rejects sustained bass.
     var floor: Float = 0.002
-    var cooldown: Double = 0.14
+    var cooldown: Double = 0.28
     var fullHitEnergy: Float = 0.12
 
     static var treble: Self {

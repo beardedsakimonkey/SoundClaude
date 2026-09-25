@@ -62,27 +62,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var shader: VisualizerShader = .bars
     var inkPoolSettings = InkPoolSettings()
     var clothSettings = ClothSettings()
-    var clothCamera = ClothCamera() {
-        didSet {
-            if clothCamera != oldValue {
-                clothPointer = nil
-                previousClothPointer = nil
-            }
-        }
-    }
-
-    private var clothPointer: SIMD2<Float>?
-    private var previousClothPointer: SIMD2<Float>?
-
-    func updateClothPointer(_ point: SIMD2<Float>?) {
-        guard shader == .cloth else {
-            clothPointer = nil
-            previousClothPointer = nil
-            return
-        }
-        if point == nil || clothPointer == nil { previousClothPointer = point }
-        clothPointer = point
-    }
+    var clothCamera = ClothCamera()
 
     private var shadowMask: MTLTexture?
     private var shadowBlur: MTLTexture?
@@ -225,11 +205,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             cloth.trebleImpulse(strength: strength)
         }
         let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
-        if view.window?.isKeyWindow == true, NSEvent.pressedMouseButtons == 0,
-           let point = clothPointer, let previous = previousClothPointer {
-            cloth.brush(from: previous, to: point, camera: clothCamera, aspect: aspect)
-        }
-        previousClothPointer = clothPointer
         cloth.advance(delta: delta)
         // Each command owns its snapshot until the GPU completes the frame.
         let buffer = cloth.positions.withUnsafeBytes { bytes in
@@ -263,20 +238,22 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 min(depth, sp * p.y + cp * (-sy * p.x + cy * p.z))
             }
             let wallDepth = min(-size * 0.12, minimumDepth - size * 0.04)
-            // Four header float4s and 64 pairs, matching ClothUniforms in Metal.
+            // Five header float4s and 64 pairs, matching ClothUniforms in Metal.
             var uniforms = [
                 SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
                 SIMD4<Float>(aspect, clothCamera.yaw, clothCamera.pitch, distance),
                 SIMD4<Float>(clothSettings.shineIntensity, Float(cloth.ripples.count),
                              clothSettings.showMesh ? 1 : 0, 0),
-                SIMD4<Float>(wallDepth, 0.48, 0, 0)
+                SIMD4<Float>(wallDepth, 0.48, 0, 0),
+                SIMD4<Float>(clothSettings.chromaticAberration, clothSettings.iridescence,
+                             clothSettings.rippleThickness, 0)
             ]
             for ripple in cloth.ripples {
                 uniforms.append(SIMD4(ripple.origin.x, ripple.origin.y,
                                       ripple.age / ClothSimulation.rippleTravelDuration, ripple.strength))
                 let trailAge = max(0, ripple.age - ClothSimulation.rippleTravelDuration)
                     / ClothSimulation.rippleTrailDuration
-                uniforms.append(SIMD4(ripple.radius, ripple.isTreble ? 1 : 0, trailAge, 0))
+                uniforms.append(SIMD4(ripple.radius, ripple.isTreble ? 1 : 0, trailAge, ripple.age))
             }
             uniforms.append(contentsOf: repeatElement(SIMD4<Float>.zero,
                 count: (ClothSimulation.maximumRipples - cloth.ripples.count) * 2))
@@ -428,8 +405,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                                        vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
             }
         } else {
-            clothPointer = nil
-            previousClothPointer = nil
             lastClothTime = nil
             bassDetector = ClothBassDetector()
             trebleDetector = .treble

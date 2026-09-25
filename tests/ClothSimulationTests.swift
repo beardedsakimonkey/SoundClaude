@@ -226,41 +226,29 @@ struct ClothSimulationTests {
         // Gravity moves the interior while all four corners stay pinned.
         var hanging = ClothSimulation(settings: settings)
         let resting = hanging.positions
+        hanging.advance(delta: ClothSimulation.step)
+        let hangingCenter = resting.count / 2
+        precondition(hanging.positions[hangingCenter].z > resting[hangingCenter].z,
+                     "Gravity must pull toward the default camera along positive Z")
+        precondition(abs(hanging.positions[hangingCenter].y - resting[hangingCenter].y) < 0.00001,
+                     "Gravity must not pull down along Y")
         for _ in 0..<60 { hanging.advance(delta: 1 / 60) }
         let bottomCenter = resting.count - hanging.columns + hanging.columns / 2
-        precondition(hanging.positions[bottomCenter].y < resting[bottomCenter].y,
+        precondition(hanging.positions[bottomCenter].z > resting[bottomCenter].z,
                      "The bottom edge between the pins must respond to gravity")
         for index in corners {
             precondition(hanging.positions[index] == resting[index])
         }
         settings.impulseStrength = 0
+        settings.gravity = 0
         var silent = ClothSimulation(settings: settings)
         silent.impulse(strength: 1)
         silent.advance(delta: 1 / 60)
         precondition(silent.positions.allSatisfy { $0.z == 0 })
-        // Pointer movement affects a local region and preserves the pinned corners.
-        var brushSettings = ClothSettings()
-        brushSettings.gravity = 0
-        var brushed = ClothSimulation(settings: brushSettings)
-        let flat = brushed.positions
-        let camera = ClothCamera(yaw: 0, pitch: 0, zoom: 0.8)
-        brushed.brush(from: .zero, to: .zero, camera: camera, aspect: 1)
-        brushed.advance(delta: ClothSimulation.step)
-        precondition(brushed.positions == flat, "A stationary pointer must not add force")
-        brushed.brush(from: SIMD2(-0.1, 0), to: SIMD2(0.1, 0), camera: camera, aspect: 1)
-        brushed.advance(delta: ClothSimulation.step)
-        precondition(brushed.positions[center].z < -0.01, "The brush must push the cloth")
-        precondition(abs(brushed.positions[brushSettings.columns + 1].z) < 0.001,
-                     "The brush must remain local")
-        for i in flat.indices where brushed.isPinned(i) { precondition(brushed.positions[i] == flat[i]) }
-        var missed = ClothSimulation(settings: brushSettings)
-        missed.brush(from: SIMD2(0.98, 0.98), to: SIMD2(1, 1), camera: camera, aspect: 1)
-        missed.advance(delta: ClothSimulation.step)
-        precondition(missed.positions == flat, "Movement away from the cloth must not deform it")
-        // Isolate the brush force from constraint corrections. Camera rotation
-        // must not turn the push away from the resting cloth's plane normal.
-        var directionSettings = brushSettings
+        var directionSettings = ClothSettings()
+        directionSettings.gravity = 0
         directionSettings.iterations = 0
+        let flat = ClothSimulation(settings: directionSettings).positions
         // With gravity and constraints disabled, measure the impulse direction.
         // Copy the unadvanced state to isolate each hit's contribution.
         for _ in 0..<20 {
@@ -272,32 +260,18 @@ struct ClothSimulationTests {
             let tilt = simd_length(SIMD2(firstMotion.x, firstMotion.y)) / simd_length(firstMotion)
             precondition(tilt >= 0.108 - 0.00001 && tilt <= 0.24 + 0.00001)
             precondition(firstMotion.z > 0)
+            let hitOrigin = scattered.ripples[0].origin
+            let centerOffset = SIMD2(flat[center].x, flat[center].y) - hitOrigin
+            let centerFalloff = exp(-simd_length_squared(centerOffset)
+                                    / (directionSettings.impulseRadius * directionSettings.impulseRadius))
             precondition(abs(simd_length(firstMotion) - 0.165 * directionSettings.impulseStrength
-                             * (1 - directionSettings.damping)) < 0.00001,
-                         "Scatter must preserve impulse strength")
+                             * centerFalloff * (1 - directionSettings.damping)) < 0.00001,
+                         "Scatter must preserve impulse strength around the visual ripple origin")
             scattered.impulse(strength: 1)
             scattered.advance(delta: ClothSimulation.step)
             let secondMotion = scattered.positions[center] - flat[center] - firstMotion
             precondition(secondMotion.z < 0, "Scattered hits must alternate depth direction")
         }
-        for angle: Float in [0, 0.7, .pi / 2, .pi] {
-            var rotated = ClothSimulation(settings: directionSettings)
-            rotated.brush(from: SIMD2(-0.1, 0), to: SIMD2(0.1, 0),
-                          camera: ClothCamera(yaw: angle, pitch: 0.4, zoom: 0.8), aspect: 0.5)
-            rotated.advance(delta: ClothSimulation.step)
-            precondition(rotated.positions[center].z < -0.01,
-                         "The push must follow the cloth plane normal at every camera angle")
-            for i in flat.indices {
-                precondition(rotated.positions[i].x == flat[i].x && rotated.positions[i].y == flat[i].y,
-                             "The brush must not add force along the cloth plane")
-            }
-        }
-        for frame in 0..<240 {
-            let x = Float(sin(Double(frame) * 0.2)) * 0.5
-            brushed.brush(from: SIMD2(x, -0.05), to: SIMD2(x, 0.05), camera: camera, aspect: 1)
-            brushed.advance(delta: 1 / 60)
-        }
-        precondition(brushed.positions.allSatisfy { simd_length($0).isFinite && simd_length($0) < 10 })
         var detector = ClothBassDetector()
         for _ in 0..<60 { precondition(detector.update(level: 0, delta: 1 / 60) == nil) }
         precondition(detector.update(level: 0.7, delta: 1 / 60) != nil)
@@ -320,10 +294,10 @@ struct ClothSimulationTests {
         var repeatHits = ClothBassDetector()
         for _ in 0..<60 { _ = repeatHits.update(level: 0.1, delta: 1 / 60) }
         precondition(repeatHits.update(level: 0.3, delta: 1 / 60) != nil)
-        _ = repeatHits.update(level: 0.29, delta: 0.05)
-        precondition(repeatHits.update(level: 0.31, delta: 0.05) == nil,
+        _ = repeatHits.update(level: 0.29, delta: 0.1)
+        precondition(repeatHits.update(level: 0.31, delta: 0.1) == nil,
                      "The cooldown must suppress closely spaced hits")
-        precondition(repeatHits.update(level: 0.32, delta: 0.05) != nil,
+        precondition(repeatHits.update(level: 0.32, delta: 0.1) != nil,
                      "A rising hit after cooldown must not require re-arming")
         precondition(repeatHits.update(level: 0.5, delta: 2) == nil,
                      "Expired history must not trigger a hit after a long gap")
