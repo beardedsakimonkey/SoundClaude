@@ -150,8 +150,10 @@ struct TrackDetailView: View {
                         animatesChanges: true,
                         showsPlaceholderIcon: false,
                         cornerRadius: 12,
-                        hoverAnimation: .spring(response: 0.45, dampingFraction: 0.45),
-                        hoverOutAnimation: .spring(response: 0.6, dampingFraction: 0.8),
+                        artworkLift: isHoveringArtwork && !reduceMotion ? 8 : 0,
+                        scalesOnHover: false,
+                        hoverAnimation: .spring(response: 0.45, dampingFraction: 0.9),
+                        hoverOutAnimation: .spring(response: 0.6, dampingFraction: 1),
                         track: details.track,
                         likes: model.likes,
                         onAddToQueue: model.addToQueue,
@@ -161,11 +163,21 @@ struct TrackDetailView: View {
                         isRotated: false,
                         isShowingArtwork: isShowingArtwork
                     ))
-                    // .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.05 : 1)
                     .animation(
-                        reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.6),
+                        reduceMotion ? nil : .spring(
+                            response: 0.5,
+                            dampingFraction: isHoveringArtwork ? 0.9 : 1
+                        ),
                         value: isHoveringArtwork
                     )
+                    .animation(
+                        reduceMotion ? nil : .spring(
+                            response: 0.45,
+                            dampingFraction: isHoveringArtwork ? 0.9 : 1
+                        )
+                    ) { content in
+                        content.scaleEffect(isHoveringArtwork && !reduceMotion ? 1.02 : 1)
+                    }
                     .onContentHover { isHoveringArtwork = $0 }
 
                     VStack(alignment: .leading, spacing: 10) {

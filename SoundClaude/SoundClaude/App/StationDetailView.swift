@@ -16,6 +16,7 @@ struct StationDetailView: View {
     @State private var errorMessage: String?
     @State private var loadAttempt = 0
     @State private var isShowingArtwork = false
+    @State private var isHoveringArtwork = false
     @State private var isHoveringStationTitle = false
     @State private var isOpeningSource = false
     @State private var sourceErrorMessage: String?
@@ -170,6 +171,7 @@ struct StationDetailView: View {
                     artworkURL: artworkURL, title: artworkTitle,
                     loader: model.artworkLoader, size: 250, animatesChanges: true,
                     cornerRadius: 12,
+                    artworkLift: isHoveringArtwork && !reduceMotion ? 8 : 0,
                     scalesOnHover: false,
                     track: artworkTrack,
                     likes: model.likes,
@@ -182,8 +184,25 @@ struct StationDetailView: View {
             .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
             .modifier(DetailArtworkRotation(
                 transform: artworkTransform,
-                isShowingArtwork: isShowingArtwork
+                isShowingArtwork: isShowingArtwork,
+                flattensOnHover: true
             ))
+            .animation(
+                reduceMotion ? nil : .spring(
+                    response: 0.5,
+                    dampingFraction: isHoveringArtwork ? 0.9 : 1
+                ),
+                value: isHoveringArtwork
+            )
+            .animation(
+                reduceMotion ? nil : .spring(
+                    response: 0.45,
+                    dampingFraction: isHoveringArtwork ? 0.9 : 1
+                )
+            ) { content in
+                content.scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
+            }
+            .onContentHover { isHoveringArtwork = $0 }
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 6) {
                     Label(stationType, systemImage: "dot.radiowaves.left.and.right")

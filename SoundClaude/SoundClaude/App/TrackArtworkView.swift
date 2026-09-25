@@ -353,7 +353,7 @@ struct DetailArtworkTransform {
     var x = 0.0
     var y = 22.0
     var z = 0.0
-    var perspective = 0.8
+    var perspective = 0.7
 }
 
 extension EnvironmentValues {
@@ -365,6 +365,7 @@ struct DetailArtworkRotation: ViewModifier {
     var transform = DetailArtworkTransform()
     var isRotated = true
     var isShowingArtwork = false
+    var flattensOnHover = true
 
     private let hoverInsets = EdgeInsets(top: 20, leading: 10, bottom: -10, trailing: 0)
 
@@ -379,12 +380,12 @@ struct DetailArtworkRotation: ViewModifier {
         return isRotated
     }
 
-    private var isPerspectiveFlat: Bool { isHovering || isShowingArtwork }
+    private var isPerspectiveFlat: Bool { (flattensOnHover && isHovering) || isShowingArtwork }
 
     func body(content: Content) -> some View {
         content
             .animation(
-                reduceMotion ? nil : .spring(response: isPerspectiveFlat ? 0.5 : 0.75, dampingFraction: 0.85)
+                reduceMotion ? nil : .spring(response: isPerspectiveFlat ? 0.5 : 0.75, dampingFraction: 1)
             ) { artwork in
                 rotated(artwork, perspective: isPerspectiveFlat || !displayedRotation ? 0 : transform.perspective)
             }
@@ -430,9 +431,10 @@ struct DetailArtworkView: View {
     var animatesChanges = false
     var showsPlaceholderIcon = true
     var cornerRadius: CGFloat = 6
-    var reflectionBlurRadius: CGFloat = 4
+    var reflectionBlurRadius: CGFloat = 3
+    var artworkLift: CGFloat = 0
     var scalesOnHover = true
-    var hoverAnimation: Animation = .spring(response: 0.4, dampingFraction: 0.75)
+    var hoverAnimation: Animation = .spring(response: 0.4, dampingFraction: 0.9)
     var hoverOutAnimation: Animation? = nil
     var track: SoundCloudTrack? = nil
     @ObservedObject var likes: LikesController
@@ -443,9 +445,51 @@ struct DetailArtworkView: View {
 
     private var reflectionHeight: CGFloat { size * 0.45 }
 
+    private enum ReflectionFade {
+        // Opacity at the artwork's bottom edge (0...1).
+        static let topOpacity: Double = 0.65
+        // Distance down the reflection where it becomes invisible (0...1).
+        static let fadeEnd: CGFloat = 0.85
+        // Higher values fade faster near the top; 1 gives a linear fade.
+        static let falloff: Double = 3.7
+
+        static func stops(topOpacity: Double, fadeEnd: CGFloat, falloff: Double) -> [Gradient.Stop] {
+            (0...32).map { step in
+                let progress = Double(step) / 32
+                return Gradient.Stop(
+                    color: .black.opacity(topOpacity * pow(1 - progress, falloff)),
+                    location: CGFloat(progress) * fadeEnd
+                )
+            }
+        }
+    }
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHoveringArtwork = false
     @State private var likeErrorMessage: String?
+
+    #if DEBUG
+    @AppStorage("debug.reflection.topOpacity") private var reflectionTopOpacity = ReflectionFade.topOpacity
+    @AppStorage("debug.reflection.fadeEnd") private var reflectionFadeEnd = Double(ReflectionFade.fadeEnd)
+    @AppStorage("debug.reflection.falloff") private var reflectionFalloff = ReflectionFade.falloff
+    @State private var isShowingReflectionControls = false
+    #endif
+
+    private var reflectionStops: [Gradient.Stop] {
+        #if DEBUG
+        ReflectionFade.stops(
+            topOpacity: reflectionTopOpacity,
+            fadeEnd: CGFloat(reflectionFadeEnd),
+            falloff: reflectionFalloff
+        )
+        #else
+        ReflectionFade.stops(
+            topOpacity: ReflectionFade.topOpacity,
+            fadeEnd: ReflectionFade.fadeEnd,
+            falloff: ReflectionFade.falloff
+        )
+        #endif
+    }
 
     var body: some View {
         VStack(spacing: 1) {
@@ -461,24 +505,23 @@ struct DetailArtworkView: View {
                             isUpdatingPlaylist: isUpdatingPlaylist
                         )
                     }
+                    #if DEBUG
+                    Divider()
+                    Button("Tune Reflection…") { isShowingReflectionControls = true }
+                    #endif
                 }
+                .offset(y: reduceMotion ? 0 : -artworkLift)
 
             artworkThumbnail
                 .scaleEffect(x: 1, y: -1)
                 .blur(radius: reflectionBlurRadius)
+                // Mirror the lift below the ground while keeping the fade fixed.
+                .offset(y: reduceMotion ? 0 : artworkLift)
                 .frame(height: reflectionHeight, alignment: .top)
                 .clipped()
                 .mask {
                     LinearGradient(
-                        stops: [
-                            .init(color: .black.opacity(0.45), location: 0),
-                            .init(color: .black.opacity(0.24), location: 0.1),
-                            .init(color: .black.opacity(0.12), location: 0.2),
-                            .init(color: .black.opacity(0.055), location: 0.32),
-                            .init(color: .black.opacity(0.02), location: 0.48),
-                            .init(color: .black.opacity(0.005), location: 0.65),
-                            .init(color: .clear, location: 0.85)
-                        ],
+                        stops: reflectionStops,
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -488,6 +531,11 @@ struct DetailArtworkView: View {
                 // Reserve space for the visible reflection; let its faint tail overflow.
                 .frame(height: 32, alignment: .top)
         }
+        #if DEBUG
+        .popover(isPresented: $isShowingReflectionControls, arrowEdge: .trailing) {
+            reflectionControls
+        }
+        #endif
         .alert("Could not update like", isPresented: Binding(
             get: { likeErrorMessage != nil },
             set: { if !$0 { likeErrorMessage = nil } }
@@ -497,6 +545,45 @@ struct DetailArtworkView: View {
             Text(likeErrorMessage ?? "Please try again.")
         }
     }
+
+    #if DEBUG
+    private var reflectionControls: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Artwork reflection").font(.headline)
+                Spacer()
+                Button("Reset") {
+                    reflectionTopOpacity = ReflectionFade.topOpacity
+                    reflectionFadeEnd = Double(ReflectionFade.fadeEnd)
+                    reflectionFalloff = ReflectionFade.falloff
+                }
+            }
+            reflectionSlider("Top opacity", value: $reflectionTopOpacity, range: 0...1, step: 0.01)
+            reflectionSlider("Fade distance", value: $reflectionFadeEnd, range: 0.01...1, step: 0.01)
+            reflectionSlider("Falloff", value: $reflectionFalloff, range: 0.1...10, step: 0.1)
+            Text("Higher falloff fades faster. Settings are saved and apply to all detail artwork in debug builds.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(20)
+        .frame(width: 320)
+    }
+
+    private func reflectionSlider(
+        _ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(value.wrappedValue, format: .number.precision(.fractionLength(2)))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: value, in: range, step: step) { Text(title) }
+        }
+    }
+    #endif
 
     @ViewBuilder
     private var draggableArtworkControl: some View {

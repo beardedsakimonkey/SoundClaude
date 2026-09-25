@@ -20,6 +20,7 @@ struct PlaylistDetailView: View {
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isShowingArtwork = false
+    @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var likeErrorMessage: String?
     @State private var editingPlaylist: SoundCloudPlaylist?
@@ -290,6 +291,7 @@ struct PlaylistDetailView: View {
                 size: artworkSize,
                 animatesChanges: true,
                 cornerRadius: 12,
+                artworkLift: isHoveringArtwork && !reduceMotion ? 8 : 0,
                 scalesOnHover: false,
                 track: artworkTrack,
                 likes: model.likes,
@@ -305,7 +307,26 @@ struct PlaylistDetailView: View {
             .transition(DetailArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
         }
         .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
-        .modifier(DetailArtworkRotation(isShowingArtwork: isShowingArtwork))
+        .modifier(DetailArtworkRotation(
+            isShowingArtwork: isShowingArtwork,
+            flattensOnHover: true
+        ))
+        .animation(
+            reduceMotion ? nil : .spring(
+                response: 0.5,
+                dampingFraction: isHoveringArtwork ? 0.9 : 1
+            ),
+            value: isHoveringArtwork
+        )
+        .animation(
+            reduceMotion ? nil : .spring(
+                response: 0.45,
+                dampingFraction: isHoveringArtwork ? 0.9 : 1
+            )
+        ) { content in
+            content.scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
+        }
+        .onContentHover { isHoveringArtwork = $0 }
     }
 
     #if DEBUG
