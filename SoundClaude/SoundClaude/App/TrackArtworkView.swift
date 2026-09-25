@@ -430,6 +430,7 @@ struct DetailArtworkView: View {
     var animatesChanges = false
     var showsPlaceholderIcon = true
     var cornerRadius: CGFloat = 6
+    var reflectionBlurRadius: CGFloat = 4
     var scalesOnHover = true
     var track: SoundCloudTrack? = nil
     @ObservedObject var likes: LikesController
@@ -462,6 +463,7 @@ struct DetailArtworkView: View {
 
             artworkThumbnail
                 .scaleEffect(x: 1, y: -1)
+                .blur(radius: reflectionBlurRadius)
                 .frame(height: reflectionHeight, alignment: .top)
                 .clipped()
                 .mask {
