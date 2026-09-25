@@ -432,6 +432,8 @@ struct DetailArtworkView: View {
     var cornerRadius: CGFloat = 6
     var reflectionBlurRadius: CGFloat = 4
     var scalesOnHover = true
+    var hoverAnimation: Animation = .spring(response: 0.4, dampingFraction: 0.75)
+    var hoverOutAnimation: Animation? = nil
     var track: SoundCloudTrack? = nil
     @ObservedObject var likes: LikesController
     let onAddToQueue: (SoundCloudTrack) -> Void
@@ -545,7 +547,7 @@ struct DetailArtworkView: View {
             isHovering: isHoveringArtwork && !reduceMotion
         ))
         .animation(
-            reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
+            reduceMotion ? nil : (isHoveringArtwork ? hoverAnimation : (hoverOutAnimation ?? hoverAnimation)),
             value: isHoveringArtwork
         )
     }

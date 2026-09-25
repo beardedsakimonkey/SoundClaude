@@ -4,6 +4,7 @@ import SwiftUI
 
 struct TrackDetailView: View {
     private let artworkSize: CGFloat = 250
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let track: SoundCloudTrack
     @ObservedObject var model: AppModel
@@ -18,6 +19,7 @@ struct TrackDetailView: View {
     @State private var errorMessage: String?
     @State private var repostErrorMessage: String?
     @State private var isShowingArtwork = false
+    @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
     init(
@@ -148,6 +150,8 @@ struct TrackDetailView: View {
                         animatesChanges: true,
                         showsPlaceholderIcon: false,
                         cornerRadius: 12,
+                        hoverAnimation: .spring(response: 0.45, dampingFraction: 0.45),
+                        hoverOutAnimation: .spring(response: 0.6, dampingFraction: 0.8),
                         track: details.track,
                         likes: model.likes,
                         onAddToQueue: model.addToQueue,
@@ -157,6 +161,12 @@ struct TrackDetailView: View {
                         isRotated: false,
                         isShowingArtwork: isShowingArtwork
                     ))
+                    // .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.05 : 1)
+                    .animation(
+                        reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.6),
+                        value: isHoveringArtwork
+                    )
+                    .onContentHover { isHoveringArtwork = $0 }
 
                     VStack(alignment: .leading, spacing: 10) {
                         if details.track.access == .preview {
