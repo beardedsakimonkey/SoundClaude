@@ -38,7 +38,7 @@ struct ClothSimulationTests {
         precondition(cloth.positions.first! == SIMD4(-4, 1.5, 0, 0))
         precondition(cloth.positions.last! == SIMD4(4, -1.5, 0, 0))
         let corners = cloth.positions.indices.filter { cloth.isPinned($0) }
-        precondition(corners.count == 4)
+        precondition(corners == [0, cloth.columns - 1])
         let pins = corners.map { cloth.positions[$0] }
         cloth.impulse(strength: 1)
         cloth.advance(delta: 1 / 60)
@@ -48,6 +48,17 @@ struct ClothSimulationTests {
         precondition(cloth.positions == deformed, "Motion settings must not reset the mesh")
         for _ in 0..<120 { cloth.advance(delta: 1 / 60) }
         precondition(corners.map { cloth.positions[$0] } == pins)
+        // Both bottom corners must respond to gravity without an audio impulse.
+        var hanging = ClothSimulation(settings: settings)
+        let resting = hanging.positions
+        for _ in 0..<60 { hanging.advance(delta: 1 / 60) }
+        for index in [resting.count - hanging.columns, resting.count - 1] {
+            precondition(hanging.positions[index].y < resting[index].y,
+                         "The bottom corners must hang freely")
+        }
+        for index in [0, hanging.columns - 1] {
+            precondition(hanging.positions[index] == resting[index])
+        }
         settings.impulseStrength = 0
         var silent = ClothSimulation(settings: settings)
         silent.impulse(strength: 1)
@@ -73,7 +84,7 @@ struct ClothSimulationTests {
         missed.advance(delta: ClothSimulation.step)
         precondition(missed.positions == flat, "Movement away from the cloth must not deform it")
         // Isolate the brush force from constraint corrections. Camera rotation
-        // must not turn the push away from the pinned corners' plane normal.
+        // must not turn the push away from the resting cloth's plane normal.
         var directionSettings = brushSettings
         directionSettings.stiffness = 0
         // With gravity and constraints disabled, measure the impulse direction.

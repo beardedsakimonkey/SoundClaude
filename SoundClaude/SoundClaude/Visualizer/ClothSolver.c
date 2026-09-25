@@ -7,7 +7,7 @@ void SCClothStep(simd_float4 *positions, simd_float4 *previous,
                  float damping, float stiffness, float gravity, uint32_t iterations) {
     const uint32_t count = columns * rows;
     for (uint32_t i = 0; i < count; i++) {
-        if (i == 0 || i == columns - 1 || i == count - columns || i == count - 1) continue;
+        if (i == 0 || i == columns - 1) continue;
         const simd_float4 p = positions[i];
         positions[i] = p + (p - previous[i]) * (1.0f - damping) + (simd_float4){0, -gravity / (120.0f * 120.0f), 0, 0};
         previous[i] = p;

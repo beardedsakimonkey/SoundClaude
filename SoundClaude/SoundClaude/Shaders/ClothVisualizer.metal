@@ -4,7 +4,7 @@ using namespace metal;
 struct ClothUniforms {
     float4 mesh; // columns, rows, width, height
     float4 camera; // aspect, yaw, pitch, distance
-    float4 appearance; // shine intensity, gridline opacity, unused, unused
+    float4 appearance; // shine intensity, gridline opacity, audio brightness, unused
 };
 
 struct ClothVertex {
@@ -97,7 +97,7 @@ fragment float4 clothVisualizerFragment(
     float2 grid = in.uv * (uniforms.mesh.xy - 1);
     float2 edge = abs(fract(grid - 0.5) - 0.5) / max(fwidth(grid), float2(0.001));
     float weave = 1.0 - uniforms.appearance.y * (1.0 - smoothstep(0.0, 0.8, min(edge.x, edge.y)));
-    float corner = length(min(in.uv, 1.0 - in.uv) * uniforms.mesh.zw);
+    float corner = length(float2(min(in.uv.x, 1.0 - in.uv.x), in.uv.y) * uniforms.mesh.zw);
     float pin = 1.0 - smoothstep(0.025, 0.055, corner);
     // A glossy satin finish: a bright key highlight, soft cool fill, and edge sheen.
     float3 lit = color * (0.3 + 0.75 * diffuse) * weave;
@@ -105,5 +105,5 @@ fragment float4 clothVisualizerFragment(
     lit += float3(1.0, 0.94, 0.86) * specular * 0.85 * diffuse * shineIntensity;
     lit += float3(0.65, 0.8, 1.0) * sheen * 0.3 * max(dot(normal, fillLight), 0.0) * shineIntensity;
     lit += mix(color, float3(0.8, 0.9, 1.0), 0.65) * fresnel * 0.35 * shineIntensity;
-    return float4(mix(lit, float3(0.95), pin), 1);
+    return float4(mix(lit, float3(0.95), pin) * uniforms.appearance.z, 1);
 }

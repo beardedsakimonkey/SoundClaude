@@ -152,11 +152,11 @@ struct ArtworkVisualizerView: View {
 
 private struct AudioReactiveSpotlight: ViewModifier {
     let spectrumBuffer: OpaquePointer
-    @State private var level = 0.0
+    @State private var envelope = ClothLightEnvelope()
 
     func body(content: Content) -> some View {
         content
-            .opacity(0.35 + 0.65 * level)
+            .opacity(envelope.brightness)
             .task {
                 var bands = [Float](repeating: 0, count: Int(SCSpectrumBandCount))
                 var previousTime = ProcessInfo.processInfo.systemUptime
@@ -169,10 +169,7 @@ private struct AudioReactiveSpotlight: ViewModifier {
                         SCSpectrumBufferRead(spectrumBuffer, $0.baseAddress, &rms)
                     }
                     if didRead {
-                        let target = rms.isFinite ? min(1, max(0, Double(rms) * 4)) : 0
-                        // Follow rising amplitude quickly, then let the glow fade gently.
-                        let response = target > level ? 0.08 : 0.35
-                        level += (target - level) * (1 - exp(-delta / response))
+                        envelope.update(rms: rms, delta: delta)
                     }
                     do {
                         try await Task.sleep(for: .milliseconds(33))

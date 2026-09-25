@@ -86,6 +86,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private var cloth = ClothSimulation()
     private var bassDetector = ClothBassDetector()
     private var lastClothTime: Double?
+    private var clothLightEnvelope = ClothLightEnvelope()
     private let depthState: MTLDepthStencilState?
     private let spectrumBuffer: OpaquePointer
     private let commandQueue: MTLCommandQueue
@@ -247,8 +248,10 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             length: MemoryLayout<Float>.size,
             index: 1
         )
+        var rms: Float = 0
+        var didReadSpectrum = false
         bands.withUnsafeMutableBufferPointer { pointer in
-            _ = SCSpectrumBufferRead(spectrumBuffer, pointer.baseAddress, nil)
+            didReadSpectrum = SCSpectrumBufferRead(spectrumBuffer, pointer.baseAddress, &rms)
             encoder.setFragmentBytes(
                 pointer.baseAddress!,
                 length: pointer.count * MemoryLayout<Float>.stride,
@@ -266,6 +269,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             let now = ProcessInfo.processInfo.systemUptime
             let delta = lastClothTime.map { now - $0 } ?? ClothSimulation.step
             lastClothTime = now
+            if didReadSpectrum {
+                clothLightEnvelope.update(rms: rms, delta: delta)
+            }
             // Bands 0..<18 cover roughly 30–180 Hz in the logarithmic spectrum.
             let bass = bands.prefix(18).reduce(0, +) / 18
             if let strength = bassDetector.update(level: bass, delta: delta) {
@@ -307,7 +313,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 var uniforms = [
                     SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
                     SIMD4<Float>(aspect, clothCamera.yaw, clothCamera.pitch, distance),
-                    SIMD4<Float>(clothSettings.shineIntensity, clothSettings.gridlineOpacity, 0, 0)
+                    SIMD4<Float>(clothSettings.shineIntensity, clothSettings.gridlineOpacity,
+                                 Float(clothLightEnvelope.brightness), 0)
                 ]
                 encoder.setVertexBuffer(buffer, offset: 0, index: 0)
                 encoder.setFragmentBuffer(normalBuffer, offset: 0, index: 5)
@@ -323,6 +330,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             clothPointer = nil
             previousClothPointer = nil
             lastClothTime = nil
+            clothLightEnvelope = ClothLightEnvelope()
             bassDetector = ClothBassDetector()
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         }

@@ -4,14 +4,14 @@ import simd
 struct ClothSettings: Equatable {
     var columns = 97
     var rows = 73
-    var width: Float = 8
-    var height: Float = 6
+    var width: Float = 6
+    var height: Float = 4.5
     var damping: Float = 0.015
     var stiffness: Float = 0.85
-    var gravity: Float = 0.65
+    var gravity: Float = 3
     var impulseStrength: Float = 1
     var impulseRadius: Float = 2.0
-    var iterations = 4
+    var iterations = 6
     var shineIntensity: Float = 0.25
     var gridlineOpacity: Float = 0
 }
@@ -19,7 +19,19 @@ struct ClothSettings: Equatable {
 struct ClothCamera: Equatable {
     var yaw: Float = 0
     var pitch: Float = 0
-    var zoom: Float = 0.8
+    var zoom: Float = 1
+}
+
+/// Shared audio response for the cloth lighting and its backdrop.
+struct ClothLightEnvelope {
+    private(set) var level = 0.0
+    var brightness: Double { 0.35 + 0.65 * level }
+
+    mutating func update(rms: Float, delta: Double) {
+        let target = rms.isFinite ? min(1, max(0, Double(rms) * 4)) : 0
+        let response = target > level ? 0.08 : 0.35
+        level += (target - level) * (1 - exp(-max(0, delta) / response))
+    }
 }
 
 /// A fixed-step Verlet cloth with structural and diagonal distance constraints.
@@ -36,7 +48,7 @@ struct ClothSimulation {
 
     func isPinned(_ index: Int) -> Bool {
         let x = index % columns, y = index / columns
-        return (x == 0 || x == columns - 1) && (y == 0 || y == rows - 1)
+        return (x == 0 || x == columns - 1) && y == 0
     }
 
     init(settings: ClothSettings = ClothSettings()) {
@@ -107,13 +119,13 @@ struct ClothSimulation {
         let length = simd_length(movement)
         guard length > 0.00001 else { return }
         let direction = movement / length
-        let amount = min(length, 0.2) * 0.9
+        let amount = min(length, 0.2) * 0.45
         let cy = cos(camera.yaw), sy = sin(camera.yaw)
         let cp = cos(camera.pitch), sp = sin(camera.pitch)
         let distance = sqrt(settings.width * settings.width + settings.height * settings.height)
             * 1.35 * camera.zoom
         let scale = min(2.6, 2.6 * aspect)
-        // The four pinned corners lie in the simulation's XY plane. Push along
+        // The resting cloth lies in the simulation's XY plane. Push along
         // its fixed normal; camera rotation only affects where the brush lands.
         let impulse = SIMD4<Float>(0, 0, -amount, 0)
         let radius: Float = 0.09
