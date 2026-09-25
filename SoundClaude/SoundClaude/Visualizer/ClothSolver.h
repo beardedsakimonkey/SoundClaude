@@ -10,12 +10,21 @@ typedef struct {
     float rest;
     float aWeight;
     float bWeight;
+    float lambda;
 } SCClothEdge;
+
+// Oriented shared edge (a, b), with opposite vertices c and d.
+typedef struct {
+    uint32_t a, b, c, d;
+    float restAngle;
+    float lambda;
+} SCClothBend;
 
 /// Updates exclusively owned particle storage by one fixed 1/120-second step.
 void SCClothStep(simd_float4 *positions, simd_float4 *previous,
                  uint32_t columns, uint32_t rows,
-                 const SCClothEdge *edges, uint32_t edgeCount,
-                 float damping, float stiffness, float gravity, uint32_t iterations);
+                 SCClothEdge *edges, uint32_t edgeCount,
+                 SCClothBend *bends, uint32_t bendCount,
+                 float damping, float compliance, float bendCompliance, float gravity, uint32_t iterations);
 
 #endif

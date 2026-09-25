@@ -116,13 +116,14 @@ struct ArtworkVisualizerView: View {
             let color = backdropAccent
             // Keep the spotlight visible even when the artwork accent is dark.
             let peak = max(0.01, max(color.red, max(color.green, color.blue)))
-            // Mix 25% toward neutral while keeping the same peak brightness.
-            let saturation = 0.75
+            // Soften the artwork color with a dimmer, less saturated spotlight.
+            let saturation = 0.5
+            let brightness = 0.45
             let glow = Color(
                 .sRGB,
-                red: (color.red / peak * saturation + 1 - saturation) * 0.65,
-                green: (color.green / peak * saturation + 1 - saturation) * 0.65,
-                blue: (color.blue / peak * saturation + 1 - saturation) * 0.65,
+                red: (color.red / peak * saturation + 1 - saturation) * brightness,
+                green: (color.green / peak * saturation + 1 - saturation) * brightness,
+                blue: (color.blue / peak * saturation + 1 - saturation) * brightness,
                 opacity: 1
             )
             RadialGradient(
@@ -136,7 +137,6 @@ struct ArtworkVisualizerView: View {
                 startRadius: 0,
                 endRadius: max(geometry.size.width, geometry.size.height) * 0.6
             )
-            .modifier(AudioReactiveSpotlight(spectrumBuffer: spectrumBuffer))
             .background(Color(white: 0.008))
         }
         .allowsHitTesting(false)
@@ -147,37 +147,6 @@ struct ArtworkVisualizerView: View {
             isDark: colorScheme == .dark,
             increasedContrast: colorSchemeContrast == .increased
         )
-    }
-}
-
-private struct AudioReactiveSpotlight: ViewModifier {
-    let spectrumBuffer: OpaquePointer
-    @State private var envelope = ClothLightEnvelope()
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(envelope.brightness)
-            .task {
-                var bands = [Float](repeating: 0, count: Int(SCSpectrumBandCount))
-                var previousTime = ProcessInfo.processInfo.systemUptime
-                while !Task.isCancelled {
-                    let now = ProcessInfo.processInfo.systemUptime
-                    let delta = now - previousTime
-                    previousTime = now
-                    var rms: Float = 0
-                    let didRead = bands.withUnsafeMutableBufferPointer {
-                        SCSpectrumBufferRead(spectrumBuffer, $0.baseAddress, &rms)
-                    }
-                    if didRead {
-                        envelope.update(rms: rms, delta: delta)
-                    }
-                    do {
-                        try await Task.sleep(for: .milliseconds(33))
-                    } catch {
-                        return
-                    }
-                }
-            }
     }
 }
 

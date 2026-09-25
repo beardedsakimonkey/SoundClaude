@@ -2,39 +2,28 @@ import Foundation
 import simd
 
 struct ClothSettings: Equatable {
-    var columns = 97
-    var rows = 73
+    var columns = 41
+    var rows = 31
     var width: Float = 6
     var height: Float = 4.5
     var damping: Float = 0.015
-    var stiffness: Float = 0.85
+    var compliance: Float = 0.0001
+    var bendCompliance: Float = 0.1
     var gravity: Float = 3
     var impulseStrength: Float = 1
     var impulseRadius: Float = 2.0
-    var iterations = 6
+    var iterations = 1
     var shineIntensity: Float = 0.25
-    var gridlineOpacity: Float = 0
+    var showMesh = false
 }
 
 struct ClothCamera: Equatable {
     var yaw: Float = 0
     var pitch: Float = 0
-    var zoom: Float = 1
+    var zoom: Float = 0.9
 }
 
-/// Shared audio response for the cloth lighting and its backdrop.
-struct ClothLightEnvelope {
-    private(set) var level = 0.0
-    var brightness: Double { 0.35 + 0.65 * level }
-
-    mutating func update(rms: Float, delta: Double) {
-        let target = rms.isFinite ? min(1, max(0, Double(rms) * 4)) : 0
-        let response = target > level ? 0.08 : 0.35
-        level += (target - level) * (1 - exp(-max(0, delta) / response))
-    }
-}
-
-/// A fixed-step Verlet cloth with structural and diagonal distance constraints.
+/// Fixed-step XPBD cloth with distance and signed dihedral bending constraints.
 struct ClothSimulation {
     private(set) var settings: ClothSettings
     var columns: Int { settings.columns }
@@ -43,6 +32,7 @@ struct ClothSimulation {
     private(set) var positions: [SIMD4<Float>] = []
     private var previous: [SIMD4<Float>] = []
     private var edges: [SCClothEdge] = []
+    private var bends: [SCClothBend] = []
     private var accumulator: Double = 0
     private(set) var nextDirection: Float = 1
 
@@ -63,11 +53,20 @@ struct ClothSimulation {
         for y in 0..<rows {
             for x in 0..<columns {
                 let a = y * columns + x
-                if x + 1 < columns { addEdge(a, a + 1) }
-                if y + 1 < rows { addEdge(a, a + columns) }
+                if x + 1 < columns {
+                    addEdge(a, a + 1)
+                    if y > 0 && y + 1 < rows { addBend(a, a + 1, a - columns + 1, a + columns) }
+                }
+                if y + 1 < rows {
+                    addEdge(a, a + columns)
+                    if x > 0 && x + 1 < columns { addBend(a, a + columns, a + 1, a + columns - 1) }
+                }
                 if x + 1 < columns && y + 1 < rows {
                     addEdge(a, a + columns + 1)
                     addEdge(a + 1, a + columns)
+                    // Match the rendered triangles: (a, below, right),
+                    // (right, below, belowRight). Every interior edge is a hinge.
+                    addBend(a + columns, a + 1, a, a + columns + 1)
                 }
             }
         }
@@ -87,9 +86,15 @@ struct ClothSimulation {
         let aPinned = isPinned(a), bPinned = isPinned(b)
         edges.append(SCClothEdge(
             a: UInt32(a), b: UInt32(b), rest: simd_length(positions[b] - positions[a]),
-            aWeight: aPinned ? 0 : (bPinned ? 1 : 0.5),
-            bWeight: bPinned ? 0 : (aPinned ? 1 : 0.5)
+            aWeight: aPinned ? 0 : 1,
+            bWeight: bPinned ? 0 : 1, lambda: 0
         ))
+    }
+
+    private mutating func addBend(_ a: Int, _ b: Int, _ c: Int, _ d: Int) {
+        // The initial mesh is flat, with consistent triangle winding.
+        bends.append(SCClothBend(a: UInt32(a), b: UInt32(b), c: UInt32(c), d: UInt32(d),
+                                 restAngle: 0, lambda: 0))
     }
 
     mutating func impulse(strength: Float) {
@@ -154,14 +159,17 @@ struct ClothSimulation {
         let columns = columns, rows = rows, settings = settings
         positions.withUnsafeMutableBufferPointer { positions in
             previous.withUnsafeMutableBufferPointer { previous in
-                edges.withUnsafeBufferPointer { edges in
-                    while accumulator + 1e-10 >= Self.step {
-                        accumulator -= Self.step
-                        SCClothStep(positions.baseAddress!, previous.baseAddress!,
-                                    UInt32(columns), UInt32(rows),
-                                    edges.baseAddress!, UInt32(edges.count),
-                                    settings.damping, settings.stiffness, settings.gravity,
-                                    UInt32(settings.iterations))
+                edges.withUnsafeMutableBufferPointer { edges in
+                    bends.withUnsafeMutableBufferPointer { bends in
+                        while accumulator + 1e-10 >= Self.step {
+                            accumulator -= Self.step
+                            SCClothStep(positions.baseAddress!, previous.baseAddress!,
+                                        UInt32(columns), UInt32(rows),
+                                        edges.baseAddress!, UInt32(edges.count),
+                                        bends.baseAddress, UInt32(bends.count),
+                                        settings.damping, settings.compliance, settings.bendCompliance, settings.gravity,
+                                        UInt32(settings.iterations))
+                        }
                     }
                 }
             }

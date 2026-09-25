@@ -89,14 +89,17 @@ struct VisualizerView: View {
                         .font(.caption).foregroundStyle(.secondary)
                     Divider()
                     tuningSlider("Damping", value: $clothSettings.damping, range: 0.001...0.1, format: "%.3f")
-                    tuningSlider("Stiffness", value: $clothSettings.stiffness, range: 0.1...1)
-                    tuningSlider("Gravity", value: $clothSettings.gravity, range: 0...3)
+                    tuningSlider("Stretch compliance", value: $clothSettings.compliance, range: 0...0.001, format: "%.1e")
+                    tuningSlider("Bend compliance", value: $clothSettings.bendCompliance, range: 0...1, format: "%.3f")
+                    Text("Higher compliance makes the cloth softer. Zero is rigid.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    tuningSlider("Gravity", value: $clothSettings.gravity, range: 0...10)
                     tuningSlider("Bass impulse", value: $clothSettings.impulseStrength, range: 0...2)
                     tuningSlider("Impulse radius", value: $clothSettings.impulseRadius, range: 0.3...5)
-                    Stepper("Solver passes: \(clothSettings.iterations)", value: $clothSettings.iterations, in: 2...10)
+                    Stepper("Solver passes: \(clothSettings.iterations)", value: $clothSettings.iterations, in: 1...10)
                     Divider()
+                    Toggle("Show mesh (debug)", isOn: $clothSettings.showMesh)
                     tuningSlider("Shine intensity", value: $clothSettings.shineIntensity, range: 0...2)
-                    tuningSlider("Gridline opacity", value: $clothSettings.gridlineOpacity, range: 0...1)
                     Text("Move the pointer to ripple the cloth. Drag to orbit. Scroll to zoom.")
                         .font(.caption).foregroundStyle(.secondary)
                     tuningSlider("Camera distance", value: $clothCamera.zoom, range: 0.2...2)
@@ -159,6 +162,7 @@ struct VisualizerView: View {
                 in: Double(range.lowerBound)...Double(range.upperBound),
                 step: 1
             ) { Text(title) }
+            .labelsHidden()
         }
     }
 
@@ -174,6 +178,7 @@ struct VisualizerView: View {
                     .foregroundStyle(.secondary)
             }
             Slider(value: value, in: range) { Text(title) }
+                .labelsHidden()
         }
     }
 }

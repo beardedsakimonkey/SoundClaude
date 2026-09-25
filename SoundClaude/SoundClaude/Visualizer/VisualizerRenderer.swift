@@ -1,5 +1,6 @@
 import Foundation
 import MetalKit
+import MetalPerformanceShaders
 import simd
 
 enum VisualizerShader: String, CaseIterable {
@@ -83,10 +84,12 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         clothPointer = point
     }
 
+    private var shadowMask: MTLTexture?
+    private var shadowBlur: MTLTexture?
+    private var shadowDepth: MTLTexture?
     private var cloth = ClothSimulation()
     private var bassDetector = ClothBassDetector()
     private var lastClothTime: Double?
-    private var clothLightEnvelope = ClothLightEnvelope()
     private let depthState: MTLDepthStencilState?
     private let spectrumBuffer: OpaquePointer
     private let commandQueue: MTLCommandQueue
@@ -199,6 +202,129 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         return try device.makeRenderPipelineState(descriptor: descriptor)
     }
 
+    private typealias ClothFrame = (positions: MTLBuffer, normals: MTLBuffer, uniforms: [SIMD4<Float>])
+
+    private func prepareCloth(in view: MTKView) -> ClothFrame? {
+        var clothSettings = self.clothSettings
+        let artworkAspect = artworkImage.map { Float($0.width) / Float($0.height) } ?? 1
+        // The size control sets the longest edge while preserving the artwork's proportions.
+        let size = clothSettings.width
+        clothSettings.width = size * min(1, artworkAspect)
+        clothSettings.height = size / max(1, artworkAspect)
+        cloth.configure(clothSettings)
+        let now = ProcessInfo.processInfo.systemUptime
+        let delta = lastClothTime.map { now - $0 } ?? ClothSimulation.step
+        lastClothTime = now
+        // Bands 0..<18 cover roughly 30–180 Hz in the logarithmic spectrum.
+        let bass = bands.prefix(18).reduce(0, +) / 18
+        if let strength = bassDetector.update(level: bass, delta: delta) {
+            cloth.impulse(strength: strength)
+        }
+        let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
+        if view.window?.isKeyWindow == true, NSEvent.pressedMouseButtons == 0,
+           let point = clothPointer, let previous = previousClothPointer {
+            cloth.brush(from: previous, to: point, camera: clothCamera, aspect: aspect)
+        }
+        previousClothPointer = clothPointer
+        cloth.advance(delta: delta)
+        // Each command owns its snapshot until the GPU completes the frame.
+        let buffer = cloth.positions.withUnsafeBytes { bytes in
+            view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
+        }
+        // Precompute unit normals once per grid node for bicubic fragment sampling.
+        let columns = cloth.columns, rows = cloth.rows
+        let normals: [SIMD4<Float>] = cloth.positions.indices.map { index in
+            let x = index % columns, y = index / columns
+            let tangent = cloth.positions[y * columns + min(x + 1, columns - 1)]
+                - cloth.positions[y * columns + max(x - 1, 0)]
+            let bitangent = cloth.positions[min(y + 1, rows - 1) * columns + x]
+                - cloth.positions[max(y - 1, 0) * columns + x]
+            let cross = simd_cross(SIMD3(bitangent.x, bitangent.y, bitangent.z),
+                                   SIMD3(tangent.x, tangent.y, tangent.z))
+            let length = simd_length(cross)
+            let normal = length > 0.00001 ? cross / length : SIMD3<Float>(0, 0, 1)
+            return SIMD4(normal.x, normal.y, normal.z, 0)
+        }
+        let normalBuffer = normals.withUnsafeBytes { bytes in
+            view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
+        }
+        if let buffer, let normalBuffer {
+            let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
+            let distance = sqrt(clothSettings.width * clothSettings.width +
+                                clothSettings.height * clothSettings.height) * 1.35 * clothCamera.zoom
+            // Keep the receiving wall behind the rotated mesh.
+            let cy = cos(clothCamera.yaw), sy = sin(clothCamera.yaw)
+            let cp = cos(clothCamera.pitch), sp = sin(clothCamera.pitch)
+            let minimumDepth = cloth.positions.reduce(Float(0)) { depth, p in
+                min(depth, sp * p.y + cp * (-sy * p.x + cy * p.z))
+            }
+            let wallDepth = min(-size * 0.12, minimumDepth - size * 0.04)
+            // Four float4s, matching ClothUniforms in the shader.
+            let uniforms = [
+                SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
+                SIMD4<Float>(aspect, clothCamera.yaw, clothCamera.pitch, distance),
+                SIMD4<Float>(clothSettings.shineIntensity, 0,
+                             clothSettings.showMesh ? 1 : 0, 0),
+                SIMD4<Float>(wallDepth, 0.48, 0, 0)
+            ]
+            return (buffer, normalBuffer, uniforms)
+        }
+        return nil
+    }
+
+    private func encodeClothShadow(
+        in view: MTKView, commandBuffer: MTLCommandBuffer,
+        pipeline: MTLRenderPipelineState, frame: ClothFrame
+    ) -> MTLTexture? {
+        guard let device = view.device else { return nil }
+        // Bound the offscreen cost and keep softness proportional to the viewport.
+        let scale = min(1, 512 / max(1, max(view.drawableSize.width, view.drawableSize.height)))
+        let width = max(1, Int(view.drawableSize.width * scale))
+        let height = max(1, Int(view.drawableSize.height * scale))
+        if shadowMask?.width != width || shadowMask?.height != height {
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: view.colorPixelFormat, width: width, height: height, mipmapped: false
+            )
+            descriptor.storageMode = .private
+            descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
+            shadowMask = device.makeTexture(descriptor: descriptor)
+            shadowBlur = device.makeTexture(descriptor: descriptor)
+            descriptor.pixelFormat = .depth32Float
+            descriptor.usage = .renderTarget
+            shadowDepth = device.makeTexture(descriptor: descriptor)
+        }
+        guard let shadowMask, let shadowBlur, let shadowDepth else { return nil }
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = shadowMask
+        pass.colorAttachments[0].loadAction = .clear
+        pass.colorAttachments[0].storeAction = .store
+        pass.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0)
+        pass.depthAttachment.texture = shadowDepth
+        pass.depthAttachment.loadAction = .clear
+        pass.depthAttachment.storeAction = .dontCare
+        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return nil }
+        encoder.label = "Cloth wall shadow mask"
+        encoder.setRenderPipelineState(pipeline)
+        encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
+        encoder.setFragmentBuffer(frame.normals, offset: 0, index: 5)
+        encoder.setFragmentTexture(fallbackTexture, index: 1)
+        encoder.setFragmentTexture(artworkTexture ?? fallbackTexture, index: 0)
+        var uniforms = frame.uniforms
+        uniforms[2].w = 1
+        uniforms.withUnsafeBytes { bytes in
+            encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+            encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+        }
+        // Opaque writes form one silhouette, including where cloth folds overlap.
+        encoder.drawPrimitives(type: .triangle, vertexStart: 0,
+                               vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
+        encoder.endEncoding()
+        let blur = MPSImageGaussianBlur(device: device, sigma: max(1, Float(min(width, height)) * 0.008))
+        blur.edgeMode = .zero
+        blur.encode(commandBuffer: commandBuffer, sourceTexture: shadowMask, destinationTexture: shadowBlur)
+        return shadowBlur
+    }
+
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
     func draw(in view: MTKView) {
@@ -212,20 +338,34 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         guard let pipelineState = pipelines[shader],
               let renderPassDescriptor = view.currentRenderPassDescriptor,
               let drawable = view.currentDrawable,
-              let commandBuffer = commandQueue.makeCommandBuffer(),
-              let encoder = commandBuffer.makeRenderCommandEncoder(
+              let commandBuffer = commandQueue.makeCommandBuffer() else { return }
+        var rms: Float = 0
+        _ = bands.withUnsafeMutableBufferPointer {
+            SCSpectrumBufferRead(spectrumBuffer, $0.baseAddress, &rms)
+        }
+        let clothFrame = shader == .cloth
+            ? prepareCloth(in: view) : nil
+        let frameShadow = clothFrame.flatMap {
+            encodeClothShadow(in: view, commandBuffer: commandBuffer,
+                              pipeline: pipelineState, frame: $0)
+        }
+        guard let encoder = commandBuffer.makeRenderCommandEncoder(
                 descriptor: renderPassDescriptor
               ) else {
             return
         }
 
         encoder.setRenderPipelineState(pipelineState)
+        bands.withUnsafeBytes { bytes in
+            encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 0)
+        }
         if shader == .inkPool {
             var settings = inkPoolSettings
             encoder.setFragmentBytes(
                 &settings, length: MemoryLayout<InkPoolSettings>.stride, index: 4
             )
         }
+        encoder.setFragmentTexture(fallbackTexture, index: 1)
         encoder.setFragmentTexture(artworkTexture ?? fallbackTexture, index: 0)
         var elapsedTime = Float(ProcessInfo.processInfo.systemUptime - animationStartTime)
         encoder.setFragmentBytes(
@@ -248,81 +388,27 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             length: MemoryLayout<Float>.size,
             index: 1
         )
-        var rms: Float = 0
-        var didReadSpectrum = false
-        bands.withUnsafeMutableBufferPointer { pointer in
-            didReadSpectrum = SCSpectrumBufferRead(spectrumBuffer, pointer.baseAddress, &rms)
-            encoder.setFragmentBytes(
-                pointer.baseAddress!,
-                length: pointer.count * MemoryLayout<Float>.stride,
-                index: 0
-            )
-        }
         if shader == .cloth {
-            var clothSettings = self.clothSettings
-            let artworkAspect = artworkImage.map { Float($0.width) / Float($0.height) } ?? 1
-            // The size control sets the longest edge while preserving the artwork's proportions.
-            let size = clothSettings.width
-            clothSettings.width = size * min(1, artworkAspect)
-            clothSettings.height = size / max(1, artworkAspect)
-            cloth.configure(clothSettings)
-            let now = ProcessInfo.processInfo.systemUptime
-            let delta = lastClothTime.map { now - $0 } ?? ClothSimulation.step
-            lastClothTime = now
-            if didReadSpectrum {
-                clothLightEnvelope.update(rms: rms, delta: delta)
-            }
-            // Bands 0..<18 cover roughly 30–180 Hz in the logarithmic spectrum.
-            let bass = bands.prefix(18).reduce(0, +) / 18
-            if let strength = bassDetector.update(level: bass, delta: delta) {
-                cloth.impulse(strength: strength)
-            }
-            let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
-            if view.window?.isKeyWindow == true, NSEvent.pressedMouseButtons == 0,
-               let point = clothPointer, let previous = previousClothPointer {
-                cloth.brush(from: previous, to: point, camera: clothCamera, aspect: aspect)
-            }
-            previousClothPointer = clothPointer
-            cloth.advance(delta: delta)
-            // Each command owns its snapshot until the GPU completes the frame.
-            let buffer = cloth.positions.withUnsafeBytes { bytes in
-                view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
-            }
-            // Precompute unit normals once per grid node for bicubic fragment sampling.
-            let columns = cloth.columns, rows = cloth.rows
-            let normals: [SIMD4<Float>] = cloth.positions.indices.map { index in
-                let x = index % columns, y = index / columns
-                let tangent = cloth.positions[y * columns + min(x + 1, columns - 1)]
-                    - cloth.positions[y * columns + max(x - 1, 0)]
-                let bitangent = cloth.positions[min(y + 1, rows - 1) * columns + x]
-                    - cloth.positions[max(y - 1, 0) * columns + x]
-                let cross = simd_cross(SIMD3(bitangent.x, bitangent.y, bitangent.z),
-                                       SIMD3(tangent.x, tangent.y, tangent.z))
-                let length = simd_length(cross)
-                let normal = length > 0.00001 ? cross / length : SIMD3<Float>(0, 0, 1)
-                return SIMD4(normal.x, normal.y, normal.z, 0)
-            }
-            let normalBuffer = normals.withUnsafeBytes { bytes in
-                view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
-            }
-            if let buffer, let normalBuffer {
-                let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
-                let distance = sqrt(clothSettings.width * clothSettings.width +
-                                    clothSettings.height * clothSettings.height) * 1.35 * clothCamera.zoom
-                // Three float4s, matching ClothUniforms in the shader.
-                var uniforms = [
-                    SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
-                    SIMD4<Float>(aspect, clothCamera.yaw, clothCamera.pitch, distance),
-                    SIMD4<Float>(clothSettings.shineIntensity, clothSettings.gridlineOpacity,
-                                 Float(clothLightEnvelope.brightness), 0)
-                ]
-                encoder.setVertexBuffer(buffer, offset: 0, index: 0)
-                encoder.setFragmentBuffer(normalBuffer, offset: 0, index: 5)
-                uniforms.withUnsafeMutableBytes { bytes in
+            if let frame = clothFrame {
+                var uniforms = frame.uniforms
+                encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
+                encoder.setFragmentBuffer(frame.normals, offset: 0, index: 5)
+                if let shadow = frameShadow {
+                    uniforms[2].w = 2
+                    uniforms.withUnsafeBytes { bytes in
+                        encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                        encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+                    }
+                    encoder.setFragmentTexture(shadow, index: 1)
+                    encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+                }
+                uniforms[2].w = 0
+                uniforms.withUnsafeBytes { bytes in
                     encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
                     encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
                 }
                 encoder.setDepthStencilState(depthState)
+                encoder.setFrontFacing(.counterClockwise)
                 encoder.drawPrimitives(type: .triangle, vertexStart: 0,
                                        vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
             }
@@ -330,7 +416,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             clothPointer = nil
             previousClothPointer = nil
             lastClothTime = nil
-            clothLightEnvelope = ClothLightEnvelope()
             bassDetector = ClothBassDetector()
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         }

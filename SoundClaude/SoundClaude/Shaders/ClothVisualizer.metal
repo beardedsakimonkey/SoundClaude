@@ -4,13 +4,15 @@ using namespace metal;
 struct ClothUniforms {
     float4 mesh; // columns, rows, width, height
     float4 camera; // aspect, yaw, pitch, distance
-    float4 appearance; // shine intensity, gridline opacity, audio brightness, unused
+    float4 appearance; // shine intensity, unused, mesh debug, pass (cloth, mask, shadow)
+    float4 shadow; // wall depth, opacity, unused, unused
 };
 
 struct ClothVertex {
     float4 position [[position]];
     float3 world;
     float2 uv;
+    float3 barycentric;
 };
 
 static float3 clothCameraRotation(float3 v, float yaw, float pitch) {
@@ -56,6 +58,15 @@ vertex ClothVertex clothVisualizerVertex(
     uint id [[vertex_id]], const device float4 *positions [[buffer(0)]],
     constant ClothUniforms &uniforms [[buffer(1)]]
 ) {
+    if (uniforms.appearance.w > 1.5) {
+        float2 corner = float2((id << 1) & 2, id & 2);
+        ClothVertex out;
+        out.position = float4(corner * 2.0 - 1.0, 0.999, 1);
+        out.world = float3(0);
+        out.uv = float2(corner.x, 1.0 - corner.y);
+        out.barycentric = float3(0);
+        return out;
+    }
     // Six vertices per cell, sharing the simulation's grid nodes.
     const uint columns = uint(uniforms.mesh.x), rows = uint(uniforms.mesh.y);
     float aspect = uniforms.camera.x;
@@ -65,6 +76,12 @@ vertex ClothVertex clothVisualizerVertex(
     float3 p = positions[index].xyz;
     float yaw = uniforms.camera.y, pitch = uniforms.camera.z;
     float3 world = clothCameraRotation(p, yaw, pitch);
+    if (uniforms.appearance.w > 0.5) {
+        // Offset the wall shadow up and right.
+        float gap = max(0.0, world.z - uniforms.shadow.x);
+        world.xy += float2(0.4, 0.6) * gap;
+        world.z = uniforms.shadow.x;
+    }
     float distance = uniforms.camera.w - world.z;
     float scale = min(2.6, 2.6 * aspect);
     ClothVertex out;
@@ -72,15 +89,34 @@ vertex ClothVertex clothVisualizerVertex(
                           (distance - 0.1) * 100.0 / 99.9, distance);
     out.world = world;
     out.uv = float2(index % columns, index / columns) / float2(columns - 1, rows - 1);
+    out.barycentric = float3(id % 3 == 0, id % 3 == 1, id % 3 == 2);
     return out;
 }
 
 fragment float4 clothVisualizerFragment(
     ClothVertex in [[stage_in]],
+    bool frontFacing [[front_facing]],
     texture2d<float> artwork [[texture(0)]],
+    texture2d<float> shadowMask [[texture(1)]],
     constant ClothUniforms &uniforms [[buffer(4)]],
     const device float4 *normals [[buffer(5)]]
 ) {
+    if (uniforms.appearance.w > 1.5) {
+        constexpr sampler shadowFilter(filter::linear, address::clamp_to_zero);
+        float opacity = shadowMask.sample(shadowFilter, in.uv).r * uniforms.shadow.y;
+        // Premultiplied black darkens the SwiftUI wall through the transparent view.
+        return float4(0, 0, 0, opacity);
+    }
+    if (uniforms.appearance.w > 0.5) return float4(1);
+    // Triangle winding identifies the material side even inside tight folds.
+    float faceBrightness = frontFacing ? 1.0 : 0.45;
+    if (uniforms.appearance.z > 0.5) {
+        // Show the actual rendered triangles, including each cell's diagonal.
+        // Opaque faces preserve depth occlusion when the cloth folds over itself.
+        float3 edgeDistance = in.barycentric / max(fwidth(in.barycentric), float3(0.00001));
+        float edge = 1.0 - smoothstep(0.5, 1.5, min(edgeDistance.x, min(edgeDistance.y, edgeDistance.z)));
+        return float4(mix(float3(0.025, 0.04, 0.055), float3(0.3, 0.9, 1.0), edge) * faceBrightness, 1);
+    }
     constexpr sampler sampleFilter(filter::linear, address::clamp_to_edge);
     float3 normal = clothBicubicNormal(in.uv, int2(uniforms.mesh.xy), normals);
     normal = clothCameraRotation(normal, uniforms.camera.y, uniforms.camera.z);
@@ -94,16 +130,13 @@ fragment float4 clothVisualizerFragment(
     float fresnel = pow(1.0 - saturate(dot(normal, view)), 5.0);
     float3 color = artwork.sample(sampleFilter, in.uv).rgb;
     color = mix(color, float3(0.65, 0.8, 0.9), 0.18);
-    float2 grid = in.uv * (uniforms.mesh.xy - 1);
-    float2 edge = abs(fract(grid - 0.5) - 0.5) / max(fwidth(grid), float2(0.001));
-    float weave = 1.0 - uniforms.appearance.y * (1.0 - smoothstep(0.0, 0.8, min(edge.x, edge.y)));
-    float corner = length(float2(min(in.uv.x, 1.0 - in.uv.x), in.uv.y) * uniforms.mesh.zw);
-    float pin = 1.0 - smoothstep(0.025, 0.055, corner);
-    // A glossy satin finish: a bright key highlight, soft cool fill, and edge sheen.
-    float3 lit = color * (0.3 + 0.75 * diffuse) * weave;
+    // A glossy satin finish with blue ambient light and a slightly red key light.
+    const float3 ambientColor = float3(0.65, 0.8, 1.0);
+    const float3 keyColor = float3(1.0, 0.88, 0.86);
+    float3 lit = color * (0.3 * ambientColor + 0.75 * diffuse * keyColor);
     float shineIntensity = uniforms.appearance.x;
-    lit += float3(1.0, 0.94, 0.86) * specular * 0.85 * diffuse * shineIntensity;
+    lit += keyColor * specular * 0.85 * diffuse * shineIntensity;
     lit += float3(0.65, 0.8, 1.0) * sheen * 0.3 * max(dot(normal, fillLight), 0.0) * shineIntensity;
     lit += mix(color, float3(0.8, 0.9, 1.0), 0.65) * fresnel * 0.35 * shineIntensity;
-    return float4(mix(lit, float3(0.95), pin) * uniforms.appearance.z, 1);
+    return float4(lit * faceBrightness, 1);
 }

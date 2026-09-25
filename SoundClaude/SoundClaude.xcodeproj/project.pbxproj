@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		C92410000000000000000003 /* ClothSolver.c in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000003; };
+		C92410000000000000000003 /* ClothSolver.c in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000003; settings = {COMPILER_FLAGS = "-O2"; }; };
 		C92410000000000000000002 /* ClothVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000002; };
 		C92410000000000000000001 /* ClothSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000001; };
 		D91700000000000000000002 /* RecentSearchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91700000000000000000012 /* RecentSearchStore.swift */; };
