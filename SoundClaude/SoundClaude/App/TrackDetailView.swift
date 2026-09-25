@@ -65,6 +65,7 @@ struct TrackDetailView: View {
                             Task { await load() }
                         }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
         }
