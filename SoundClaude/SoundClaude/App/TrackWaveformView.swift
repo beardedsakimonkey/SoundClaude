@@ -716,12 +716,13 @@ private struct WaveformLoadingOpacity: ViewModifier {
 
     let isPulsing: Bool
     let idleOpacity: Double
+    private let pulseDuration: TimeInterval = 1.2
 
     func body(content: Content) -> some View {
         // Pause frame updates outside loading, and resume on every new load.
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !isPulsing || contentAnimationsPaused)) { context in
             let phase = context.date.timeIntervalSinceReferenceDate
-                .truncatingRemainder(dividingBy: 1.6) / 1.6
+                .truncatingRemainder(dividingBy: pulseDuration) / pulseDuration
             content.opacity(isPulsing ? 0.35 + 0.4 * abs(sin(phase * .pi)) : idleOpacity)
         }
     }
