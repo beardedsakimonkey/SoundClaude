@@ -28,6 +28,11 @@ final class SpectrumAnalyzer: @unchecked Sendable {
     private var power = [Float](repeating: 0, count: fftSize / 2)
     private var bands = [Float](repeating: 0, count: bandCount)
     private var smoothed = [Float](repeating: 0, count: bandCount)
+    private let impulseWindow: [Float] = (0..<fftSize).map { index in
+        let phase = 2 * Double.pi * Double(index) / Double(fftSize)
+        return Float(0.42 - 0.5 * cos(phase) + 0.08 * cos(2 * phase))
+    }
+    private var impulseMagnitudes = [Float](repeating: 0, count: fftSize / 2)
     private var fftPowerScale: Float = 1
 
     init?() {
@@ -69,7 +74,7 @@ final class SpectrumAnalyzer: @unchecked Sendable {
     func playbackIndicatorLevels() -> [Float]? {
         var snapshot = [Float](repeating: 0, count: Self.bandCount)
         let didRead = snapshot.withUnsafeMutableBufferPointer { pointer in
-            SCSpectrumBufferRead(spectrumBuffer, pointer.baseAddress, nil)
+            SCSpectrumBufferRead(spectrumBuffer, pointer.baseAddress, nil, nil, nil)
         }
         guard didRead else { return nil }
 
@@ -92,6 +97,7 @@ final class SpectrumAnalyzer: @unchecked Sendable {
             _ = self.smoothed.withUnsafeMutableBytes {
                 $0.initializeMemory(as: UInt8.self, repeating: 0)
             }
+            self.impulseMagnitudes = [Float](repeating: 0, count: Self.fftSize / 2)
             SCSpectrumBufferClear(self.spectrumBuffer)
 
             let timer = DispatchSource.makeTimerSource(
@@ -153,7 +159,7 @@ final class SpectrumAnalyzer: @unchecked Sendable {
             }
             guard count == Self.hopSize else { return }
             rollInHop()
-            analyze()
+            analyze(samples: pcm, sampleRate: sampleRate)
             consumed += 1
         }
     }
@@ -177,13 +183,85 @@ final class SpectrumAnalyzer: @unchecked Sendable {
         }
     }
 
-    private func analyze() {
+    /// Analyze one complete PCM window. Call only on the worker queue while running.
+    func analyze(samples: [Float], sampleRate: Double) {
+        precondition(samples.count == Self.fftSize && sampleRate > 0)
         guard let fftSetup else { return }
 
         var rms: Float = 0
-        vDSP_rmsqv(pcm, 1, &rms, vDSP_Length(Self.fftSize))
+        vDSP_rmsqv(samples, 1, &rms, vDSP_Length(Self.fftSize))
+        computePower(samples: samples, window: window, setup: fftSetup)
+
+        let minimumFrequency = 30.0
+        let maximumFrequency = min(18_000.0, sampleRate / 2.0)
+        let frequencyRatio = maximumFrequency / minimumFrequency
+        for band in 0..<Self.bandCount {
+            let lowerFrequency = minimumFrequency * pow(
+                frequencyRatio,
+                Double(band) / Double(Self.bandCount)
+            )
+            let upperFrequency = minimumFrequency * pow(
+                frequencyRatio,
+                Double(band + 1) / Double(Self.bandCount)
+            )
+            let lowerIndex = max(
+                1,
+                Int(lowerFrequency * Double(Self.fftSize) / sampleRate)
+            )
+            let upperIndex = min(
+                power.count - 1,
+                max(
+                    lowerIndex,
+                    Int(upperFrequency * Double(Self.fftSize) / sampleRate)
+                )
+            )
+            var peak: Float = 0
+            if lowerIndex <= upperIndex {
+                for index in lowerIndex...upperIndex {
+                    peak = max(peak, power[index])
+                }
+            }
+            let normalizedPower = peak * fftPowerScale
+            let decibels = 10 * log10(max(normalizedPower, 1e-12))
+            let normalized = min(1, max(0, (decibels + 72) / 60))
+            let smoothing: Float = normalized > smoothed[band] ? 0.65 : 0.12
+            smoothed[band] += (normalized - smoothed[band]) * smoothing
+            bands[band] = smoothed[band]
+        }
+        computePower(samples: samples, window: impulseWindow, setup: fftSetup)
+        let bassLevel = readImpulseLevel(sampleRate: sampleRate, lowHz: 25, highHz: 140)
+        let trebleLevel = readImpulseLevel(sampleRate: sampleRate, lowHz: 2400, highHz: 12000)
+        bands.withUnsafeBufferPointer { pointer in
+            SCSpectrumBufferPublish(spectrumBuffer, pointer.baseAddress, rms, bassLevel, trebleLevel)
+        }
+    }
+
+    /// Web Audio's Blackman FFT uses 1/N normalization. vDSP's real FFT
+    /// returns twice the DFT, so divide magnitudes by 2N.
+    /// https://www.w3.org/TR/webaudio/#fft-windowing-and-smoothing-over-time
+    private func readImpulseLevel(sampleRate: Double, lowHz: Double, highHz: Double) -> Float {
+        let binHz = sampleRate / Double(Self.fftSize)
+        let lower = max(0, Int(floor(lowHz / binHz)))
+        let upper = min(power.count - 1, Int(ceil(highHz / binHz)))
+        guard lower <= upper else { return 0 }
+        var sum: Float = 0
+        for index in lower...upper {
+            // Bin zero packs DC and Nyquist; only DC belongs in this band.
+            let magnitude = (index == 0 ? abs(real[0]) : sqrt(power[index]))
+                / Float(2 * Self.fftSize)
+            impulseMagnitudes[index] = 0.5 * impulseMagnitudes[index] + 0.5 * magnitude
+            let decibels = 20 * log10(max(impulseMagnitudes[index], 1e-20))
+            // Match getByteFrequencyData (-90...-6 dB), then readBand's
+            // conversion back to linear amplitude before its square root.
+            let byte = floor(min(255, max(0, (decibels + 90) / 84 * 255)))
+            sum += pow(10, (-90 + byte / 255 * 84) / 20)
+        }
+        return sqrt(sum / Float(upper - lower + 1))
+    }
+
+    private func computePower(samples: [Float], window: [Float], setup fftSetup: FFTSetup) {
         vDSP_vmul(
-            pcm,
+            samples,
             1,
             window,
             1,
@@ -233,44 +311,5 @@ final class SpectrumAnalyzer: @unchecked Sendable {
             }
         }
 
-        let minimumFrequency = 30.0
-        let maximumFrequency = min(18_000.0, sampleRate / 2.0)
-        let frequencyRatio = maximumFrequency / minimumFrequency
-        for band in 0..<Self.bandCount {
-            let lowerFrequency = minimumFrequency * pow(
-                frequencyRatio,
-                Double(band) / Double(Self.bandCount)
-            )
-            let upperFrequency = minimumFrequency * pow(
-                frequencyRatio,
-                Double(band + 1) / Double(Self.bandCount)
-            )
-            let lowerIndex = max(
-                1,
-                Int(lowerFrequency * Double(Self.fftSize) / sampleRate)
-            )
-            let upperIndex = min(
-                power.count - 1,
-                max(
-                    lowerIndex,
-                    Int(upperFrequency * Double(Self.fftSize) / sampleRate)
-                )
-            )
-            var peak: Float = 0
-            if lowerIndex <= upperIndex {
-                for index in lowerIndex...upperIndex {
-                    peak = max(peak, power[index])
-                }
-            }
-            let normalizedPower = peak * fftPowerScale
-            let decibels = 10 * log10(max(normalizedPower, 1e-12))
-            let normalized = min(1, max(0, (decibels + 72) / 60))
-            let smoothing: Float = normalized > smoothed[band] ? 0.65 : 0.12
-            smoothed[band] += (normalized - smoothed[band]) * smoothing
-            bands[band] = smoothed[band]
-        }
-        bands.withUnsafeBufferPointer { pointer in
-            SCSpectrumBufferPublish(spectrumBuffer, pointer.baseAddress, rms)
-        }
     }
 }

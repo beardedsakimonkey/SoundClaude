@@ -73,6 +73,12 @@ test:
 		SoundClaude/SoundClaude/Visualizer/ClothSimulation.swift \
 		tests/ClothSimulationTests.swift
 	/tmp/soundclaude-tests/cloth
+	clang -c SoundClaude/SoundClaude/Audio/PCMRingBuffer.c -o /tmp/soundclaude-tests/pcm-ring.o
+	swiftc -import-objc-header SoundClaude/SoundClaude/Audio/PCMRingBuffer.h \
+		/tmp/soundclaude-tests/pcm-ring.o -framework CoreAudio -o /tmp/soundclaude-tests/spectrum \
+		SoundClaude/SoundClaude/Audio/SpectrumAnalyzer.swift \
+		tests/SpectrumAnalyzerTests.swift
+	/tmp/soundclaude-tests/spectrum
 	swiftc -o /tmp/soundclaude-tests/artwork-cache \
 		SoundClaude/SoundClaude/Support/MemoryCache.swift \
 		SoundClaude/SoundClaude/Networking/ArtworkLoader.swift \

@@ -21,6 +21,8 @@ struct SCSpectrumBuffer {
     atomic_uint_fast64_t sequence;
     atomic_uint_least32_t bands[SCSpectrumBandCount];
     atomic_uint_least32_t rms;
+    atomic_uint_least32_t bassLevel;
+    atomic_uint_least32_t trebleLevel;
 };
 
 static uint32_t SCFloatBits(float value) {
@@ -301,6 +303,8 @@ SCSpectrumBuffer *SCSpectrumBufferCreate(void) {
     }
     atomic_init(&buffer->sequence, 0);
     atomic_init(&buffer->rms, SCFloatBits(0.0f));
+    atomic_init(&buffer->bassLevel, SCFloatBits(0.0f));
+    atomic_init(&buffer->trebleLevel, SCFloatBits(0.0f));
     for (uint32_t index = 0; index < SCSpectrumBandCount; ++index) {
         atomic_init(&buffer->bands[index], SCFloatBits(0.0f));
     }
@@ -316,13 +320,15 @@ void SCSpectrumBufferClear(SCSpectrumBuffer *buffer) {
         return;
     }
     float zeros[SCSpectrumBandCount] = {0};
-    SCSpectrumBufferPublish(buffer, zeros, 0.0f);
+    SCSpectrumBufferPublish(buffer, zeros, 0.0f, 0.0f, 0.0f);
 }
 
 void SCSpectrumBufferPublish(
     SCSpectrumBuffer *buffer,
     const float bands[SCSpectrumBandCount],
-    float rms
+    float rms,
+    float bassLevel,
+    float trebleLevel
 ) {
     if (buffer == NULL || bands == NULL) {
         return;
@@ -343,13 +349,17 @@ void SCSpectrumBufferPublish(
         );
     }
     atomic_store_explicit(&buffer->rms, SCFloatBits(rms), memory_order_relaxed);
+    atomic_store_explicit(&buffer->bassLevel, SCFloatBits(bassLevel), memory_order_relaxed);
+    atomic_store_explicit(&buffer->trebleLevel, SCFloatBits(trebleLevel), memory_order_relaxed);
     atomic_store_explicit(&buffer->sequence, writing + 1, memory_order_release);
 }
 
 bool SCSpectrumBufferRead(
     const SCSpectrumBuffer *buffer,
     float outputBands[SCSpectrumBandCount],
-    float *outputRMS
+    float *outputRMS,
+    float *outputBassLevel,
+    float *outputTrebleLevel
 ) {
     if (buffer == NULL || outputBands == NULL) {
         return false;
@@ -375,6 +385,12 @@ bool SCSpectrumBufferRead(
             &buffer->rms,
             memory_order_relaxed
         ));
+        const float bassLevel = SCBitsFloat(atomic_load_explicit(
+            &buffer->bassLevel, memory_order_relaxed
+        ));
+        const float trebleLevel = SCBitsFloat(atomic_load_explicit(
+            &buffer->trebleLevel, memory_order_relaxed
+        ));
         const uint64_t after = atomic_load_explicit(
             &buffer->sequence,
             memory_order_acquire
@@ -383,6 +399,12 @@ bool SCSpectrumBufferRead(
             memcpy(outputBands, snapshot, sizeof(snapshot));
             if (outputRMS != NULL) {
                 *outputRMS = rms;
+            }
+            if (outputBassLevel != NULL) {
+                *outputBassLevel = bassLevel;
+            }
+            if (outputTrebleLevel != NULL) {
+                *outputTrebleLevel = trebleLevel;
             }
             return true;
         }

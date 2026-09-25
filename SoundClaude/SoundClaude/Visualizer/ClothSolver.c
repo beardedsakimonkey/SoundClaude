@@ -1,15 +1,16 @@
 #include "ClothSolver.h"
 #include <math.h>
 
-static float inverseMass(uint32_t index, uint32_t columns) {
-    return index == 0 || index == columns - 1 ? 0.0f : 1.0f;
+static float inverseMass(uint32_t index, uint32_t columns, uint32_t rows) {
+    const uint32_t x = index % columns, y = index / columns;
+    return (x == 0 || x == columns - 1) && (y == 0 || y == rows - 1) ? 0.0f : 1.0f;
 }
 
 static simd_float3 xyz(simd_float4 p) { return (simd_float3){p.x, p.y, p.z}; }
 static simd_float4 vector4(simd_float3 p) { return (simd_float4){p.x, p.y, p.z, 0}; }
 
 static void solveBend(simd_float4 *positions, SCClothBend *bend,
-                      uint32_t columns, float alpha) {
+                      uint32_t columns, uint32_t rows, float alpha) {
     const uint32_t ids[4] = {bend->a, bend->b, bend->c, bend->d};
     const simd_float3 a = xyz(positions[ids[0]]);
     const simd_float3 e = xyz(positions[ids[1]]) - a;
@@ -34,12 +35,12 @@ static void solveBend(simd_float4 *positions, SCClothBend *bend,
     gradient[1] = -tc * gradient[2] - td * gradient[3];
     float denominator = 0;
     for (int j = 0; j < 4; j++)
-        denominator += inverseMass(ids[j], columns) * simd_length_squared(gradient[j]);
+        denominator += inverseMass(ids[j], columns, rows) * simd_length_squared(gradient[j]);
     if (denominator <= 0) return;
     const float delta = (-error - alpha * bend->lambda) / (denominator + alpha);
     bend->lambda += delta;
     for (int j = 0; j < 4; j++)
-        positions[ids[j]] += vector4(gradient[j] * (inverseMass(ids[j], columns) * delta));
+        positions[ids[j]] += vector4(gradient[j] * (inverseMass(ids[j], columns, rows) * delta));
 }
 
 void SCClothStep(simd_float4 *positions, simd_float4 *previous,
@@ -52,7 +53,7 @@ void SCClothStep(simd_float4 *positions, simd_float4 *previous,
     const float alpha = fmaxf(0, compliance) * inverseDtSquared;
     const float bendAlpha = fmaxf(0, bendCompliance) * inverseDtSquared;
     for (uint32_t i = 0; i < count; i++) {
-        if (inverseMass(i, columns) == 0) continue;
+        if (inverseMass(i, columns, rows) == 0) continue;
         const simd_float4 p = positions[i];
         positions[i] = p + (p - previous[i]) * (1.0f - damping) + (simd_float4){0, -gravity / inverseDtSquared, 0, 0};
         previous[i] = p;
@@ -75,6 +76,6 @@ void SCClothStep(simd_float4 *positions, simd_float4 *previous,
             positions[edge->b] += correction * edge->bWeight;
         }
         for (uint32_t i = 0; i < bendCount; i++)
-            solveBend(positions, &bends[i], columns, bendAlpha);
+            solveBend(positions, &bends[i], columns, rows, bendAlpha);
     }
 }

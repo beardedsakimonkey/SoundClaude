@@ -94,7 +94,7 @@ struct VisualizerView: View {
                     Text("Higher compliance makes the cloth softer. Zero is rigid.")
                         .font(.caption).foregroundStyle(.secondary)
                     tuningSlider("Gravity", value: $clothSettings.gravity, range: 0...10)
-                    tuningSlider("Bass impulse", value: $clothSettings.impulseStrength, range: 0...2)
+                    tuningSlider("Bass impulse", value: $clothSettings.impulseStrength, range: 0...5)
                     tuningSlider("Impulse radius", value: $clothSettings.impulseRadius, range: 0.3...5)
                     Stepper("Solver passes: \(clothSettings.iterations)", value: $clothSettings.iterations, in: 1...10)
                     Divider()

@@ -88,6 +88,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private var shadowBlur: MTLTexture?
     private var shadowDepth: MTLTexture?
     private var cloth = ClothSimulation()
+    private var bassLevel: Float = 0
+    private var trebleLevel: Float = 0
+    private var trebleDetector = ClothBassDetector.treble
     private var bassDetector = ClothBassDetector()
     private var lastClothTime: Double?
     private let depthState: MTLDepthStencilState?
@@ -215,10 +218,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         let now = ProcessInfo.processInfo.systemUptime
         let delta = lastClothTime.map { now - $0 } ?? ClothSimulation.step
         lastClothTime = now
-        // Bands 0..<18 cover roughly 30–180 Hz in the logarithmic spectrum.
-        let bass = bands.prefix(18).reduce(0, +) / 18
-        if let strength = bassDetector.update(level: bass, delta: delta) {
+        if let strength = bassDetector.update(level: bassLevel, delta: delta) {
             cloth.impulse(strength: strength)
+        }
+        if let strength = trebleDetector.update(level: trebleLevel, delta: delta) {
+            cloth.trebleImpulse(strength: strength)
         }
         let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
         if view.window?.isKeyWindow == true, NSEvent.pressedMouseButtons == 0,
@@ -259,14 +263,23 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 min(depth, sp * p.y + cp * (-sy * p.x + cy * p.z))
             }
             let wallDepth = min(-size * 0.12, minimumDepth - size * 0.04)
-            // Four float4s, matching ClothUniforms in the shader.
-            let uniforms = [
+            // Four header float4s and 64 pairs, matching ClothUniforms in Metal.
+            var uniforms = [
                 SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
                 SIMD4<Float>(aspect, clothCamera.yaw, clothCamera.pitch, distance),
-                SIMD4<Float>(clothSettings.shineIntensity, 0,
+                SIMD4<Float>(clothSettings.shineIntensity, Float(cloth.ripples.count),
                              clothSettings.showMesh ? 1 : 0, 0),
                 SIMD4<Float>(wallDepth, 0.48, 0, 0)
             ]
+            for ripple in cloth.ripples {
+                uniforms.append(SIMD4(ripple.origin.x, ripple.origin.y,
+                                      ripple.age / ClothSimulation.rippleTravelDuration, ripple.strength))
+                let trailAge = max(0, ripple.age - ClothSimulation.rippleTravelDuration)
+                    / ClothSimulation.rippleTrailDuration
+                uniforms.append(SIMD4(ripple.radius, ripple.isTreble ? 1 : 0, trailAge, 0))
+            }
+            uniforms.append(contentsOf: repeatElement(SIMD4<Float>.zero,
+                count: (ClothSimulation.maximumRipples - cloth.ripples.count) * 2))
             return (buffer, normalBuffer, uniforms)
         }
         return nil
@@ -305,6 +318,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return nil }
         encoder.label = "Cloth wall shadow mask"
         encoder.setRenderPipelineState(pipeline)
+        var accentColor = SIMD4<Float>(Float(accent.red), Float(accent.green), Float(accent.blue), 0)
+        encoder.setFragmentBytes(&accentColor, length: MemoryLayout<SIMD4<Float>>.stride, index: 2)
         encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
         encoder.setFragmentBuffer(frame.normals, offset: 0, index: 5)
         encoder.setFragmentTexture(fallbackTexture, index: 1)
@@ -341,7 +356,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
               let commandBuffer = commandQueue.makeCommandBuffer() else { return }
         var rms: Float = 0
         _ = bands.withUnsafeMutableBufferPointer {
-            SCSpectrumBufferRead(spectrumBuffer, $0.baseAddress, &rms)
+            SCSpectrumBufferRead(spectrumBuffer, $0.baseAddress, &rms, &bassLevel, &trebleLevel)
         }
         let clothFrame = shader == .cloth
             ? prepareCloth(in: view) : nil
@@ -417,6 +432,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             previousClothPointer = nil
             lastClothTime = nil
             bassDetector = ClothBassDetector()
+            trebleDetector = .treble
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         }
         encoder.endEncoding()

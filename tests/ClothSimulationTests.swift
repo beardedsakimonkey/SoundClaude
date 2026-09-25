@@ -8,6 +8,9 @@ struct ClothSimulationTests {
         func step(_ positions: inout [SIMD4<Float>], edges: inout [SCClothEdge],
                   bends: inout [SCClothBend], compliance: Float, bendCompliance: Float,
                   iterations: UInt32) {
+            // Keep the bottom pins outside the isolated constraints.
+            positions.append(contentsOf: [.zero, .zero])
+            defer { positions.removeLast(2) }
             var previous = positions // Start at rest to isolate constraint corrections.
             let edgeCount = UInt32(edges.count), bendCount = UInt32(bends.count)
             let rows = UInt32(positions.count / 2)
@@ -102,6 +105,77 @@ struct ClothSimulationTests {
 
     static func main() {
         checkXPBD()
+        // Bass flashes restart on each hit and expire by elapsed time, even
+        // when the physics catch-up limit skips time after a suspended frame.
+        var flashing = ClothSimulation()
+        precondition(flashing.bassPulse == 0)
+        flashing.impulse(strength: 0.3)
+        precondition(flashing.bassPulse == 1 && flashing.bassPulseLevel == 0.3)
+        var fasterFlash = flashing
+        flashing.advance(delta: 1 / 30)
+        for _ in 0..<4 { fasterFlash.advance(delta: 1 / 120) }
+        precondition(abs(flashing.bassPulse - fasterFlash.bassPulse) < 0.00001)
+        flashing.impulse(strength: 0.9)
+        precondition(flashing.bassPulse == 1 && flashing.bassPulseLevel == 0.9)
+        flashing.advance(delta: 0.4)
+        precondition(flashing.bassPulse == 0)
+        var trebleDetector = ClothBassDetector.treble
+        for _ in 0..<60 { precondition(trebleDetector.update(level: 0, delta: 1 / 60) == nil) }
+        precondition(trebleDetector.update(level: 0.01, delta: 1 / 60) != nil,
+                     "Treble floor zero must allow quiet transients")
+        _ = trebleDetector.update(level: 0, delta: 0.1)
+        precondition(trebleDetector.update(level: 0.02, delta: 0.1) == nil)
+        _ = trebleDetector.update(level: 0, delta: 0.1)
+        precondition(trebleDetector.update(level: 0.03, delta: 0.05) != nil)
+        var steadyTreble = ClothBassDetector.treble
+        for _ in 0..<60 { _ = steadyTreble.update(level: 0.01, delta: 1 / 60) }
+        precondition(steadyTreble.update(level: 0.015, delta: 1 / 60) == nil,
+                     "Treble must exceed three times the recent mean energy")
+        var trebleSettings = ClothSettings()
+        trebleSettings.gravity = 0
+        trebleSettings.iterations = 0
+        var trebleCloth = ClothSimulation(settings: trebleSettings)
+        let trebleRest = trebleCloth.positions
+        trebleCloth.trebleImpulse(strength: 1)
+        let origin = trebleCloth.trebleOrigin
+        let ringRadius = simd_length(origin / SIMD2(trebleSettings.width / 2, trebleSettings.height / 2))
+        precondition(ringRadius >= 0.72 && ringRadius <= 0.88)
+        precondition(trebleCloth.treblePulse == 1 && trebleCloth.bassPulse == 0)
+        precondition(trebleCloth.nextTrebleDirection == -1 && trebleCloth.nextDirection == 1)
+        trebleCloth.advance(delta: ClothSimulation.step)
+        let nearest = trebleRest.indices.min {
+            simd_distance(SIMD2(trebleRest[$0].x, trebleRest[$0].y), origin) <
+            simd_distance(SIMD2(trebleRest[$1].x, trebleRest[$1].y), origin)
+        }!
+        precondition(trebleCloth.positions[nearest].z > 0.1)
+        for i in trebleRest.indices where trebleCloth.isPinned(i) {
+            precondition(trebleCloth.positions[i] == trebleRest[i])
+        }
+        trebleCloth.advance(delta: 0.2)
+        precondition(trebleCloth.treblePulse == 0)
+        trebleCloth.trebleImpulse(strength: 0.5)
+        precondition(trebleCloth.trebleOrigin != origin && trebleCloth.nextTrebleDirection == 1)
+        var rippleCloth = ClothSimulation(settings: trebleSettings)
+        rippleCloth.impulse(strength: 1)
+        rippleCloth.advance(delta: 1)
+        rippleCloth.trebleImpulse(strength: 0.5)
+        precondition(rippleCloth.ripples.count == 2)
+        precondition(rippleCloth.ripples[0].age == 1,
+                     "New hits must not restart an older ripple")
+        precondition(!rippleCloth.ripples[0].isTreble && rippleCloth.ripples[1].isTreble)
+        rippleCloth.advance(delta: Double(ClothSimulation.rippleLifetime) - 1.5)
+        precondition(rippleCloth.ripples.count == 2,
+                     "Ripples must remain active while crossing the cloth")
+        rippleCloth.advance(delta: 0.5)
+        precondition(rippleCloth.ripples.count == 1 && rippleCloth.ripples[0].isTreble,
+                     "Each ripple must expire on its own")
+        rippleCloth.advance(delta: 1)
+        precondition(rippleCloth.ripples.isEmpty)
+        for _ in 0..<(ClothSimulation.maximumRipples + 10) { rippleCloth.impulse(strength: 1) }
+        precondition(rippleCloth.ripples.count == ClothSimulation.maximumRipples,
+                     "Repeated hits must stay within the shader capacity")
+        rippleCloth.configure(ClothSettings())
+        precondition(rippleCloth.ripples.count == ClothSimulation.maximumRipples)
         var cloth = ClothSimulation()
         let initial = cloth.positions
         let center = initial.count / 2
@@ -136,7 +210,8 @@ struct ClothSimulationTests {
         precondition(cloth.positions.first! == SIMD4(-4, 1.5, 0, 0))
         precondition(cloth.positions.last! == SIMD4(4, -1.5, 0, 0))
         let corners = cloth.positions.indices.filter { cloth.isPinned($0) }
-        precondition(corners == [0, cloth.columns - 1])
+        precondition(corners == [0, cloth.columns - 1, cloth.positions.count - cloth.columns,
+                                 cloth.positions.count - 1])
         let pins = corners.map { cloth.positions[$0] }
         cloth.impulse(strength: 1)
         cloth.advance(delta: 1 / 60)
@@ -148,15 +223,14 @@ struct ClothSimulationTests {
         precondition(cloth.positions == deformed, "Motion settings must not reset the mesh")
         for _ in 0..<120 { cloth.advance(delta: 1 / 60) }
         precondition(corners.map { cloth.positions[$0] } == pins)
-        // Both bottom corners must respond to gravity without an audio impulse.
+        // Gravity moves the interior while all four corners stay pinned.
         var hanging = ClothSimulation(settings: settings)
         let resting = hanging.positions
         for _ in 0..<60 { hanging.advance(delta: 1 / 60) }
-        for index in [resting.count - hanging.columns, resting.count - 1] {
-            precondition(hanging.positions[index].y < resting[index].y,
-                         "The bottom corners must hang freely")
-        }
-        for index in [0, hanging.columns - 1] {
+        let bottomCenter = resting.count - hanging.columns + hanging.columns / 2
+        precondition(hanging.positions[bottomCenter].y < resting[bottomCenter].y,
+                     "The bottom edge between the pins must respond to gravity")
+        for index in corners {
             precondition(hanging.positions[index] == resting[index])
         }
         settings.impulseStrength = 0
@@ -198,7 +272,8 @@ struct ClothSimulationTests {
             let tilt = simd_length(SIMD2(firstMotion.x, firstMotion.y)) / simd_length(firstMotion)
             precondition(tilt >= 0.108 - 0.00001 && tilt <= 0.24 + 0.00001)
             precondition(firstMotion.z > 0)
-            precondition(abs(simd_length(firstMotion) - 0.165 * (1 - directionSettings.damping)) < 0.00001,
+            precondition(abs(simd_length(firstMotion) - 0.165 * directionSettings.impulseStrength
+                             * (1 - directionSettings.damping)) < 0.00001,
                          "Scatter must preserve impulse strength")
             scattered.impulse(strength: 1)
             scattered.advance(delta: ClothSimulation.step)
@@ -230,6 +305,41 @@ struct ClothSimulationTests {
         for _ in 0..<30 { _ = detector.update(level: 0.05, delta: 1 / 60) }
         precondition(detector.update(level: 0.8, delta: 1 / 60) != nil)
         precondition(detector.update(level: .nan, delta: 1 / 60) == nil)
+        // A small rise above the energy threshold must trigger. The old
+        // minimum-rise condition missed these gradual bass attacks.
+        var gradual = ClothBassDetector()
+        for _ in 0..<60 { _ = gradual.update(level: 0.1, delta: 1 / 60) }
+        var gradualHits = 0
+        for step in 1...30 {
+            if gradual.update(level: 0.1 + Float(step) * 0.005, delta: 1 / 60) != nil {
+                gradualHits += 1
+            }
+        }
+        precondition(gradualHits > 0)
+
+        var repeatHits = ClothBassDetector()
+        for _ in 0..<60 { _ = repeatHits.update(level: 0.1, delta: 1 / 60) }
+        precondition(repeatHits.update(level: 0.3, delta: 1 / 60) != nil)
+        _ = repeatHits.update(level: 0.29, delta: 0.05)
+        precondition(repeatHits.update(level: 0.31, delta: 0.05) == nil,
+                     "The cooldown must suppress closely spaced hits")
+        precondition(repeatHits.update(level: 0.32, delta: 0.05) != nil,
+                     "A rising hit after cooldown must not require re-arming")
+        precondition(repeatHits.update(level: 0.5, delta: 2) == nil,
+                     "Expired history must not trigger a hit after a long gap")
+        var quiet = ClothBassDetector()
+        for _ in 0..<60 { _ = quiet.update(level: 0, delta: 1 / 60) }
+        precondition(quiet.update(level: 0.04, delta: 1 / 60) == nil)
+        // Live playback had a background near 0.003 and bass peaks near
+        // 0.015: the old 0.02 floor suppressed every hit in that range.
+        var capturedBass = ClothBassDetector()
+        for _ in 0..<60 { _ = capturedBass.update(level: sqrt(0.003), delta: 1 / 60) }
+        let capturedHit = capturedBass.update(level: sqrt(0.015), delta: 1 / 60)
+        precondition(capturedHit != nil, "Quiet playback bass peaks must trigger")
+        var capturedCloth = ClothSimulation()
+        capturedCloth.impulse(strength: capturedHit!)
+        capturedCloth.advance(delta: 1 / 60)
+        precondition(capturedCloth.bassPulse > 0.9 && capturedCloth.bassPulseLevel > 0)
         print("Cloth simulation tests passed")
     }
 }

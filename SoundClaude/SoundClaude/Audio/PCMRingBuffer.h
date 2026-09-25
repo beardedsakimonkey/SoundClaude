@@ -55,12 +55,16 @@ void SCSpectrumBufferClear(SCSpectrumBuffer *buffer);
 void SCSpectrumBufferPublish(
     SCSpectrumBuffer *buffer,
     const float bands[SCSpectrumBandCount],
-    float rms
+    float rms,
+    float bassLevel,
+    float trebleLevel
 );
 bool SCSpectrumBufferRead(
     const SCSpectrumBuffer *buffer,
     float outputBands[SCSpectrumBandCount],
-    float *outputRMS
+    float *outputRMS,
+    float *outputBassLevel,
+    float *outputTrebleLevel
 );
 
 #ifdef __cplusplus
