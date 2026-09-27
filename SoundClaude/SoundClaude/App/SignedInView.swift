@@ -165,7 +165,7 @@ struct SignedInView: View {
         .environment(\.searchGenre, showGenreSearch)
         .environment(\.searchTag, showTagSearch)
         .background {
-            Button("Open Active Station or Playlist", action: showCurrentSource)
+            Button("Open Active Station or Current Track Station", action: showCurrentStation)
                 .keyboardShortcut("s", modifiers: [])
                 .disabled(model.playback.currentTrack == nil || isOpeningCurrentTrackStation)
                 .hidden()
@@ -569,7 +569,7 @@ struct SignedInView: View {
         }
     }
 
-    private func showCurrentSource() {
+    private func showCurrentStation() {
         guard model.playback.currentTrack != nil else { return }
         switch model.queue.source {
         case let .station(urn):
@@ -577,12 +577,6 @@ struct SignedInView: View {
             isShowingQueue = false
             if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
             showStation(urn, seedArtistName: model.queue.stationTitle ?? "Station")
-        case let .playlist(urn):
-            guard let playlist = model.playlists.cache.contents[urn]?.playlist
-                ?? model.playlists.playlists.first(where: { $0.urn == urn }) else { return }
-            isShowingVisualizer = false
-            isShowingQueue = false
-            showPlaylist(playlist)
         default:
             isOpeningCurrentTrackStation = true
         }
