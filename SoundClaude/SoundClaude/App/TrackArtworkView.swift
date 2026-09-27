@@ -468,27 +468,12 @@ struct DetailArtworkView: View {
     @State private var isHoveringArtwork = false
     @State private var likeErrorMessage: String?
 
-    #if DEBUG
-    @AppStorage("debug.reflection.topOpacity") private var reflectionTopOpacity = ReflectionFade.topOpacity
-    @AppStorage("debug.reflection.fadeEnd") private var reflectionFadeEnd = Double(ReflectionFade.fadeEnd)
-    @AppStorage("debug.reflection.falloff") private var reflectionFalloff = ReflectionFade.falloff
-    @State private var isShowingReflectionControls = false
-    #endif
-
     private var reflectionStops: [Gradient.Stop] {
-        #if DEBUG
-        ReflectionFade.stops(
-            topOpacity: reflectionTopOpacity,
-            fadeEnd: CGFloat(reflectionFadeEnd),
-            falloff: reflectionFalloff
-        )
-        #else
         ReflectionFade.stops(
             topOpacity: ReflectionFade.topOpacity,
             fadeEnd: ReflectionFade.fadeEnd,
             falloff: ReflectionFade.falloff
         )
-        #endif
     }
 
     var body: some View {
@@ -505,10 +490,6 @@ struct DetailArtworkView: View {
                             isUpdatingPlaylist: isUpdatingPlaylist
                         )
                     }
-                    #if DEBUG
-                    Divider()
-                    Button("Tune Reflection…") { isShowingReflectionControls = true }
-                    #endif
                 }
                 .offset(y: reduceMotion ? 0 : -artworkLift)
 
@@ -531,11 +512,6 @@ struct DetailArtworkView: View {
                 // Reserve space for the visible reflection; let its faint tail overflow.
                 .frame(height: 32, alignment: .top)
         }
-        #if DEBUG
-        .popover(isPresented: $isShowingReflectionControls, arrowEdge: .trailing) {
-            reflectionControls
-        }
-        #endif
         .alert("Could not update like", isPresented: Binding(
             get: { likeErrorMessage != nil },
             set: { if !$0 { likeErrorMessage = nil } }
@@ -545,45 +521,6 @@ struct DetailArtworkView: View {
             Text(likeErrorMessage ?? "Please try again.")
         }
     }
-
-    #if DEBUG
-    private var reflectionControls: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Artwork reflection").font(.headline)
-                Spacer()
-                Button("Reset") {
-                    reflectionTopOpacity = ReflectionFade.topOpacity
-                    reflectionFadeEnd = Double(ReflectionFade.fadeEnd)
-                    reflectionFalloff = ReflectionFade.falloff
-                }
-            }
-            reflectionSlider("Top opacity", value: $reflectionTopOpacity, range: 0...1, step: 0.01)
-            reflectionSlider("Fade distance", value: $reflectionFadeEnd, range: 0.01...1, step: 0.01)
-            reflectionSlider("Falloff", value: $reflectionFalloff, range: 0.1...10, step: 0.1)
-            Text("Higher falloff fades faster. Settings are saved and apply to all detail artwork in debug builds.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(20)
-        .frame(width: 320)
-    }
-
-    private func reflectionSlider(
-        _ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(title)
-                Spacer()
-                Text(value.wrappedValue, format: .number.precision(.fractionLength(2)))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-            }
-            Slider(value: value, in: range, step: step) { Text(title) }
-        }
-    }
-    #endif
 
     @ViewBuilder
     private var draggableArtworkControl: some View {
