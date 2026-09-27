@@ -13,7 +13,7 @@ struct SignedInView: View {
     @State private var likesSearchText = ""
     @State private var searchFocusRequest = UUID()
     @State private var isShowingVisualizer = false
-    @AppStorage("visualizerShader") private var visualizerShader: VisualizerShader = .inkPool
+    @AppStorage("visualizerShader") private var visualizerShader: VisualizerShader = .bars
     @State private var isShowingQueue = false
     @State private var isOpeningCurrentTrackStation = false
     @State private var stationErrorMessage: String?

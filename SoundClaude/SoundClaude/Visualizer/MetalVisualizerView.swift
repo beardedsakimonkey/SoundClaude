@@ -18,7 +18,6 @@ private final class TransparentMetalView: MTKView {
 
 struct ArtworkVisualizerView: View {
     let shader: VisualizerShader
-    let inkPoolSettings: InkPoolSettings
     let clothSettings: ClothSettings
     @Binding var clothCamera: ClothCamera
     let spectrumBuffer: OpaquePointer
@@ -35,7 +34,6 @@ struct ArtworkVisualizerView: View {
     var body: some View {
         MetalVisualizerView(
             shader: shader,
-            inkPoolSettings: inkPoolSettings,
             clothSettings: clothSettings,
             clothCamera: $clothCamera,
             spectrumBuffer: spectrumBuffer,
@@ -121,7 +119,6 @@ struct ArtworkVisualizerView: View {
 
 struct MetalVisualizerView: NSViewRepresentable {
     let shader: VisualizerShader
-    let inkPoolSettings: InkPoolSettings
     let clothSettings: ClothSettings
     @Binding var clothCamera: ClothCamera
     let spectrumBuffer: OpaquePointer
@@ -162,7 +159,6 @@ struct MetalVisualizerView: NSViewRepresentable {
         )
         context.coordinator.renderer = renderer
         renderer?.shader = shader
-        renderer?.inkPoolSettings = inkPoolSettings
         renderer?.clothSettings = clothSettings
         renderer?.clothCamera = clothCamera
         renderer?.updateArtwork(artworkImage)
@@ -174,7 +170,6 @@ struct MetalVisualizerView: NSViewRepresentable {
     func updateNSView(_ view: MTKView, context: Context) {
         (view as? TransparentMetalView)?.onZoom = zoomHandler
         context.coordinator.renderer?.shader = shader
-        context.coordinator.renderer?.inkPoolSettings = inkPoolSettings
         context.coordinator.renderer?.clothSettings = clothSettings
         context.coordinator.renderer?.clothCamera = clothCamera
         context.coordinator.renderer?.accent = accent

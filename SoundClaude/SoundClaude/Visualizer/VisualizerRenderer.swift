@@ -5,7 +5,6 @@ import simd
 
 enum VisualizerShader: String, CaseIterable {
     case bars
-    case inkPool
     case cloth
 
     var next: Self {
@@ -17,7 +16,6 @@ enum VisualizerShader: String, CaseIterable {
     var title: String {
         switch self {
         case .bars: "Bars"
-        case .inkPool: "Ink Pool"
         case .cloth: "Cloth"
         }
     }
@@ -25,7 +23,6 @@ enum VisualizerShader: String, CaseIterable {
     var sourceFile: String {
         switch self {
         case .bars: "AudioVisualizer.metal"
-        case .inkPool: "InkPoolVisualizer.metal"
         case .cloth: "ClothVisualizer.metal"
         }
     }
@@ -33,7 +30,6 @@ enum VisualizerShader: String, CaseIterable {
     private var functionPrefix: String {
         switch self {
         case .bars: "visualizer"
-        case .inkPool: "inkPoolVisualizer"
         case .cloth: "clothVisualizer"
         }
     }
@@ -42,25 +38,9 @@ enum VisualizerShader: String, CaseIterable {
     var fragmentFunction: String { functionPrefix + "Fragment" }
 }
 
-// Keep the field order and Float types in sync with InkPoolSettings in the Metal shader.
-struct InkPoolSettings {
-    var speed: Float = 0.18
-    var flowScale: Float = 3.0
-    var warpStrength: Float = 0.32
-    var bassResponse: Float = 1.0
-    var rippleFrequency: Float = 16.0
-    var rippleStrength: Float = 0.3
-    var surfaceDepth: Float = 0.45
-    var artworkScale: Float = 0.19
-    var refraction: Float = 1.0
-    var sheen: Float = 0.17
-    var glints: Float = 2.8
-}
-
 final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var accent: ArtworkAccent
     var shader: VisualizerShader = .bars
-    var inkPoolSettings = InkPoolSettings()
     var clothSettings = ClothSettings()
     var clothCamera = ClothCamera()
 
@@ -350,12 +330,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         encoder.setRenderPipelineState(pipelineState)
         bands.withUnsafeBytes { bytes in
             encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 0)
-        }
-        if shader == .inkPool {
-            var settings = inkPoolSettings
-            encoder.setFragmentBytes(
-                &settings, length: MemoryLayout<InkPoolSettings>.stride, index: 4
-            )
         }
         encoder.setFragmentTexture(fallbackTexture, index: 1)
         encoder.setFragmentTexture(artworkTexture ?? fallbackTexture, index: 0)
