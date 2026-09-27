@@ -360,7 +360,7 @@ extension EnvironmentValues {
     @Entry var initialDetailArtworkRotation: Bool? = nil
 }
 
-/// Rotates the artwork and its reflection together, flattening perspective on hover or while viewing artwork.
+/// Rotates the artwork and its reflection together, resetting Y rotation on hover or while viewing artwork.
 struct DetailArtworkRotation: ViewModifier {
     var transform = DetailArtworkTransform()
     var isRotated = true
@@ -380,14 +380,14 @@ struct DetailArtworkRotation: ViewModifier {
         return isRotated
     }
 
-    private var isPerspectiveFlat: Bool { (flattensOnHover && isHovering) || isShowingArtwork }
+    private var isRotationFlat: Bool { (flattensOnHover && isHovering) || isShowingArtwork }
 
     func body(content: Content) -> some View {
         content
             .animation(
-                reduceMotion ? nil : .spring(response: isPerspectiveFlat ? 0.5 : 0.75, dampingFraction: 1)
+                reduceMotion ? nil : .spring(response: isRotationFlat ? 0.5 : 0.75, dampingFraction: 1)
             ) { artwork in
-                rotated(artwork, perspective: isPerspectiveFlat || !displayedRotation ? 0 : transform.perspective)
+                rotated(artwork, perspective: displayedRotation ? transform.perspective : 0)
             }
             .onAppear { hasAppeared = true }
             // Keep the adjusted hover bounds outside the transform.
@@ -411,7 +411,7 @@ struct DetailArtworkRotation: ViewModifier {
                 perspective: perspective
             )
             .rotation3DEffect(
-                .degrees(displayedRotation ? transform.y : 0),
+                .degrees(displayedRotation && !isRotationFlat ? transform.y : 0),
                 axis: (x: 0, y: 1, z: 0),
                 perspective: perspective
             )
