@@ -358,6 +358,7 @@ struct TrackWaveformView: View {
                         }
                         .opacity(showsTimestamps ? 0.8 : 0)
                         .frame(height: height - layout.reflectionHeight, alignment: .bottom)
+                        .offset(y: -2)
                         .allowsHitTesting(false)
                         .accessibilityHidden(!showsTimestamps)
                         .animation(
