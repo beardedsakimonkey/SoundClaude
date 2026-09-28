@@ -8,6 +8,10 @@ struct PistonUniforms {
     float4 viewport; // drawable width and height, unused
     float4 stripes; // thickness, frequency, unused
     float4 stripeColor; // linear RGB, unused
+    float4 metalColor; // linear RGB, unused
+    float4 baseColor; // linear RGB, unused
+    float4 material; // roughness, metallic, grain strength, grain density
+    float4 finish; // reflection strength, edge softness, unused
 };
 struct PistonVertex {
     float4 position [[position]];
@@ -17,6 +21,8 @@ struct PistonVertex {
     float2 uv;
     float3 ropeTangent;
     float4 receiver; // world position, cylinder flag
+    float3 cylinderPosition; // position relative to this piston's axis
+    float4 surface; // radius, bottom, top, base flag
     float stripeHeight;
 };
 static float3 pistonLightPosition(float3 p) {
@@ -82,6 +88,8 @@ vertex PistonVertex pistonVisualizerVertex(
     float2 ropeUV = float2(0);
     float3 ropeTangent = float3(0, 1, 0);
     float stripeHeight = 0;
+    float3 cylinderPosition = float3(0);
+    float4 surface = float4(0);
     if (local < solidVertices) {
         bool base = local < cylinderVertices;
         bool cap = local >= cylinderVertices * 2;
@@ -92,6 +100,7 @@ vertex PistonVertex pistonVisualizerVertex(
         float radius = cap ? 0.65 : (base ? 0.38 : 0.22);
         float bottom = cap ? height - 0.055 : (base ? -1.65 : -1.53);
         float top = cap ? height + 0.055 : (base ? -1.41 : height);
+        surface = float4(radius, bottom, top, base ? 1.0 : 0.0);
         if (corner < 6) {
             float angle = (float(sector + ends[corner])) * 2*M_PI_F/32;
             n = float3(cos(angle), 0, sin(angle));
@@ -106,6 +115,7 @@ vertex PistonVertex pistonVisualizerVertex(
         }
         // Shaft rings travel with the cap; base rings stay on the fixed base.
         stripeHeight = base ? p.y - bottom : p.y - top;
+        cylinderPosition = p;
         p += center;
         color = base ? float3(0.11, 0.13, 0.16) : float3(0.32, 0.36, 0.42);
     } else {
@@ -166,6 +176,8 @@ vertex PistonVertex pistonVisualizerVertex(
     out.uv = ropeUV;
     out.ropeTangent = ropeTangent;
     out.receiver = receiver;
+    out.cylinderPosition = cylinderPosition;
+    out.surface = surface;
     out.stripeHeight = stripeHeight;
     return out;
 }
@@ -173,6 +185,43 @@ struct PistonFragment {
     float4 color [[color(0)]];
     float depth [[depth(any)]];
 };
+// Filter machining marks before they become smaller than a pixel.
+static float pistonGrain(float coordinate) {
+    float footprint = fwidth(coordinate);
+    return sin(coordinate * 2 * M_PI_F) * (1 - smoothstep(0.2, 0.65, footprint));
+}
+static float3 pistonMetal(float3 n, float3 view, float3 light, float3 tint,
+                          float roughness, float metallic) {
+    float3 h = normalize(light + view);
+    float nv = max(dot(n, view), 0.001);
+    float nl = max(dot(n, light), 0.0);
+    float nh = max(dot(n, h), 0.0);
+    float vh = max(dot(view, h), 0.0);
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float d = nh * nh * (a2 - 1) + 1;
+    float distribution = a2 / max(M_PI_F * d * d, 0.00001);
+    float k = (roughness + 1) * (roughness + 1) / 8;
+    float geometry = nv / (nv * (1 - k) + k) * nl / (nl * (1 - k) + k);
+    float3 f0 = mix(float3(0.04), tint, metallic);
+    float3 fresnel = f0 + (1 - f0) * pow(1 - vh, 5.0);
+    return ((1 - fresnel) * (1 - metallic) * tint / M_PI_F
+        + distribution * geometry * fresnel / max(4 * nv * nl, 0.001)) * nl;
+}
+
+// An analytic studio environment: tall cool softboxes and a warm overhead fill.
+// Reflection directions are in world space so highlights move with the camera.
+static float3 pistonStudio(float3 r, float roughness) {
+    float blur = roughness * roughness;
+    float key = exp(-pow((r.x + 0.48) / (0.15 + blur), 2.0)
+                    -pow((r.y - 0.32) / (0.8 + blur), 2.0)) * smoothstep(-0.2, 0.4, r.z);
+    float rim = exp(-pow((r.x - 0.8) / (0.12 + blur), 2.0)
+                    -pow((r.y - 0.15) / (0.7 + blur), 2.0));
+    float overhead = pow(max(r.y, 0.0), mix(12.0, 3.0, roughness));
+    return mix(float3(0.035, 0.045, 0.065), float3(0.18, 0.22, 0.29), r.y * 0.5 + 0.5)
+        + float3(1.65, 1.85, 2.1) * key + float3(0.7, 0.95, 1.3) * rim
+        + float3(0.7, 0.57, 0.42) * overhead;
+}
 fragment PistonFragment pistonVisualizerFragment(
     PistonVertex in [[stage_in]],
     constant PistonUniforms &u [[buffer(4)]],
@@ -276,5 +325,60 @@ fragment PistonFragment pistonVisualizerFragment(
                 lit += depth <= ropeShadow.sample(comparison, uv + float2(x, y) * texel).r ? 1.0 : 0.0;
         visibility = mix(0.18, 1.0, lit / 9);
     }
-    return {float4(color*(0.28+0.72*diffuse*visibility)+specular*(isRope ? 0.3 : 0.5)*visibility,1), in.position.z};
+    float jointVisibility = 1;
+    if (in.receiver.w > 0.5) {
+        // Fake crevice occlusion where the shaft (radius 0.22) enters the
+        // base's top at y = -1.41. Fade up the shaft and across the base lip.
+        float2 jointDistance = float2(
+            (length(in.cylinderPosition.xz) - 0.22) / 0.085,
+            (in.cylinderPosition.y + 1.41) / 0.16);
+        jointVisibility -= 0.30 * exp(-dot(jointDistance, jointDistance));
+    }
+    float3 shaded = color * (0.28 * jointVisibility + 0.72 * diffuse * visibility
+        * mix(1.0, jointVisibility, 0.65))
+        + specular * (isRope ? 0.3 : 0.5) * visibility * jointVisibility;
+    if (!isRope) {
+        float radialDistance = length(in.cylinderPosition.xz);
+        float3 radial = float3(in.cylinderPosition.x, 0, in.cylinderPosition.z)
+            / max(radialDistance, 0.0001);
+        radial = pistonRotate(radial, u.camera.y, u.camera.z);
+        bool endFace = abs(dot(n, cylinderAxis)) > 0.5;
+        // Small normal bevels catch the light along the machined edges.
+        float bevel = max(u.finish.y, 0.00001);
+        if (u.finish.y > 0 && endFace) {
+            float edge = smoothstep(in.surface.x - bevel, in.surface.x, radialDistance);
+            n = normalize(mix(n, normalize(n + radial), edge));
+        } else if (u.finish.y > 0) {
+            float topEdge = 1 - smoothstep(0.0, bevel, in.surface.z - in.cylinderPosition.y);
+            float bottomEdge = 1 - smoothstep(0.0, bevel, in.cylinderPosition.y - in.surface.y);
+            n = normalize(n + cylinderAxis * (topEdge - bottomEdge));
+        }
+        float coordinate = (endFace ? radialDistance : in.stripeHeight) * u.material.w;
+        float grain = (pistonGrain(coordinate * 115) * 0.65
+                    + pistonGrain(coordinate * 213) * 0.35) * u.material.z;
+        float base = in.surface.w;
+        float3 metalColor = mix(u.metalColor.rgb, u.baseColor.rgb, base);
+        metalColor *= 1 + grain * 0.045;
+        float3 tint = mix(metalColor, u.stripeColor.rgb, stripe);
+        float roughness = clamp(u.material.x + mix(endFace ? 0.08 : 0.0, 0.20, base)
+                                + grain * 0.035 + stripe * 0.16, 0.08, 1.0);
+        float metallic = mix(u.material.y, min(u.material.y, 0.25), stripe);
+        float3 view = normalize(in.eye);
+        float3 reflection = reflect(-view, n);
+        float3 worldReflection = float3(
+            dot(reflection, pistonRotate(float3(1, 0, 0), u.camera.y, u.camera.z)),
+            dot(reflection, cylinderAxis),
+            dot(reflection, pistonRotate(float3(0, 0, 1), u.camera.y, u.camera.z)));
+        float nv = max(dot(n, view), 0.0);
+        float3 f0 = mix(float3(0.04), tint, metallic);
+        float3 fresnel = f0 + (max(float3(1 - roughness), f0) - f0) * pow(1 - nv, 5.0);
+        float3 environment = pistonStudio(worldReflection, roughness) * fresnel
+            * (1 - 0.4 * roughness) * u.finish.x;
+        float3 direct = pistonMetal(n, view, light, tint, roughness, metallic)
+            * float3(2.4, 2.5, 2.7) * visibility;
+        shaded = (environment + tint * (1 - metallic) * 0.18 + direct) * jointVisibility;
+        // Soft highlight rolloff keeps bright reflections from clipping.
+        shaded = shaded / (1 + shaded);
+    }
+    return {float4(shaded, 1), in.position.z};
 }

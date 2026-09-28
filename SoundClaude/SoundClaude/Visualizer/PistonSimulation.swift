@@ -11,6 +11,14 @@ struct PistonSettings: Equatable {
     var stripeThickness: Float = 0.0192
     var stripeFrequency: Float = 1
     var stripeColor = SIMD3<Float>(0.144, 0.162, 0.189) // Linear RGB.
+    var metalColor = SIMD3<Float>(0.56, 0.62, 0.70) // Linear RGB.
+    var baseColor = SIMD3<Float>(0.15, 0.19, 0.25) // Linear RGB.
+    var roughness: Float = 0.26
+    var metallic: Float = 0.94
+    var grainStrength: Float = 1
+    var grainScale: Float = 1
+    var reflectionStrength: Float = 1
+    var edgeSoftness: Float = 0.018
 }
 
 /// Independent ropes with pinned roots and Verlet distance constraints.

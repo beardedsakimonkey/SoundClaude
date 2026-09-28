@@ -207,6 +207,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         uniforms.append(SIMD4<Float>(Float(view.drawableSize.width), Float(view.drawableSize.height), 0, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.stripeThickness, pistonSettings.stripeFrequency, 0, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.stripeColor, 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.metalColor, 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.baseColor, 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.roughness, pistonSettings.metallic,
+                                     pistonSettings.grainStrength, pistonSettings.grainScale))
+        uniforms.append(SIMD4<Float>(pistonSettings.reflectionStrength, pistonSettings.edgeSoftness, 0, 0))
         return (buffer, uniforms, PistonSimulation.count *
             (32 * 12 * 3 + pistonSettings.stringsPerPiston * PistonSimulation.segments * 6))
     }

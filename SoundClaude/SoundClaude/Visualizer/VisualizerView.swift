@@ -108,9 +108,21 @@ struct VisualizerView: View {
                     Text("Cylinder stripes").font(.subheadline.bold())
                     tuningSlider("Stripe thickness", value: $pistonSettings.stripeThickness, range: 0...0.08, format: "%.3f")
                     tuningSlider("Stripe frequency", value: $pistonSettings.stripeFrequency, range: 1...12)
-                    ColorPicker("Stripe color", selection: pistonStripeColor, supportsOpacity: false)
+                    ColorPicker("Stripe color", selection: pistonColor(\.stripeColor), supportsOpacity: false)
                     Text("Higher frequency adds more stripes. Zero thickness hides them.")
                         .font(.caption).foregroundStyle(.secondary)
+                    Divider()
+                    Text("Cylinder material").font(.subheadline.bold())
+                    ColorPicker("Steel color", selection: pistonColor(\.metalColor), supportsOpacity: false)
+                    ColorPicker("Base color", selection: pistonColor(\.baseColor), supportsOpacity: false)
+                    tuningSlider("Roughness", value: $pistonSettings.roughness, range: 0.08...0.8)
+                    tuningSlider("Metallic", value: $pistonSettings.metallic, range: 0...1)
+                    Text("Lower roughness gives sharper reflections. Bases keep a softer finish.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    tuningSlider("Machining marks", value: $pistonSettings.grainStrength, range: 0...3)
+                    tuningSlider("Mark density", value: $pistonSettings.grainScale, range: 0.1...3)
+                    tuningSlider("Reflections", value: $pistonSettings.reflectionStrength, range: 0...3)
+                    tuningSlider("Edge softness", value: $pistonSettings.edgeSoftness, range: 0...0.05, format: "%.3f")
                     Divider()
                     tuningSlider("Camera distance", value: $clothCamera.zoom, range: 0.2...2)
                     Text("Drag to orbit. Scroll to zoom.")
@@ -127,17 +139,17 @@ struct VisualizerView: View {
         .frame(width: 320)
     }
 
-    private var pistonStripeColor: Binding<Color> {
+    private func pistonColor(_ keyPath: WritableKeyPath<PistonSettings, SIMD3<Float>>) -> Binding<Color> {
         Binding(
             get: {
-                let rgb = pistonSettings.stripeColor
+                let rgb = pistonSettings[keyPath: keyPath]
                 return Color(.sRGBLinear, red: Double(rgb.x), green: Double(rgb.y), blue: Double(rgb.z))
             },
             set: { color in
                 guard let cgSpace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB),
                       let space = NSColorSpace(cgColorSpace: cgSpace),
                       let rgb = NSColor(color).usingColorSpace(space) else { return }
-                pistonSettings.stripeColor = SIMD3(Float(rgb.redComponent), Float(rgb.greenComponent), Float(rgb.blueComponent))
+                pistonSettings[keyPath: keyPath] = SIMD3(Float(rgb.redComponent), Float(rgb.greenComponent), Float(rgb.blueComponent))
             }
         )
     }
