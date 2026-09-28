@@ -4,14 +4,14 @@ using namespace metal;
 struct PistonUniforms {
     float4 camera; // aspect, yaw, pitch, distance
     float4 heights[2];
-    float4 ropes; // half thickness, strings per piston, ground height, pass (scene, mask, floor, light)
+    float4 ropes; // half thickness, strings per piston, ground height, pass (scene, mask, floor, light, glow)
     float4 viewport; // drawable width and height, unused
     float4 stripes; // thickness, frequency, unused
     float4 stripeColor; // linear RGB, unused
     float4 metalColor; // linear RGB, unused
     float4 baseColor; // linear RGB, unused
     float4 material; // roughness, metallic, grain strength, grain density
-    float4 finish; // reflection strength, edge softness, unused
+    float4 finish; // reflection strength, edge softness, neutral rope glow, unused
 };
 struct PistonVertex {
     float4 position [[position]];
@@ -52,7 +52,8 @@ vertex PistonVertex pistonVisualizerVertex(
     const uint ropeVertices = stringsPerPiston * 20 * 6;
     uint piston = id / (solidVertices + ropeVertices);
     uint local = id % (solidVertices + ropeVertices);
-    bool lightPass = u.ropes.w > 2.5;
+    bool glowPass = u.ropes.w > 3.5;
+    bool lightPass = u.ropes.w > 2.5 && !glowPass;
     if (lightPass && local >= solidVertices) {
         // Rope ribbons viewed from the scene light.
         uint v = local - solidVertices;
@@ -70,7 +71,7 @@ vertex PistonVertex pistonVisualizerVertex(
         out.position = float4(p.xy / 12, (12 - p.z) / 24, 1);
         return out;
     }
-    if (u.ropes.w > 1.5 && !lightPass) {
+    if (u.ropes.w > 1.5 && !lightPass && !glowPass) {
         // Cover the viewport; the fragment shader intersects an infinite plane.
         const float2 corners[6] = {
             float2(-1,-1), float2(1,-1), float2(-1,1),
@@ -126,7 +127,7 @@ vertex PistonVertex pistonVisualizerVertex(
         uint index = string*21 + segment%20;
         float3 a = points[index].xyz;
         float3 b = points[index+1].xyz;
-        if (u.ropes.w > 0.5) {
+        if (u.ropes.w > 0.5 && !glowPass) {
             a = pistonGroundShadow(a, u);
             b = pistonGroundShadow(b, u);
         }
@@ -137,7 +138,7 @@ vertex PistonVertex pistonVisualizerVertex(
         const uint ends[6] = {0,1,0,0,1,1};
         const float sides[6] = {-1,-1,1,1,-1,1};
         p = ends[v%6] ? b : a;
-        p.xy += side*sides[v%6];
+        p.xy += side*sides[v%6] * (glowPass ? 5.0 : 1.0);
         // Smooth the lighting through segment joints using neighboring nodes.
         uint node = segment % 20 + ends[v%6];
         uint root = string * 21;
@@ -145,7 +146,7 @@ vertex PistonVertex pistonVisualizerVertex(
                        - points[root + (node > 0 ? node - 1 : 0)].xyz;
         tangent3 = pistonRotate(tangent3, u.camera.y, u.camera.z);
         ropeTangent = length(tangent3) > 0.00001 ? normalize(tangent3) : float3(0, 1, 0);
-        ropeUV = float2(sides[v%6], 1);
+        ropeUV = float2(sides[v%6], localString % 2 == 0 ? 2.0 : 1.0);
         n = float3(0,0,1);
         // Alternate each piston's color with a neutral gray around the perimeter.
         float phase = float(piston)*0.47;
@@ -222,12 +223,56 @@ static float3 pistonStudio(float3 r, float roughness) {
         + float3(1.65, 1.85, 2.1) * key + float3(0.7, 0.95, 1.3) * rim
         + float3(0.7, 0.57, 0.42) * overhead;
 }
+// Approximate each rope with ten segments for a soft local reflection.
+// Sample simulation positions so the reflected streaks follow the moving ropes.
+static float3 pistonRopeReflection(float3 origin, float3 direction, float roughness,
+                                   uint piston, constant PistonUniforms &u,
+                                   const device float4 *points) {
+    float2 energy = float2(0);
+    uint strings = uint(u.ropes.y);
+    float footprint = max(length(dfdx(origin)), length(dfdy(origin)));
+    for (uint string = 0; string < strings; ++string) {
+        uint root = (piston * strings + string) * 21;
+        float ropeEnergy = 0;
+        for (uint node = 0; node < 20; node += 2) {
+            float3 a = points[root + node].xyz - origin;
+            float3 segment = points[root + node + 2].xyz - points[root + node].xyz;
+            // Closest point on the segment to the reflected view ray.
+            float projection = dot(segment, direction);
+            float denominator = max(dot(segment, segment) - projection * projection, 0.000001);
+            float t = saturate((projection * dot(a, direction) - dot(a, segment)) / denominator);
+            float3 offset = a + segment * t;
+            float along = dot(offset, direction);
+            if (along <= 0.001) continue;
+            float3 separation = offset - direction * along;
+            float width = u.ropes.x + along * roughness * roughness * 0.6 + footprint;
+            float response = exp(-dot(separation, separation) / (width * width));
+            response *= u.ropes.x / width / (1 + along * along * 0.12);
+            // Avoid bright seams where adjacent segments meet.
+            ropeEnergy = max(ropeEnergy, response);
+        }
+        energy[string % 2] += ropeEnergy;
+    }
+    float3 color = 0.55 + 0.45 * cos(float(piston) * 0.47 + float3(0, 2, 4));
+    return color * min(energy.x * 3.0, 4.0)
+        + float3(0.65) * min(energy.y * 3.0, 4.0) * saturate(u.finish.z);
+}
 fragment PistonFragment pistonVisualizerFragment(
     PistonVertex in [[stage_in]],
     constant PistonUniforms &u [[buffer(4)]],
+    const device float4 *points [[buffer(6)]],
     texture2d<float> shadowMask [[texture(1)]],
     texture2d<float> ropeShadow [[texture(2)]]
 ) {
+    if (u.ropes.w > 3.5) {
+        if (in.uv.y < 0.5) discard_fragment();
+        float glowStrength = in.uv.y > 1.5 ? 1.0 : saturate(u.finish.z);
+        float across = abs(in.uv.x);
+        float halo = exp(-across * across * 6.0) * (1 - smoothstep(0.65, 1.0, across));
+        float3 emission = in.color * halo * 0.28 * glowStrength;
+        float alpha = max(emission.r, max(emission.g, emission.b));
+        return {float4(emission, alpha), in.position.z};
+    }
     if (u.ropes.w > 2.5) return {float4(float3(in.position.z), 1), in.position.z};
     if (u.ropes.w > 1.5) {
         constexpr sampler shadowFilter(filter::linear, address::clamp_to_zero);
@@ -284,10 +329,12 @@ fragment PistonFragment pistonVisualizerFragment(
 
     float3 n = normalize(in.normal);
     bool isRope = in.uv.y > 0.5;
+    // Keep rope lighting independent of camera distance.
+    float3 lightingView = isRope ? float3(0, 0, 1) : normalize(in.eye);
     if (isRope) {
         // Reconstruct a round cross-section across the camera-facing ribbon.
         float3 tangent = normalize(in.ropeTangent);
-        float3 side = cross(normalize(in.eye), tangent);
+        float3 side = cross(lightingView, tangent);
         if (dot(side, side) < 0.000001) side = cross(float3(0, 1, 0), tangent);
         side = normalize(side);
         float3 front = normalize(cross(tangent, side));
@@ -296,7 +343,7 @@ fragment PistonFragment pistonVisualizerFragment(
     }
     float3 light = normalize(pistonRotate(float3(-0.4,0.8,1), u.camera.y, u.camera.z));
     float diffuse = max(0.0,dot(n,light));
-    float specular = pow(max(0.0,dot(n,normalize(light+normalize(in.eye)))), isRope ? 24.0 : 48.0);
+    float specular = pow(max(0.0,dot(n,normalize(light+lightingView))), isRope ? 24.0 : 48.0);
     float stripe = 0;
     float3 cylinderAxis = pistonRotate(float3(0, 1, 0), u.camera.y, u.camera.z);
     if (in.receiver.w > 0.5 && abs(dot(n, cylinderAxis)) < 0.5 && u.stripes.x > 0) {
@@ -337,6 +384,12 @@ fragment PistonFragment pistonVisualizerFragment(
     float3 shaded = color * (0.28 * jointVisibility + 0.72 * diffuse * visibility
         * mix(1.0, jointVisibility, 0.65))
         + specular * (isRope ? 0.3 : 0.5) * visibility * jointVisibility;
+    if (isRope) {
+        // Emissive color and a pale core stay bright on the unlit side.
+        float core = pow(max(0.0, 1.0 - in.uv.x * in.uv.x), 3.0);
+        float3 emissive = in.color * (0.8 + 0.2 * diffuse) + float3(0.24) * core;
+        shaded = mix(shaded, emissive, in.uv.y > 1.5 ? 1.0 : saturate(u.finish.z));
+    }
     if (!isRope) {
         float radialDistance = length(in.cylinderPosition.xz);
         float3 radial = float3(in.cylinderPosition.x, 0, in.cylinderPosition.z)
@@ -374,6 +427,12 @@ fragment PistonFragment pistonVisualizerFragment(
         float3 fresnel = f0 + (max(float3(1 - roughness), f0) - f0) * pow(1 - nv, 5.0);
         float3 environment = pistonStudio(worldReflection, roughness) * fresnel
             * (1 - 0.4 * roughness) * u.finish.x;
+        if (u.finish.x > 0) {
+            float centerX = in.receiver.x - in.cylinderPosition.x;
+            uint piston = uint(clamp(round(centerX / 1.85 + 3.5), 0.0, 7.0));
+            environment += pistonRopeReflection(in.receiver.xyz, worldReflection, roughness,
+                                                 piston, u, points) * fresnel * u.finish.x;
+        }
         float3 direct = pistonMetal(n, view, light, tint, roughness, metallic)
             * float3(2.4, 2.5, 2.7) * visibility;
         shaded = (environment + tint * (1 - metallic) * 0.18 + direct) * jointVisibility;
@@ -381,4 +440,22 @@ fragment PistonFragment pistonVisualizerFragment(
         shaded = shaded / (1 + shaded);
     }
     return {float4(shaded, 1), in.position.z};
+}
+
+struct PistonBloomVertex {
+    float4 position [[position]];
+    float2 uv;
+};
+vertex PistonBloomVertex pistonBloomVertex(uint id [[vertex_id]]) {
+    const float2 corners[3] = {float2(-1, -1), float2(3, -1), float2(-1, 3)};
+    float2 p = corners[id];
+    return {float4(p, 0, 1), float2(p.x * 0.5 + 0.5, 0.5 - p.y * 0.5)};
+}
+fragment float4 pistonBloomFragment(PistonBloomVertex in [[stage_in]],
+                                    texture2d<float> bloom [[texture(0)]]) {
+    constexpr sampler linearSampler(filter::linear, address::clamp_to_edge);
+    // Keep RGB within alpha, including where the floor fades into the backdrop.
+    float3 emission = saturate(bloom.sample(linearSampler, in.uv).rgb * 2.0);
+    float alpha = max(emission.r, max(emission.g, emission.b));
+    return float4(emission, alpha);
 }

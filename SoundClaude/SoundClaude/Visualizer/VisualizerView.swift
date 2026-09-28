@@ -96,6 +96,9 @@ struct VisualizerView: View {
                         .font(.caption).foregroundStyle(.secondary)
                     tuningSlider("Rope length", value: $pistonSettings.ropeLength, range: 0.5...5)
                     tuningSlider("Rope thickness", value: $pistonSettings.ropeThickness, range: 0.004...0.08, format: "%.3f")
+                    tuningSlider("Neutral rope glow", value: $pistonSettings.neutralRopeGlow, range: 0...1)
+                    Text("Zero turns neutral glow off. One matches the colored ropes’ glow strength.")
+                        .font(.caption).foregroundStyle(.secondary)
                     tuningSlider("Damping", value: $pistonSettings.damping, range: 0.001...0.08, format: "%.3f")
                     Text("Higher damping makes the strings settle faster. Long strings collect on the floor.")
                         .font(.caption).foregroundStyle(.secondary)
@@ -124,13 +127,8 @@ struct VisualizerView: View {
                     tuningSlider("Reflections", value: $pistonSettings.reflectionStrength, range: 0...3)
                     tuningSlider("Edge softness", value: $pistonSettings.edgeSoftness, range: 0...0.05, format: "%.3f")
                     Divider()
-                    tuningSlider("Camera distance", value: $clothCamera.zoom, range: 0.2...2)
                     Text("Drag to orbit. Scroll to zoom.")
                         .font(.caption).foregroundStyle(.secondary)
-                    Button("Reset camera") {
-                        clothCamera = ClothCamera()
-                        orbitStart = nil
-                    }
                 }
             }
             .frame(maxHeight: 520)

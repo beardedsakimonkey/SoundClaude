@@ -3,8 +3,9 @@ import simd
 
 struct PistonSettings: Equatable {
     var stringsPerPiston = 24
-    var ropeLength: Float = 2.3
+    var ropeLength: Float = 2.59
     var ropeThickness: Float = 0.024
+    var neutralRopeGlow: Float = 1.0
     var damping: Float = 0.032
     var gravity: Float = 20
     var travel: Float = 3.2
@@ -17,7 +18,7 @@ struct PistonSettings: Equatable {
     var metallic: Float = 0.94
     var grainStrength: Float = 1
     var grainScale: Float = 1
-    var reflectionStrength: Float = 1
+    var reflectionStrength: Float = 0.5
     var edgeSoftness: Float = 0.018
 }
 
