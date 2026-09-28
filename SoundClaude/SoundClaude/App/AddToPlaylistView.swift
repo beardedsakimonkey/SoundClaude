@@ -15,6 +15,7 @@ struct AddToPlaylistView: View {
     let track: SoundCloudTrack
     let user: SoundCloudUser
     @ObservedObject var playlists: PlaylistsController
+    let artworkLoader: ArtworkLoader
     @Environment(\.dismiss) private var dismiss
     @State private var selectedURN: String?
     @State private var isAdding = false
@@ -32,13 +33,23 @@ struct AddToPlaylistView: View {
             Text("Add to playlist").font(.title2.bold())
             Text(track.title).foregroundStyle(.secondary).lineLimit(2)
             List(ownedPlaylists, selection: $selectedURN) { playlist in
-                Label {
+                HStack(spacing: 10) {
+                    TrackArtworkView(
+                        artworkURL: artworkURL(for: playlist),
+                        loader: artworkLoader,
+                        size: 36
+                    )
                     Text(playlist.title)
-                } icon: {
-                    Image(systemName: playlist.isPrivate ? "lock" : "music.note.list")
-                        .opacity(0.7)
+                        .lineLimit(2)
+                    Spacer()
+                    if playlist.isPrivate {
+                        Image(systemName: "lock")
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("Private playlist")
+                    }
                 }
-                    .tag(playlist.urn)
+                .padding(.vertical, 2)
+                .tag(playlist.urn)
             }
             .overlay {
                 if ownedPlaylists.isEmpty {
@@ -88,5 +99,11 @@ struct AddToPlaylistView: View {
         .frame(width: 420, height: 380)
         .interactiveDismissDisabled(isAdding)
         .task { await playlists.load() }
+    }
+
+    private func artworkURL(for playlist: SoundCloudPlaylist) -> URL? {
+        let contents = playlists.cache.contents[playlist.urn]
+        return (contents?.playlist ?? playlist).artworkURL
+            ?? contents?.tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
     }
 }

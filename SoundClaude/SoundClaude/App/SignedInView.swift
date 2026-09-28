@@ -160,7 +160,12 @@ struct SignedInView: View {
         }
         .environment(\.addToPlaylist, { playlistTrack = $0 })
         .sheet(item: $playlistTrack) { track in
-            AddToPlaylistView(track: track, user: user, playlists: model.playlists)
+            AddToPlaylistView(
+                track: track,
+                user: user,
+                playlists: model.playlists,
+                artworkLoader: model.artworkLoader
+            )
         }
         .environment(\.searchGenre, showGenreSearch)
         .environment(\.searchTag, showTagSearch)
