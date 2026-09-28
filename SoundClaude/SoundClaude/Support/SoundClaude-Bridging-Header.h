@@ -3,5 +3,6 @@
 
 #include "PCMRingBuffer.h"
 #include "../Visualizer/ClothSolver.h"
+#include "../Visualizer/PistonSolver.h"
 
 #endif

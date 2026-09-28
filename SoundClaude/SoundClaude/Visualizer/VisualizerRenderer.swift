@@ -6,6 +6,14 @@ import simd
 enum VisualizerShader: String, CaseIterable {
     case bars
     case cloth
+    case pistons
+
+    var isSpatial: Bool { self == .cloth || self == .pistons }
+
+    // Pistons add a 0.25-radian tilt and orbit a point above the floor.
+    var cameraPitchRange: ClosedRange<Float> {
+        self == .pistons ? -0.25...1.2 : -1.45...1.45
+    }
 
     var next: Self {
         let shaders = Self.allCases
@@ -17,6 +25,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .bars: "Bars"
         case .cloth: "Cloth"
+        case .pistons: "Pistons"
         }
     }
 
@@ -24,6 +33,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .bars: "AudioVisualizer.metal"
         case .cloth: "ClothVisualizer.metal"
+        case .pistons: "PistonVisualizer.metal"
         }
     }
 
@@ -31,6 +41,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .bars: "visualizer"
         case .cloth: "clothVisualizer"
+        case .pistons: "pistonVisualizer"
         }
     }
 
@@ -42,11 +53,17 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var accent: ArtworkAccent
     var shader: VisualizerShader = .bars
     var clothSettings = ClothSettings()
+    var pistonSettings = PistonSettings()
     var clothCamera = ClothCamera()
 
     private var shadowMask: MTLTexture?
     private var shadowBlur: MTLTexture?
     private var shadowDepth: MTLTexture?
+    private var pistonRopeShadow: MTLTexture?
+    private var pistonRopeShadowDepth: MTLTexture?
+    private var pistonRopeShadowPipeline: MTLRenderPipelineState?
+    private var pistons = PistonSimulation()
+    private var lastPistonTime: Double?
     private var cloth = ClothSimulation()
     private var bassLevel: Float = 0
     private var trebleLevel: Float = 0
@@ -165,6 +182,35 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         return try device.makeRenderPipelineState(descriptor: descriptor)
     }
 
+    private typealias PistonFrame = (positions: MTLBuffer, uniforms: [SIMD4<Float>], vertexCount: Int)
+
+    private func preparePistons(in view: MTKView) -> PistonFrame? {
+        let now = ProcessInfo.processInfo.systemUptime
+        pistons.settings = pistonSettings
+        pistons.advance(delta: lastPistonTime.map { now - $0 } ?? PistonSimulation.step, bands: bands)
+        lastPistonTime = now
+        let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
+        // Fit the full row in narrow windows as well as landscape windows.
+        let distance = max(13, 17 / max(0.1, aspect)) * clothCamera.zoom / 0.7
+        let pitchRange = VisualizerShader.pistons.cameraPitchRange
+        let pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound, clothCamera.pitch))
+        var uniforms = [SIMD4<Float>(aspect, clothCamera.yaw, pitch + 0.25, distance)]
+        uniforms.append(SIMD4(pistons.heights[0], pistons.heights[1], pistons.heights[2], pistons.heights[3]))
+        uniforms.append(SIMD4(pistons.heights[4], pistons.heights[5], pistons.heights[6], pistons.heights[7]))
+        uniforms.append(SIMD4<Float>(pistonSettings.ropeThickness * 0.5, Float(pistonSettings.stringsPerPiston), 0, 0))
+        let buffer = pistons.positions.withUnsafeBytes { bytes in
+            view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
+        }
+        guard let buffer else { return nil }
+        // Match the floor used by the rope solver.
+        uniforms[3].z = -1.65
+        uniforms.append(SIMD4<Float>(Float(view.drawableSize.width), Float(view.drawableSize.height), 0, 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.stripeThickness, pistonSettings.stripeFrequency, 0, 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.stripeColor, 0))
+        return (buffer, uniforms, PistonSimulation.count *
+            (32 * 12 * 3 + pistonSettings.stringsPerPiston * PistonSimulation.segments * 6))
+    }
+
     private typealias ClothFrame = (positions: MTLBuffer, normals: MTLBuffer, uniforms: [SIMD4<Float>])
 
     private func prepareCloth(in view: MTKView) -> ClothFrame? {
@@ -246,6 +292,102 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         in view: MTKView, commandBuffer: MTLCommandBuffer,
         pipeline: MTLRenderPipelineState, frame: ClothFrame
     ) -> MTLTexture? {
+        encodeShadow(in: view, commandBuffer: commandBuffer) { encoder in
+            encoder.setRenderPipelineState(pipeline)
+            var accentColor = SIMD4<Float>(Float(accent.red), Float(accent.green), Float(accent.blue), 0)
+            encoder.setFragmentBytes(&accentColor, length: MemoryLayout<SIMD4<Float>>.stride, index: 2)
+            encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
+            encoder.setFragmentBuffer(frame.normals, offset: 0, index: 5)
+            encoder.setFragmentTexture(fallbackTexture, index: 1)
+            encoder.setFragmentTexture(artworkTexture ?? fallbackTexture, index: 0)
+            var uniforms = frame.uniforms
+            uniforms[2].w = 1
+            uniforms.withUnsafeBytes { bytes in
+                encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+            }
+            // Opaque writes form one silhouette, including where cloth folds overlap.
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0,
+                                   vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
+        }
+    }
+
+    private func encodePistonRopeShadow(
+        in view: MTKView, commandBuffer: MTLCommandBuffer, frame: PistonFrame
+    ) -> MTLTexture? {
+        guard let device = view.device else { return nil }
+        if pistonRopeShadowPipeline == nil, let library = device.makeDefaultLibrary() {
+            pistonRopeShadowPipeline = try? Self.makePipeline(
+                device: device, library: library, pixelFormat: .rgba16Float, shader: .pistons)
+        }
+        if pistonRopeShadow == nil {
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: .rgba16Float, width: 2048, height: 2048, mipmapped: false)
+            descriptor.storageMode = .private
+            descriptor.usage = [.renderTarget, .shaderRead]
+            pistonRopeShadow = device.makeTexture(descriptor: descriptor)
+            descriptor.pixelFormat = .depth32Float
+            descriptor.usage = .renderTarget
+            pistonRopeShadowDepth = device.makeTexture(descriptor: descriptor)
+        }
+        guard let texture = pistonRopeShadow, let depth = pistonRopeShadowDepth,
+              let pipeline = pistonRopeShadowPipeline else { return nil }
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = texture
+        pass.colorAttachments[0].loadAction = .clear
+        pass.colorAttachments[0].storeAction = .store
+        pass.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1)
+        pass.depthAttachment.texture = depth
+        pass.depthAttachment.loadAction = .clear
+        pass.depthAttachment.storeAction = .dontCare
+        pass.depthAttachment.clearDepth = 1
+        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return nil }
+        encoder.label = "Piston cap and rope shadows"
+        encoder.setRenderPipelineState(pipeline)
+        encoder.setDepthStencilState(depthState)
+        encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
+        encoder.setFragmentTexture(fallbackTexture, index: 1)
+        encoder.setFragmentTexture(fallbackTexture, index: 2)
+        var uniforms = frame.uniforms
+        uniforms[3].w = 3
+        uniforms.withUnsafeBytes { bytes in
+            encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+            encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+        }
+        let solids = 32 * 12 * 3
+        let ropes = pistonSettings.stringsPerPiston * PistonSimulation.segments * 6
+        for piston in 0..<PistonSimulation.count {
+            encoder.drawPrimitives(type: .triangle,
+                                   vertexStart: piston * (solids + ropes) + solids - 32 * 12,
+                                   vertexCount: ropes + 32 * 12)
+        }
+        encoder.endEncoding()
+        return texture
+    }
+
+    private func encodePistonShadow(
+        in view: MTKView, commandBuffer: MTLCommandBuffer,
+        pipeline: MTLRenderPipelineState, frame: PistonFrame
+    ) -> MTLTexture? {
+        encodeShadow(in: view, commandBuffer: commandBuffer) { encoder in
+            encoder.setRenderPipelineState(pipeline)
+            encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
+            encoder.setFragmentTexture(fallbackTexture, index: 1)
+            encoder.setFragmentTexture(fallbackTexture, index: 2)
+            var uniforms = frame.uniforms
+            uniforms[3].w = 1
+            uniforms.withUnsafeBytes { bytes in
+                encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+            }
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: frame.vertexCount)
+        }
+    }
+
+    private func encodeShadow(
+        in view: MTKView, commandBuffer: MTLCommandBuffer,
+        drawMask: (MTLRenderCommandEncoder) -> Void
+    ) -> MTLTexture? {
         guard let device = view.device else { return nil }
         // Bound the offscreen cost and keep softness proportional to the viewport.
         let scale = min(1, 512 / max(1, max(view.drawableSize.width, view.drawableSize.height)))
@@ -273,23 +415,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         pass.depthAttachment.loadAction = .clear
         pass.depthAttachment.storeAction = .dontCare
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return nil }
-        encoder.label = "Cloth wall shadow mask"
-        encoder.setRenderPipelineState(pipeline)
-        var accentColor = SIMD4<Float>(Float(accent.red), Float(accent.green), Float(accent.blue), 0)
-        encoder.setFragmentBytes(&accentColor, length: MemoryLayout<SIMD4<Float>>.stride, index: 2)
-        encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
-        encoder.setFragmentBuffer(frame.normals, offset: 0, index: 5)
-        encoder.setFragmentTexture(fallbackTexture, index: 1)
-        encoder.setFragmentTexture(artworkTexture ?? fallbackTexture, index: 0)
-        var uniforms = frame.uniforms
-        uniforms[2].w = 1
-        uniforms.withUnsafeBytes { bytes in
-            encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
-            encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
-        }
-        // Opaque writes form one silhouette, including where cloth folds overlap.
-        encoder.drawPrimitives(type: .triangle, vertexStart: 0,
-                               vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
+        encoder.label = "Visualizer wall shadow mask"
+        drawMask(encoder)
         encoder.endEncoding()
         let blur = MPSImageGaussianBlur(device: device, sigma: max(1, Float(min(width, height)) * 0.008))
         blur.edgeMode = .zero
@@ -317,9 +444,16 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         }
         let clothFrame = shader == .cloth
             ? prepareCloth(in: view) : nil
+        let pistonFrame = shader == .pistons ? preparePistons(in: view) : nil
+        let ropeShadow = pistonFrame.flatMap {
+            encodePistonRopeShadow(in: view, commandBuffer: commandBuffer, frame: $0)
+        }
         let frameShadow = clothFrame.flatMap {
             encodeClothShadow(in: view, commandBuffer: commandBuffer,
                               pipeline: pipelineState, frame: $0)
+        } ?? pistonFrame.flatMap {
+            encodePistonShadow(in: view, commandBuffer: commandBuffer,
+                               pipeline: pipelineState, frame: $0)
         }
         guard let encoder = commandBuffer.makeRenderCommandEncoder(
                 descriptor: renderPassDescriptor
@@ -354,7 +488,36 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             length: MemoryLayout<Float>.size,
             index: 1
         )
-        if shader == .cloth {
+        if shader != .cloth {
+            lastClothTime = nil
+            bassDetector = ClothBassDetector()
+            trebleDetector = .treble
+        }
+        if shader != .pistons { lastPistonTime = nil }
+        if shader == .pistons {
+            if let frame = pistonFrame {
+                encoder.setFragmentTexture(ropeShadow ?? fallbackTexture, index: 2)
+                encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
+                var uniforms = frame.uniforms
+                encoder.setDepthStencilState(depthState)
+                if let shadow = frameShadow {
+                    uniforms[3].w = 2
+                    uniforms.withUnsafeBytes { bytes in
+                        encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                        encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+                    }
+                    encoder.setFragmentTexture(shadow, index: 1)
+                    encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+                }
+                uniforms[3].w = 0
+                uniforms.withUnsafeBytes { bytes in
+                    encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                    encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+                }
+                encoder.setDepthStencilState(depthState)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: frame.vertexCount)
+            }
+        } else if shader == .cloth {
             if let frame = clothFrame {
                 var uniforms = frame.uniforms
                 encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
@@ -379,9 +542,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                                        vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
             }
         } else {
-            lastClothTime = nil
-            bassDetector = ClothBassDetector()
-            trebleDetector = .treble
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         }
         encoder.endEncoding()

@@ -19,6 +19,7 @@ private final class TransparentMetalView: MTKView {
 struct ArtworkVisualizerView: View {
     let shader: VisualizerShader
     let clothSettings: ClothSettings
+    let pistonSettings: PistonSettings
     @Binding var clothCamera: ClothCamera
     let spectrumBuffer: OpaquePointer
     let artworkURL: URL?
@@ -35,13 +36,14 @@ struct ArtworkVisualizerView: View {
         MetalVisualizerView(
             shader: shader,
             clothSettings: clothSettings,
+            pistonSettings: pistonSettings,
             clothCamera: $clothCamera,
             spectrumBuffer: spectrumBuffer,
             accent: accent,
             artworkImage: accentArtworkURL == artworkURL ? artworkImage : nil
         )
             .background {
-                if shader == .cloth {
+                if shader.isSpatial {
                     clothBackdrop
                 }
             }
@@ -120,6 +122,7 @@ struct ArtworkVisualizerView: View {
 struct MetalVisualizerView: NSViewRepresentable {
     let shader: VisualizerShader
     let clothSettings: ClothSettings
+    let pistonSettings: PistonSettings
     @Binding var clothCamera: ClothCamera
     let spectrumBuffer: OpaquePointer
     let accent: ArtworkAccent
@@ -160,6 +163,7 @@ struct MetalVisualizerView: NSViewRepresentable {
         context.coordinator.renderer = renderer
         renderer?.shader = shader
         renderer?.clothSettings = clothSettings
+        renderer?.pistonSettings = pistonSettings
         renderer?.clothCamera = clothCamera
         renderer?.updateArtwork(artworkImage)
         view.onZoom = zoomHandler
@@ -171,13 +175,14 @@ struct MetalVisualizerView: NSViewRepresentable {
         (view as? TransparentMetalView)?.onZoom = zoomHandler
         context.coordinator.renderer?.shader = shader
         context.coordinator.renderer?.clothSettings = clothSettings
+        context.coordinator.renderer?.pistonSettings = pistonSettings
         context.coordinator.renderer?.clothCamera = clothCamera
         context.coordinator.renderer?.accent = accent
         context.coordinator.renderer?.updateArtwork(artworkImage)
     }
 
     private var zoomHandler: ((Float) -> Void)? {
-        guard shader == .cloth else { return nil }
+        guard shader.isSpatial else { return nil }
         return { amount in
             clothCamera.zoom = min(2, max(0.2, clothCamera.zoom * exp(-amount)))
         }

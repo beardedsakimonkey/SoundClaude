@@ -7,6 +7,7 @@ struct VisualizerView: View {
     let artworkLoader: ArtworkLoader
     let onClose: () -> Void
 
+    @State private var pistonSettings = PistonSettings()
     @State private var clothSettings = ClothSettings()
     @State private var clothCamera = ClothCamera()
     @State private var orbitStart: ClothCamera?
@@ -16,6 +17,7 @@ struct VisualizerView: View {
         ArtworkVisualizerView(
             shader: shader,
             clothSettings: clothSettings,
+            pistonSettings: pistonSettings,
             clothCamera: $clothCamera,
             spectrumBuffer: spectrumBuffer,
             artworkURL: playback.currentTrack?.displayArtworkURL,
@@ -28,14 +30,18 @@ struct VisualizerView: View {
         .gesture(
             DragGesture(minimumDistance: 2)
                 .onChanged { value in
-                    if orbitStart == nil { orbitStart = clothCamera }
+                    let pitchRange = shader.cameraPitchRange
+                    if orbitStart == nil {
+                        clothCamera.pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound, clothCamera.pitch))
+                        orbitStart = clothCamera
+                    }
                     guard let start = orbitStart else { return }
                     clothCamera.yaw = start.yaw + Float(value.translation.width) * 0.008
-                    clothCamera.pitch = min(1.45, max(-1.45,
+                    clothCamera.pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound,
                         start.pitch + Float(value.translation.height) * 0.008))
                 }
                 .onEnded { _ in orbitStart = nil },
-            including: shader == .cloth ? .all : .none
+            including: shader.isSpatial ? .all : .none
         )
         .onChange(of: shader) { _, _ in
             isShowingControls = false
@@ -43,15 +49,20 @@ struct VisualizerView: View {
         }
         .overlay(alignment: .topTrailing) {
             HStack {
-                if shader == .cloth {
+                if shader.isSpatial {
                     Button {
                         isShowingControls.toggle()
                     } label: {
                         Label("\(shader.title) controls", systemImage: "slider.horizontal.3")
+                            .labelStyle(.iconOnly)
                     }
                     .buttonStyle(.bordered)
                     .popover(isPresented: $isShowingControls, arrowEdge: .bottom) {
-                        clothControls
+                        if shader == .pistons {
+                            pistonControls
+                        } else {
+                            clothControls
+                        }
                     }
                 }
                 Button(action: onClose) {
@@ -65,6 +76,70 @@ struct VisualizerView: View {
         }
         .accessibilityLabel("Audio visualizer")
         .accessibilityValue(shader.title)
+    }
+
+    private var pistonControls: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Pistons").font(.headline)
+                Spacer()
+                Button("Reset") {
+                    pistonSettings = PistonSettings()
+                    clothCamera = ClothCamera()
+                    orbitStart = nil
+                }
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    tuningSlider("Strings per piston", value: $pistonSettings.stringsPerPiston, range: 4...64, step: 2)
+                    Text("String counts stay even so adjacent strings alternate colors. Changing the count resets the ropes.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    tuningSlider("Rope length", value: $pistonSettings.ropeLength, range: 0.5...5)
+                    tuningSlider("Rope thickness", value: $pistonSettings.ropeThickness, range: 0.004...0.08, format: "%.3f")
+                    tuningSlider("Damping", value: $pistonSettings.damping, range: 0.001...0.08, format: "%.3f")
+                    Text("Higher damping makes the strings settle faster. Long strings collect on the floor.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    tuningSlider("Gravity", value: $pistonSettings.gravity, range: 0...20)
+                    Divider()
+                    tuningSlider("Piston travel", value: $pistonSettings.travel, range: 0...5)
+                    Text("Low frequencies are on the left; high frequencies are on the right.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Divider()
+                    Text("Cylinder stripes").font(.subheadline.bold())
+                    tuningSlider("Stripe thickness", value: $pistonSettings.stripeThickness, range: 0...0.08, format: "%.3f")
+                    tuningSlider("Stripe frequency", value: $pistonSettings.stripeFrequency, range: 1...12)
+                    ColorPicker("Stripe color", selection: pistonStripeColor, supportsOpacity: false)
+                    Text("Higher frequency adds more stripes. Zero thickness hides them.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Divider()
+                    tuningSlider("Camera distance", value: $clothCamera.zoom, range: 0.2...2)
+                    Text("Drag to orbit. Scroll to zoom.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("Reset camera") {
+                        clothCamera = ClothCamera()
+                        orbitStart = nil
+                    }
+                }
+            }
+            .frame(maxHeight: 520)
+        }
+        .padding(20)
+        .frame(width: 320)
+    }
+
+    private var pistonStripeColor: Binding<Color> {
+        Binding(
+            get: {
+                let rgb = pistonSettings.stripeColor
+                return Color(.sRGBLinear, red: Double(rgb.x), green: Double(rgb.y), blue: Double(rgb.z))
+            },
+            set: { color in
+                guard let cgSpace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB),
+                      let space = NSColorSpace(cgColorSpace: cgSpace),
+                      let rgb = NSColor(color).usingColorSpace(space) else { return }
+                pistonSettings.stripeColor = SIMD3(Float(rgb.redComponent), Float(rgb.greenComponent), Float(rgb.blueComponent))
+            }
+        )
     }
 
     private var clothControls: some View {
@@ -117,7 +192,7 @@ struct VisualizerView: View {
     }
 
     private func tuningSlider(
-        _ title: String, value: Binding<Int>, range: ClosedRange<Int>
+        _ title: String, value: Binding<Int>, range: ClosedRange<Int>, step: Int = 1
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -133,7 +208,7 @@ struct VisualizerView: View {
                     set: { value.wrappedValue = Int($0.rounded()) }
                 ),
                 in: Double(range.lowerBound)...Double(range.upperBound),
-                step: 1
+                step: Double(step)
             ) { Text(title) }
             .labelsHidden()
         }
