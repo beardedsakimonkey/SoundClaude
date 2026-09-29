@@ -11,7 +11,7 @@ struct PistonUniforms {
     float4 metalColor; // linear RGB, unused
     float4 baseColor; // linear RGB, unused
     float4 material; // roughness, metallic, unused, unused
-    float4 finish; // reflection strength, edge softness, neutral rope glow, unused
+    float4 finish; // reflection strength, edge softness, neutral rope glow, bloom strength
     float4 track; // progress, artwork aspect, has artwork, has track
 };
 struct PistonVertex {
@@ -279,7 +279,7 @@ fragment PistonFragment pistonVisualizerFragment(
         float halo = exp(-across * across * 6.0) * (1 - smoothstep(0.65, 1.0, across));
         // Fade the halo faster than the rope itself as the piston drops.
         float glowBrightness = pow(in.ropeBrightness, 1.5);
-        float3 emission = in.color * halo * 0.28 * glowStrength * glowBrightness;
+        float3 emission = in.color * halo * 0.28 * glowStrength * glowBrightness * u.finish.w;
         float alpha = max(emission.r, max(emission.g, emission.b));
         return {float4(emission, alpha), in.position.z};
     }

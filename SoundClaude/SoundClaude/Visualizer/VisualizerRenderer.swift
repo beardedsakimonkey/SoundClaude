@@ -271,7 +271,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         uniforms.append(SIMD4<Float>(pistonSettings.roughness, pistonSettings.metallic,
                                      0, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.reflectionStrength, pistonSettings.edgeSoftness,
-                                     pistonSettings.neutralRopeGlow, 0))
+                                     pistonSettings.neutralRopeGlow, pistonSettings.bloomStrength))
         let progress = trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0
         let artworkAspect = artworkImage.map { Float($0.width) / Float($0.height) } ?? 1
         uniforms.append(SIMD4<Float>(progress, artworkAspect, artworkTexture == nil ? 0 : 1, hasTrack ? 1 : 0))
@@ -500,6 +500,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         in view: MTKView, commandBuffer: MTLCommandBuffer, frame: PistonFrame,
         depth: MTLTexture, destination: MTLTexture
     ) {
+        guard pistonSettings.bloomStrength > 0 else { return }
         guard let device = view.device, let sourcePipeline = pistonBloomSourcePipeline,
               let compositePipeline = pistonBloomCompositePipeline else { return }
         let width = destination.width, height = destination.height
@@ -671,7 +672,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 }
                 encoder.setDepthStencilState(depthState)
                 encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: frame.vertexCount)
-                if let glowPipeline = pistonGlowPipeline {
+                if pistonSettings.bloomStrength > 0, let glowPipeline = pistonGlowPipeline {
                     uniforms[3].w = 4
                     uniforms.withUnsafeBytes { bytes in
                         encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
