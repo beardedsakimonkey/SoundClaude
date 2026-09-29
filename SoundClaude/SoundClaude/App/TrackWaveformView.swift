@@ -372,14 +372,11 @@ struct TrackWaveformView: View {
         }
         // Keep a visible focus ring for keyboard navigation without focusing on click.
         .focusable(isCurrentTrack, interactions: .activate)
-        .onKeyPress(.leftArrow) {
-            guard isCurrentTrack else { return .ignored }
-            playback.seek(by: -5)
-            return .handled
-        }
-        .onKeyPress(.rightArrow) {
-            guard isCurrentTrack else { return .ignored }
-            playback.seek(by: 5)
+        .onKeyPress(keys: [.leftArrow, .rightArrow], phases: [.down, .repeat]) { press in
+            guard isCurrentTrack,
+                  press.modifiers.isEmpty || press.modifiers == .control else { return .ignored }
+            let step: Double = press.modifiers.contains(.control) ? 30 : 5
+            playback.seek(by: press.key == .leftArrow ? -step : step)
             return .handled
         }
         .accessibilityElement(children: .contain)

@@ -113,6 +113,16 @@ struct SoundClaudeApp: App {
             }
             .keyboardShortcut(.rightArrow, modifiers: [])
 
+            Button("Seek Back 30 Seconds") {
+                model.playback.seek(by: -30)
+            }
+            .keyboardShortcut(.leftArrow, modifiers: [.control])
+
+            Button("Seek Forward 30 Seconds") {
+                model.playback.seek(by: 30)
+            }
+            .keyboardShortcut(.rightArrow, modifiers: [.control])
+
             Divider()
 
             Button("Previous Track") {
