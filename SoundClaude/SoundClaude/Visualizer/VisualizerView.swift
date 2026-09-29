@@ -12,12 +12,15 @@ struct VisualizerView: View {
     @State private var clothCamera = ClothCamera()
     @State private var orbitStart: ClothCamera?
     @State private var isShowingControls = false
+    @State private var viewportSize = CGSize.zero
 
     var body: some View {
         ArtworkVisualizerView(
             shader: shader,
             clothSettings: clothSettings,
             pistonSettings: pistonSettings,
+            trackProgress: playback.duration > 0 ? playback.currentTime / playback.duration : 0,
+            hasTrack: playback.currentTrack != nil,
             clothCamera: $clothCamera,
             spectrumBuffer: spectrumBuffer,
             artworkURL: playback.currentTrack?.displayArtworkURL,
@@ -27,6 +30,7 @@ struct VisualizerView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .clipped()
         .contentShape(Rectangle())
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { viewportSize = $0 }
         .gesture(
             DragGesture(minimumDistance: 2)
                 .onChanged { value in
@@ -40,7 +44,19 @@ struct VisualizerView: View {
                     clothCamera.pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound,
                         start.pitch + Float(value.translation.height) * 0.008))
                 }
-                .onEnded { _ in orbitStart = nil },
+                .onEnded { _ in orbitStart = nil }
+                .exclusively(before: SpatialTapGesture().onEnded { value in
+                    guard shader == .pistons, playback.currentTrack != nil else { return }
+                    let camera = PistonGroundControls.camera(
+                        size: viewportSize, yaw: clothCamera.yaw,
+                        pitch: clothCamera.pitch, zoom: clothCamera.zoom)
+                    switch PistonGroundControls.hit(at: value.location, size: viewportSize, camera: camera) {
+                    case .previous: playback.previous()
+                    case .next: playback.next()
+                    case .seek(let fraction): playback.seek(toFraction: fraction)
+                    case nil: break
+                    }
+                }),
             including: shader.isSpatial ? .all : .none
         )
         .onChange(of: shader) { _, _ in
@@ -76,6 +92,12 @@ struct VisualizerView: View {
         }
         .accessibilityLabel("Audio visualizer")
         .accessibilityValue(shader.title)
+        .accessibilityActions {
+            if shader == .pistons, playback.currentTrack != nil {
+                Button("Previous track") { playback.previous() }
+                Button("Next track") { playback.next() }
+            }
+        }
     }
 
     private var pistonControls: some View {
@@ -91,10 +113,13 @@ struct VisualizerView: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    tuningSlider("Strings per piston", value: $pistonSettings.stringsPerPiston, range: 4...64, step: 2)
-                    Text("String counts stay even so adjacent strings alternate colors. Changing the count resets the ropes.")
+                    tuningSlider("Ropes per piston", value: $pistonSettings.stringsPerPiston, range: 4...64, step: 2)
+                    Text("Rope counts stay even so adjacent ropes alternate colors. Changing the count resets the ropes.")
                         .font(.caption).foregroundStyle(.secondary)
                     tuningSlider("Rope length", value: $pistonSettings.ropeLength, range: 0.5...5)
+                    tuningSlider("Rope stretchiness", value: $pistonSettings.ropeStretchiness, range: 0...1)
+                    Text("Zero keeps ropes stiff. Higher values add more stretch and bounce.")
+                        .font(.caption).foregroundStyle(.secondary)
                     tuningSlider("Rope thickness", value: $pistonSettings.ropeThickness, range: 0.004...0.08, format: "%.3f")
                     tuningSlider("Neutral rope glow", value: $pistonSettings.neutralRopeGlow, range: 0...1)
                     Text("Zero turns neutral glow off. One matches the colored ropes’ glow strength.")
@@ -105,6 +130,9 @@ struct VisualizerView: View {
                     tuningSlider("Gravity", value: $pistonSettings.gravity, range: 0...20)
                     Divider()
                     tuningSlider("Piston travel", value: $pistonSettings.travel, range: 0...5)
+                    tuningSlider("Head twist", value: $pistonSettings.headTwist, range: -360...360, format: "%.0f°")
+                    Text("Degrees over a full rise. Heads turn back as they fall. Zero disables twist; negative values reverse it.")
+                        .font(.caption).foregroundStyle(.secondary)
                     Text("Low frequencies are on the left; high frequencies are on the right.")
                         .font(.caption).foregroundStyle(.secondary)
                     Divider()

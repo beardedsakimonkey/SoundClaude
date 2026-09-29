@@ -110,7 +110,7 @@ static void collideEdge(simd_float4 *a, simd_float4 *b, PistonCollider c) {
 void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
                   const float *heights, const float *previousHeights, float ropeRadius, uint32_t stringCount,
                   uint32_t stringsPerPiston, uint32_t segments, float segmentLength,
-                  float damping, float gravityStrength) {
+                  float damping, float gravityStrength, float stretchiness) {
     const uint32_t pistonCount = stringCount / stringsPerPiston;
     PistonCollider colliders[pistonCount * 3];
     for (uint32_t piston = 0; piston < pistonCount; ++piston) {
@@ -129,6 +129,13 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
             {0.22f + ropeRadius, (height + 1.53f) * 0.5f + ropeRadius, 0.22f + ropeRadius},
             {0.22f + ropeRadius, (oldHeight + 1.53f) * 0.5f + ropeRadius, 0.22f + ropeRadius}, true};
     }
+    stretchiness = fminf(1, fmaxf(0, stretchiness));
+    // XPBD compliance divided by the fixed step squared. Scaling with rest
+    // length keeps the stretch ratio similar across rope lengths. At full
+    // stretchiness, a hanging rope under gravity 20 extends roughly 25%.
+    const float compliance = stretchiness * segmentLength * 18.0f;
+    const float maximumLength = segmentLength * (1.05f + 0.75f * stretchiness);
+    const float stretchLimit = segmentLength * (1.1f + 0.75f * stretchiness);
     const simd_float4 gravity = {0, -gravityStrength * (1.0f / 120.0f / 120.0f), 0, 0};
     for (uint32_t string = 0; string < stringCount; ++string) {
         simd_float4 *p = positions + string * (segments + 1);
@@ -142,6 +149,10 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
             for (uint32_t collider = 0; collider < pistonCount * 3; ++collider)
                 collideNode(&p[node], &old[node], colliders[collider], position.xyz);
         }
+        // Accumulate constraint impulses within this step so extra collision
+        // passes do not make elastic ropes progressively stiffer.
+        float impulses[segments + 1];
+        for (uint32_t node = 0; node <= segments; ++node) impulses[node] = 0;
         for (uint32_t pass = 0; pass < 30; ++pass) {
             simd_float4 beforeConstraints[segments + 1];
             for (uint32_t node = 0; node <= segments; ++node) beforeConstraints[node] = p[node];
@@ -149,12 +160,16 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
                 const simd_float4 difference = p[node] - p[node - 1];
                 const float length = simd_length(difference);
                 if (length <= 0.000001f) continue;
-                const simd_float4 correction = difference * (1 - segmentLength / length);
+                const float weight = node == 1 ? 1.0f : 2.0f;
+                const float impulse = (length - segmentLength - compliance * impulses[node])
+                    / (weight + compliance);
+                impulses[node] += impulse;
+                const simd_float4 correction = difference * (impulse / length);
                 if (node == 1) {
                     p[node] -= correction;
                 } else {
-                    p[node] -= correction * 0.5f;
-                    p[node - 1] += correction * 0.5f;
+                    p[node] -= correction;
+                    p[node - 1] += correction;
                 }
             }
             // Propagate sudden root motion through the entire rope in one sweep.
@@ -162,7 +177,6 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
             for (uint32_t node = 1; node <= segments; ++node) {
                 const simd_float4 difference = p[node] - p[node - 1];
                 const float length = simd_length(difference);
-                const float maximumLength = segmentLength * 1.05f;
                 if (length > maximumLength) {
                     p[node] -= difference * (1 - maximumLength / length);
                 }
@@ -197,7 +211,7 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
             if (pass >= 9) {
                 bool stretched = false;
                 for (uint32_t node = 1; node <= segments; ++node) {
-                    if (simd_distance(p[node], p[node - 1]) > segmentLength * 1.1f) {
+                    if (simd_distance(p[node], p[node - 1]) > stretchLimit) {
                         stretched = true;
                         break;
                     }

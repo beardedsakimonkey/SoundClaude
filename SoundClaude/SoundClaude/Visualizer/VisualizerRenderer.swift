@@ -12,7 +12,7 @@ enum VisualizerShader: String, CaseIterable {
 
     // Pistons add a 0.25-radian tilt and orbit a point above the floor.
     var cameraPitchRange: ClosedRange<Float> {
-        self == .pistons ? -0.25...1.2 : -1.45...1.45
+        self == .pistons ? PistonGroundControls.pitchRange : -1.45...1.45
     }
 
     var next: Self {
@@ -54,6 +54,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var shader: VisualizerShader = .bars
     var clothSettings = ClothSettings()
     var pistonSettings = PistonSettings()
+    var trackProgress: Double = 0
+    var hasTrack = false
     var clothCamera = ClothCamera()
 
     private var shadowMask: MTLTexture?
@@ -225,12 +227,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         pistons.settings = pistonSettings
         pistons.advance(delta: lastPistonTime.map { now - $0 } ?? PistonSimulation.step, bands: bands)
         lastPistonTime = now
-        let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
-        // Fit the full row in narrow windows as well as landscape windows.
-        let distance = max(13, 17 / max(0.1, aspect)) * clothCamera.zoom / 0.7
-        let pitchRange = VisualizerShader.pistons.cameraPitchRange
-        let pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound, clothCamera.pitch))
-        var uniforms = [SIMD4<Float>(aspect, clothCamera.yaw, pitch + 0.25, distance)]
+        var uniforms = [PistonGroundControls.camera(
+            size: view.drawableSize, yaw: clothCamera.yaw,
+            pitch: clothCamera.pitch, zoom: clothCamera.zoom)]
         uniforms.append(SIMD4(pistons.heights[0], pistons.heights[1], pistons.heights[2], pistons.heights[3]))
         uniforms.append(SIMD4(pistons.heights[4], pistons.heights[5], pistons.heights[6], pistons.heights[7]))
         uniforms.append(SIMD4<Float>(pistonSettings.ropeThickness * 0.5, Float(pistonSettings.stringsPerPiston), 0, 0))
@@ -241,7 +240,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         // Match the floor used by the rope solver.
         uniforms[3].z = -1.65
         uniforms.append(SIMD4<Float>(Float(view.drawableSize.width), Float(view.drawableSize.height), 0, 0))
-        uniforms.append(SIMD4<Float>(pistonSettings.stripeThickness, pistonSettings.stripeFrequency, 0, 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.stripeThickness, pistonSettings.stripeFrequency,
+                                     pistonSettings.headTwist * .pi / 180, pistonSettings.travel))
         uniforms.append(SIMD4<Float>(pistonSettings.stripeColor, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.metalColor, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.baseColor, 0))
@@ -249,6 +249,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                                      pistonSettings.grainStrength, pistonSettings.grainScale))
         uniforms.append(SIMD4<Float>(pistonSettings.reflectionStrength, pistonSettings.edgeSoftness,
                                      pistonSettings.neutralRopeGlow, 0))
+        let progress = trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0
+        let artworkAspect = artworkImage.map { Float($0.width) / Float($0.height) } ?? 1
+        uniforms.append(SIMD4<Float>(progress, artworkAspect, artworkTexture == nil ? 0 : 1, hasTrack ? 1 : 0))
         return (buffer, uniforms, PistonSimulation.count *
             (32 * 12 * 3 + pistonSettings.stringsPerPiston * PistonSimulation.segments * 6))
     }
@@ -390,6 +393,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
         encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
         encoder.setFragmentTexture(fallbackTexture, index: 1)
+        encoder.setFragmentTexture(fallbackTexture, index: 0)
         encoder.setFragmentTexture(fallbackTexture, index: 2)
         var uniforms = frame.uniforms
         uniforms[3].w = 3
@@ -417,6 +421,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
             encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
             encoder.setFragmentTexture(fallbackTexture, index: 1)
+            encoder.setFragmentTexture(fallbackTexture, index: 0)
             encoder.setFragmentTexture(fallbackTexture, index: 2)
             var uniforms = frame.uniforms
             uniforms[3].w = 1
@@ -500,6 +505,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         source.setVertexBuffer(frame.positions, offset: 0, index: 0)
         source.setFragmentBuffer(frame.positions, offset: 0, index: 6)
         source.setFragmentTexture(fallbackTexture, index: 1)
+        source.setFragmentTexture(fallbackTexture, index: 0)
         source.setFragmentTexture(fallbackTexture, index: 2)
         var uniforms = frame.uniforms
         uniforms[3].w = 4
@@ -751,3 +757,56 @@ private final class VisualizerShaderReloader {
     }
 }
 #endif
+
+// Shared camera projection keeps ground controls aligned with the Metal scene.
+enum PistonGroundControls {
+    static let pitchRange: ClosedRange<Float> = -0.25...1.2
+
+    enum Hit {
+        case previous
+        case next
+        case seek(Double)
+    }
+
+    static func camera(size: CGSize, yaw: Float, pitch: Float, zoom: Float) -> SIMD4<Float> {
+        let aspect = Float(size.width / max(1, size.height))
+        let distance = max(13, 17 / max(0.1, aspect)) * zoom / 0.7
+        return SIMD4(aspect, yaw, min(pitchRange.upperBound, max(pitchRange.lowerBound, pitch)) + 0.25, distance)
+    }
+
+    // Input points use SwiftUI's top-left origin. Intersect the view ray with
+    // the same world-space floor used in PistonVisualizer.metal.
+    static func hit(at point: CGPoint, size: CGSize, camera: SIMD4<Float>) -> Hit? {
+        guard size.width > 0, size.height > 0,
+              point.x >= 0, point.x <= size.width, point.y >= 0, point.y <= size.height else { return nil }
+        let ndc = SIMD2<Float>(Float(point.x / size.width) * 2 - 1,
+                               1 - Float(point.y / size.height) * 2)
+        func inverseRotate(_ p: SIMD3<Float>) -> SIMD3<Float> {
+            let q = SIMD3(p.x, cos(camera.z) * p.y + sin(camera.z) * p.z,
+                          -sin(camera.z) * p.y + cos(camera.z) * p.z)
+            return SIMD3(cos(camera.y) * q.x - sin(camera.y) * q.z, q.y,
+                         sin(camera.y) * q.x + cos(camera.y) * q.z)
+        }
+        let origin = inverseRotate(SIMD3(0, 0, camera.w))
+        let ray = inverseRotate(SIMD3(ndc.x * camera.x / 2.1, ndc.y / 2.1, -1))
+        guard abs(ray.y) > 0.000001 else { return nil }
+        let distance = (-2.65 - origin.y) / ray.y
+        guard distance >= 0.1, distance < 100 else { return nil }
+        let floor = origin + ray * distance
+        // Match the circular projected buttons centered beside the artwork.
+        for direction in [-1, 1] {
+            let offset = SIMD2(floor.x - Float(direction) * 2.15, floor.z - 3.4)
+            if simd_length_squared(offset) <= 0.4 * 0.4 {
+                return direction < 0 ? .previous : .next
+            }
+        }
+        // Match the rail at the near edge of the artwork, with extra click
+        // tolerance around its thin stroke. Clamp clicks at the rounded ends.
+        let rail = SIMD2(floor.x + 1.6, floor.z - 5.25)
+        let offset = SIMD2(rail.x - min(3.15, max(0.05, rail.x)), rail.y)
+        if simd_length_squared(offset) <= 0.15 * 0.15 {
+            return .seek(Double(min(1, max(0, rail.x / 3.2))))
+        }
+        return nil
+    }
+}

@@ -4,11 +4,13 @@ import simd
 struct PistonSettings: Equatable {
     var stringsPerPiston = 24
     var ropeLength: Float = 2.59
+    var ropeStretchiness: Float = 0.15
     var ropeThickness: Float = 0.024
     var neutralRopeGlow: Float = 1.0
     var damping: Float = 0.032
     var gravity: Float = 20
     var travel: Float = 3.2
+    var headTwist: Float = 90 // Degrees over a full rise.
     var stripeThickness: Float = 0.0192
     var stripeFrequency: Float = 1
     var stripeColor = SIMD3<Float>(0.144, 0.162, 0.189) // Linear RGB.
@@ -20,6 +22,11 @@ struct PistonSettings: Equatable {
     var grainScale: Float = 1
     var reflectionStrength: Float = 0.5
     var edgeSoftness: Float = 0.018
+
+    func twistAngle(height: Float) -> Float {
+        guard travel > 0 else { return 0 }
+        return min(1, max(0, (height - 0.8) / travel)) * headTwist * .pi / 180
+    }
 }
 
 /// Independent ropes with pinned roots and Verlet distance constraints.
@@ -43,9 +50,9 @@ struct PistonSimulation {
         SIMD3((Float(piston) - 3.5) * 1.85, 0, 0)
     }
 
-    static func root(_ string: Int, height: Float, stringsPerPiston: Int = 24) -> SIMD4<Float> {
+    static func root(_ string: Int, height: Float, stringsPerPiston: Int = 24, twist: Float = 0) -> SIMD4<Float> {
         let piston = string / stringsPerPiston
-        let angle = Float(string % stringsPerPiston) * 2 * .pi / Float(stringsPerPiston)
+        let angle = Float(string % stringsPerPiston) * 2 * .pi / Float(stringsPerPiston) + twist
         // Inset from the circular cap edge so each rope hangs from its underside.
         let radius: Float = 0.57
         let offset = SIMD2(radius * cos(angle), radius * sin(angle))
@@ -60,7 +67,8 @@ struct PistonSimulation {
         positions.reserveCapacity(Self.count * settings.stringsPerPiston * (Self.segments + 1))
         for string in 0..<(Self.count * settings.stringsPerPiston) {
             let piston = string / settings.stringsPerPiston
-            let root = Self.root(string, height: heights[piston], stringsPerPiston: settings.stringsPerPiston)
+            let root = Self.root(string, height: heights[piston], stringsPerPiston: settings.stringsPerPiston,
+                                 twist: settings.twistAngle(height: heights[piston]))
             let center = Self.center(piston)
             let outward = simd_normalize(SIMD3(root.x - center.x, 0, root.z))
             for node in 0...Self.segments {
@@ -90,6 +98,14 @@ struct PistonSimulation {
                 let rate: Float = targets[piston] > heights[piston] ? 0.22 : 0.075
                 heights[piston] += (targets[piston] - heights[piston]) * rate
             }
+            // Move only the pinned roots. Free nodes follow through the rope
+            // constraints, retaining inertia as the heads turn and reverse.
+            for string in 0..<(Self.count * settings.stringsPerPiston) {
+                let height = heights[string / settings.stringsPerPiston]
+                positions[string * (Self.segments + 1)] = Self.root(string,
+                    height: height, stringsPerPiston: settings.stringsPerPiston,
+                    twist: settings.twistAngle(height: height))
+            }
             // Borrow each array once, avoiding Swift's per-node mutation overhead
             // in Debug builds. The C kernel is optimized in every configuration.
             positions.withUnsafeMutableBufferPointer { points in
@@ -100,7 +116,7 @@ struct PistonSimulation {
                                 previousLevels.baseAddress!, settings.ropeThickness * 0.5,
                                 UInt32(Self.count * settings.stringsPerPiston), UInt32(settings.stringsPerPiston),
                                 UInt32(Self.segments), settings.ropeLength / Float(Self.segments),
-                                settings.damping, settings.gravity)
+                                settings.damping, settings.gravity, settings.ropeStretchiness)
                         }
                     }
                 }

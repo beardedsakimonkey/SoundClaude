@@ -20,6 +20,8 @@ struct ArtworkVisualizerView: View {
     let shader: VisualizerShader
     let clothSettings: ClothSettings
     let pistonSettings: PistonSettings
+    let trackProgress: Double
+    let hasTrack: Bool
     @Binding var clothCamera: ClothCamera
     let spectrumBuffer: OpaquePointer
     let artworkURL: URL?
@@ -37,6 +39,8 @@ struct ArtworkVisualizerView: View {
             shader: shader,
             clothSettings: clothSettings,
             pistonSettings: pistonSettings,
+            trackProgress: trackProgress,
+            hasTrack: hasTrack,
             clothCamera: $clothCamera,
             spectrumBuffer: spectrumBuffer,
             accent: accent,
@@ -88,7 +92,10 @@ struct ArtworkVisualizerView: View {
             // Soften the artwork color with a dimmer, less saturated spotlight.
             let saturation = 0.5
             let brightness = 0.45
-            let glow = Color(
+            // Pistons use a fixed, neutral blue-gray spotlight.
+            let glow = shader == .pistons
+                ? Color(.sRGB, red: 0.30, green: 0.32, blue: 0.36)
+                : Color(
                 .sRGB,
                 red: (color.red / peak * saturation + 1 - saturation) * brightness,
                 green: (color.green / peak * saturation + 1 - saturation) * brightness,
@@ -123,6 +130,8 @@ struct MetalVisualizerView: NSViewRepresentable {
     let shader: VisualizerShader
     let clothSettings: ClothSettings
     let pistonSettings: PistonSettings
+    let trackProgress: Double
+    let hasTrack: Bool
     @Binding var clothCamera: ClothCamera
     let spectrumBuffer: OpaquePointer
     let accent: ArtworkAccent
@@ -164,6 +173,8 @@ struct MetalVisualizerView: NSViewRepresentable {
         renderer?.shader = shader
         renderer?.clothSettings = clothSettings
         renderer?.pistonSettings = pistonSettings
+        renderer?.trackProgress = trackProgress
+        renderer?.hasTrack = hasTrack
         renderer?.clothCamera = clothCamera
         renderer?.updateArtwork(artworkImage)
         view.onZoom = zoomHandler
@@ -176,6 +187,8 @@ struct MetalVisualizerView: NSViewRepresentable {
         context.coordinator.renderer?.shader = shader
         context.coordinator.renderer?.clothSettings = clothSettings
         context.coordinator.renderer?.pistonSettings = pistonSettings
+        context.coordinator.renderer?.trackProgress = trackProgress
+        context.coordinator.renderer?.hasTrack = hasTrack
         context.coordinator.renderer?.clothCamera = clothCamera
         context.coordinator.renderer?.accent = accent
         context.coordinator.renderer?.updateArtwork(artworkImage)

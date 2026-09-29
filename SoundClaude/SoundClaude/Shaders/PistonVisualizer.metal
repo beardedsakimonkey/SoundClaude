@@ -6,12 +6,13 @@ struct PistonUniforms {
     float4 heights[2];
     float4 ropes; // half thickness, strings per piston, ground height, pass (scene, mask, floor, light, glow)
     float4 viewport; // drawable width and height, unused
-    float4 stripes; // thickness, frequency, unused
+    float4 stripes; // thickness, frequency, full-rise head twist (radians), travel
     float4 stripeColor; // linear RGB, unused
     float4 metalColor; // linear RGB, unused
     float4 baseColor; // linear RGB, unused
     float4 material; // roughness, metallic, grain strength, grain density
     float4 finish; // reflection strength, edge softness, neutral rope glow, unused
+    float4 track; // progress, artwork aspect, has artwork, has track
 };
 struct PistonVertex {
     float4 position [[position]];
@@ -24,7 +25,14 @@ struct PistonVertex {
     float3 cylinderPosition; // position relative to this piston's axis
     float4 surface; // radius, bottom, top, base flag
     float stripeHeight;
+    float ropeBrightness;
 };
+static float pistonRopeBrightness(uint piston, constant PistonUniforms &u) {
+    // Height follows smoothed audio energy. Keep idle ropes clearly visible.
+    float height = u.heights[piston / 4][piston % 4];
+    float level = u.stripes.w > 0 ? saturate((height - 0.8) / u.stripes.w) : 0;
+    return mix(0.3, 1.0, level);
+}
 static float3 pistonLightPosition(float3 p) {
     float3 light = normalize(float3(-0.4, 0.8, 1));
     float3 right = normalize(cross(float3(0, 1, 0), light));
@@ -102,14 +110,16 @@ vertex PistonVertex pistonVisualizerVertex(
         float bottom = cap ? height - 0.055 : (base ? -1.65 : -1.53);
         float top = cap ? height + 0.055 : (base ? -1.41 : height);
         surface = float4(radius, bottom, top, base ? 1.0 : 0.0);
+        float twist = cap && u.stripes.w > 0
+            ? clamp((height - 0.8) / u.stripes.w, 0.0, 1.0) * u.stripes.z : 0;
         if (corner < 6) {
-            float angle = (float(sector + ends[corner])) * 2*M_PI_F/32;
+            float angle = (float(sector + ends[corner])) * 2*M_PI_F/32 + twist;
             n = float3(cos(angle), 0, sin(angle));
             p = n*radius + float3(0, tops[corner] ? top : bottom, 0);
         } else {
             bool upper = corner >= 9;
             uint c = (corner-6)%3;
-            float angle = float(sector + (c == 2 ? 1 : 0))*2*M_PI_F/32;
+            float angle = float(sector + (c == 2 ? 1 : 0))*2*M_PI_F/32 + twist;
             p = float3(c == 0 ? 0 : radius*cos(angle), upper ? top : bottom,
                        c == 0 ? 0 : radius*sin(angle));
             n = float3(0, upper ? 1 : -1, 0);
@@ -180,6 +190,7 @@ vertex PistonVertex pistonVisualizerVertex(
     out.cylinderPosition = cylinderPosition;
     out.surface = surface;
     out.stripeHeight = stripeHeight;
+    out.ropeBrightness = pistonRopeBrightness(piston, u);
     return out;
 }
 struct PistonFragment {
@@ -254,13 +265,15 @@ static float3 pistonRopeReflection(float3 origin, float3 direction, float roughn
         energy[string % 2] += ropeEnergy;
     }
     float3 color = 0.55 + 0.45 * cos(float(piston) * 0.47 + float3(0, 2, 4));
-    return color * min(energy.x * 3.0, 4.0)
-        + float3(0.65) * min(energy.y * 3.0, 4.0) * saturate(u.finish.z);
+    return (color * min(energy.x * 3.0, 4.0)
+        + float3(0.65) * min(energy.y * 3.0, 4.0) * saturate(u.finish.z))
+        * pistonRopeBrightness(piston, u);
 }
 fragment PistonFragment pistonVisualizerFragment(
     PistonVertex in [[stage_in]],
     constant PistonUniforms &u [[buffer(4)]],
     const device float4 *points [[buffer(6)]],
+    texture2d<float> artwork [[texture(0)]],
     texture2d<float> shadowMask [[texture(1)]],
     texture2d<float> ropeShadow [[texture(2)]]
 ) {
@@ -269,7 +282,9 @@ fragment PistonFragment pistonVisualizerFragment(
         float glowStrength = in.uv.y > 1.5 ? 1.0 : saturate(u.finish.z);
         float across = abs(in.uv.x);
         float halo = exp(-across * across * 6.0) * (1 - smoothstep(0.65, 1.0, across));
-        float3 emission = in.color * halo * 0.28 * glowStrength;
+        // Fade the halo faster than the rope itself as the piston drops.
+        float glowBrightness = in.ropeBrightness * in.ropeBrightness;
+        float3 emission = in.color * halo * 0.28 * glowStrength * glowBrightness;
         float alpha = max(emission.r, max(emission.g, emission.b));
         return {float4(emission, alpha), in.position.z};
     }
@@ -318,6 +333,53 @@ fragment PistonFragment pistonVisualizerFragment(
         float3 floorColor = ambient * visibility
             + (diffuseColor * mix(1.0, visibility, 0.65) + highlight * visibility)
             * (1.0 - opacity);
+        if (u.track.w > 0.5) {
+            // Project light directly onto the floor. Dark image areas leave the
+            // ground visible; the projection has no frame, thickness or shadow.
+            // World-space floor coordinates keep both position and orientation
+            // fixed as the camera orbits.
+            float2 projected = floorPosition - float2(0, 3.4);
+            float2 artUV = projected / 3.2 + 0.5;
+            float2 fit = float2(min(u.track.y, 1.0), min(1.0 / max(u.track.y, 0.001), 1.0));
+            float2 uv = (artUV - 0.5) / fit + 0.5;
+            float3 emission = float3(0);
+            if (all(uv >= 0) && all(uv <= 1)) {
+                float2 edge = min(uv, 1 - uv);
+                float2 softness = max(fwidth(uv), float2(0.008));
+                float feather = smoothstep(0.0, softness.x, edge.x)
+                              * smoothstep(0.0, softness.y, edge.y);
+                if (u.track.z > 0.5) {
+                    constexpr sampler artSampler(filter::linear, mip_filter::linear, address::clamp_to_edge);
+                    emission = artwork.sample(artSampler, uv).rgb * feather;
+                } else {
+                    float radius = length(uv - 0.5);
+                    emission = float3(0.3, 0.34, 0.4) * feather
+                        * (1 - smoothstep(0.34, 0.35, radius)) * smoothstep(0.06, 0.07, radius);
+                }
+            }
+            // Project the progress rail along the near edge of the artwork.
+            float2 rail = projected - float2(-1.6, 1.85);
+            float railDistance = length(float2(rail.x - clamp(rail.x, 0.05, 3.15), rail.y)) - 0.05;
+            float aa = max(fwidth(railDistance), 0.008);
+            float coverage = 1 - smoothstep(-aa, aa, railDistance);
+            float fill = u.track.x <= 0 ? 0 : (u.track.x >= 1 ? 1
+                : 1 - smoothstep(3.2 * u.track.x - aa, 3.2 * u.track.x + aa, rail.x));
+            emission += mix(float3(0.12, 0.15, 0.2), float3(0.4), fill) * coverage;
+            // Fixed ground controls. Their centers and radius also define the
+            // ray hit targets in PistonGroundControls.
+            for (int direction = -1; direction <= 1; direction += 2) {
+                float2 button = projected - float2(float(direction) * 2.15, 0);
+                float radius = length(button);
+                float feather = max(fwidth(radius), 0.008);
+                float disk = 1 - smoothstep(0.4 - feather, 0.4 + feather, radius);
+                // Cut a triangle out of the filled circle; mirror for previous.
+                float2 icon = float2(button.x * float(direction), button.y);
+                float triangle = max(-0.12 - icon.x, abs(icon.y) - (0.24 - icon.x) * 0.6);
+                float cutout = 1 - smoothstep(-feather, feather, triangle);
+                emission += float3(0.4) * disk * (1 - cutout);
+            }
+            floorColor += emission * 0.85 * mix(0.7, 1.0, visibility);
+        }
         // Fade into the artwork backdrop at the horizon. The transparent
         // Metal view expects premultiplied color for its SwiftUI composite.
         float horizonFade = smoothstep(0.015, 0.24, abs(dot(n, view)));
@@ -389,6 +451,7 @@ fragment PistonFragment pistonVisualizerFragment(
         float core = pow(max(0.0, 1.0 - in.uv.x * in.uv.x), 3.0);
         float3 emissive = in.color * (0.8 + 0.2 * diffuse) + float3(0.24) * core;
         shaded = mix(shaded, emissive, in.uv.y > 1.5 ? 1.0 : saturate(u.finish.z));
+        shaded *= in.ropeBrightness;
     }
     if (!isRope) {
         float radialDistance = length(in.cylinderPosition.xz);

@@ -10,7 +10,7 @@ struct PistonSimulationTests {
             for node in 1...PistonSimulation.segments {
                 let length = simd_distance(simulation.positions[start + node],
                                            simulation.positions[start + node - 1])
-                precondition(length.isFinite && length <= segmentLength * 1.101,
+                precondition(length.isFinite && length <= segmentLength * (1.101 + 0.75 * simulation.settings.ropeStretchiness),
                              "Transient rope stretch: string \(string), node \(node), ratio \(length / segmentLength)")
             }
         }
@@ -59,7 +59,7 @@ struct PistonSimulationTests {
                 points.withUnsafeMutableBufferPointer { p in
                     previous.withUnsafeMutableBufferPointer { old in
                         SCPistonStep(p.baseAddress!, old.baseAddress!, [height], [height + 0.2],
-                                     radius, 1, 1, 1, 0.115, 0, 0)
+                                     radius, 1, 1, 1, 0.115, 0, 0, 0)
                     }
                 }
                 precondition(points[0] == root)
@@ -80,7 +80,7 @@ struct PistonSimulationTests {
             points.withUnsafeMutableBufferPointer { p in
                 previous.withUnsafeMutableBufferPointer { old in
                     SCPistonStep(p.baseAddress!, old.baseAddress!, [height], [previousHeight],
-                                 0.012, 1, 1, 1, simd_distance(root, end), 0, 0)
+                                 0.012, 1, 1, 1, simd_distance(root, end), 0, 0, 0)
                 }
             }
             return points[1]
@@ -99,10 +99,97 @@ struct PistonSimulationTests {
         }
     }
 
+    static func checkElasticity() {
+        var extensions: [Float] = []
+        for stretchiness: Float in [0, PistonSettings().ropeStretchiness, 1] {
+            var simulation = PistonSimulation()
+            simulation.settings.stringsPerPiston = 4
+            simulation.settings.ropeLength = 1
+            simulation.settings.travel = 5
+            simulation.settings.ropeStretchiness = stretchiness
+            let bands = [Float](repeating: 1, count: 64)
+            for _ in 0..<600 {
+                simulation.advance(delta: PistonSimulation.step, bands: bands)
+                checkStretch(simulation)
+            }
+            let length = simd_distance(simulation.positions[0], simulation.positions[PistonSimulation.segments])
+            extensions.append(length)
+            checkCollisions(simulation)
+            // Remove the load live: elastic extension must recover.
+            simulation.settings.gravity = 0
+            for _ in 0..<600 { simulation.advance(delta: PistonSimulation.step, bands: bands) }
+            // With no gravity the rope can curve, so measure its full length.
+            let unloaded = (1...PistonSimulation.segments).reduce(Float(0)) {
+                $0 + simd_distance(simulation.positions[$1 - 1], simulation.positions[$1])
+            }
+            precondition(abs(unloaded - 1) < 0.025, "Rope did not recover: \(unloaded)")
+            // Exercise elastic ropes during repeated piston movement and live changes.
+            simulation.settings.gravity = 20
+            for frame in 0..<360 {
+                simulation.advance(delta: PistonSimulation.step,
+                    bands: [Float](repeating: frame % 60 < 30 ? 1 : 0, count: 64))
+                checkStretch(simulation)
+                if frame % 60 == 0 { checkCollisions(simulation) }
+            }
+            simulation.settings.ropeStretchiness = 0
+            for _ in 0..<120 { simulation.advance(delta: PistonSimulation.step, bands: bands) }
+            checkStretch(simulation)
+        }
+        precondition(extensions[1] > extensions[0] + 0.015, "Default stretch must be visible")
+        precondition(extensions[2] > extensions[1] + 0.1, "Slider must increase elastic extension")
+        precondition(extensions[2] < 1.4, "Elastic extension must remain bounded")
+    }
+
+    static func checkHeadTwist() {
+        var settings = PistonSettings()
+        precondition(abs(settings.twistAngle(height: 0.8 + settings.travel) - .pi / 2) < 0.00001)
+        precondition(settings.twistAngle(height: 0.8) == 0)
+        settings.travel = 0
+        precondition(settings.twistAngle(height: 0.8) == 0)
+        for twist: Float in [-360, 0, 90, 360] {
+            var simulation = PistonSimulation()
+            simulation.settings.stringsPerPiston = 4
+            simulation.settings.headTwist = twist
+            for frame in 0..<240 {
+                let rising = frame < 120
+                simulation.advance(delta: PistonSimulation.step,
+                    bands: [Float](repeating: rising ? 1 : 0, count: 64))
+                for string in 0..<32 {
+                    let height = simulation.heights[string / 4]
+                    let angle = min(1, max(0, (height - 0.8) / simulation.settings.travel)) * twist * .pi / 180
+                    let expected = PistonSimulation.root(string, height: height,
+                        stringsPerPiston: 4, twist: angle)
+                    precondition(simd_distance(simulation.positions[string * 21], expected) < 0.00001)
+                }
+                checkStretch(simulation)
+                if frame % 30 == 0 { checkCollisions(simulation) }
+            }
+            // Changing the rope count while raised must keep the rotated roots.
+            for _ in 0..<30 {
+                simulation.advance(delta: PistonSimulation.step, bands: [Float](repeating: 1, count: 64))
+            }
+            simulation.settings.stringsPerPiston = 6
+            for string in 0..<48 {
+                let height = simulation.heights[string / 6]
+                let expected = PistonSimulation.root(string, height: height, stringsPerPiston: 6,
+                    twist: simulation.settings.twistAngle(height: height))
+                precondition(simd_distance(simulation.positions[string * 21], expected) < 0.00001)
+            }
+            simulation.settings.headTwist = 0
+            simulation.advance(delta: PistonSimulation.step, bands: [])
+            precondition(simd_distance(simulation.positions[0],
+                PistonSimulation.root(0, height: simulation.heights[0], stringsPerPiston: 6)) < 0.00001)
+        }
+    }
+
     static func main() {
+        checkHeadTwist()
+        checkElasticity()
         checkUndersideAttachment()
         checkSweptCollisions()
         var simulation = PistonSimulation()
+        simulation.settings.ropeStretchiness = 0
+        simulation.settings.headTwist = 0
         var bands = [Float](repeating: 0, count: 64)
         for index in 16..<24 { bands[index] = 1 }
         for _ in 0..<120 { simulation.advance(delta: 1.0 / 120, bands: bands) }
