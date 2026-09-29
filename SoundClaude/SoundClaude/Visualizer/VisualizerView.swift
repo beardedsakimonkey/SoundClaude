@@ -10,9 +10,21 @@ struct VisualizerView: View {
     @State private var pistonSettings = PistonSettings()
     @State private var clothSettings = ClothSettings()
     @State private var clothCamera = ClothCamera()
+    @State private var pistonCamera = PistonGroundControls.defaultCamera
     @State private var orbitStart: ClothCamera?
     @State private var isShowingControls = false
     @State private var viewportSize = CGSize.zero
+
+    private var camera: ClothCamera {
+        get { shader == .pistons ? pistonCamera : clothCamera }
+        nonmutating set {
+            if shader == .pistons {
+                pistonCamera = newValue
+            } else {
+                clothCamera = newValue
+            }
+        }
+    }
 
     var body: some View {
         ArtworkVisualizerView(
@@ -21,7 +33,7 @@ struct VisualizerView: View {
             pistonSettings: pistonSettings,
             trackProgress: playback.duration > 0 ? playback.currentTime / playback.duration : 0,
             hasTrack: playback.currentTrack != nil,
-            clothCamera: $clothCamera,
+            clothCamera: Binding(get: { camera }, set: { camera = $0 }),
             spectrumBuffer: spectrumBuffer,
             artworkURL: playback.currentTrack?.displayArtworkURL,
             artworkLoader: artworkLoader
@@ -36,20 +48,20 @@ struct VisualizerView: View {
                 .onChanged { value in
                     let pitchRange = shader.cameraPitchRange
                     if orbitStart == nil {
-                        clothCamera.pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound, clothCamera.pitch))
-                        orbitStart = clothCamera
+                        camera.pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound, camera.pitch))
+                        orbitStart = camera
                     }
                     guard let start = orbitStart else { return }
-                    clothCamera.yaw = start.yaw + Float(value.translation.width) * 0.008
-                    clothCamera.pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound,
+                    camera.yaw = start.yaw + Float(value.translation.width) * 0.008
+                    camera.pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound,
                         start.pitch + Float(value.translation.height) * 0.008))
                 }
                 .onEnded { _ in orbitStart = nil }
                 .exclusively(before: SpatialTapGesture().onEnded { value in
                     guard shader == .pistons, playback.currentTrack != nil else { return }
                     let camera = PistonGroundControls.camera(
-                        size: viewportSize, yaw: clothCamera.yaw,
-                        pitch: clothCamera.pitch, zoom: clothCamera.zoom)
+                        size: viewportSize, yaw: camera.yaw,
+                        pitch: camera.pitch, zoom: camera.zoom)
                     switch PistonGroundControls.hit(at: value.location, size: viewportSize, camera: camera) {
                     case .previous: playback.previous()
                     case .next: playback.next()
@@ -107,8 +119,6 @@ struct VisualizerView: View {
                 Spacer()
                 Button("Reset") {
                     pistonSettings = PistonSettings()
-                    clothCamera = ClothCamera()
-                    orbitStart = nil
                 }
             }
             ScrollView {
@@ -185,8 +195,6 @@ struct VisualizerView: View {
                 Spacer()
                 Button("Reset") {
                     clothSettings = ClothSettings()
-                    clothCamera = ClothCamera()
-                    orbitStart = nil
                 }
             }
             ScrollView {

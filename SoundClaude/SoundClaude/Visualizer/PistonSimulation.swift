@@ -19,7 +19,7 @@ struct PistonSettings: Equatable {
     var roughness: Float = 0.21
     var metallic: Float = 0.20
     var reflectionStrength: Float = 0.42
-    var edgeSoftness: Float = 0.018
+    var edgeSoftness: Float = 0.05
 
     func twistAngle(height: Float) -> Float {
         guard travel > 0 else { return 0 }
