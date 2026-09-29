@@ -63,7 +63,7 @@ struct TrackListRow: View {
             }
             .buttonStyle(.plain)
             .onContentHover { isHoveringArtwork = $0 }
-            .help(isPlaybackActive ? "Pause" : "Play")
+            .contentHelp(isPlaybackActive ? "Pause" : "Play")
             .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
@@ -159,7 +159,7 @@ struct TrackListRow: View {
                     .allowsHitTesting(isHovering)
                     .accessibilityHidden(!isHovering)
                     .accessibilityLabel("More options for \(track.title)")
-                    .help("More options")
+                    .contentHelp("More options")
                     .onContentHover { isHoveringMenu = $0 }
                 }
         }
@@ -254,7 +254,7 @@ struct TrackPreviewBadge: View {
                     .strokeBorder(.secondary.opacity(0.35), lineWidth: 1)
             }
             .fixedSize()
-            .help("Only a preview of this track is available.")
+            .contentHelp("Only a preview of this track is available.")
             .accessibilityLabel("Preview only")
     }
 }

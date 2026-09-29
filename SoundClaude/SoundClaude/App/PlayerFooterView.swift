@@ -114,7 +114,7 @@ struct PlayerFooterView: View {
                     .buttonStyle(.plain)
                     .keyboardShortcut("f", modifiers: [])
                     .onContentHover { isHoveringTitle = $0 }
-                    .help("Focus current track (F)")
+                    .contentHelp("Focus current track (F)")
                 } else {
                     Text("Select a track")
                 }
@@ -122,7 +122,7 @@ struct PlayerFooterView: View {
                     if let track = playback.currentTrack {
                         ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                             .keyboardShortcut("a", modifiers: [])
-                            .help("Focus current artist (A)")
+                            .contentHelp("Focus current artist (A)")
                     } else {
                         Text("Choose a track to start listening")
                     }
@@ -154,7 +154,7 @@ struct PlayerFooterView: View {
         }
         .buttonStyle(.plain)
         .onContentHover { isHoveringSource = $0 }
-        .help("View \(kind): \(title)")
+        .contentHelp("View \(kind): \(title)")
         .accessibilityLabel("View \(kind): \(title)")
     }
 
@@ -204,7 +204,7 @@ struct PlayerFooterView: View {
         .opacity(isUpdating ? 0.5 : 1)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
-        .help(isLiked ? "Unlike track (L)" : "Like track (L)")
+        .contentHelp(isLiked ? "Unlike track (L)" : "Like track (L)")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
         .accessibilityValue(isLiked ? "Liked" : "Not liked")
     }
@@ -224,7 +224,7 @@ struct PlayerFooterView: View {
             ))
             .contentShape(artworkShape)
             .trackDraggable(track)
-            .help("View track or drag to a playlist")
+            .contentHelp("View track or drag to a playlist")
             .accessibilityLabel("View track: \(track.title)")
         } else {
             artworkThumbnail
@@ -347,7 +347,7 @@ struct PlayerFooterView: View {
                             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
                             .frame(maxWidth: .infinity)
                             .frame(height: waveformHeight)
-                            .help(playbackError)
+                            .contentHelp(playbackError)
                     }
                 }
                 .onGeometryChange(for: CGFloat.self) { geometry in
@@ -371,7 +371,7 @@ struct PlayerFooterView: View {
                 .buttonStyle(.plain)
                 .modifier(SpringPressEffect())
                 .keyboardShortcut("q", modifiers: [])
-                .help(isShowingQueue ? "Hide track queue (Q)" : "Show track queue (Q)")
+                .contentHelp(isShowingQueue ? "Hide track queue (Q)" : "Show track queue (Q)")
                 .accessibilityLabel(isShowingQueue ? "Hide track queue" : "Show track queue")
                 .accessibilityValue(isShowingQueue ? "Open" : "Closed")
 
@@ -388,7 +388,7 @@ struct PlayerFooterView: View {
                 .buttonStyle(.plain)
                 .modifier(SpringPressEffect())
                 .keyboardShortcut("v", modifiers: [])
-                .help(isShowingVisualizer ? "Hide visualizer (V)" : "Show visualizer (V)")
+                .contentHelp(isShowingVisualizer ? "Hide visualizer (V)" : "Show visualizer (V)")
                 .accessibilityLabel(isShowingVisualizer ? "Hide visualizer" : "Show visualizer")
                 .accessibilityValue(isShowingVisualizer ? "Open" : "Closed")
 
@@ -415,7 +415,7 @@ struct PlayerFooterView: View {
                     .frame(width: 32, height: 32)
                     .modifier(PlayerFooterButtonBackground())
             }
-            .help("Previous track")
+            .contentHelp("Previous track")
             .accessibilityLabel("Previous track")
 
             Button(action: playback.togglePlayPause) {
@@ -425,7 +425,7 @@ struct PlayerFooterView: View {
             }
             .keyboardShortcut(.space, modifiers: [])
             .disabled(playback.currentTrack == nil)
-            .help(playback.isPlaybackActive ? "Pause" : "Play")
+            .contentHelp(playback.isPlaybackActive ? "Pause" : "Play")
             .accessibilityLabel(playback.isPlaybackActive ? "Pause" : "Play")
 
             Button(action: playback.next) {
@@ -434,7 +434,7 @@ struct PlayerFooterView: View {
                     .frame(width: 32, height: 32)
                     .modifier(PlayerFooterButtonBackground())
             }
-            .help("Next track")
+            .contentHelp("Next track")
             .accessibilityLabel("Next track")
 
             Button(action: model.toggleShuffle) {
@@ -445,7 +445,7 @@ struct PlayerFooterView: View {
                     .modifier(PlayerFooterButtonBackground(color: .green, isActive: playback.isShuffleEnabled))
                     .contentShape(Circle())
             }
-            .help(playback.isShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
+            .contentHelp(playback.isShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
             .accessibilityLabel("Shuffle")
             .accessibilityValue(playback.isShuffleEnabled ? "On" : "Off")
 
@@ -457,7 +457,7 @@ struct PlayerFooterView: View {
                     .modifier(PlayerFooterButtonBackground(color: .cyan, isActive: playback.repeatMode != .off))
                     .contentShape(Circle())
             }
-            .help("\(playback.repeatMode.nextAction) (R)")
+            .contentHelp("\(playback.repeatMode.nextAction) (R)")
             .accessibilityLabel("Repeat")
             .accessibilityValue(playback.repeatMode.label)
         }

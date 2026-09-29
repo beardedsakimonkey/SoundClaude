@@ -12,7 +12,7 @@ struct RelativeTimestampView: View {
             Text("·")
                 .accessibilityHidden(true)
             Text(prefix.map { "\($0) \(relativeTime)" } ?? relativeTime)
-                .help(date.formatted(date: .abbreviated, time: .shortened))
+                .contentHelp(date.formatted(date: .abbreviated, time: .shortened))
                 .accessibilityLabel("\(accessibilityPrefix) \(relativeTime)")
         }
     }

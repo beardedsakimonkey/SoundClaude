@@ -70,6 +70,6 @@ private struct SearchPill: View {
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isHovering)
         .fixedSize()
         .accessibilityLabel(label)
-        .help(label)
+        .contentHelp(label)
     }
 }

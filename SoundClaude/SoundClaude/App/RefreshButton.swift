@@ -30,6 +30,6 @@ struct RefreshButton: View {
         .accessibilityLabel(title)
         .disabled(isLoading)
         .onContentHover { isHovered = $0 }
-        .help(title)
+        .contentHelp(title)
     }
 }

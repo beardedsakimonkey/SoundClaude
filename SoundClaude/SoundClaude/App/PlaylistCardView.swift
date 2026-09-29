@@ -62,7 +62,7 @@ struct PlaylistCardView: View {
                 }
                 .buttonStyle(.plain)
                 .onContentHover { isHoveringTitle = $0 }
-                .help(displayedPlaylist.title)
+                .contentHelp(displayedPlaylist.title)
 
                 ArtistLink(artist: displayedPlaylist.owner, onSelect: onSelectArtist)
                     .font(.callout)
@@ -187,7 +187,7 @@ struct PlaylistCardView: View {
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.circle)
-        .help(isPlaying ? "Pause" : "Play")
+        .contentHelp(isPlaying ? "Pause" : "Play")
         .accessibilityLabel("\(isPlaying ? "Pause" : "Play") \(track.title)")
     }
 

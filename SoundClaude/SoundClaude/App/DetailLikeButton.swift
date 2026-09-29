@@ -40,7 +40,7 @@ struct DetailLikeButton: View {
         .opacity(isUpdating ? 0.5 : 1)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
-        .help(actionLabel)
+        .contentHelp(actionLabel)
         .accessibilityLabel(actionLabel)
         .accessibilityValue(isUpdating ? "Updating" : (isLiked ? "Liked" : "Not liked"))
     }

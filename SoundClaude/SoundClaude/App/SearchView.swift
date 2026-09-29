@@ -154,7 +154,7 @@ private struct RecentSearchButton: View {
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering)
                     .allowsHitTesting(false)
             }
-            .help("Search again: \(query)")
+            .contentHelp("Search again: \(query)")
             .accessibilityLabel("Search again: \(query)")
             .accessibilityAction(named: Text("Remove recent search"), onRemove)
 
@@ -167,7 +167,7 @@ private struct RecentSearchButton: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help("Remove recent search: \(query)")
+            .contentHelp("Remove recent search: \(query)")
             .accessibilityLabel("Remove recent search: \(query)")
             .onContentHover { isHoveringRemove = $0 }
             .opacity(isHovering ? 1 : 0)

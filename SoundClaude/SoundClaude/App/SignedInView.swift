@@ -69,6 +69,7 @@ struct SignedInView: View {
         // Preserve page and scroll state, but suppress page drawing and frame timelines.
         .opacity(isShowingVisualizer ? 0 : 1)
         .environment(\.contentAnimationsPaused, isShowingVisualizer)
+        .environment(\.contentHoverEnabled, !isShowingVisualizer)
         .toolbar(isShowingVisualizer ? .hidden : .automatic, for: .windowToolbar)
         .allowsHitTesting(!isShowingVisualizer)
         .accessibilityHidden(isShowingVisualizer)
@@ -310,7 +311,7 @@ struct SignedInView: View {
                 ) { destination, active in
                     rootView(destination, isActive: active)
                         .environment(\.contentAnimationsPaused, isShowingVisualizer || !active)
-                        .environment(\.contentHoverEnabled, active)
+                        .environment(\.contentHoverEnabled, active && !isShowingVisualizer)
                 }
                 .navigationTitle((selectedDestination ?? .liked).title)
             } destination: { route in
@@ -509,7 +510,7 @@ struct SignedInView: View {
                     .frame(width: 16, height: 16)
             }
             .disabled(path.isEmpty)
-            .help("Go back")
+            .contentHelp("Go back")
 
             Button {
                 _ = navigateForward()
@@ -518,7 +519,7 @@ struct SignedInView: View {
                     .frame(width: 16, height: 16)
             }
             .disabled(forwardPath.isEmpty)
-            .help("Go forward")
+            .contentHelp("Go forward")
         }
         .labelStyle(.iconOnly)
     }

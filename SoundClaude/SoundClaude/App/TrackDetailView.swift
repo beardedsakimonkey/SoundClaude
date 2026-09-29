@@ -82,7 +82,7 @@ struct TrackDetailView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 OpenInSoundCloudButton(url: details?.track.permalinkURL ?? track.permalinkURL)
-                    .help("Open this track in your web browser")
+                    .contentHelp("Open this track in your web browser")
             }
         }
         .task(id: track.urn) {
@@ -331,7 +331,7 @@ struct TrackDetailView: View {
                 .frame(width: iconOnly ? 44 : nil)
                 .frame(minHeight: 24)
         }
-        .help(isPlaying ? "Pause" : "Play")
+        .contentHelp(isPlaying ? "Pause" : "Play")
         .accessibilityLabel(isPlaying ? "Pause" : "Play")
     }
 
@@ -386,7 +386,7 @@ struct TrackDetailView: View {
             fill: isReposted ? .green.opacity(0.12) : .primary.opacity(0.12)
         ))
         .disabled(reposts.isLoading || reposts.updatingTrackURNs.contains(track.urn))
-        .help(isReposted ? "Undo repost" : "Repost track")
+        .contentHelp(isReposted ? "Undo repost" : "Repost track")
         .accessibilityLabel(isReposted ? "Undo repost" : "Repost track")
         .accessibilityValue(isReposted ? "Reposted" : "Not reposted")
     }
@@ -401,7 +401,7 @@ struct TrackDetailView: View {
                 .frame(width: 44, height: 24)
         }
         .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
-        .help("Open this track’s station")
+        .contentHelp("Open this track’s station")
     }
 
     private func nonempty(_ value: String?) -> String? {

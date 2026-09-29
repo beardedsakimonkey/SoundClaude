@@ -38,7 +38,7 @@ struct PlayerVolumeControl: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(usesCompactVolume ? "Show volume" : (playback.isMuted ? "Unmute" : "Mute"))
+            .contentHelp(usesCompactVolume ? "Show volume" : (playback.isMuted ? "Unmute" : "Mute"))
             .accessibilityLabel(usesCompactVolume ? "Show volume" : (playback.isMuted ? "Unmute" : "Mute"))
             .background {
                 VolumeRightClickView(onRightClick: playback.toggleMute)
@@ -56,7 +56,7 @@ struct PlayerVolumeControl: View {
                     .frame(width: 24, height: sliderLength)
                     .padding(12)
                     .contentShape(Rectangle())
-                    .onHover { isHoveringVolumePopover = $0 }
+                    .onContentHover { isHoveringVolumePopover = $0 }
             }
 
             if !usesCompactVolume {

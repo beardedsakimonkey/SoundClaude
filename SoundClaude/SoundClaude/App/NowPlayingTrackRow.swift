@@ -40,7 +40,7 @@ struct NowPlayingTrackRow: View {
                         }
                         .buttonStyle(.plain)
                         .onContentHover { isHoveringTrackTitle = $0 }
-                        .help("View track: \(track.title)")
+                        .contentHelp("View track: \(track.title)")
                         .accessibilityLabel("View track: \(track.title)")
                         Text("by")
                             .foregroundStyle(.secondary)

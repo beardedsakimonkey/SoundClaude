@@ -28,9 +28,27 @@ extension EnvironmentValues {
 }
 
 extension View {
+    /// Clear background tooltips without changing the view's identity or retained state.
+    func contentHelp(_ text: String) -> some View {
+        contentHelp(Text(text))
+    }
+
+    func contentHelp(_ text: Text) -> some View {
+        modifier(ContentHelpModifier(text: text))
+    }
+
     /// Tracks hover while respecting overlays that suppress background hover effects.
     func onContentHover(in path: Path? = nil, perform action: @escaping (Bool) -> Void) -> some View {
         modifier(ContentHoverModifier(path: path, action: action))
+    }
+}
+
+private struct ContentHelpModifier: ViewModifier {
+    let text: Text
+    @Environment(\.contentHoverEnabled) private var isEnabled
+
+    func body(content: Content) -> some View {
+        content.help(isEnabled ? text : Text(""))
     }
 }
 

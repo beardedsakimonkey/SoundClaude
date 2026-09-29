@@ -98,9 +98,9 @@ private struct QueueClearButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
+        .onContentHover { isHovered = $0 }
         .onDisappear { isHovered = false }
-        .help("Clear track queue")
+        .contentHelp("Clear track queue")
         .accessibilityLabel("Clear track queue")
     }
 }
@@ -122,10 +122,10 @@ private struct QueueCloseButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
+        .onContentHover { isHovered = $0 }
         .onDisappear { isHovered = false }
         .keyboardShortcut(.cancelAction)
-        .help("Close track queue (Esc)")
+        .contentHelp("Close track queue (Esc)")
         .accessibilityLabel("Close track queue")
     }
 }

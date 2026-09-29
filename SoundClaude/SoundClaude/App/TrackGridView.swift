@@ -42,7 +42,7 @@ struct TrackLayoutPicker: View {
                         hoveredLayout = nil
                     }
                 }
-                .help(layout.title)
+                .contentHelp(layout.title)
                 .accessibilityLabel(layout.title)
                 .accessibilityAddTraits(trackLayout == layout ? .isSelected : [])
             }
@@ -120,7 +120,7 @@ struct TrackGridTile: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .help(isPlaybackActive ? "Pause" : "Play")
+                .contentHelp(isPlaybackActive ? "Pause" : "Play")
                 .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
             }
             .aspectRatio(1, contentMode: .fit)
@@ -153,7 +153,7 @@ struct TrackGridTile: View {
                     }
                     .buttonStyle(.plain)
                     .onContentHover { isHoveringTitle = $0 }
-                    .help(track.title)
+                    .contentHelp(track.title)
                     if track.access == .preview {
                         TrackPreviewBadge()
                     }
@@ -221,7 +221,7 @@ struct TrackGridTile: View {
         .menuIndicator(.hidden)
         .fixedSize()
         .accessibilityLabel("More options for \(track.title)")
-        .help("More options")
+        .contentHelp("More options")
         .onContentHover { isHoveringMenu = $0 }
     }
 }

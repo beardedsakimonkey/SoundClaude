@@ -58,7 +58,7 @@ struct CommentSortMenu: View {
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovered)
             .accessibilityLabel("Sort comments")
             .accessibilityValue(sortOrder.title)
-            .help("Sort comments")
+            .contentHelp("Sort comments")
         }
         .fixedSize(horizontal: true, vertical: false)
     }
@@ -210,7 +210,7 @@ struct TrackCommentsView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(.primary)
                 .accessibilityLabel(isPosting ? "Posting comment" : "Send comment")
-                .help("Send comment (Return)")
+                .contentHelp("Send comment (Return)")
                 .disabled(isPosting || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .opacity(showsComposerControls ? 1 : 0)
                 .allowsHitTesting(showsComposerControls)
@@ -231,7 +231,7 @@ struct TrackCommentsView: View {
                 guard !isPosting else { return }
                 isCommentFocused = true
             }
-            .onHover { isCommentHovered = $0 }
+            .onContentHover { isCommentHovered = $0 }
             .overlay {
                 Capsule()
                     .strokeBorder(
@@ -366,7 +366,7 @@ private struct TrackCommentRow: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .help("View artist")
+                .contentHelp("View artist")
                 .accessibilityLabel("View artist: \(user.username)")
             } else {
                 Image(systemName: "person.crop.circle")
@@ -409,14 +409,14 @@ private struct TrackCommentRow: View {
                         .buttonStyle(CommentTimestampButtonStyle(color: timestampColor))
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(timestampColor)
-                        .help("Jump to \(timeLabel)")
+                        .contentHelp("Jump to \(timeLabel)")
                         .accessibilityLabel("Jump to \(timeLabel) in \(track.title)")
                     }
                     if let createdAt = comment.createdAt {
                         Text(createdAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .help(createdAt.formatted(date: .abbreviated, time: .shortened))
+                            .contentHelp(createdAt.formatted(date: .abbreviated, time: .shortened))
                     }
                     Spacer()
                 }

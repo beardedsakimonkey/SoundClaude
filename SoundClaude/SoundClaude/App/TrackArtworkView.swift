@@ -206,7 +206,7 @@ struct FullSizeArtworkView: View {
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.cancelAction)
-            .help("Close")
+            .contentHelp("Close")
             .accessibilityLabel("Close artwork")
             .padding(12)
         }
@@ -527,7 +527,7 @@ struct DetailArtworkView: View {
         if let track {
             artworkControl
                 .trackDraggable(track)
-                .help(artworkURL != nil ? "View full-size artwork or drag to a playlist" : "Drag to a playlist")
+                .contentHelp(artworkURL != nil ? "View full-size artwork or drag to a playlist" : "Drag to a playlist")
         } else {
             artworkControl
         }
@@ -544,7 +544,7 @@ struct DetailArtworkView: View {
             .buttonStyle(.plain)
             .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .onContentHover { isHoveringArtwork = $0 }
-            .help("View full-size artwork")
+            .contentHelp("View full-size artwork")
             .accessibilityLabel(
                 "View full-size artwork for \(title)"
             )

@@ -98,7 +98,7 @@ struct SidebarView: View {
                                 .buttonStyle(.plain)
                                 .modifier(SidebarForegroundHover(idleOpacity: 0.3))
                                 .disabled(likes.tracks.isEmpty)
-                                .help("Shuffle likes")
+                                .contentHelp("Shuffle likes")
                                 .accessibilityLabel("Shuffle likes")
                                 .padding(.trailing, 8)
                             }
@@ -227,7 +227,7 @@ struct SidebarView: View {
         }
             .lineLimit(1)
             .padding(.trailing, 28)
-            .help(playlist.title)
+            .contentHelp(playlist.title)
             .modifier(SidebarRowStyle(isSelected: false, usesPrimaryForeground: currentPlaylistURN == playlist.urn) {
                 onSelectPlaylist(playlist)
             })
@@ -264,7 +264,7 @@ struct SidebarView: View {
                     .buttonStyle(.plain)
                     .modifier(SidebarForegroundHover(idleOpacity: 0.3))
                     .disabled(shufflingPlaylistURN != nil)
-                    .help("Shuffle \(playlist.title)")
+                    .contentHelp("Shuffle \(playlist.title)")
                     .accessibilityLabel("Shuffle \(playlist.title)")
                     .padding(.trailing, 8)
                 }
@@ -371,7 +371,7 @@ struct SidebarView: View {
         .buttonStyle(.plain)
         .accessibilityLabel(title)
         .accessibilityValue("\(isExpanded.wrappedValue ? "Expanded" : "Collapsed")\(isLoading ? ", Loading" : "")")
-        .help("\(isExpanded.wrappedValue ? "Collapse" : "Expand") \(title)")
+        .contentHelp("\(isExpanded.wrappedValue ? "Collapse" : "Expand") \(title)")
     }
 
     private func select(_ destination: SidebarDestination) {
@@ -411,7 +411,7 @@ struct SidebarView: View {
             }
             .buttonStyle(.plain)
             .onContentHover { isProfileHovered = $0 }
-            .help("View profile: \(user.username)")
+            .contentHelp("View profile: \(user.username)")
             .accessibilityLabel("View profile: \(user.username)")
 
             Spacer(minLength: 0)
@@ -430,7 +430,7 @@ struct SidebarView: View {
             .buttonStyle(.plain)
             .foregroundStyle(.primary)
             .onContentHover { isSignOutHovered = $0 }
-            .help("Sign out")
+            .contentHelp("Sign out")
             .accessibilityLabel("Sign out")
         }
         .padding(.horizontal, 12)

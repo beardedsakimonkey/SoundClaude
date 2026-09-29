@@ -45,7 +45,7 @@ struct TrackCardView: View {
             }
             .buttonStyle(.plain)
             .trackDraggable(track)
-            .help("View track or drag to a playlist")
+            .contentHelp("View track or drag to a playlist")
             .accessibilityLabel("Open track: \(track.title)")
 
             VStack(alignment: .leading, spacing: 6) {
@@ -148,7 +148,7 @@ struct TrackCardView: View {
             }
             .buttonStyle(.plain)
             .onContentHover { isHoveringTitle = $0 }
-            .help(track.title)
+            .contentHelp(track.title)
             if track.access == .preview {
                 TrackPreviewBadge()
             }
@@ -189,7 +189,7 @@ struct TrackCardView: View {
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.circle)
-        .help(isPlaying ? "Pause" : "Play")
+        .contentHelp(isPlaying ? "Pause" : "Play")
         .accessibilityLabel("\(isPlaying ? "Pause" : "Play") \(track.title)")
     }
 
@@ -213,7 +213,7 @@ struct TrackCardView: View {
         }
         .buttonStyle(TrackStatisticButtonStyle(color: .accentColor, isSelected: isLiked))
         .disabled(likes.updatingTrackURNs.contains(track.urn))
-        .help(isLiked ? "Unlike track" : "Like track")
+        .contentHelp(isLiked ? "Unlike track" : "Like track")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
         .accessibilityValue(isLiked ? "Liked" : "Not liked")
     }
@@ -234,7 +234,7 @@ struct TrackCardView: View {
         }
         .buttonStyle(TrackStatisticButtonStyle(color: .green, isSelected: isReposted))
         .disabled(reposts.isLoading || reposts.updatingTrackURNs.contains(track.urn))
-        .help(isReposted ? "Undo repost" : "Repost track")
+        .contentHelp(isReposted ? "Undo repost" : "Repost track")
         .accessibilityLabel(isReposted ? "Undo repost" : "Repost track")
         .accessibilityValue(isReposted ? "Reposted" : "Not reposted")
     }
@@ -246,7 +246,7 @@ struct TrackCardView: View {
         }
             .monospacedDigit()
             .fixedSize()
-            .help(count.map { "\($0.formatted()) \(label)" } ?? "\(label.capitalized) unavailable")
+            .contentHelp(count.map { "\($0.formatted()) \(label)" } ?? "\(label.capitalized) unavailable")
             .accessibilityLabel(
                 count.map { "\($0.formatted()) \(label)" } ?? "\(label.capitalized) unavailable"
             )

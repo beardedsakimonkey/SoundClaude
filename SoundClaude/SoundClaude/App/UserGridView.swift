@@ -76,7 +76,7 @@ struct UserGridView: View {
                         hoveredUserURL = nil
                     }
                 }
-                .help("View profile: \(user.username)")
+                .contentHelp("View profile: \(user.username)")
                 .accessibilityLabel("View profile: \(user.username)")
                 .modifier(UserFadeIn())
             }

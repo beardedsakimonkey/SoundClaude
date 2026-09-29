@@ -198,7 +198,7 @@ struct ArtistDetailView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 OpenInSoundCloudButton(url: details?.user.permalinkURL ?? artist.permalinkURL)
-                    .help("Open this artist in your web browser")
+                    .contentHelp("Open this artist in your web browser")
             }
         }
         .task(id: artist.permalinkURL) { await load() }
@@ -446,7 +446,7 @@ struct ArtistDetailView: View {
                                 hoveredWebProfileURL = nil
                             }
                         }
-                        .help(profile.url.absoluteString)
+                        .contentHelp(profile.url.absoluteString)
                     }
                 }
                 .padding(.vertical, -6)
@@ -475,7 +475,7 @@ struct ArtistDetailView: View {
                 .foregroundStyle(isHoveringRelatedRefresh ? .primary : .secondary)
                 .onContentHover { isHoveringRelatedRefresh = $0 }
                 .disabled(isLoadingRelatedArtists || relatedArtists.count <= relatedArtistsPageSize)
-                .help("Show the next page of related artists")
+                .contentHelp("Show the next page of related artists")
             }
 
             VStack(spacing: 0) {
@@ -525,7 +525,7 @@ struct ArtistDetailView: View {
                             hoveredRelatedArtistURL = nil
                         }
                     }
-                    .help("View artist: \(user.username)")
+                    .contentHelp("View artist: \(user.username)")
                 }
             }
             .id(relatedArtistsPage)
@@ -666,7 +666,7 @@ struct ArtistDetailView: View {
                     }
                 }
                 .disabled(tracks.isEmpty || isShufflingTracks)
-                .help("Shuffle this artist’s tracks")
+                .contentHelp("Shuffle this artist’s tracks")
                 .accessibilityValue(isShufflingTracks ? "Starting shuffle playback" : "")
             }
             if nonempty(details?.user.stationURN) != nil {
@@ -684,7 +684,7 @@ struct ArtistDetailView: View {
             guard let urn = nonempty(details?.user.stationURN) else { return }
             onSelectStation(urn, details?.user.username ?? artist.username)
         }
-        .help("Open this artist’s station")
+        .contentHelp("Open this artist’s station")
     }
 
     private func shuffleTracks() async {
@@ -725,7 +725,7 @@ struct ArtistDetailView: View {
             }
         }
         .disabled(isFollowing == nil || isUpdatingFollow)
-        .help(isFollowing == true ? "Unfollow this artist" : "Follow this artist")
+        .contentHelp(isFollowing == true ? "Unfollow this artist" : "Follow this artist")
         .accessibilityValue(isLoadingFollow ? "Loading follow status" : "")
     }
 
@@ -790,7 +790,7 @@ struct ArtistDetailView: View {
             .onContentHover(in: Circle().path(in: CGRect(
                 x: 0, y: 0, width: pictureSize, height: pictureSize
             ))) { isHoveringArtwork = $0 }
-            .help("View full-size artist picture")
+            .contentHelp("View full-size artist picture")
             .accessibilityLabel("View full-size picture of \(user.username)")
         } else {
             thumbnail
@@ -1045,7 +1045,7 @@ struct ArtistDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(trackCount == 0)
-                .help("View tracks by \(details.user.username)")
+                .contentHelp("View tracks by \(details.user.username)")
             }
         }
     }
@@ -1059,7 +1059,7 @@ struct ArtistDetailView: View {
                 statistic(count, label: list.title, allowsScaling: allowsScaling)
             }
             .buttonStyle(.plain)
-            .help("View \(list.title.lowercased()) of \(user.username)")
+            .contentHelp("View \(list.title.lowercased()) of \(user.username)")
         }
     }
 

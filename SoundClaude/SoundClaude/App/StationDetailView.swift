@@ -107,7 +107,7 @@ struct StationDetailView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 OpenInSoundCloudButton(url: station?.permalinkURL)
-                    .help("Open this station in your web browser")
+                    .contentHelp("Open this station in your web browser")
             }
         }
         .task(id: loadAttempt) { await load() }
@@ -223,7 +223,7 @@ struct StationDetailView: View {
         .buttonStyle(.plain)
         .onContentHover { isHoveringStationTitle = $0 }
         .disabled(isOpeningSource)
-        .help(stationType == "Artist station" ? "View station artist" : "View station track")
+        .contentHelp(stationType == "Artist station" ? "View station artist" : "View station track")
         .accessibilityLabel("\(stationType == "Artist station" ? "View artist" : "View track"): \(title)")
     }
 
@@ -263,19 +263,19 @@ struct StationDetailView: View {
                 .frame(minHeight: 24)
             }
             .disabled(currentStationTrack == nil && tracks.isEmpty)
-            .help(isPlaying ? "Pause station" : "\(playLabel) station")
+            .contentHelp(isPlaying ? "Pause station" : "\(playLabel) station")
             .accessibilityLabel(isPlaying ? "Pause station" : "\(playLabel) station")
             Group {
                 Button(action: model.playback.previous) {
                     Label("Previous track", systemImage: "backward.fill")
                         .frame(width: 44, height: 24)
                 }
-                .help("Previous track")
+                .contentHelp("Previous track")
                 Button(action: model.playback.next) {
                     Label("Next track", systemImage: "forward.fill")
                         .frame(width: 44, height: 24)
                 }
-                .help("Next track")
+                .contentHelp("Next track")
             }
             .labelStyle(.iconOnly)
             .disabled(currentStationTrack == nil)

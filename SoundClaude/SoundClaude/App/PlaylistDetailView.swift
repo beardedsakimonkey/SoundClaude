@@ -113,12 +113,12 @@ struct PlaylistDetailView: View {
                     }
                     .menuIndicator(.hidden)
                     .disabled(playlistDeletion.deletingURNs.contains(playlist.urn))
-                    .help("Playlist actions")
+                    .contentHelp("Playlist actions")
                 }
             }
             ToolbarItem(placement: .primaryAction) {
                 OpenInSoundCloudButton(url: displayedPlaylist.permalinkURL)
-                    .help("Open this playlist in your web browser")
+                    .contentHelp("Open this playlist in your web browser")
             }
         }
         .task(id: playlist.urn) {
@@ -192,7 +192,7 @@ struct PlaylistDetailView: View {
                                     .strokeBorder(.secondary.opacity(0.35), lineWidth: 1)
                             }
                             .fixedSize()
-                            .help("Private playlist")
+                            .contentHelp("Private playlist")
                             .accessibilityLabel("Private playlist")
                     }
                 }
@@ -323,7 +323,7 @@ struct PlaylistDetailView: View {
         }
         .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
         .disabled(currentPlaylistTrack == nil && tracks.isEmpty)
-        .help(isPlaying ? "Pause playlist" : "Play playlist")
+        .contentHelp(isPlaying ? "Pause playlist" : "Play playlist")
         .accessibilityLabel(isPlaying ? "Pause playlist" : "Play playlist")
     }
 
@@ -333,14 +333,14 @@ struct PlaylistDetailView: View {
                 Label("Previous track", systemImage: "backward.fill")
                     .frame(width: 44, height: 24)
             }
-            .help("Previous track")
+            .contentHelp("Previous track")
             .accessibilityLabel("Previous track")
 
             Button(action: model.playback.next) {
                 Label("Next track", systemImage: "forward.fill")
                     .frame(width: 44, height: 24)
             }
-            .help("Next track")
+            .contentHelp("Next track")
             .accessibilityLabel("Next track")
         }
         .labelStyle(.iconOnly)

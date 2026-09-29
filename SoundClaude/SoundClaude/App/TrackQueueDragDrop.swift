@@ -285,8 +285,8 @@ private struct QueueDragHandle: View {
             .foregroundStyle(isHovered ? .primary : .secondary)
             .frame(width: 28, height: 56)
             .contentShape(Rectangle())
-            .onHover { isHovered = $0 }
+            .onContentHover { isHovered = $0 }
             .onDisappear { isHovered = false }
-            .help("Drag to reorder")
+            .contentHelp("Drag to reorder")
     }
 }

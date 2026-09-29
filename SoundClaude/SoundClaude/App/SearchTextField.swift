@@ -52,7 +52,7 @@ struct SearchTextField: View {
                 .onContentHover { isHoveringClear = $0 }
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHoveringClear)
                 .accessibilityLabel("Clear search")
-                .help("Clear search")
+                .contentHelp("Clear search")
                 .transition(style == .regular ? .scale(scale: 0.8).combined(with: .opacity) : .identity)
             }
         }

@@ -82,7 +82,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(optionTitle(option, isEmphasized: false))
-                .help(optionTitle(option, isEmphasized: false))
+                .contentHelp(optionTitle(option, isEmphasized: false))
                 .onContentHover { isHovering in
                     if isHovering {
                         hoveredOption = option

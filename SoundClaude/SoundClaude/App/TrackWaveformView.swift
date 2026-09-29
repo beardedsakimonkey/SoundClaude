@@ -325,7 +325,7 @@ struct TrackWaveformView: View {
                             )
                         }
                 )
-                .help(
+                .contentHelp(
                     track == nil ? "Start playback to see the waveform."
                         : isCurrentTrack ? "Click to seek."
                         : "Click to play from this position."
