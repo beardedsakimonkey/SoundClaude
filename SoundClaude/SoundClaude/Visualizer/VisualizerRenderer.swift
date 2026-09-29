@@ -63,6 +63,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private var shadowDepth: MTLTexture?
     private var pistonRopeShadow: MTLTexture?
     private var pistonRopeShadowDepth: MTLTexture?
+    private var pistonBloomMultisampleMask: MTLTexture?
     private var pistonBloomMask: MTLTexture?
     private var pistonBloomBlur: MTLTexture?
     private var pistonBloomSourcePipeline: MTLRenderPipelineState?
@@ -85,7 +86,13 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private let fallbackTexture: MTLTexture
     private var artworkTexture: MTLTexture?
     private var artworkImage: CGImage?
-    private var pipelines: [VisualizerShader: MTLRenderPipelineState] = [:]
+    fileprivate struct Pipelines {
+        let scene: MTLRenderPipelineState
+        let shadow: MTLRenderPipelineState
+    }
+
+    private let pistonSampleCount: Int
+    private var pipelines: [VisualizerShader: Pipelines] = [:]
     private var bands = [Float](repeating: 0, count: Int(SCSpectrumBandCount))
     private let animationStartTime = ProcessInfo.processInfo.systemUptime
 #if DEBUG
@@ -99,19 +106,21 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             return nil
         }
 
+        pistonSampleCount = device.supportsTextureSampleCount(4) ? 4
+            : (device.supportsTextureSampleCount(2) ? 2 : 1)
         do {
             for shader in VisualizerShader.allCases {
-                pipelines[shader] = try Self.makePipeline(
+                pipelines[shader] = try Self.makePipelines(
                     device: device, library: library, pixelFormat: view.colorPixelFormat,
-                    shader: shader
+                    shader: shader, sampleCount: shader == .pistons ? pistonSampleCount : 1
                 )
             }
             pistonGlowPipeline = try Self.makePipeline(
                 device: device, library: library, pixelFormat: view.colorPixelFormat,
-                shader: .pistons, glowBlend: true)
+                shader: .pistons, sampleCount: pistonSampleCount, glowBlend: true)
             pistonBloomSourcePipeline = try Self.makePipeline(
                 device: device, library: library, pixelFormat: .rgba16Float,
-                shader: .pistons, glowBlend: true)
+                shader: .pistons, sampleCount: pistonSampleCount, glowBlend: true)
             let bloom = MTLRenderPipelineDescriptor()
             bloom.label = "Piston bloom composite"
             bloom.vertexFunction = library.makeFunction(name: "pistonBloomVertex")
@@ -155,7 +164,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 #if DEBUG
         for shader in VisualizerShader.allCases {
             shaderReloaders[shader] = VisualizerShaderReloader(
-                device: device, pixelFormat: view.colorPixelFormat, shader: shader
+                device: device, pixelFormat: view.colorPixelFormat, shader: shader,
+                sampleCount: shader == .pistons ? pistonSampleCount : 1
             )
         }
 #endif
@@ -194,11 +204,24 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         }
     }
 
+    fileprivate static func makePipelines(
+        device: MTLDevice, library: MTLLibrary, pixelFormat: MTLPixelFormat,
+        shader: VisualizerShader, sampleCount: Int
+    ) throws -> Pipelines {
+        let scene = try makePipeline(device: device, library: library, pixelFormat: pixelFormat,
+                                     shader: shader, sampleCount: sampleCount)
+        // Shadow masks are blurred separately and keep single-sample attachments.
+        let shadow = sampleCount == 1 ? scene : try makePipeline(
+            device: device, library: library, pixelFormat: pixelFormat, shader: shader)
+        return Pipelines(scene: scene, shadow: shadow)
+    }
+
     fileprivate static func makePipeline(
         device: MTLDevice, library: MTLLibrary, pixelFormat: MTLPixelFormat,
-        shader: VisualizerShader, glowBlend: Bool = false
+        shader: VisualizerShader, sampleCount: Int = 1, glowBlend: Bool = false
     ) throws -> MTLRenderPipelineState {
         let descriptor = MTLRenderPipelineDescriptor()
+        descriptor.rasterSampleCount = sampleCount
         descriptor.label = "Audio visualizer: \(shader.title)"
         descriptor.vertexFunction = library.makeFunction(name: shader.vertexFunction)
         descriptor.fragmentFunction = library.makeFunction(name: shader.fragmentFunction)
@@ -487,13 +510,26 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
             pistonBloomMask = device.makeTexture(descriptor: descriptor)
             pistonBloomBlur = device.makeTexture(descriptor: descriptor)
+            if pistonSampleCount > 1 {
+                descriptor.textureType = .type2DMultisample
+                descriptor.sampleCount = pistonSampleCount
+                descriptor.usage = .renderTarget
+                pistonBloomMultisampleMask = device.makeTexture(descriptor: descriptor)
+            }
         }
         guard let mask = pistonBloomMask, let blurred = pistonBloomBlur else { return }
         // Use the scene depth so hidden ropes cannot seed the bloom.
         let sourcePass = MTLRenderPassDescriptor()
-        sourcePass.colorAttachments[0].texture = mask
+        if pistonSampleCount > 1 {
+            guard let multisampleMask = pistonBloomMultisampleMask else { return }
+            sourcePass.colorAttachments[0].texture = multisampleMask
+            sourcePass.colorAttachments[0].resolveTexture = mask
+            sourcePass.colorAttachments[0].storeAction = .multisampleResolve
+        } else {
+            sourcePass.colorAttachments[0].texture = mask
+            sourcePass.colorAttachments[0].storeAction = .store
+        }
         sourcePass.colorAttachments[0].loadAction = .clear
-        sourcePass.colorAttachments[0].storeAction = .store
         sourcePass.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0)
         sourcePass.depthAttachment.texture = depth
         sourcePass.depthAttachment.loadAction = .load
@@ -545,7 +581,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             }
         }
 #endif
-        guard let pipelineState = pipelines[shader],
+        // MTKView creates matching multisample color/depth attachments and resolves
+        // the scene into the drawable before the single-sample bloom composite.
+        let sampleCount = shader == .pistons ? pistonSampleCount : 1
+        if view.sampleCount != sampleCount { view.sampleCount = sampleCount }
+        guard let pipelines = pipelines[shader],
               let renderPassDescriptor = view.currentRenderPassDescriptor,
               let drawable = view.currentDrawable,
               let commandBuffer = commandQueue.makeCommandBuffer() else { return }
@@ -561,10 +601,10 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         }
         let frameShadow = clothFrame.flatMap {
             encodeClothShadow(in: view, commandBuffer: commandBuffer,
-                              pipeline: pipelineState, frame: $0)
+                              pipeline: pipelines.shadow, frame: $0)
         } ?? pistonFrame.flatMap {
             encodePistonShadow(in: view, commandBuffer: commandBuffer,
-                               pipeline: pipelineState, frame: $0)
+                               pipeline: pipelines.shadow, frame: $0)
         }
         if pistonFrame != nil {
             renderPassDescriptor.depthAttachment.storeAction = .store
@@ -575,7 +615,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             return
         }
 
-        encoder.setRenderPipelineState(pipelineState)
+        encoder.setRenderPipelineState(pipelines.scene)
         bands.withUnsafeBytes { bytes in
             encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 0)
         }
@@ -696,9 +736,11 @@ private final class VisualizerShaderReloader {
     private var lastSource: String?
     private var lastReadError: String?
     private let lock = NSLock()
-    private var pendingPipeline: MTLRenderPipelineState?
+    private var pendingPipeline: VisualizerRenderer.Pipelines?
+    private let sampleCount: Int
 
-    init(device: MTLDevice, pixelFormat: MTLPixelFormat, shader: VisualizerShader) {
+    init(device: MTLDevice, pixelFormat: MTLPixelFormat, shader: VisualizerShader, sampleCount: Int) {
+        self.sampleCount = sampleCount
         self.shader = shader
         sourceURL = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -717,7 +759,7 @@ private final class VisualizerShaderReloader {
 
     deinit { timer.cancel() }
 
-    func takePipeline() -> MTLRenderPipelineState? {
+    func takePipeline() -> VisualizerRenderer.Pipelines? {
         lock.lock()
         defer { lock.unlock() }
         let pipeline = pendingPipeline
@@ -743,8 +785,9 @@ private final class VisualizerShaderReloader {
         do {
             // Compile off the render thread. Publish only a complete, valid pipeline.
             let library = try device.makeLibrary(source: source, options: nil)
-            let pipeline = try VisualizerRenderer.makePipeline(
-                device: device, library: library, pixelFormat: pixelFormat, shader: shader
+            let pipeline = try VisualizerRenderer.makePipelines(
+                device: device, library: library, pixelFormat: pixelFormat, shader: shader,
+                sampleCount: sampleCount
             )
             lock.lock()
             pendingPipeline = pipeline
