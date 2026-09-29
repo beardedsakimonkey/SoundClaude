@@ -150,8 +150,6 @@ struct VisualizerView: View {
                     tuningSlider("Metallic", value: $pistonSettings.metallic, range: 0...1)
                     Text("Lower roughness gives sharper reflections. Bases keep a softer finish.")
                         .font(.caption).foregroundStyle(.secondary)
-                    tuningSlider("Machining marks", value: $pistonSettings.grainStrength, range: 0...3)
-                    tuningSlider("Mark density", value: $pistonSettings.grainScale, range: 0.1...3)
                     tuningSlider("Reflections", value: $pistonSettings.reflectionStrength, range: 0...3)
                     tuningSlider("Edge softness", value: $pistonSettings.edgeSoftness, range: 0...0.05, format: "%.3f")
                     Divider()

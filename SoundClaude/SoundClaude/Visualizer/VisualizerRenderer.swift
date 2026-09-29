@@ -246,7 +246,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         uniforms.append(SIMD4<Float>(pistonSettings.metalColor, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.baseColor, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.roughness, pistonSettings.metallic,
-                                     pistonSettings.grainStrength, pistonSettings.grainScale))
+                                     0, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.reflectionStrength, pistonSettings.edgeSoftness,
                                      pistonSettings.neutralRopeGlow, 0))
         let progress = trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0

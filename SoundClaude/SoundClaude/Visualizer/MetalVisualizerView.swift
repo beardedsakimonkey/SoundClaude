@@ -92,9 +92,9 @@ struct ArtworkVisualizerView: View {
             // Soften the artwork color with a dimmer, less saturated spotlight.
             let saturation = 0.5
             let brightness = 0.45
-            // Pistons use a fixed, neutral blue-gray spotlight.
+            // Pistons use a fixed, muted blue spotlight.
             let glow = shader == .pistons
-                ? Color(.sRGB, red: 0.30, green: 0.32, blue: 0.36)
+                ? Color(.sRGB, red: 0.24, green: 0.32, blue: 0.44)
                 : Color(
                 .sRGB,
                 red: (color.red / peak * saturation + 1 - saturation) * brightness,

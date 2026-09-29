@@ -10,7 +10,7 @@ struct PistonUniforms {
     float4 stripeColor; // linear RGB, unused
     float4 metalColor; // linear RGB, unused
     float4 baseColor; // linear RGB, unused
-    float4 material; // roughness, metallic, grain strength, grain density
+    float4 material; // roughness, metallic, unused, unused
     float4 finish; // reflection strength, edge softness, neutral rope glow, unused
     float4 track; // progress, artwork aspect, has artwork, has track
 };
@@ -31,7 +31,7 @@ static float pistonRopeBrightness(uint piston, constant PistonUniforms &u) {
     // Height follows smoothed audio energy. Keep idle ropes clearly visible.
     float height = u.heights[piston / 4][piston % 4];
     float level = u.stripes.w > 0 ? saturate((height - 0.8) / u.stripes.w) : 0;
-    return mix(0.3, 1.0, level);
+    return mix(0.3, 1.0, pow(level, 0.75));
 }
 static float3 pistonLightPosition(float3 p) {
     float3 light = normalize(float3(-0.4, 0.8, 1));
@@ -197,11 +197,6 @@ struct PistonFragment {
     float4 color [[color(0)]];
     float depth [[depth(any)]];
 };
-// Filter machining marks before they become smaller than a pixel.
-static float pistonGrain(float coordinate) {
-    float footprint = fwidth(coordinate);
-    return sin(coordinate * 2 * M_PI_F) * (1 - smoothstep(0.2, 0.65, footprint));
-}
 static float3 pistonMetal(float3 n, float3 view, float3 light, float3 tint,
                           float roughness, float metallic) {
     float3 h = normalize(light + view);
@@ -283,7 +278,7 @@ fragment PistonFragment pistonVisualizerFragment(
         float across = abs(in.uv.x);
         float halo = exp(-across * across * 6.0) * (1 - smoothstep(0.65, 1.0, across));
         // Fade the halo faster than the rope itself as the piston drops.
-        float glowBrightness = in.ropeBrightness * in.ropeBrightness;
+        float glowBrightness = pow(in.ropeBrightness, 1.5);
         float3 emission = in.color * halo * 0.28 * glowStrength * glowBrightness;
         float alpha = max(emission.r, max(emission.g, emission.b));
         return {float4(emission, alpha), in.position.z};
@@ -350,10 +345,10 @@ fragment PistonFragment pistonVisualizerFragment(
                               * smoothstep(0.0, softness.y, edge.y);
                 if (u.track.z > 0.5) {
                     constexpr sampler artSampler(filter::linear, mip_filter::linear, address::clamp_to_edge);
-                    emission = artwork.sample(artSampler, uv).rgb * feather;
+                    emission = artwork.sample(artSampler, uv).rgb * feather * 0.21;
                 } else {
                     float radius = length(uv - 0.5);
-                    emission = float3(0.3, 0.34, 0.4) * feather
+                    emission = float3(0.09, 0.102, 0.12) * feather
                         * (1 - smoothstep(0.34, 0.35, radius)) * smoothstep(0.06, 0.07, radius);
                 }
             }
@@ -364,7 +359,7 @@ fragment PistonFragment pistonVisualizerFragment(
             float coverage = 1 - smoothstep(-aa, aa, railDistance);
             float fill = u.track.x <= 0 ? 0 : (u.track.x >= 1 ? 1
                 : 1 - smoothstep(3.2 * u.track.x - aa, 3.2 * u.track.x + aa, rail.x));
-            emission += mix(float3(0.12, 0.15, 0.2), float3(0.4), fill) * coverage;
+            emission += mix(float3(0.036, 0.045, 0.06), float3(0.12), fill) * coverage;
             // Fixed ground controls. Their centers and radius also define the
             // ray hit targets in PistonGroundControls.
             for (int direction = -1; direction <= 1; direction += 2) {
@@ -376,7 +371,7 @@ fragment PistonFragment pistonVisualizerFragment(
                 float2 icon = float2(button.x * float(direction), button.y);
                 float triangle = max(-0.12 - icon.x, abs(icon.y) - (0.24 - icon.x) * 0.6);
                 float cutout = 1 - smoothstep(-feather, feather, triangle);
-                emission += float3(0.4) * disk * (1 - cutout);
+                emission += float3(0.12) * disk * (1 - cutout);
             }
             floorColor += emission * 0.85 * mix(0.7, 1.0, visibility);
         }
@@ -469,15 +464,11 @@ fragment PistonFragment pistonVisualizerFragment(
             float bottomEdge = 1 - smoothstep(0.0, bevel, in.cylinderPosition.y - in.surface.y);
             n = normalize(n + cylinderAxis * (topEdge - bottomEdge));
         }
-        float coordinate = (endFace ? radialDistance : in.stripeHeight) * u.material.w;
-        float grain = (pistonGrain(coordinate * 115) * 0.65
-                    + pistonGrain(coordinate * 213) * 0.35) * u.material.z;
         float base = in.surface.w;
         float3 metalColor = mix(u.metalColor.rgb, u.baseColor.rgb, base);
-        metalColor *= 1 + grain * 0.045;
         float3 tint = mix(metalColor, u.stripeColor.rgb, stripe);
         float roughness = clamp(u.material.x + mix(endFace ? 0.08 : 0.0, 0.20, base)
-                                + grain * 0.035 + stripe * 0.16, 0.08, 1.0);
+                                + stripe * 0.16, 0.08, 1.0);
         float metallic = mix(u.material.y, min(u.material.y, 0.25), stripe);
         float3 view = normalize(in.eye);
         float3 reflection = reflect(-view, n);

@@ -24,7 +24,7 @@ struct PistonSimulationTests {
             precondition(simulation.positions[start + 1].y <= root.y - radius,
                          "First rope segment crosses the cap underside")
             // The root is pinned to the cap underside. Check all other segments,
-            // including their interiors, against the visible piston geometry.
+            // including their interiors, against the cap and shaft.
             for node in 2...PistonSimulation.segments {
                 for fraction: Float in [0, 0.25, 0.5, 0.75, 1] {
                     let p = simulation.positions[start + node - 1] * (1 - fraction)
@@ -35,11 +35,9 @@ struct PistonSimulationTests {
                         let insideCap = hypot(x, p.z) < 0.65 + radius
                             && abs(p.y - height) < 0.055 + radius
                         let radialDistance = hypot(x, p.z)
-                        let insideBase = radialDistance < 0.38 + radius
-                            && p.y > -1.65 - radius && p.y < -1.41 + radius
                         let insideShaft = radialDistance < 0.22 + radius
                             && p.y > -1.53 - radius && p.y < height + radius
-                        precondition(!insideCap && !insideBase && !insideShaft,
+                        precondition(!insideCap && !insideShaft,
                                      "String intersects piston \(piston) at \(p)")
                     }
                 }
@@ -90,13 +88,17 @@ struct PistonSimulationTests {
         let cap = step(root: SIMD4(x + 3, 1.8, 0, 0), start: point, end: point,
                        height: 1.8, previousHeight: 0.8)
         precondition(cap.y >= 1.8 + 0.055 + 0.011)
-        // Nodes cross the entire shaft/base between integration samples.
-        for (y, radius): (Float, Float) in [(0, 0.22), (-1.53, 0.38)] {
-            let result = step(root: SIMD4(x - 1, 0.8, 0, 0),
-                              start: SIMD4(x - 1, y, 0, 0), end: SIMD4(x + 1, y, 0, 0),
-                              height: 0.8, previousHeight: 0.8)
-            precondition(result.x <= x - radius - 0.011, "Swept cylinder at \(y): \(result)")
-        }
+        // Nodes cross the shaft between integration samples.
+        let shaft = step(root: SIMD4(x - 1, 0.8, 0, 0),
+                         start: SIMD4(x - 1, 0, 0, 0), end: SIMD4(x + 1, 0, 0, 0),
+                         height: 0.8, previousHeight: 0.8)
+        precondition(shaft.x <= x - 0.22 - 0.011, "Swept shaft: \(shaft)")
+        // The base no longer pushes ropes out of its outer rim.
+        let insideBase = SIMD4<Float>(x + 0.3, -1.53, 0, 0)
+        let unchanged = step(root: SIMD4(x + 3, 0.8, 0, 0),
+                             start: insideBase, end: insideBase,
+                             height: 0.8, previousHeight: 0.8)
+        precondition(simd_distance(unchanged, insideBase) < 0.0001)
     }
 
     static func checkElasticity() {

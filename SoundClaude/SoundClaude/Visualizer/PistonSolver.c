@@ -112,19 +112,15 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
                   uint32_t stringsPerPiston, uint32_t segments, float segmentLength,
                   float damping, float gravityStrength, float stretchiness) {
     const uint32_t pistonCount = stringCount / stringsPerPiston;
-    PistonCollider colliders[pistonCount * 3];
+    PistonCollider colliders[pistonCount * 2];
     for (uint32_t piston = 0; piston < pistonCount; ++piston) {
         float x = ((float)piston - 3.5f) * 1.85f;
         float height = heights[piston], oldHeight = previousHeights[piston];
-        colliders[piston * 3 + 2] = (PistonCollider){
+        colliders[piston * 2 + 1] = (PistonCollider){
             {x, height, 0}, {x, oldHeight, 0},
             {0.65f + ropeRadius, 0.055f + ropeRadius, 0.65f + ropeRadius},
             {0.65f + ropeRadius, 0.055f + ropeRadius, 0.65f + ropeRadius}, true, true};
-        colliders[piston * 3] = (PistonCollider){
-            {x, -1.53f, 0}, {x, -1.53f, 0},
-            {0.38f + ropeRadius, 0.12f + ropeRadius, 0.38f + ropeRadius},
-            {0.38f + ropeRadius, 0.12f + ropeRadius, 0.38f + ropeRadius}, true};
-        colliders[piston * 3 + 1] = (PistonCollider){
+        colliders[piston * 2] = (PistonCollider){
             {x, (height - 1.53f) * 0.5f, 0}, {x, (oldHeight - 1.53f) * 0.5f, 0},
             {0.22f + ropeRadius, (height + 1.53f) * 0.5f + ropeRadius, 0.22f + ropeRadius},
             {0.22f + ropeRadius, (oldHeight + 1.53f) * 0.5f + ropeRadius, 0.22f + ropeRadius}, true};
@@ -146,7 +142,7 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
             const simd_float4 position = p[node];
             p[node] += (position - old[node]) * (1.0f - damping) + gravity;
             old[node] = position;
-            for (uint32_t collider = 0; collider < pistonCount * 3; ++collider)
+            for (uint32_t collider = 0; collider < pistonCount * 2; ++collider)
                 collideNode(&p[node], &old[node], colliders[collider], position.xyz);
         }
         // Accumulate constraint impulses within this step so extra collision
@@ -182,7 +178,7 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
                 }
             }
             for (uint32_t node = 1; node <= segments; ++node) {
-                for (uint32_t collider = 0; collider < pistonCount * 3; ++collider) {
+                for (uint32_t collider = 0; collider < pistonCount * 2; ++collider) {
                     PistonCollider fixed = colliders[collider];
                     fixed.previousCenter = fixed.center;
                     fixed.previousExtent = fixed.extent;
@@ -196,7 +192,7 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
             // Generic collision exits can put the first free node on top and
             // leave the pinned segment crossing the cap. Keep it below instead.
             const uint32_t piston = string / stringsPerPiston;
-            const PistonCollider cap = colliders[piston * 3 + 2];
+            const PistonCollider cap = colliders[piston * 2 + 1];
             if (hypotf(p[0].x - cap.center.x, p[0].z) < 0.65f) {
                 const float ceiling = cap.center.y - cap.extent.y - 0.00001f;
                 if (p[1].y > ceiling) {
