@@ -175,6 +175,7 @@ test:
 	/tmp/soundclaude-tests/following
 	swiftc -o /tmp/soundclaude-tests/history \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/App/HistoryStore.swift \
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
 		tests/HistoryTests.swift

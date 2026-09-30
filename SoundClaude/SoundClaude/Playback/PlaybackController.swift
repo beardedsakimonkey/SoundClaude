@@ -88,6 +88,8 @@ final class PlaybackController {
     @ObservationIgnored private let makePrefetchPlayer: @MainActor (URL) -> AVPlayer
     @ObservationIgnored private(set) var player: AVPlayer
     @ObservationIgnored var onReadyToPlay: (() -> Void)?
+    @ObservationIgnored var onTrackStarted: ((SoundCloudTrack) -> Void)?
+    @ObservationIgnored private var hasNotifiedTrackStarted = false
     @ObservationIgnored var onTrackEnded: (() -> Void)?
     @ObservationIgnored var onNext: (() -> Void)?
     @ObservationIgnored var onPrevious: (() -> Void)?
@@ -191,6 +193,11 @@ final class PlaybackController {
             Task { @MainActor [weak self] in
                 guard let self, self.player === player else { return }
                 isPlaying = player.timeControlStatus == .playing
+                if isPlaying, !isLoading, !hasNotifiedTrackStarted,
+                   let track = currentTrack, player.currentItem?.status == .readyToPlay {
+                    hasNotifiedTrackStarted = true
+                    onTrackStarted?(track)
+                }
                 isWaitingForPlayback = player.timeControlStatus == .waitingToPlayAtSpecifiedRate
                 updateNowPlayingInfo()
             }
@@ -306,6 +313,7 @@ final class PlaybackController {
         seekFraction = nil
         isSeekInProgress = false
         hasNotifiedReady = false
+        hasNotifiedTrackStarted = false
         errorMessage = nil
         trackChangeDirection = direction
         currentTrack = track

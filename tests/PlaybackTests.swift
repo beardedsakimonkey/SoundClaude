@@ -31,6 +31,8 @@ struct PlaybackTests {
             preparedPlayers.append(player)
             return player
         }
+        var startedTracks: [SoundCloudTrack] = []
+        playback.onTrackStarted = { startedTracks.append($0) }
         let user = SoundCloudUser(
             urn: "user:1", username: "Test", avatarURL: nil,
             permalinkURL: URL(string: "https://soundcloud.com/test")!
@@ -65,6 +67,9 @@ struct PlaybackTests {
         legacy["wasPlaying"] = true
         defaults.set(try JSONSerialization.data(withJSONObject: legacy), forKey: "playback.session")
         let relaunched = PlaybackController(defaults: defaults)
+        relaunched.onTrackStarted = { _ in
+            fatalError("Paused session restore must not record a play")
+        }
         let session = relaunched.savedSession!
         let resume = relaunched.beginLoading(
             track: session.track, position: session.position, autoplay: false
@@ -129,6 +134,8 @@ struct PlaybackTests {
         try await until { !playback.isLoading && abs(playback.player.currentTime().seconds - 0.75) < 0.05 }
         precondition(!playback.isPlaybackActive)
 
+        precondition(startedTracks.isEmpty, "Skipped, failed, and paused tracks must not enter history")
+
         // Finishing the last track clears playback intent before advancing the queue.
         var didEnd = false
         playback.onTrackEnded = {
@@ -139,6 +146,8 @@ struct PlaybackTests {
         precondition(playback.isPlaybackActive)
         try await until { didEnd }
         precondition(!playback.isPlaybackActive && !playback.isPlaying)
+
+        precondition(startedTracks == [track(1)], "Actual playback must record the track")
 
         // Preparation readies audio without changing the selected track or position.
         let beforePrefetch = playback.beginLoading(track: track(1), autoplay: false)
@@ -170,6 +179,8 @@ struct PlaybackTests {
         precondition(playback.player.currentItem === preparedItem)
         try await until { !playback.isLoading }
         precondition(playback.currentTime == 0 && !playback.isPlaybackActive)
+
+        precondition(startedTracks == [track(1)], "Prefetch and paused selection must not enter history")
 
         // A pending seek pulses even while paused, then clears on completion.
         playback.seek(to: 0.5)
@@ -207,6 +218,7 @@ struct PlaybackTests {
         precondition(playback.player.rate == 0)
         try await until { !playback.isBuffering && playback.isPlaying }
         precondition(abs(playback.currentTime - 0.75) < 0.15)
+        precondition(startedTracks.count == 2, "Pause, resume, and seeks must not record duplicate plays")
 
         // Pause during a seek must prevent its completion from restarting audio.
         playback.seek(to: 0.5)

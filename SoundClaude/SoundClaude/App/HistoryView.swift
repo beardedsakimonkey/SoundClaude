@@ -6,11 +6,7 @@ struct HistoryView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @AppStorage("historyTrackLayout") private var trackLayout = TrackLayout.list
-    @State private var tracks: [SoundCloudTrack] = []
-    @State private var hasLoaded = false
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var reloadID = UUID()
+    private var tracks: [SoundCloudTrack] { model.historyTracks }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -20,7 +16,6 @@ struct HistoryView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("History")
-        .task(id: reloadID) { await load() }
     }
 
     private var historyContent: some View {
@@ -32,26 +27,14 @@ struct HistoryView: View {
 
                     Spacer()
 
-                    RefreshButton(title: "Refresh history", isLoading: isLoading) {
-                        reloadID = UUID()
-                    }
-
                     TrackLayoutPicker(trackLayout: $trackLayout)
                 }
 
                 trackList
 
-                if isLoading || (!hasLoaded && errorMessage == nil) {
-                    ProgressView()
-                        .accessibilityLabel("Loading history")
-                        .frame(maxWidth: .infinity)
-                } else if let errorMessage {
-                    Text(errorMessage)
-                        .foregroundStyle(.secondary)
-                    Button("Try Again") { reloadID = UUID() }
-                } else if tracks.isEmpty {
+                if tracks.isEmpty {
                     EmptyStateView("No listening history")
-                    .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity)
                 }
             }
             .padding(20)
@@ -104,20 +87,5 @@ struct HistoryView: View {
             source: .history,
             tracks: tracks
         ))
-    }
-
-    private func load() async {
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
-        do {
-            let loadedTracks = try await model.recentlyPlayedTracks()
-            try Task.checkCancellation()
-            tracks = loadedTracks
-            hasLoaded = true
-        } catch {
-            guard !Task.isCancelled, !(error is CancellationError) else { return }
-            errorMessage = error.localizedDescription
-        }
     }
 }

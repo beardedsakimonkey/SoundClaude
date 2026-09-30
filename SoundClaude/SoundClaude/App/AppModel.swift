@@ -22,6 +22,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published var likeErrorMessage: String?
 
+    @Published private(set) var historyTracks: [SoundCloudTrack] = []
+    private let historyStore = HistoryStore()
+    private var historyAccountObservation: AnyCancellable?
+
     private let client: SoundCloudClient
     private let configurationError: Error?
     private var playbackTask: Task<Void, Never>?
@@ -86,6 +90,18 @@ final class AppModel: ObservableObject {
         playback.onReadyToPlay = { [weak audioTap] in
             Task { @MainActor in
                 await audioTap?.startForCurrentProcess()
+            }
+        }
+        playback.onTrackStarted = { [weak self] track in
+            guard let self, case let .signedIn(user) = auth.state else { return }
+            historyTracks = historyStore.record(track, for: user)
+        }
+        historyAccountObservation = auth.$state.sink { [weak self] state in
+            guard let self else { return }
+            if case let .signedIn(user) = state {
+                historyTracks = historyStore.restore(for: user)
+            } else {
+                historyTracks = []
             }
         }
         playback.onTrackEnded = { [weak self] in
@@ -615,11 +631,6 @@ final class AppModel: ObservableObject {
             accessToken: accessToken,
             pageURL: pageURL
         )
-    }
-
-    func recentlyPlayedTracks() async throws -> [SoundCloudTrack] {
-        let accessToken = try await auth.validAccessToken()
-        return try await client.recentlyPlayedTracks(accessToken: accessToken)
     }
 
     func relatedTracks(for track: SoundCloudTrack, pageURL: URL? = nil) async throws
