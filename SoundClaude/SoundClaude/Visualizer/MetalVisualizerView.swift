@@ -28,7 +28,6 @@ struct ArtworkVisualizerView: View {
     let artworkLoader: ArtworkLoader
 
     @State private var artworkAccent: ArtworkAccent?
-    @State private var backdropAccent = ArtworkAccent.fallback
     @State private var artworkImage: CGImage?
     @State private var accentArtworkURL: URL?
     @Environment(\.colorScheme) private var colorScheme
@@ -47,7 +46,7 @@ struct ArtworkVisualizerView: View {
             artworkImage: accentArtworkURL == artworkURL ? artworkImage : nil
         )
             .background {
-                clothBackdrop
+                visualizerBackdrop
             }
             .task(id: artworkURL) {
                 artworkAccent = nil
@@ -56,7 +55,6 @@ struct ArtworkVisualizerView: View {
                 guard let url = artworkURL,
                       let data = try? await artworkLoader.data(for: url, rendition: .square1080) else {
                     guard !Task.isCancelled else { return }
-                    transitionBackdrop(to: .fallback)
                     return
                 }
                 guard !Task.isCancelled else { return }
@@ -65,14 +63,7 @@ struct ArtworkVisualizerView: View {
                     artworkImage = CGImageSourceCreateImageAtIndex(source, 0, nil)
                 }
                 accentArtworkURL = url
-                transitionBackdrop(to: artworkAccent ?? .fallback)
             }
-    }
-
-    private func transitionBackdrop(to color: ArtworkAccent) {
-        withAnimation(.easeInOut(duration: 0.9)) {
-            backdropAccent = color
-        }
     }
 
     private var sourceAccent: ArtworkAccent {
@@ -81,25 +72,9 @@ struct ArtworkVisualizerView: View {
             ? artworkAccent ?? fallback : fallback
     }
 
-    private var clothBackdrop: some View {
+    private var visualizerBackdrop: some View {
         GeometryReader { geometry in
-            // Hold the previous color while the next artwork loads.
-            let color = backdropAccent
-            // Keep the spotlight visible even when the artwork accent is dark.
-            let peak = max(0.01, max(color.red, max(color.green, color.blue)))
-            // Soften the artwork color with a dimmer, less saturated spotlight.
-            let saturation = 0.5
-            let brightness = 0.45
-            // Pistons use a fixed, muted blue spotlight.
-            let glow = shader == .pistons
-                ? Color(.sRGB, red: 0.24, green: 0.32, blue: 0.44)
-                : Color(
-                .sRGB,
-                red: (color.red / peak * saturation + 1 - saturation) * brightness,
-                green: (color.green / peak * saturation + 1 - saturation) * brightness,
-                blue: (color.blue / peak * saturation + 1 - saturation) * brightness,
-                opacity: 1
-            )
+            let glow = Color(.sRGB, red: 0.24, green: 0.32, blue: 0.44)
             RadialGradient(
                 stops: [
                     .init(color: glow, location: 0),

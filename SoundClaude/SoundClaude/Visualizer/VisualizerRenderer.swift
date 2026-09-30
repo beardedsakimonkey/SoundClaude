@@ -9,7 +9,7 @@ enum VisualizerShader: String, CaseIterable {
 
     // Pistons add a 0.25-radian tilt and orbit a point above the floor.
     var cameraPitchRange: ClosedRange<Float> {
-        self == .pistons ? PistonGroundControls.pitchRange : -1.45...1.45
+        self == .pistons ? PistonGroundControls.pitchRange : ClothCamera.pitchRange
     }
 
     var next: Self {
@@ -291,10 +291,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         if let strength = trebleDetector.update(level: trebleLevel, delta: delta) {
             cloth.trebleImpulse(strength: strength)
         }
-        let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
         cloth.advance(delta: delta)
         // Each command owns its snapshot until the GPU completes the frame.
-        let buffer = cloth.positions.withUnsafeBytes { bytes in
+        let buffer = (cloth.positions + cloth.attachments).withUnsafeBytes { bytes in
             view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
         }
         // Precompute unit normals once per grid node for bicubic fragment sampling.
@@ -318,23 +317,16 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
             // Frame the default size so resizing the cloth changes its visible size.
             let referenceSize = ClothSettings().width
-            let referenceWidth = referenceSize * min(1, artworkAspect)
-            let referenceHeight = referenceSize / max(1, artworkAspect)
+            let referenceWidth = referenceSize * min(1, artworkAspect) + 3.4
+            let referenceHeight = referenceSize / max(1, artworkAspect) + 3.4
             let distance = sqrt(referenceWidth * referenceWidth + referenceHeight * referenceHeight)
                 * 1.35 * clothCamera.zoom
-            // Keep the receiving wall behind the rotated mesh.
-            let cy = cos(clothCamera.yaw), sy = sin(clothCamera.yaw)
-            let cp = cos(clothCamera.pitch), sp = sin(clothCamera.pitch)
-            let minimumDepth = cloth.positions.reduce(Float(0)) { depth, p in
-                min(depth, sp * p.y + cp * (-sy * p.x + cy * p.z))
-            }
-            let wallDepth = min(-size * 0.12, minimumDepth - size * 0.04)
             // Four float4s, matching ClothUniforms in Metal.
             let uniforms = [
                 SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
-                SIMD4<Float>(aspect, clothCamera.yaw, clothCamera.pitch, distance),
+                SIMD4<Float>(aspect, clothCamera.yaw, clothCamera.viewingPitch(distance: distance), distance),
                 SIMD4<Float>(clothSettings.shineIntensity, 0, clothSettings.showMesh ? 1 : 0, 0),
-                SIMD4<Float>(wallDepth, 0.48, 0, 0)
+                SIMD4<Float>(0, 0.48, ClothSimulation.groundDepth, 0)
             ]
             return (buffer, normalBuffer, uniforms)
         }
@@ -362,6 +354,13 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             // Opaque writes form one silhouette, including where cloth folds overlap.
             encoder.drawPrimitives(type: .triangle, vertexStart: 0,
                                    vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
+            uniforms[2].w = 4
+            uniforms.withUnsafeBytes { bytes in
+                encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+            }
+            // Merge poles, feet and ropes into the mask; exclude the ground plane.
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 4 * 3 * 12 * 12)
         }
     }
 
@@ -664,6 +663,14 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 var uniforms = frame.uniforms
                 encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
                 encoder.setFragmentBuffer(frame.normals, offset: 0, index: 5)
+                uniforms[2].w = 3
+                uniforms.withUnsafeBytes { bytes in
+                    encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                    encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+                }
+                encoder.setDepthStencilState(depthState)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 4 * 3 * 12 * 12, vertexCount: 6)
+                encoder.setDepthStencilState(nil)
                 if let shadow = frameShadow {
                     uniforms[2].w = 2
                     uniforms.withUnsafeBytes { bytes in
@@ -682,6 +689,13 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 encoder.setFrontFacing(.counterClockwise)
                 encoder.drawPrimitives(type: .triangle, vertexStart: 0,
                                        vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
+                uniforms[2].w = 3
+                uniforms.withUnsafeBytes { bytes in
+                    encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                    encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+                }
+                // Four supports, each with a pillar, foot and rope.
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 4 * 3 * 12 * 12)
             }
         }
         encoder.endEncoding()

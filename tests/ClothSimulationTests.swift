@@ -7,8 +7,8 @@ struct ClothSimulationTests {
     static func checkXPBD() {
         func step(_ positions: inout [SIMD4<Float>], edges: inout [SCClothEdge],
                   bends: inout [SCClothBend], compliance: Float, bendCompliance: Float,
-                  iterations: UInt32) {
-            // Keep the bottom pins outside the isolated constraints.
+                  iterations: UInt32, gravity: Float = 0, groundDepth: Float = -.infinity) {
+            // Pad the small isolated mesh to a complete two-column grid.
             positions.append(contentsOf: [.zero, .zero])
             defer { positions.removeLast(2) }
             var previous = positions // Start at rest to isolate constraint corrections.
@@ -20,12 +20,19 @@ struct ClothSimulationTests {
                         bends.withUnsafeMutableBufferPointer { b in
                             SCClothStep(p.baseAddress!, old.baseAddress!, 2, rows,
                                         e.baseAddress, edgeCount, b.baseAddress, bendCount,
-                                        0, compliance, bendCompliance, 0, iterations)
+                                        nil, groundDepth, 0, compliance, bendCompliance, gravity, iterations)
                         }
                     }
                 }
             }
         }
+        var falling = Array(repeating: SIMD4<Float>.zero, count: 4)
+        var emptyEdges: [SCClothEdge] = []
+        var emptyBends: [SCClothBend] = []
+        step(&falling, edges: &emptyEdges, bends: &emptyBends, compliance: 0,
+             bendCompliance: 0, iterations: 1, gravity: 144000, groundDepth: -5)
+        precondition(falling.allSatisfy { abs($0.z + 4.975) < 0.00001 },
+                     "A strong downward step must stop at the ground surface")
         for compliance: Float in [0, 0.00001, 0.001] {
             for iterations: UInt32 in [1, 8] {
                 var p: [SIMD4<Float>] = [.zero, SIMD4(1, 0, 0, 0), SIMD4(0, 2, 0, 0), .zero]
@@ -68,7 +75,7 @@ struct ClothSimulationTests {
         let alpha: Float = 0.001 * 14400
         let delta = (-(angle(hinge) - 0.2)) / (gradients.reduce(alpha) { $0 + simd_length_squared($1) })
         let expected = zip(hinge, gradients).map { $0 + $1 * delta }
-        hinge.insert(contentsOf: [.zero, .zero], at: 0) // Pins are outside this hinge.
+        hinge.insert(contentsOf: [.zero, .zero], at: 0) // Pad to match the isolated mesh indices.
         var noEdges: [SCClothEdge] = []
         var hingeBends = [SCClothBend(a: 2, b: 3, c: 4, d: 5, restAngle: 0.2, lambda: 0)]
         step(&hinge, edges: &noEdges, bends: &hingeBends, compliance: 0, bendCompliance: 0.001, iterations: 1)
@@ -79,12 +86,11 @@ struct ClothSimulationTests {
             for compliance: Float in [0, 0.01] {
                 var p: [SIMD4<Float>] = [.zero, SIMD4(1, 0, 0, 0),
                                          SIMD4(0, 1, 0, 0), SIMD4(1, -cos(fold), sin(fold), 0)]
-                let initial = p
                 var edges: [SCClothEdge] = []
                 var bends = [SCClothBend(a: 0, b: 1, c: 2, d: 3, restAngle: 0, lambda: 99)]
                 step(&p, edges: &edges, bends: &bends, compliance: 0,
                      bendCompliance: compliance, iterations: 20)
-                precondition(p[0] == initial[0] && p[1] == initial[1], "Bending must preserve pins")
+
                 precondition(p.allSatisfy { simd_length($0).isFinite })
                 precondition(abs(angle(p)) <= abs(fold) + 0.00001)
                 precondition(abs(angle(p) + compliance * 14400 * bends[0].lambda) < 0.0001,
@@ -105,6 +111,35 @@ struct ClothSimulationTests {
 
     static func main() {
         checkXPBD()
+        var camera = ClothCamera()
+        let viewport = SIMD2<Float>(800, 600)
+        camera.orbit(delta: SIMD2(0, -10000), viewport: viewport,
+                     pitchRange: ClothCamera.pitchRange, pitchDirection: -1)
+        precondition(camera.pitch == ClothCamera.pitchRange.upperBound)
+        camera.orbit(delta: SIMD2(0, 1), viewport: viewport,
+                     pitchRange: ClothCamera.pitchRange, pitchDirection: -1)
+        precondition(camera.pitch < ClothCamera.pitchRange.upperBound,
+                     "Reversing a drag at the tilt limit must respond immediately")
+        let lowCamera = ClothCamera(pitch: ClothCamera.pitchRange.upperBound)
+        for distance: Float in [4, 18, 50] {
+            let height = distance * cos(lowCamera.viewingPitch(distance: distance))
+            precondition(height >= ClothSimulation.groundDepth + 0.2 - 0.00001,
+                         "The camera must stay above ground at every zoom")
+            precondition(height < 0, "The camera must be able to orbit below the cloth")
+        }
+        precondition(abs(18 * cos(lowCamera.viewingPitch(distance: 18))
+                         - (ClothSimulation.groundDepth + 0.2)) < 0.00001,
+                     "The default orbit must reach close to the ground")
+        var smallCamera = ClothCamera(), largeCamera = ClothCamera()
+        smallCamera.orbit(delta: SIMD2(100, 50), viewport: viewport,
+                          pitchRange: ClothCamera.pitchRange, pitchDirection: -1)
+        largeCamera.orbit(delta: SIMD2(200, 100), viewport: viewport * 2,
+                          pitchRange: ClothCamera.pitchRange, pitchDirection: -1)
+        precondition(smallCamera == largeCamera, "Orbit sensitivity must scale with the viewport")
+        camera.orbit(delta: SIMD2(100000, 0), viewport: viewport,
+                     pitchRange: ClothCamera.pitchRange, pitchDirection: -1)
+        precondition(abs(camera.yaw) <= .pi && camera.zoom == ClothCamera().zoom)
+
         // Bass flashes restart on each hit and expire by elapsed time, even
         // when the physics catch-up limit skips time after a suspended frame.
         var flashing = ClothSimulation()
@@ -148,9 +183,7 @@ struct ClothSimulationTests {
             simd_distance(SIMD2(trebleRest[$1].x, trebleRest[$1].y), origin)
         }!
         precondition(trebleCloth.positions[nearest].z > 0.1)
-        for i in trebleRest.indices where trebleCloth.isPinned(i) {
-            precondition(trebleCloth.positions[i] == trebleRest[i])
-        }
+
         trebleCloth.advance(delta: 0.2)
         precondition(trebleCloth.treblePulse == 0)
         trebleCloth.trebleImpulse(strength: 0.5)
@@ -169,9 +202,11 @@ struct ClothSimulationTests {
             cloth.advance(delta: 1 / 60)
         }
         for i in initial.indices {
-            if cloth.isPinned(i) { precondition(cloth.positions[i] == initial[i]) }
+
             precondition(cloth.positions[i].x.isFinite && cloth.positions[i].y.isFinite && cloth.positions[i].z.isFinite)
             precondition(simd_length(cloth.positions[i]) < 10)
+            precondition(cloth.positions[i].z >= ClothSimulation.groundDepth,
+                         "The cloth must remain above the ground")
         }
         var slow = ClothSimulation()
         slow.impulse(strength: 1)
@@ -188,9 +223,8 @@ struct ClothSimulationTests {
         precondition(cloth.positions.count == 17 * 23)
         precondition(cloth.positions.first! == SIMD4(-4, 1.5, 0, 0))
         precondition(cloth.positions.last! == SIMD4(4, -1.5, 0, 0))
-        let corners = cloth.positions.indices.filter { cloth.isPinned($0) }
-        precondition(corners == [0, cloth.columns - 1, cloth.positions.count - cloth.columns,
-                                 cloth.positions.count - 1])
+        let corners = cloth.cornerIndices
+        precondition(cloth.attachments.count == 4)
         let pins = corners.map { cloth.positions[$0] }
         cloth.impulse(strength: 1)
         cloth.advance(delta: 1 / 60)
@@ -201,29 +235,34 @@ struct ClothSimulationTests {
         cloth.configure(settings)
         precondition(cloth.positions == deformed, "Motion settings must not reset the mesh")
         for _ in 0..<120 { cloth.advance(delta: 1 / 60) }
-        precondition(corners.map { cloth.positions[$0] } == pins)
-        // Gravity moves the interior while all four corners stay pinned.
+        precondition(corners.map { cloth.positions[$0] } != pins, "Ropes must let the corners move")
+        for (i, corner) in corners.enumerated() {
+            let anchor = cloth.attachments[i]
+            let offset = cloth.positions[corner] - SIMD4(anchor.x, anchor.y, anchor.z, 0)
+            precondition(simd_length(offset) <= anchor.w + 0.0001, "Ropes must limit corner travel")
+        }
+        // Gravity pulls the suspended cloth toward the ground.
         var hanging = ClothSimulation(settings: settings)
         let resting = hanging.positions
         hanging.advance(delta: ClothSimulation.step)
         let hangingCenter = resting.count / 2
-        precondition(hanging.positions[hangingCenter].z > resting[hangingCenter].z,
-                     "Gravity must pull toward the default camera along positive Z")
+        precondition(hanging.positions[hangingCenter].z < resting[hangingCenter].z,
+                     "Gravity must pull toward the ground along negative Z")
         precondition(abs(hanging.positions[hangingCenter].y - resting[hangingCenter].y) < 0.00001,
                      "Gravity must not pull down along Y")
         for _ in 0..<60 { hanging.advance(delta: 1 / 60) }
         let bottomCenter = resting.count - hanging.columns + hanging.columns / 2
-        precondition(hanging.positions[bottomCenter].z > resting[bottomCenter].z,
-                     "The bottom edge between the pins must respond to gravity")
+        precondition(hanging.positions[bottomCenter].z < resting[bottomCenter].z,
+                     "The bottom edge must respond to gravity")
         for index in corners {
-            precondition(hanging.positions[index] == resting[index])
+            precondition(hanging.positions[index] != resting[index])
         }
         settings.impulseStrength = 0
         settings.gravity = 0
         var silent = ClothSimulation(settings: settings)
         silent.impulse(strength: 1)
         silent.advance(delta: 1 / 60)
-        precondition(silent.positions.allSatisfy { $0.z == 0 })
+        precondition(silent.positions.allSatisfy { abs($0.z) < 0.00001 })
         var directionSettings = ClothSettings()
         directionSettings.gravity = 0
         directionSettings.iterations = 0

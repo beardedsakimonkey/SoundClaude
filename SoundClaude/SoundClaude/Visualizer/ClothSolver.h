@@ -25,6 +25,7 @@ void SCClothStep(simd_float4 *positions, simd_float4 *previous,
                  uint32_t columns, uint32_t rows,
                  SCClothEdge *edges, uint32_t edgeCount,
                  SCClothBend *bends, uint32_t bendCount,
+                 const simd_float4 *attachments, float groundDepth,
                  float damping, float compliance, float bendCompliance, float gravity, uint32_t iterations);
 
 #endif

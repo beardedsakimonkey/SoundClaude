@@ -11,7 +11,8 @@ struct VisualizerView: View {
     @State private var clothSettings = ClothSettings()
     @State private var clothCamera = ClothCamera()
     @State private var pistonCamera = PistonGroundControls.defaultCamera
-    @State private var orbitStart: ClothCamera?
+    @State private var orbitTranslation = CGSize.zero
+    @GestureState private var isOrbiting = false
     @State private var isShowingControls = false
     @State private var viewportSize = CGSize.zero
 
@@ -45,18 +46,18 @@ struct VisualizerView: View {
         .onGeometryChange(for: CGSize.self) { $0.size } action: { viewportSize = $0 }
         .gesture(
             DragGesture(minimumDistance: 2)
+                .updating($isOrbiting) { _, active, _ in active = true }
                 .onChanged { value in
-                    let pitchRange = shader.cameraPitchRange
-                    if orbitStart == nil {
-                        camera.pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound, camera.pitch))
-                        orbitStart = camera
-                    }
-                    guard let start = orbitStart else { return }
-                    camera.yaw = start.yaw + Float(value.translation.width) * 0.008
-                    camera.pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound,
-                        start.pitch + Float(value.translation.height) * 0.008))
+                    let delta = CGSize(width: value.translation.width - orbitTranslation.width,
+                                       height: value.translation.height - orbitTranslation.height)
+                    orbitTranslation = value.translation
+                    camera.orbit(
+                        delta: SIMD2(Float(delta.width), Float(delta.height)),
+                        viewport: SIMD2(Float(viewportSize.width), Float(viewportSize.height)),
+                        pitchRange: shader.cameraPitchRange,
+                        pitchDirection: shader == .cloth ? -1 : 1)
                 }
-                .onEnded { _ in orbitStart = nil }
+                .onEnded { _ in orbitTranslation = .zero }
                 .exclusively(before: SpatialTapGesture().onEnded { value in
                     guard shader == .pistons, playback.currentTrack != nil else { return }
                     let camera = PistonGroundControls.camera(
@@ -70,9 +71,12 @@ struct VisualizerView: View {
                     }
                 })
         )
+        .onChange(of: isOrbiting) { _, active in
+            if !active { orbitTranslation = .zero }
+        }
         .onChange(of: shader) { _, _ in
             isShowingControls = false
-            orbitStart = nil
+            orbitTranslation = .zero
         }
         .overlay(alignment: .topTrailing) {
             HStack {
@@ -182,13 +186,13 @@ struct VisualizerView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     tuningSlider("Columns", value: $clothSettings.columns, range: 8...257)
                     tuningSlider("Rows", value: $clothSettings.rows, range: 8...257)
-                    tuningSlider("Size", value: $clothSettings.width, range: 2...10)
+                    tuningSlider("Size", value: $clothSettings.width, range: 2...20)
                     Divider()
                     tuningSlider("Damping", value: $clothSettings.damping, range: 0.001...0.1, format: "%.3f")
                     tuningSlider("Stretch compliance", value: $clothSettings.compliance, range: 0...0.001, format: "%.1e")
                     tuningSlider("Bend compliance", value: $clothSettings.bendCompliance, range: 0...1, format: "%.3f")
                     tuningSlider("Gravity", value: $clothSettings.gravity, range: 0...10)
-                    tuningSlider("Bass impulse", value: $clothSettings.impulseStrength, range: 0...5)
+                    tuningSlider("Bass impulse", value: $clothSettings.impulseStrength, range: 0...20)
                     tuningSlider("Impulse radius", value: $clothSettings.impulseRadius, range: 0.3...5)
                     Stepper("Solver passes: \(clothSettings.iterations)", value: $clothSettings.iterations, in: 1...10)
                     Divider()

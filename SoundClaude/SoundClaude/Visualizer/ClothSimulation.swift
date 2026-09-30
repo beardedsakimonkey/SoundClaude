@@ -21,8 +21,27 @@ struct ClothSettings: Equatable {
 
 struct ClothCamera: Equatable {
     var yaw: Float = 0
-    var pitch: Float = 0
+    var pitch: Float = 0.65
     var zoom: Float = 0.7
+
+    static let pitchRange: ClosedRange<Float> = 0.05...1.85
+
+    func viewingPitch(distance: Float) -> Float {
+        // Orbit below the cloth, stopping the eye just above the ground.
+        let minimumHeight = ClothSimulation.groundDepth + 0.2
+        let groundLimit = acos(max(-1, min(1, minimumHeight / max(0.1, distance))))
+        return min(pitch, groundLimit)
+    }
+
+    mutating func orbit(delta: SIMD2<Float>, viewport: SIMD2<Float>,
+                        pitchRange: ClosedRange<Float>, pitchDirection: Float) {
+        // One view-width drag is about half a turn. Consume each delta even at
+        // a tilt limit so reversing the drag responds immediately.
+        let sensitivity = Float.pi / max(240, min(viewport.x, viewport.y))
+        yaw = (yaw + delta.x * sensitivity).remainder(dividingBy: 2 * .pi)
+        pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound,
+                    pitch + delta.y * sensitivity * pitchDirection))
+    }
 }
 
 /// Fixed-step XPBD cloth with distance and signed dihedral bending constraints.
@@ -46,10 +65,10 @@ struct ClothSimulation {
     private(set) var nextTrebleDirection: Float = 1
     private var trebleHits = 0
 
-    func isPinned(_ index: Int) -> Bool {
-        let x = index % columns, y = index / columns
-        return (x == 0 || x == columns - 1) && (y == 0 || y == rows - 1)
-    }
+    var cornerIndices: [Int] { [0, columns - 1, (rows - 1) * columns, rows * columns - 1] }
+    // xyz is the pillar attachment; w is the maximum rope length.
+    private(set) var attachments: [SIMD4<Float>] = []
+    static let groundDepth: Float = -5
 
     init(settings: ClothSettings = ClothSettings()) {
         self.settings = settings
@@ -58,6 +77,11 @@ struct ClothSimulation {
                 positions.append(SIMD4(Float(x) / Float(columns - 1) * settings.width - settings.width / 2,
                                        settings.height / 2 - Float(y) / Float(rows - 1) * settings.height, 0, 0))
             }
+        }
+        attachments = cornerIndices.map { index in
+            let p = positions[index]
+            let offset = SIMD3<Float>(p.x < 0 ? -0.9 : 0.9, p.y < 0 ? -0.9 : 0.9, 0.4)
+            return SIMD4(p.x + offset.x, p.y + offset.y, offset.z, simd_length(offset))
         }
         previous = positions
         for y in 0..<rows {
@@ -93,11 +117,10 @@ struct ClothSimulation {
     }
 
     private mutating func addEdge(_ a: Int, _ b: Int) {
-        let aPinned = isPinned(a), bPinned = isPinned(b)
         edges.append(SCClothEdge(
             a: UInt32(a), b: UInt32(b), rest: simd_length(positions[b] - positions[a]),
-            aWeight: aPinned ? 0 : 1,
-            bWeight: bPinned ? 0 : 1, lambda: 0
+            aWeight: 1,
+            bWeight: 1, lambda: 0
         ))
     }
 
@@ -121,7 +144,7 @@ struct ClothSimulation {
         let tilt: Float = 0.24 * (0.45 + Float.random(in: 0..<1) * 0.55)
         let direction = SIMD4<Float>(cos(scatterAngle) * tilt, sin(scatterAngle) * tilt,
                                      nextDirection * sqrt(max(0, 1 - tilt * tilt)), 0)
-        for i in positions.indices where !isPinned(i) {
+        for i in positions.indices {
             let offset = SIMD2(positions[i].x, positions[i].y) - bassOrigin
             let falloff = exp(-simd_length_squared(offset) / (settings.impulseRadius * settings.impulseRadius))
             previous[i] -= direction * amount * falloff
@@ -143,7 +166,7 @@ struct ClothSimulation {
         let direction = SIMD4<Float>(cos(scatterAngle) * tilt, sin(scatterAngle) * tilt,
                                      nextTrebleDirection * sqrt(1 - tilt * tilt), 0)
         let radiusSquared = max(0.0001, settings.trebleImpulseRadius * settings.trebleImpulseRadius)
-        for i in positions.indices where !isPinned(i) {
+        for i in positions.indices {
             let offset = SIMD2(positions[i].x, positions[i].y) - trebleOrigin
             previous[i] -= direction * amount * exp(-simd_length_squared(offset) / radiusSquared)
         }
@@ -158,6 +181,7 @@ struct ClothSimulation {
         // Borrow each array once, outside the solver loops. This avoids Swift's
         // per-element exclusivity and copy-on-write checks in Debug builds.
         let columns = columns, rows = rows, settings = settings
+        let attachments = attachments
         positions.withUnsafeMutableBufferPointer { positions in
             previous.withUnsafeMutableBufferPointer { previous in
                 edges.withUnsafeMutableBufferPointer { edges in
@@ -168,6 +192,7 @@ struct ClothSimulation {
                                         UInt32(columns), UInt32(rows),
                                         edges.baseAddress!, UInt32(edges.count),
                                         bends.baseAddress, UInt32(bends.count),
+                                        attachments, Self.groundDepth,
                                         settings.damping, settings.compliance, settings.bendCompliance, settings.gravity,
                                         UInt32(settings.iterations))
                         }

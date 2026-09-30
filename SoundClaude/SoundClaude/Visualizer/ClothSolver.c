@@ -1,16 +1,11 @@
 #include "ClothSolver.h"
 #include <math.h>
 
-static float inverseMass(uint32_t index, uint32_t columns, uint32_t rows) {
-    const uint32_t x = index % columns, y = index / columns;
-    return (x == 0 || x == columns - 1) && (y == 0 || y == rows - 1) ? 0.0f : 1.0f;
-}
-
 static simd_float3 xyz(simd_float4 p) { return (simd_float3){p.x, p.y, p.z}; }
 static simd_float4 vector4(simd_float3 p) { return (simd_float4){p.x, p.y, p.z, 0}; }
 
 static void solveBend(simd_float4 *positions, SCClothBend *bend,
-                      uint32_t columns, uint32_t rows, float alpha) {
+                      float alpha) {
     const uint32_t ids[4] = {bend->a, bend->b, bend->c, bend->d};
     const simd_float3 a = xyz(positions[ids[0]]);
     const simd_float3 e = xyz(positions[ids[1]]) - a;
@@ -35,28 +30,28 @@ static void solveBend(simd_float4 *positions, SCClothBend *bend,
     gradient[1] = -tc * gradient[2] - td * gradient[3];
     float denominator = 0;
     for (int j = 0; j < 4; j++)
-        denominator += inverseMass(ids[j], columns, rows) * simd_length_squared(gradient[j]);
+        denominator += simd_length_squared(gradient[j]);
     if (denominator <= 0) return;
     const float delta = (-error - alpha * bend->lambda) / (denominator + alpha);
     bend->lambda += delta;
     for (int j = 0; j < 4; j++)
-        positions[ids[j]] += vector4(gradient[j] * (inverseMass(ids[j], columns, rows) * delta));
+        positions[ids[j]] += vector4(gradient[j] * delta);
 }
 
 void SCClothStep(simd_float4 *positions, simd_float4 *previous,
                  uint32_t columns, uint32_t rows,
                  SCClothEdge *edges, uint32_t edgeCount,
                  SCClothBend *bends, uint32_t bendCount,
+                 const simd_float4 *attachments, float groundDepth,
                  float damping, float compliance, float bendCompliance, float gravity, uint32_t iterations) {
     const uint32_t count = columns * rows;
     const float inverseDtSquared = 120.0f * 120.0f;
     const float alpha = fmaxf(0, compliance) * inverseDtSquared;
     const float bendAlpha = fmaxf(0, bendCompliance) * inverseDtSquared;
     for (uint32_t i = 0; i < count; i++) {
-        if (inverseMass(i, columns, rows) == 0) continue;
         const simd_float4 p = positions[i];
-        // Positive Z points toward the default camera, in front of the resting cloth.
-        positions[i] = p + (p - previous[i]) * (1.0f - damping) + (simd_float4){0, 0, gravity / inverseDtSquared, 0};
+        // The ground is below the cloth along negative Z.
+        positions[i] = p + (p - previous[i]) * (1.0f - damping) + (simd_float4){0, 0, -gravity / inverseDtSquared, 0};
         previous[i] = p;
     }
     // XPBD multipliers persist across solver passes, but reset each time step.
@@ -77,6 +72,23 @@ void SCClothStep(simd_float4 *positions, simd_float4 *previous,
             positions[edge->b] += correction * edge->bWeight;
         }
         for (uint32_t i = 0; i < bendCount; i++)
-            solveBend(positions, &bends[i], columns, rows, bendAlpha);
+            solveBend(positions, &bends[i], bendAlpha);
+        // Ropes resist tension only: a slack rope must not push the cloth.
+        if (attachments) {
+            const uint32_t corners[4] = {0, columns - 1, (rows - 1) * columns, count - 1};
+            for (uint32_t i = 0; i < 4; i++) {
+                simd_float3 offset = xyz(positions[corners[i]]) - xyz(attachments[i]);
+                float length = simd_length(offset);
+                if (length > attachments[i].w && length > 1e-8f)
+                    positions[corners[i]] -= vector4(offset * (1 - attachments[i].w / length));
+            }
+        }
+    }
+    // Prevent the fabric from passing through the ground during strong beats.
+    for (uint32_t i = 0; i < count; i++) {
+        if (positions[i].z < groundDepth + 0.025f) {
+            positions[i].z = groundDepth + 0.025f;
+            previous[i].z = fmaxf(previous[i].z, positions[i].z);
+        }
     }
 }
