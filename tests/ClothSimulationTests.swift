@@ -155,27 +155,6 @@ struct ClothSimulationTests {
         precondition(trebleCloth.treblePulse == 0)
         trebleCloth.trebleImpulse(strength: 0.5)
         precondition(trebleCloth.trebleOrigin != origin && trebleCloth.nextTrebleDirection == 1)
-        var rippleCloth = ClothSimulation(settings: trebleSettings)
-        rippleCloth.impulse(strength: 1)
-        rippleCloth.advance(delta: 1)
-        rippleCloth.trebleImpulse(strength: 0.5)
-        precondition(rippleCloth.ripples.count == 2)
-        precondition(rippleCloth.ripples[0].age == 1,
-                     "New hits must not restart an older ripple")
-        precondition(!rippleCloth.ripples[0].isTreble && rippleCloth.ripples[1].isTreble)
-        rippleCloth.advance(delta: Double(ClothSimulation.rippleLifetime) - 1.5)
-        precondition(rippleCloth.ripples.count == 2,
-                     "Ripples must remain active while crossing the cloth")
-        rippleCloth.advance(delta: 0.5)
-        precondition(rippleCloth.ripples.count == 1 && rippleCloth.ripples[0].isTreble,
-                     "Each ripple must expire on its own")
-        rippleCloth.advance(delta: 1)
-        precondition(rippleCloth.ripples.isEmpty)
-        for _ in 0..<(ClothSimulation.maximumRipples + 10) { rippleCloth.impulse(strength: 1) }
-        precondition(rippleCloth.ripples.count == ClothSimulation.maximumRipples,
-                     "Repeated hits must stay within the shader capacity")
-        rippleCloth.configure(ClothSettings())
-        precondition(rippleCloth.ripples.count == ClothSimulation.maximumRipples)
         var cloth = ClothSimulation()
         let initial = cloth.positions
         let center = initial.count / 2
@@ -260,13 +239,13 @@ struct ClothSimulationTests {
             let tilt = simd_length(SIMD2(firstMotion.x, firstMotion.y)) / simd_length(firstMotion)
             precondition(tilt >= 0.108 - 0.00001 && tilt <= 0.24 + 0.00001)
             precondition(firstMotion.z > 0)
-            let hitOrigin = scattered.ripples[0].origin
+            let hitOrigin = scattered.bassOrigin
             let centerOffset = SIMD2(flat[center].x, flat[center].y) - hitOrigin
             let centerFalloff = exp(-simd_length_squared(centerOffset)
                                     / (directionSettings.impulseRadius * directionSettings.impulseRadius))
             precondition(abs(simd_length(firstMotion) - 0.165 * directionSettings.impulseStrength
                              * centerFalloff * (1 - directionSettings.damping)) < 0.00001,
-                         "Scatter must preserve impulse strength around the visual ripple origin")
+                         "Scatter must preserve impulse strength around the bass impulse origin")
             scattered.impulse(strength: 1)
             scattered.advance(delta: ClothSimulation.step)
             let secondMotion = scattered.positions[center] - flat[center] - firstMotion

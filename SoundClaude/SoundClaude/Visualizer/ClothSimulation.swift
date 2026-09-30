@@ -16,9 +16,6 @@ struct ClothSettings: Equatable {
     var trebleImpulseRadius: Float = 1.4
     var iterations = 1
     var shineIntensity: Float = 0.25
-    var chromaticAberration: Float = 0.7
-    var iridescence: Float = 0.75
-    var rippleThickness: Float = 2
     var showMesh = false
 }
 
@@ -26,14 +23,6 @@ struct ClothCamera: Equatable {
     var yaw: Float = 0
     var pitch: Float = 0
     var zoom: Float = 0.7
-}
-
-struct ClothRipple {
-    var origin: SIMD2<Float>
-    var age: Float = 0
-    var strength: Float
-    var radius: Float
-    var isTreble: Bool
 }
 
 /// Fixed-step XPBD cloth with distance and signed dihedral bending constraints.
@@ -48,6 +37,7 @@ struct ClothSimulation {
     private var bends: [SCClothBend] = []
     private var accumulator: Double = 0
     private(set) var nextDirection: Float = 1
+    private(set) var bassOrigin = SIMD2<Float>.zero
     private(set) var bassPulse: Float = 0
     private(set) var bassPulseLevel: Float = 0
     private(set) var treblePulse: Float = 0
@@ -55,20 +45,6 @@ struct ClothSimulation {
     private(set) var trebleOrigin = SIMD2<Float>.zero
     private(set) var nextTrebleDirection: Float = 1
     private var trebleHits = 0
-    // Travel time covers the cloth; the remaining trail fades only after arrival.
-    static let rippleTravelDuration: Float = 3.75
-    static let rippleTrailDuration: Float = 1.5
-    static let rippleLifetime = rippleTravelDuration + rippleTrailDuration
-    // Covers both detectors at their maximum hit rates for the full lifetime.
-    static let maximumRipples = 64
-    private(set) var ripples: [ClothRipple] = []
-
-    private mutating func addRipple(origin: SIMD2<Float>, strength: Float,
-                                    radius: Float, isTreble: Bool) {
-        if ripples.count == Self.maximumRipples { ripples.removeFirst() }
-        ripples.append(ClothRipple(origin: origin, strength: min(1, max(0, strength)),
-                                   radius: radius, isTreble: isTreble))
-    }
 
     func isPinned(_ index: Int) -> Bool {
         let x = index % columns, y = index / columns
@@ -132,12 +108,11 @@ struct ClothSimulation {
     }
 
     mutating func impulse(strength: Float) {
-        // Scatter each hit within a central ellipse, sharing the visual and physical origin.
-        let rippleAngle = Float.random(in: 0..<(2 * .pi))
-        let rippleOffset = sqrt(Float.random(in: 0..<1)) * 0.12
-        let rippleOrigin = SIMD2(cos(rippleAngle) * settings.width,
-                                 sin(rippleAngle) * settings.height) * rippleOffset
-        addRipple(origin: rippleOrigin, strength: strength, radius: settings.impulseRadius, isTreble: false)
+        // Scatter each hit within a central ellipse.
+        let hitAngle = Float.random(in: 0..<(2 * .pi))
+        let hitOffset = sqrt(Float.random(in: 0..<1)) * 0.12
+        bassOrigin = SIMD2(cos(hitAngle) * settings.width,
+                           sin(hitAngle) * settings.height) * hitOffset
         bassPulse = 1
         bassPulseLevel = min(1, max(0, strength))
         let amount = (min(1, max(0, strength)) * 0.13 + 0.035) * settings.impulseStrength
@@ -147,7 +122,7 @@ struct ClothSimulation {
         let direction = SIMD4<Float>(cos(scatterAngle) * tilt, sin(scatterAngle) * tilt,
                                      nextDirection * sqrt(max(0, 1 - tilt * tilt)), 0)
         for i in positions.indices where !isPinned(i) {
-            let offset = SIMD2(positions[i].x, positions[i].y) - rippleOrigin
+            let offset = SIMD2(positions[i].x, positions[i].y) - bassOrigin
             let falloff = exp(-simd_length_squared(offset) / (settings.impulseRadius * settings.impulseRadius))
             previous[i] -= direction * amount * falloff
         }
@@ -160,8 +135,6 @@ struct ClothSimulation {
         let angle = Float(trebleHits) * 2.39996
         let outerRadius = Float.random(in: 0.72..<0.88)
         trebleOrigin = SIMD2(cos(angle) * settings.width, sin(angle) * settings.height) * (0.5 * outerRadius)
-        addRipple(origin: trebleOrigin, strength: strength,
-                  radius: settings.trebleImpulseRadius, isTreble: true)
         treblePulse = 1
         treblePulseLevel = min(1, max(0, strength))
         let amount = settings.trebleImpulseStrength * (0.5 + 1.15 * treblePulseLevel)
@@ -178,9 +151,6 @@ struct ClothSimulation {
     }
 
     mutating func advance(delta: Double) {
-        for i in ripples.indices { ripples[i].age += Float(max(0, delta)) }
-        ripples.removeAll { $0.age >= Self.rippleLifetime }
-        // Keep the impulse envelopes independent of the longer visual ripples.
         bassPulse = max(0, bassPulse - Float(max(0, delta)) * 2.7)
         treblePulse = max(0, treblePulse - Float(max(0, delta)) * 5.2)
         // Limit catch-up after a suspended window; never use a large physics step.

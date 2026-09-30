@@ -316,8 +316,12 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         }
         if let buffer, let normalBuffer {
             let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
-            let distance = sqrt(clothSettings.width * clothSettings.width +
-                                clothSettings.height * clothSettings.height) * 1.35 * clothCamera.zoom
+            // Frame the default size so resizing the cloth changes its visible size.
+            let referenceSize = ClothSettings().width
+            let referenceWidth = referenceSize * min(1, artworkAspect)
+            let referenceHeight = referenceSize / max(1, artworkAspect)
+            let distance = sqrt(referenceWidth * referenceWidth + referenceHeight * referenceHeight)
+                * 1.35 * clothCamera.zoom
             // Keep the receiving wall behind the rotated mesh.
             let cy = cos(clothCamera.yaw), sy = sin(clothCamera.yaw)
             let cp = cos(clothCamera.pitch), sp = sin(clothCamera.pitch)
@@ -325,25 +329,13 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 min(depth, sp * p.y + cp * (-sy * p.x + cy * p.z))
             }
             let wallDepth = min(-size * 0.12, minimumDepth - size * 0.04)
-            // Five header float4s and 64 pairs, matching ClothUniforms in Metal.
-            var uniforms = [
+            // Four float4s, matching ClothUniforms in Metal.
+            let uniforms = [
                 SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
                 SIMD4<Float>(aspect, clothCamera.yaw, clothCamera.pitch, distance),
-                SIMD4<Float>(clothSettings.shineIntensity, Float(cloth.ripples.count),
-                             clothSettings.showMesh ? 1 : 0, 0),
-                SIMD4<Float>(wallDepth, 0.48, 0, 0),
-                SIMD4<Float>(clothSettings.chromaticAberration, clothSettings.iridescence,
-                             clothSettings.rippleThickness, 0)
+                SIMD4<Float>(clothSettings.shineIntensity, 0, clothSettings.showMesh ? 1 : 0, 0),
+                SIMD4<Float>(wallDepth, 0.48, 0, 0)
             ]
-            for ripple in cloth.ripples {
-                uniforms.append(SIMD4(ripple.origin.x, ripple.origin.y,
-                                      ripple.age / ClothSimulation.rippleTravelDuration, ripple.strength))
-                let trailAge = max(0, ripple.age - ClothSimulation.rippleTravelDuration)
-                    / ClothSimulation.rippleTrailDuration
-                uniforms.append(SIMD4(ripple.radius, ripple.isTreble ? 1 : 0, trailAge, ripple.age))
-            }
-            uniforms.append(contentsOf: repeatElement(SIMD4<Float>.zero,
-                count: (ClothSimulation.maximumRipples - cloth.ripples.count) * 2))
             return (buffer, normalBuffer, uniforms)
         }
         return nil
