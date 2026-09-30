@@ -238,6 +238,15 @@ struct SignedInView: View {
                 artworkLoader: model.artworkLoader,
                 onShuffleLikes: shuffleLikes,
                 onSelectPlaylist: showPlaylist,
+                onPlayPlaylist: { playlist, contents in
+                    guard let track = model.playback.isShuffleEnabled
+                        ? contents.tracks.randomElement() : contents.tracks.first else { return }
+                    await model.play(track, queue: TrackQueue(
+                        source: .playlist(playlist.urn),
+                        tracks: contents.tracks,
+                        nextPageURL: contents.nextPageURL
+                    ))
+                },
                 onShufflePlaylist: { playlist, contents in
                     guard let track = contents.tracks.randomElement() else { return }
                     if !model.playback.isShuffleEnabled {

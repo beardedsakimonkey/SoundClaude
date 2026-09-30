@@ -9,6 +9,7 @@ struct SidebarView: View {
     let artworkLoader: ArtworkLoader
     let onShuffleLikes: () async -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
+    let onPlayPlaylist: (SoundCloudPlaylist, PlaylistContents) async -> Void
     let onShufflePlaylist: (SoundCloudPlaylist, PlaylistContents) async -> Void
     let onDeletePlaylist: (SoundCloudPlaylist) -> Void
     let onSelectProfile: (SoundCloudUser) -> Void
@@ -24,8 +25,8 @@ struct SidebarView: View {
     @State private var addingToPlaylistURNs: Set<String> = []
     @State private var playlistDropError: String?
     @State private var playlistLikeError: String?
-    @State private var shufflingPlaylistURN: String?
-    @State private var playlistShuffleError: String?
+    @State private var startingPlaylistURN: String?
+    @State private var playlistPlaybackError: String?
     @State private var editingPlaylist: SoundCloudPlaylist?
     @State private var playlistDeletion = PlaylistDeletionState()
     @AppStorage("sidebarPlaylistsExpanded") private var isPlaylistsExpanded = true
@@ -62,13 +63,13 @@ struct SidebarView: View {
         } message: {
             Text(playlistLikeError ?? "Please try again.")
         }
-        .alert("Could not shuffle playlist", isPresented: Binding(
-            get: { playlistShuffleError != nil },
-            set: { if !$0 { playlistShuffleError = nil } }
+        .alert("Could not play playlist", isPresented: Binding(
+            get: { playlistPlaybackError != nil },
+            set: { if !$0 { playlistPlaybackError = nil } }
         )) {
-            Button("OK", role: .cancel) { playlistShuffleError = nil }
+            Button("OK", role: .cancel) { playlistPlaybackError = nil }
         } message: {
-            Text(playlistShuffleError ?? "Please try again.")
+            Text(playlistPlaybackError ?? "Please try again.")
         }
     }
 
@@ -231,30 +232,22 @@ struct SidebarView: View {
             .modifier(SidebarRowStyle(isSelected: false, usesPrimaryForeground: currentPlaylistURN == playlist.urn) {
                 onSelectPlaylist(playlist)
             })
+            .simultaneousGesture(TapGesture(count: 2).onEnded {
+                startPlaylist(playlist, shuffle: false)
+            })
+            .accessibilityAction(named: "Play playlist") {
+                startPlaylist(playlist, shuffle: false)
+            }
             .overlay(alignment: .trailing) {
-                if shufflingPlaylistURN == playlist.urn {
+                if startingPlaylistURN == playlist.urn {
                     ProgressView()
                         .controlSize(.small)
                         .frame(width: 24, height: 24)
                         .padding(.trailing, 8)
-                        .accessibilityLabel("Loading \(playlist.title) for shuffle")
+                        .accessibilityLabel("Loading \(playlist.title) for playback")
                 } else if !addingToPlaylistURNs.contains(playlist.urn) {
                     Button {
-                        shufflingPlaylistURN = playlist.urn
-                        Task { @MainActor in
-                            defer { shufflingPlaylistURN = nil }
-                            if playlists.cache.contents[playlist.urn]?.isComplete != true {
-                                await playlists.loadPlaylist(playlist)
-                            }
-                            guard !Task.isCancelled else { return }
-                            guard let contents = playlists.cache.contents[playlist.urn],
-                                  contents.isComplete, !contents.tracks.isEmpty else {
-                                playlistShuffleError = playlists.playlistErrors[playlist.urn]
-                                    ?? "This playlist has no playable tracks."
-                                return
-                            }
-                            await onShufflePlaylist(playlist, contents)
-                        }
+                        startPlaylist(playlist, shuffle: true)
                     } label: {
                         Image(systemName: "shuffle")
                             .frame(width: 24)
@@ -263,7 +256,7 @@ struct SidebarView: View {
                     }
                     .buttonStyle(.plain)
                     .modifier(SidebarForegroundHover(idleOpacity: 0.3))
-                    .disabled(shufflingPlaylistURN != nil)
+                    .disabled(startingPlaylistURN != nil)
                     .contentHelp("Shuffle \(playlist.title)")
                     .accessibilityLabel("Shuffle \(playlist.title)")
                     .padding(.trailing, 8)
@@ -303,7 +296,7 @@ struct SidebarView: View {
                         .fill(Color.accentColor.opacity(dropTargetURN == playlist.urn ? 0.18 : 0))
                 }
                 .overlay(alignment: .trailing) {
-                    if addingToPlaylistURNs.contains(playlist.urn), shufflingPlaylistURN != playlist.urn {
+                    if addingToPlaylistURNs.contains(playlist.urn), startingPlaylistURN != playlist.urn {
                         ProgressView()
                             .controlSize(.small)
                             .padding(.trailing, 8)
@@ -336,6 +329,29 @@ struct SidebarView: View {
                 }
         } else {
             row
+        }
+    }
+
+    private func startPlaylist(_ playlist: SoundCloudPlaylist, shuffle: Bool) {
+        guard startingPlaylistURN == nil else { return }
+        startingPlaylistURN = playlist.urn
+        Task { @MainActor in
+            defer { startingPlaylistURN = nil }
+            if playlists.cache.contents[playlist.urn]?.isComplete != true {
+                await playlists.loadPlaylist(playlist)
+            }
+            guard !Task.isCancelled else { return }
+            guard let contents = playlists.cache.contents[playlist.urn],
+                  contents.isComplete, !contents.tracks.isEmpty else {
+                playlistPlaybackError = playlists.playlistErrors[playlist.urn]
+                    ?? "This playlist has no playable tracks."
+                return
+            }
+            if shuffle {
+                await onShufflePlaylist(playlist, contents)
+            } else {
+                await onPlayPlaylist(playlist, contents)
+            }
         }
     }
 
