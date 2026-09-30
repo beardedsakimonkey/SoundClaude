@@ -184,7 +184,61 @@ struct PistonSimulationTests {
         }
     }
 
+    static func checkSmoothing() {
+        for travel: Float in [1, 5] {
+            for smoothing: Float in [0, 1, 10] {
+                var simulation = PistonSimulation()
+                simulation.settings.stringsPerPiston = 4
+                simulation.settings.travel = travel
+                simulation.settings.smoothing = smoothing
+                // Small changes in either direction, including a gradual ramp
+                // across the full range, must not acquire lag at high smoothing.
+                let levels = (0...100).map { Float($0) / 100 }
+                    + (0...100).reversed().map { Float($0) / 100 }
+                for level in levels {
+                    simulation.advance(delta: PistonSimulation.step,
+                        bands: [Float](repeating: level, count: 64))
+                    precondition(abs(simulation.heights[0] - (0.8 + level * travel)) < 0.00001,
+                                 "Smoothing must preserve small and gradual changes")
+                }
+            }
+        }
+
+        var rises: [Float] = []
+        var falls: [Float] = []
+        for smoothing: Float in [0, 1, 10] {
+            var simulation = PistonSimulation()
+            simulation.settings.stringsPerPiston = 4
+            simulation.settings.smoothing = smoothing
+            let top = 0.8 + simulation.settings.travel
+            simulation.advance(delta: PistonSimulation.step, bands: [Float](repeating: 1, count: 64))
+            rises.append(simulation.heights[0])
+            for _ in 0..<240 {
+                let previous = simulation.heights[0]
+                simulation.advance(delta: PistonSimulation.step, bands: [Float](repeating: 1, count: 64))
+                precondition(simulation.heights[0] >= previous && simulation.heights[0] <= top + 0.00001)
+            }
+            precondition(abs(simulation.heights[0] - top) < 0.00001)
+            simulation.advance(delta: PistonSimulation.step, bands: [])
+            falls.append(simulation.heights[0])
+            if smoothing == 0 {
+                precondition(abs(rises[0] - top) < 0.00001 && abs(falls[0] - 0.8) < 0.00001,
+                             "Zero smoothing must follow large changes immediately")
+            }
+            for _ in 0..<240 {
+                let previous = simulation.heights[0]
+                simulation.advance(delta: PistonSimulation.step, bands: [])
+                precondition(simulation.heights[0] <= previous && simulation.heights[0] >= 0.8 - 0.00001)
+            }
+            precondition(abs(simulation.heights[0] - 0.8) < 0.00001)
+        }
+        precondition(rises[0] > rises[1] && rises[1] > rises[2], "Higher smoothing must soften large rises")
+        precondition(falls[0] < falls[1] && falls[1] < falls[2], "Higher smoothing must soften large falls")
+        print("Piston smoothing tests passed")
+    }
+
     static func main() {
+        checkSmoothing()
         checkHeadTwist()
         checkElasticity()
         checkUndersideAttachment()
@@ -195,7 +249,7 @@ struct PistonSimulationTests {
         var bands = [Float](repeating: 0, count: 64)
         for index in 16..<24 { bands[index] = 1 }
         for _ in 0..<120 { simulation.advance(delta: 1.0 / 120, bands: bands) }
-        precondition(simulation.heights[2] > 3.99)
+        precondition(abs(simulation.heights[2] - (0.8 + simulation.settings.travel)) < 0.001)
         precondition(abs(simulation.heights[0] - 0.8) < 0.001)
         var split = PistonSimulation()
         var combined = PistonSimulation()

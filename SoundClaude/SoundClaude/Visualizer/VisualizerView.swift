@@ -130,6 +130,8 @@ struct VisualizerView: View {
                     tuningSlider("Gravity", value: $pistonSettings.gravity, range: 0...20)
                     Divider()
                     tuningSlider("Piston travel", value: $pistonSettings.travel, range: 0...5)
+                    tuningSlider("Piston smoothing", value: $pistonSettings.smoothing, range: 0...10, format: "%.2f×")
+                        .help("Softens sudden large amplitude changes. Small and gradual changes follow immediately. 0 disables smoothing; higher values soften large changes more.")
                     tuningSlider("Head twist", value: $pistonSettings.headTwist, range: -360...360, format: "%.0f°")
                     Divider()
                     Text("Cylinder stripes").font(.subheadline.bold())

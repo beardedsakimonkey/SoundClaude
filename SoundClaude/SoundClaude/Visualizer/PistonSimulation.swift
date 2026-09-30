@@ -11,6 +11,7 @@ struct PistonSettings: Equatable {
     var damping: Float = 0.04
     var gravity: Float = 20
     var travel: Float = 2.7
+    var smoothing: Float = 8 // Smooth large, fast movements only; zero follows the target immediately.
     var headTwist: Float = 90 // Degrees over a full rise.
     var stripeThickness: Float = 0.0192
     var stripeFrequency: Float = 1
@@ -90,12 +91,24 @@ struct PistonSimulation {
             } / Float(max(1, upper - lower))
             return 0.8 + energy * settings.travel
         }
+        // Allow 2.5% of full travel per physics step without filtering. Smooth
+        // only the excess, so small changes and gradual ramps have no added lag.
+        let immediateTravel = abs(settings.travel) * 0.025
+        let riseRate: Float = settings.smoothing > 0 ? 1 - pow(0.78, 1 / settings.smoothing) : 1
+        let fallRate: Float = settings.smoothing > 0 ? 1 - pow(0.925, 1 / settings.smoothing) : 1
         while accumulator >= Self.step {
             accumulator -= Self.step
             let previousHeights = heights
             for piston in heights.indices {
-                let rate: Float = targets[piston] > heights[piston] ? 0.22 : 0.075
-                heights[piston] += (targets[piston] - heights[piston]) * rate
+                let change = targets[piston] - heights[piston]
+                let excess = max(0, abs(change) - immediateTravel)
+                if excess == 0 || settings.smoothing <= 0 {
+                    heights[piston] = targets[piston]
+                    continue
+                }
+                let rate = change > 0 ? riseRate : fallRate
+                let movement = abs(change) - excess * (1 - rate)
+                heights[piston] += change > 0 ? movement : -movement
             }
             // Move only the pinned roots. Free nodes follow through the rope
             // constraints, retaining inertia as the heads turn and reverse.
