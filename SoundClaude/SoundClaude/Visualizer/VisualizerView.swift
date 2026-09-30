@@ -14,6 +14,7 @@ struct VisualizerView: View {
     @State private var orbitTranslation = CGSize.zero
     @GestureState private var isOrbiting = false
     @State private var isShowingControls = false
+    @State private var artworkAspect: Float = 1
     @State private var viewportSize = CGSize.zero
 
     private var camera: ClothCamera {
@@ -37,7 +38,8 @@ struct VisualizerView: View {
             clothCamera: Binding(get: { camera }, set: { camera = $0 }),
             spectrumBuffer: spectrumBuffer,
             artworkURL: playback.currentTrack?.displayArtworkURL,
-            artworkLoader: artworkLoader
+            artworkLoader: artworkLoader,
+            onArtworkAspectChange: { artworkAspect = $0 }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
@@ -59,11 +61,19 @@ struct VisualizerView: View {
                 }
                 .onEnded { _ in orbitTranslation = .zero }
                 .exclusively(before: SpatialTapGesture().onEnded { value in
-                    guard shader == .pistons, playback.currentTrack != nil else { return }
-                    let camera = PistonGroundControls.camera(
-                        size: viewportSize, yaw: camera.yaw,
-                        pitch: camera.pitch, zoom: camera.zoom)
-                    switch PistonGroundControls.hit(at: value.location, size: viewportSize, camera: camera) {
+                    guard playback.currentTrack != nil else { return }
+                    let hit: PistonGroundControls.Hit?
+                    if shader == .cloth {
+                        let projection = ClothGroundControls.camera(size: viewportSize, camera: camera,
+                                                                    artworkAspect: artworkAspect)
+                        hit = ClothGroundControls.hit(at: value.location, size: viewportSize,
+                            camera: projection, height: clothSettings.width / max(1, artworkAspect))
+                    } else {
+                        let projection = PistonGroundControls.camera(size: viewportSize, yaw: camera.yaw,
+                                                                     pitch: camera.pitch, zoom: camera.zoom)
+                        hit = PistonGroundControls.hit(at: value.location, size: viewportSize, camera: projection)
+                    }
+                    switch hit {
                     case .previous: playback.previous()
                     case .next: playback.next()
                     case .seek(let fraction): playback.seek(toFraction: fraction)
@@ -106,7 +116,7 @@ struct VisualizerView: View {
         .accessibilityLabel("Audio visualizer")
         .accessibilityValue(shader.title)
         .accessibilityActions {
-            if shader == .pistons, playback.currentTrack != nil {
+            if playback.currentTrack != nil {
                 Button("Previous track") { playback.previous() }
                 Button("Next track") { playback.next() }
             }

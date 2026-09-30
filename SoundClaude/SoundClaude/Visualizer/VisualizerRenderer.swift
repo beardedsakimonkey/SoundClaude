@@ -85,7 +85,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         let shadow: MTLRenderPipelineState
     }
 
-    private let pistonSampleCount: Int
+    private let sceneSampleCount: Int
     private var pipelines: [VisualizerShader: Pipelines] = [:]
     private var bands = [Float](repeating: 0, count: Int(SCSpectrumBandCount))
 #if DEBUG
@@ -99,21 +99,21 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             return nil
         }
 
-        pistonSampleCount = device.supportsTextureSampleCount(4) ? 4
+        sceneSampleCount = device.supportsTextureSampleCount(4) ? 4
             : (device.supportsTextureSampleCount(2) ? 2 : 1)
         do {
             for shader in VisualizerShader.allCases {
                 pipelines[shader] = try Self.makePipelines(
                     device: device, library: library, pixelFormat: view.colorPixelFormat,
-                    shader: shader, sampleCount: shader == .pistons ? pistonSampleCount : 1
+                    shader: shader, sampleCount: sceneSampleCount
                 )
             }
             pistonGlowPipeline = try Self.makePipeline(
                 device: device, library: library, pixelFormat: view.colorPixelFormat,
-                shader: .pistons, sampleCount: pistonSampleCount, glowBlend: true)
+                shader: .pistons, sampleCount: sceneSampleCount, glowBlend: true)
             pistonBloomSourcePipeline = try Self.makePipeline(
                 device: device, library: library, pixelFormat: .rgba16Float,
-                shader: .pistons, sampleCount: pistonSampleCount, glowBlend: true)
+                shader: .pistons, sampleCount: sceneSampleCount, glowBlend: true)
             let bloom = MTLRenderPipelineDescriptor()
             bloom.label = "Piston bloom composite"
             bloom.vertexFunction = library.makeFunction(name: "pistonBloomVertex")
@@ -158,7 +158,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         for shader in VisualizerShader.allCases {
             shaderReloaders[shader] = VisualizerShaderReloader(
                 device: device, pixelFormat: view.colorPixelFormat, shader: shader,
-                sampleCount: shader == .pistons ? pistonSampleCount : 1
+                sampleCount: sceneSampleCount
             )
         }
 #endif
@@ -314,19 +314,17 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
         }
         if let buffer, let normalBuffer {
-            let aspect = Float(view.drawableSize.width / max(1, view.drawableSize.height))
-            // Frame the default size so resizing the cloth changes its visible size.
-            let referenceSize = ClothSettings().width
-            let referenceWidth = referenceSize * min(1, artworkAspect) + 3.4
-            let referenceHeight = referenceSize / max(1, artworkAspect) + 3.4
-            let distance = sqrt(referenceWidth * referenceWidth + referenceHeight * referenceHeight)
-                * 1.35 * clothCamera.zoom
-            // Four float4s, matching ClothUniforms in Metal.
+            let camera = ClothGroundControls.camera(size: view.drawableSize, camera: clothCamera,
+                                                     artworkAspect: artworkAspect)
+            // Six float4s, matching ClothUniforms in Metal.
             let uniforms = [
                 SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
-                SIMD4<Float>(aspect, clothCamera.yaw, clothCamera.viewingPitch(distance: distance), distance),
+                camera,
                 SIMD4<Float>(clothSettings.shineIntensity, 0, clothSettings.showMesh ? 1 : 0, 0),
-                SIMD4<Float>(0, 0.48, ClothSimulation.groundDepth, 0)
+                SIMD4<Float>(Float(view.drawableSize.width), 0.48, ClothSimulation.groundDepth, Float(view.drawableSize.height)),
+                SIMD4<Float>(trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0, hasTrack ? 1 : 0, 0, 0),
+                SIMD4<Float>(cloth.bassOrigin.x, cloth.bassOrigin.y, clothSettings.impulseRadius,
+                             cloth.bassPulse * cloth.bassPulse * cloth.bassPulse * (0.8 + 1.2 * cloth.bassPulseLevel))
             ]
             return (buffer, normalBuffer, uniforms)
         }
@@ -343,6 +341,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             encoder.setFragmentBytes(&accentColor, length: MemoryLayout<SIMD4<Float>>.stride, index: 2)
             encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
             encoder.setFragmentBuffer(frame.normals, offset: 0, index: 5)
+            encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
             encoder.setFragmentTexture(fallbackTexture, index: 1)
             encoder.setFragmentTexture(artworkTexture ?? fallbackTexture, index: 0)
             var uniforms = frame.uniforms
@@ -474,7 +473,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         encoder.label = "Visualizer wall shadow mask"
         drawMask(encoder)
         encoder.endEncoding()
-        let blur = MPSImageGaussianBlur(device: device, sigma: max(1, Float(min(width, height)) * 0.008))
+        let blur = MPSImageGaussianBlur(device: device, sigma: max(1, Float(min(width, height)) * (shader == .cloth ? 0.003 : 0.008)))
         blur.edgeMode = .zero
         blur.encode(commandBuffer: commandBuffer, sourceTexture: shadowMask, destinationTexture: shadowBlur)
         return shadowBlur
@@ -495,9 +494,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
             pistonBloomMask = device.makeTexture(descriptor: descriptor)
             pistonBloomBlur = device.makeTexture(descriptor: descriptor)
-            if pistonSampleCount > 1 {
+            if sceneSampleCount > 1 {
                 descriptor.textureType = .type2DMultisample
-                descriptor.sampleCount = pistonSampleCount
+                descriptor.sampleCount = sceneSampleCount
                 descriptor.usage = .renderTarget
                 pistonBloomMultisampleMask = device.makeTexture(descriptor: descriptor)
             }
@@ -505,7 +504,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         guard let mask = pistonBloomMask, let blurred = pistonBloomBlur else { return }
         // Use the scene depth so hidden ropes cannot seed the bloom.
         let sourcePass = MTLRenderPassDescriptor()
-        if pistonSampleCount > 1 {
+        if sceneSampleCount > 1 {
             guard let multisampleMask = pistonBloomMultisampleMask else { return }
             sourcePass.colorAttachments[0].texture = multisampleMask
             sourcePass.colorAttachments[0].resolveTexture = mask
@@ -568,8 +567,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 #endif
         // MTKView creates matching multisample color/depth attachments and resolves
         // the scene into the drawable before the single-sample bloom composite.
-        let sampleCount = shader == .pistons ? pistonSampleCount : 1
-        if view.sampleCount != sampleCount { view.sampleCount = sampleCount }
+        if view.sampleCount != sceneSampleCount { view.sampleCount = sceneSampleCount }
         guard let pipelines = pipelines[shader],
               let renderPassDescriptor = view.currentRenderPassDescriptor,
               let drawable = view.currentDrawable,
@@ -663,23 +661,16 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 var uniforms = frame.uniforms
                 encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
                 encoder.setFragmentBuffer(frame.normals, offset: 0, index: 5)
-                uniforms[2].w = 3
+                encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
+                encoder.setFragmentTexture(frameShadow ?? fallbackTexture, index: 1)
+                if frameShadow == nil { uniforms[3].y = 0 }
+                uniforms[2].w = 2
                 uniforms.withUnsafeBytes { bytes in
                     encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
                     encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
                 }
                 encoder.setDepthStencilState(depthState)
-                encoder.drawPrimitives(type: .triangle, vertexStart: 4 * 3 * 12 * 12, vertexCount: 6)
-                encoder.setDepthStencilState(nil)
-                if let shadow = frameShadow {
-                    uniforms[2].w = 2
-                    uniforms.withUnsafeBytes { bytes in
-                        encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
-                        encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
-                    }
-                    encoder.setFragmentTexture(shadow, index: 1)
-                    encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-                }
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
                 uniforms[2].w = 0
                 uniforms.withUnsafeBytes { bytes in
                     encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
@@ -833,6 +824,50 @@ enum PistonGroundControls {
         let offset = SIMD2(rail.x - min(3.15, max(0.05, rail.x)), rail.y)
         if simd_length_squared(offset) <= 0.15 * 0.15 {
             return .seek(Double(min(1, max(0, rail.x / 3.2))))
+        }
+        return nil
+    }
+}
+
+// Z-up projection and floor hit targets for the cloth's playback controls.
+enum ClothGroundControls {
+    static func camera(size: CGSize, camera: ClothCamera, artworkAspect: Float) -> SIMD4<Float> {
+        let reference = ClothSettings().width
+        let width = reference * min(1, artworkAspect) + 3.4
+        let height = reference / max(1, artworkAspect) + 3.4
+        let distance = sqrt(width * width + height * height) * 1.35 * camera.zoom
+        return SIMD4(Float(size.width / max(1, size.height)), camera.yaw,
+                     camera.viewingPitch(distance: distance), distance)
+    }
+
+    static func hit(at point: CGPoint, size: CGSize, camera: SIMD4<Float>,
+                    height: Float) -> PistonGroundControls.Hit? {
+        guard size.width > 0, size.height > 0,
+              point.x >= 0, point.x <= size.width, point.y >= 0, point.y <= size.height else { return nil }
+        let ndc = SIMD2<Float>(Float(point.x / size.width) * 2 - 1,
+                               1 - Float(point.y / size.height) * 2)
+        func inverseRotate(_ p: SIMD3<Float>) -> SIMD3<Float> {
+            let q = SIMD3(p.x, cos(camera.z) * p.y - sin(camera.z) * p.z,
+                          sin(camera.z) * p.y + cos(camera.z) * p.z)
+            return SIMD3(cos(camera.y) * q.x + sin(camera.y) * q.y,
+                         -sin(camera.y) * q.x + cos(camera.y) * q.y, q.z)
+        }
+        let scale = min(2.6, 2.6 * camera.x)
+        let origin = inverseRotate(SIMD3(0, 0, camera.w))
+        let ray = inverseRotate(SIMD3(ndc.x * camera.x / scale, ndc.y / scale, -1))
+        guard abs(ray.z) > 0.000001 else { return nil }
+        let distance = (ClothSimulation.groundDepth - origin.z) / ray.z
+        guard distance >= 0.1, distance < 100 else { return nil }
+        let floor = origin + ray * distance
+        let local = SIMD2(floor.x, floor.y + height * 0.5 + 1.8)
+        for direction in [-1, 1] {
+            if simd_length_squared(local - SIMD2(Float(direction) * 4, 0)) <= 0.55 * 0.55 {
+                return direction < 0 ? .previous : .next
+            }
+        }
+        let offset = SIMD2(local.x - min(3, max(-3, local.x)), local.y)
+        if simd_length_squared(offset) <= 0.2 * 0.2 {
+            return .seek(Double(min(1, max(0, (local.x + 3) / 6))))
         }
         return nil
     }

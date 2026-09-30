@@ -109,8 +109,39 @@ struct ClothSimulationTests {
         }
     }
 
+    static func checkSelfCollision() {
+        // A remote vertex contacts the interior of a face, far from its vertices.
+        // Unused triangles are collapsed and must be skipped safely.
+        let columns: UInt32 = 5, rows: UInt32 = 2
+        for side: Float in [-1, 1] {
+            for end: Float in [0.01, -0.5] {
+                var p = Array(repeating: SIMD4<Float>(2, 0, 0, 0), count: 10)
+                p[0] = SIMD4(0, 0, 0, 0)
+                p[5] = SIMD4(0, 2, 0, 0)
+                p[1] = SIMD4(2, 0, 0, 0)
+                p[4] = SIMD4(0.5, 0.5, side * 0.5, 0)
+                let old = p
+                p[4].z = side * end
+                SCClothCollide(&p, old, columns, rows, 0.025)
+                let face = p[0] * 0.5 + p[5] * 0.25 + p[1] * 0.25
+                precondition(side * (p[4].z - face.z) >= 0.025 - 0.00001,
+                             "Contact must preserve either side, including a full step crossing")
+                precondition(p.allSatisfy { simd_length($0).isFinite })
+            }
+        }
+        var flat = ClothSimulation().positions
+        let original = flat
+        SCClothCollide(&flat, original, 41, 33, 0.025)
+        precondition(flat == original, "Self-collision must leave a flat mesh unchanged")
+        var collapsed = Array(repeating: SIMD4<Float>.zero, count: 10)
+        let old = collapsed
+        SCClothCollide(&collapsed, old, columns, rows, 0.025)
+        precondition(collapsed == old, "Collapsed faces must not generate invalid corrections")
+    }
+
     static func main() {
         checkXPBD()
+        checkSelfCollision()
         var camera = ClothCamera()
         let viewport = SIMD2<Float>(800, 600)
         camera.orbit(delta: SIMD2(0, -10000), viewport: viewport,
@@ -152,7 +183,10 @@ struct ClothSimulationTests {
         precondition(abs(flashing.bassPulse - fasterFlash.bassPulse) < 0.00001)
         flashing.impulse(strength: 0.9)
         precondition(flashing.bassPulse == 1 && flashing.bassPulseLevel == 0.9)
-        flashing.advance(delta: 0.4)
+        flashing.advance(delta: 0.6)
+        precondition(abs(flashing.bassPulse - 0.46) < 0.00001,
+                     "Bass brightness must fade over about 1.1 seconds")
+        flashing.advance(delta: 0.6)
         precondition(flashing.bassPulse == 0)
         var trebleDetector = ClothBassDetector.treble
         for _ in 0..<60 { precondition(trebleDetector.update(level: 0, delta: 1 / 60) == nil) }
@@ -201,10 +235,11 @@ struct ClothSimulationTests {
             if frame % 30 == 0 { cloth.impulse(strength: 1) }
             cloth.advance(delta: 1 / 60)
         }
+        let extent = simd_length(SIMD2(cloth.settings.width, cloth.settings.height)) / 2
         for i in initial.indices {
 
             precondition(cloth.positions[i].x.isFinite && cloth.positions[i].y.isFinite && cloth.positions[i].z.isFinite)
-            precondition(simd_length(cloth.positions[i]) < 10)
+            precondition(simd_length(cloth.positions[i]) < extent + 5)
             precondition(cloth.positions[i].z >= ClothSimulation.groundDepth,
                          "The cloth must remain above the ground")
         }

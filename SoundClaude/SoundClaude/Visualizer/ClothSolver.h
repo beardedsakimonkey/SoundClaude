@@ -20,6 +20,11 @@ typedef struct {
     float lambda;
 } SCClothBend;
 
+/// Separates nonadjacent vertices and triangle faces, using the start of the
+/// step to preserve the side of contact. Thickness is in world units.
+void SCClothCollide(simd_float4 *positions, const simd_float4 *previous,
+                    uint32_t columns, uint32_t rows, float thickness);
+
 /// Updates exclusively owned particle storage by one fixed 1/120-second step.
 void SCClothStep(simd_float4 *positions, simd_float4 *previous,
                  uint32_t columns, uint32_t rows,

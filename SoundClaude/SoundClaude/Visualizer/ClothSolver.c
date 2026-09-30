@@ -1,8 +1,104 @@
 #include "ClothSolver.h"
 #include <math.h>
+#include <stdlib.h>
 
 static simd_float3 xyz(simd_float4 p) { return (simd_float3){p.x, p.y, p.z}; }
 static simd_float4 vector4(simd_float3 p) { return (simd_float4){p.x, p.y, p.z, 0}; }
+
+typedef struct {
+    simd_float3 minimum, maximum;
+    uint32_t index;
+} ClothBounds;
+
+static int compareBounds(const void *a, const void *b) {
+    const ClothBounds *aa = a, *bb = b;
+    if (aa->minimum.x < bb->minimum.x) return -1;
+    if (aa->minimum.x > bb->minimum.x) return 1;
+    return (aa->index > bb->index) - (aa->index < bb->index);
+}
+
+static int adjacent(uint32_t a, uint32_t b, uint32_t columns) {
+    return abs((int)(a % columns) - (int)(b % columns)) <= 1 &&
+           abs((int)(a / columns) - (int)(b / columns)) <= 1;
+}
+
+static simd_float3 barycentric(simd_float3 p, simd_float3 a,
+                               simd_float3 b, simd_float3 c) {
+    const simd_float3 u = b - a, v = c - a, w = p - a;
+    const float uu = simd_dot(u, u), uv = simd_dot(u, v), vv = simd_dot(v, v);
+    const float denominator = uu * vv - uv * uv;
+    if (denominator < 1e-12f) return (simd_float3){-1, -1, -1};
+    const float y = (vv * simd_dot(w, u) - uv * simd_dot(w, v)) / denominator;
+    const float z = (uu * simd_dot(w, v) - uv * simd_dot(w, u)) / denominator;
+    return (simd_float3){1 - y - z, y, z};
+}
+
+void SCClothCollide(simd_float4 *positions, const simd_float4 *previous,
+                    uint32_t columns, uint32_t rows, float thickness) {
+    if (columns < 2 || rows < 2 || thickness <= 0) return;
+    const uint32_t count = columns * rows;
+    ClothBounds *bounds = malloc(count * sizeof(*bounds));
+    if (!bounds) return;
+    for (uint32_t i = 0; i < count; i++) {
+        bounds[i] = (ClothBounds){simd_min(xyz(positions[i]), xyz(previous[i])),
+                                  simd_max(xyz(positions[i]), xyz(previous[i])), i};
+    }
+    qsort(bounds, count, sizeof(*bounds), compareBounds);
+    for (uint32_t y = 0; y + 1 < rows; y++) {
+        for (uint32_t x = 0; x + 1 < columns; x++) {
+            const uint32_t a = y * columns + x;
+            const uint32_t triangles[2][3] = {{a, a + columns, a + 1},
+                                             {a + 1, a + columns, a + columns + 1}};
+            for (int t = 0; t < 2; t++) {
+                const uint32_t *ids = triangles[t];
+                simd_float3 lo = xyz(positions[ids[0]]), hi = lo;
+                for (int k = 0; k < 3; k++) {
+                    lo = simd_min(lo, simd_min(xyz(positions[ids[k]]), xyz(previous[ids[k]])));
+                    hi = simd_max(hi, simd_max(xyz(positions[ids[k]]), xyz(previous[ids[k]])));
+                }
+                lo -= thickness; hi += thickness;
+                for (uint32_t j = 0; j < count && bounds[j].minimum.x <= hi.x; j++) {
+                    const ClothBounds box = bounds[j];
+                    if (box.maximum.x < lo.x || box.maximum.y < lo.y || box.minimum.y > hi.y ||
+                        box.maximum.z < lo.z || box.minimum.z > hi.z) continue;
+                    const uint32_t i = box.index;
+                    // Exclude the local mesh patch so flat fabric is not inflated.
+                    if (adjacent(i, ids[0], columns) || adjacent(i, ids[1], columns) ||
+                        adjacent(i, ids[2], columns)) continue;
+                    simd_float3 p[3], old[3];
+                    for (int k = 0; k < 3; k++) {
+                        p[k] = xyz(positions[ids[k]]); old[k] = xyz(previous[ids[k]]);
+                    }
+                    simd_float3 n = simd_cross(p[1] - p[0], p[2] - p[0]);
+                    simd_float3 oldN = simd_cross(old[1] - old[0], old[2] - old[0]);
+                    const float n2 = simd_length_squared(n), oldN2 = simd_length_squared(oldN);
+                    if (n2 < 1e-12f || oldN2 < 1e-12f) continue;
+                    n /= sqrtf(n2); oldN /= sqrtf(oldN2);
+                    const float before = simd_dot(xyz(previous[i]) - old[0], oldN);
+                    const float after = simd_dot(xyz(positions[i]) - p[0], n);
+                    const float side = before < 0 ? -1 : 1;
+                    if (side * after >= thickness) continue;
+                    // Approximate time of impact for a moving vertex and face.
+                    // This also catches a vertex that crosses the entire face in one step.
+                    const float time = before * after < 0 ? before / (before - after) : 1;
+                    const simd_float3 hit = xyz(previous[i]) + time * xyz(positions[i] - previous[i]);
+                    const simd_float3 weights = barycentric(hit, old[0] + time * (p[0] - old[0]),
+                        old[1] + time * (p[1] - old[1]), old[2] + time * (p[2] - old[2]));
+                    if (weights.x < 0 || weights.y < 0 || weights.z < 0) continue;
+                    const float distance = simd_dot(xyz(positions[i]) -
+                        (p[0] * weights.x + p[1] * weights.y + p[2] * weights.z), n);
+                    const float correction = thickness - side * distance;
+                    if (correction <= 0) continue;
+                    const simd_float4 push = vector4(n * (side * correction /
+                                                        (1 + simd_length_squared(weights))));
+                    positions[i] += push;
+                    for (int k = 0; k < 3; k++) positions[ids[k]] -= push * weights[k];
+                }
+            }
+        }
+    }
+    free(bounds);
+}
 
 static void solveBend(simd_float4 *positions, SCClothBend *bend,
                       float alpha) {
@@ -58,6 +154,11 @@ void SCClothStep(simd_float4 *positions, simd_float4 *previous,
     // Macklin et al., 2016: https://mmacklin.com/xpbd.pdf (Eq. 18).
     for (uint32_t i = 0; i < edgeCount; i++) edges[i].lambda = 0;
     for (uint32_t i = 0; i < bendCount; i++) bends[i].lambda = 0;
+    float thickness = INFINITY;
+    for (uint32_t i = 0; i < edgeCount; i++)
+        if (edges[i].rest > 0) thickness = fminf(thickness, edges[i].rest * 0.2f);
+    // Isolated constraints (without a cloth mesh) have no collision surface.
+    const int selfCollision = edgeCount >= count && isfinite(thickness);
     for (uint32_t iteration = 0; iteration < iterations; iteration++) {
         for (uint32_t i = 0; i < edgeCount; i++) {
             SCClothEdge *edge = &edges[i];
@@ -73,6 +174,7 @@ void SCClothStep(simd_float4 *positions, simd_float4 *previous,
         }
         for (uint32_t i = 0; i < bendCount; i++)
             solveBend(positions, &bends[i], bendAlpha);
+        if (selfCollision) SCClothCollide(positions, previous, columns, rows, thickness);
         // Ropes resist tension only: a slack rope must not push the cloth.
         if (attachments) {
             const uint32_t corners[4] = {0, columns - 1, (rows - 1) * columns, count - 1};

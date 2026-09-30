@@ -26,6 +26,7 @@ struct ArtworkVisualizerView: View {
     let spectrumBuffer: OpaquePointer
     let artworkURL: URL?
     let artworkLoader: ArtworkLoader
+    var onArtworkAspectChange: (Float) -> Void
 
     @State private var artworkAccent: ArtworkAccent?
     @State private var artworkImage: CGImage?
@@ -46,9 +47,14 @@ struct ArtworkVisualizerView: View {
             artworkImage: accentArtworkURL == artworkURL ? artworkImage : nil
         )
             .background {
-                visualizerBackdrop
+                if shader == .cloth {
+                    Color(.sRGB, red: 0.035, green: 0.045, blue: 0.06)
+                } else {
+                    visualizerBackdrop
+                }
             }
             .task(id: artworkURL) {
+                onArtworkAspectChange(1)
                 artworkAccent = nil
                 artworkImage = nil
                 accentArtworkURL = nil
@@ -63,6 +69,9 @@ struct ArtworkVisualizerView: View {
                     artworkImage = CGImageSourceCreateImageAtIndex(source, 0, nil)
                 }
                 accentArtworkURL = url
+                if let artworkImage {
+                    onArtworkAspectChange(Float(artworkImage.width) / Float(artworkImage.height))
+                }
             }
     }
 

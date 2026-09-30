@@ -3,15 +3,15 @@ import simd
 
 struct ClothSettings: Equatable {
     var columns = 41
-    var rows = 31
-    var width: Float = 10
+    var rows = 33
+    var width: Float = 20
     var height: Float = 4.5
     var damping: Float = 0.015
     var compliance: Float = 0.0001
-    var bendCompliance: Float = 0.1
+    var bendCompliance: Float = 0.02
     var gravity: Float = 3
-    var impulseStrength: Float = 5
-    var impulseRadius: Float = 1.7
+    var impulseStrength: Float = 15
+    var impulseRadius: Float = 3
     var trebleImpulseStrength: Float = 0.14
     var trebleImpulseRadius: Float = 1.4
     var iterations = 1
@@ -174,7 +174,7 @@ struct ClothSimulation {
     }
 
     mutating func advance(delta: Double) {
-        bassPulse = max(0, bassPulse - Float(max(0, delta)) * 2.7)
+        bassPulse = max(0, bassPulse - Float(max(0, delta)) * 0.9)
         treblePulse = max(0, treblePulse - Float(max(0, delta)) * 5.2)
         // Limit catch-up after a suspended window; never use a large physics step.
         accumulator += min(1 / 15, max(0, delta))
