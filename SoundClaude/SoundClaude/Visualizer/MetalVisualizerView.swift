@@ -47,9 +47,7 @@ struct ArtworkVisualizerView: View {
             artworkImage: accentArtworkURL == artworkURL ? artworkImage : nil
         )
             .background {
-                if shader.isSpatial {
-                    clothBackdrop
-                }
+                clothBackdrop
             }
             .task(id: artworkURL) {
                 artworkAccent = nil
@@ -195,7 +193,6 @@ struct MetalVisualizerView: NSViewRepresentable {
     }
 
     private var zoomHandler: ((Float) -> Void)? {
-        guard shader.isSpatial else { return nil }
         return { amount in
             clothCamera.zoom = min(2, max(0.2, clothCamera.zoom * exp(-amount)))
         }

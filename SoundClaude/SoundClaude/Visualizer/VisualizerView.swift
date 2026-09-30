@@ -68,8 +68,7 @@ struct VisualizerView: View {
                     case .seek(let fraction): playback.seek(toFraction: fraction)
                     case nil: break
                     }
-                }),
-            including: shader.isSpatial ? .all : .none
+                })
         )
         .onChange(of: shader) { _, _ in
             isShowingControls = false
@@ -77,20 +76,18 @@ struct VisualizerView: View {
         }
         .overlay(alignment: .topTrailing) {
             HStack {
-                if shader.isSpatial {
-                    Button {
-                        isShowingControls.toggle()
-                    } label: {
-                        Label("\(shader.title) controls", systemImage: "slider.horizontal.3")
-                            .labelStyle(.iconOnly)
-                    }
-                    .buttonStyle(.bordered)
-                    .popover(isPresented: $isShowingControls, arrowEdge: .bottom) {
-                        if shader == .pistons {
-                            pistonControls
-                        } else {
-                            clothControls
-                        }
+                Button {
+                    isShowingControls.toggle()
+                } label: {
+                    Label("\(shader.title) controls", systemImage: "slider.horizontal.3")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.bordered)
+                .popover(isPresented: $isShowingControls, arrowEdge: .bottom) {
+                    if shader == .pistons {
+                        pistonControls
+                    } else {
+                        clothControls
                     }
                 }
                 Button(action: onClose) {

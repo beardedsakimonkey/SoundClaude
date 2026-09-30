@@ -4,11 +4,8 @@ import MetalPerformanceShaders
 import simd
 
 enum VisualizerShader: String, CaseIterable {
-    case bars
     case cloth
     case pistons
-
-    var isSpatial: Bool { self == .cloth || self == .pistons }
 
     // Pistons add a 0.25-radian tilt and orbit a point above the floor.
     var cameraPitchRange: ClosedRange<Float> {
@@ -23,7 +20,6 @@ enum VisualizerShader: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .bars: "Bars"
         case .cloth: "Cloth"
         case .pistons: "Pistons"
         }
@@ -31,7 +27,6 @@ enum VisualizerShader: String, CaseIterable {
 
     var sourceFile: String {
         switch self {
-        case .bars: "AudioVisualizer.metal"
         case .cloth: "ClothVisualizer.metal"
         case .pistons: "PistonVisualizer.metal"
         }
@@ -39,7 +34,6 @@ enum VisualizerShader: String, CaseIterable {
 
     private var functionPrefix: String {
         switch self {
-        case .bars: "visualizer"
         case .cloth: "clothVisualizer"
         case .pistons: "pistonVisualizer"
         }
@@ -51,7 +45,7 @@ enum VisualizerShader: String, CaseIterable {
 
 final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var accent: ArtworkAccent
-    var shader: VisualizerShader = .bars
+    var shader: VisualizerShader = .cloth
     var clothSettings = ClothSettings()
     var pistonSettings = PistonSettings()
     var trackProgress: Double = 0
@@ -94,7 +88,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private let pistonSampleCount: Int
     private var pipelines: [VisualizerShader: Pipelines] = [:]
     private var bands = [Float](repeating: 0, count: Int(SCSpectrumBandCount))
-    private let animationStartTime = ProcessInfo.processInfo.systemUptime
 #if DEBUG
     private var shaderReloaders: [VisualizerShader: VisualizerShaderReloader] = [:]
 #endif
@@ -617,17 +610,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         }
 
         encoder.setRenderPipelineState(pipelines.scene)
-        bands.withUnsafeBytes { bytes in
-            encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 0)
-        }
         encoder.setFragmentTexture(fallbackTexture, index: 1)
         encoder.setFragmentTexture(artworkTexture ?? fallbackTexture, index: 0)
-        var elapsedTime = Float(ProcessInfo.processInfo.systemUptime - animationStartTime)
-        encoder.setFragmentBytes(
-            &elapsedTime,
-            length: MemoryLayout<Float>.stride,
-            index: 3
-        )
         var accentColor = SIMD4<Float>(
             Float(accent.red), Float(accent.green), Float(accent.blue),
             artworkTexture == nil ? 0 : 1
@@ -636,12 +620,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             &accentColor,
             length: MemoryLayout<SIMD4<Float>>.stride,
             index: 2
-        )
-        var viewWidth = Float(view.bounds.width)
-        encoder.setFragmentBytes(
-            &viewWidth,
-            length: MemoryLayout<Float>.size,
-            index: 1
         )
         if shader != .cloth {
             lastClothTime = nil
@@ -713,8 +691,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 encoder.drawPrimitives(type: .triangle, vertexStart: 0,
                                        vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
             }
-        } else {
-            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         }
         encoder.endEncoding()
         if let frame = pistonFrame, let depth = renderPassDescriptor.depthAttachment.texture {
