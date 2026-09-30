@@ -236,6 +236,7 @@ struct SignedInView: View {
                 likes: model.likes,
                 user: user,
                 artworkLoader: model.artworkLoader,
+                onPlayLikes: playLikes,
                 onShuffleLikes: shuffleLikes,
                 onSelectPlaylist: showPlaylist,
                 onPlayPlaylist: { playlist, contents in
@@ -552,6 +553,13 @@ struct SignedInView: View {
            current.urn == track.urn { return }
         forwardPath.removeAll()
         path.append(.track(track))
+    }
+
+    private func playLikes() async {
+        guard !Task.isCancelled,
+              let track = model.playback.isShuffleEnabled
+                ? model.likes.tracks.randomElement() : model.likes.tracks.first else { return }
+        await model.playLikedTrack(track)
     }
 
     private func shuffleLikes() async {

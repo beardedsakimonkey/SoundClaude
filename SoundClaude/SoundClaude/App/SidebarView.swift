@@ -7,6 +7,7 @@ struct SidebarView: View {
     @ObservedObject var likes: LikesController
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
+    let onPlayLikes: () async -> Void
     let onShuffleLikes: () async -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onPlayPlaylist: (SoundCloudPlaylist, PlaylistContents) async -> Void
@@ -86,6 +87,20 @@ struct SidebarView: View {
                         .modifier(SidebarRowStyle(isSelected: selection == destination, usesPrimaryForeground: true) {
                             select(destination)
                         })
+                        .simultaneousGesture(
+                            TapGesture(count: 2).onEnded {
+                                Task { await onPlayLikes() }
+                            },
+                            including: destination == .liked ? .all : .none
+                        )
+                        .accessibilityActions {
+                            if destination == .liked {
+                                Button("Play likes") {
+                                    Task { await onPlayLikes() }
+                                }
+                                .disabled(likes.tracks.isEmpty)
+                            }
+                        }
                         .overlay(alignment: .trailing) {
                             if destination == .liked {
                                 Button {
