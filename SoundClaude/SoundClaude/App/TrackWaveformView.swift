@@ -374,8 +374,8 @@ struct TrackWaveformView: View {
         .focusable(isCurrentTrack, interactions: .activate)
         .onKeyPress(keys: [.leftArrow, .rightArrow], phases: [.down, .repeat]) { press in
             guard isCurrentTrack,
-                  press.modifiers.isEmpty || press.modifiers == .control else { return .ignored }
-            let step: Double = press.modifiers.contains(.control) ? 30 : 5
+                  press.modifiers.isEmpty || press.modifiers == .option else { return .ignored }
+            let step: Double = press.modifiers.contains(.option) ? 30 : 5
             playback.seek(by: press.key == .leftArrow ? -step : step)
             return .handled
         }

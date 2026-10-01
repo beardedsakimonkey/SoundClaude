@@ -113,15 +113,16 @@ struct SoundClaudeApp: App {
             }
             .keyboardShortcut(.rightArrow, modifiers: [])
 
+            // Control-arrow is reserved for switching macOS Spaces.
             Button("Seek Back 30 Seconds") {
                 model.playback.seek(by: -30)
             }
-            .keyboardShortcut(.leftArrow, modifiers: [.control])
+            .keyboardShortcut(.leftArrow, modifiers: [.option])
 
             Button("Seek Forward 30 Seconds") {
                 model.playback.seek(by: 30)
             }
-            .keyboardShortcut(.rightArrow, modifiers: [.control])
+            .keyboardShortcut(.rightArrow, modifiers: [.option])
 
             Divider()
 

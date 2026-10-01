@@ -14,8 +14,8 @@ struct KeyboardShortcutsView: View {
             Shortcut(title: "Cycle repeat", keys: ["R"]),
             Shortcut(title: "Seek back 5 seconds", keys: ["←"]),
             Shortcut(title: "Seek forward 5 seconds", keys: ["→"]),
-            Shortcut(title: "Seek back 30 seconds", keys: ["⌃", "←"]),
-            Shortcut(title: "Seek forward 30 seconds", keys: ["⌃", "→"]),
+            Shortcut(title: "Seek back 30 seconds", keys: ["⌥", "←"]),
+            Shortcut(title: "Seek forward 30 seconds", keys: ["⌥", "→"]),
             Shortcut(title: "Previous track", keys: ["⇧", "←"]),
             Shortcut(title: "Next track", keys: ["⇧", "→"])
         ],
