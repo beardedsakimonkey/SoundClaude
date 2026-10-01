@@ -107,11 +107,13 @@ final class PlaybackController {
         let track: SoundCloudTrack
         let task: Task<AVPlayer, Error>
         var player: AVPlayer?
+        var isPrerolled = false
     }
 
     @ObservationIgnored private var preparationObservation: NSKeyValueObservation?
     @ObservationIgnored private var nextPreparation: Preparation?
     @ObservationIgnored private var loadingPreparation: Preparation?
+    @ObservationIgnored private var canStartImmediately = false
     private var shouldPlayWhenReady = false
     @ObservationIgnored private var hasNotifiedReady = false
     @ObservationIgnored private var lastSaveTime = Date.distantPast
@@ -268,6 +270,7 @@ final class PlaybackController {
         itemStatusObservation?.invalidate()
         itemStatusObservation = nil
         loadingRequestID = nil
+        canStartImmediately = false
         player.replaceCurrentItem(with: nil)
         currentTrack = nil
         currentTime = 0
@@ -292,6 +295,7 @@ final class PlaybackController {
         direction: TrackChangeDirection = .forward
     ) -> UUID {
         pause()
+        canStartImmediately = false
         itemStatusObservation?.invalidate()
         itemStatusObservation = nil
         loadingPreparation?.task.cancel()
@@ -328,9 +332,9 @@ final class PlaybackController {
         updateNowPlayingInfo(elapsedTime: currentTime)
         saveSession()
         updateRemoteCommandAvailability()
-        if let prepared = loadingPreparation?.player {
+        if let preparation = loadingPreparation, let prepared = preparation.player {
             loadingPreparation = nil
-            load(prepared: prepared, requestID: requestID)
+            load(prepared: prepared, requestID: requestID, isPrerolled: preparation.isPrerolled)
         }
         return requestID
     }
@@ -402,18 +406,24 @@ final class PlaybackController {
                       prepared.currentItem?.status == .readyToPlay else { return }
                 preparationObservation?.invalidate()
                 preparationObservation = nil
-                prepared.preroll(atRate: 1) { _ in }
+                prepared.preroll(atRate: 1) { [weak self] finished in
+                    Task { @MainActor [weak self] in
+                        guard let self, nextPreparation?.id == id else { return }
+                        nextPreparation?.isPrerolled = finished
+                    }
+                }
             }
         }
     }
 
-    private func load(prepared: AVPlayer, requestID: UUID) {
+    private func load(prepared: AVPlayer, requestID: UUID, isPrerolled: Bool = false) {
         guard loadingRequestID == requestID, let item = prepared.currentItem else { return }
         replacePlayer(with: prepared)
         // A fresh standby player is already at the start. Preserve its preroll
         // instead of issuing a redundant seek before playback.
         if seekFraction == nil, seekTarget == 0, prepared.currentTime().seconds == 0 {
             seekTarget = nil
+            canStartImmediately = isPrerolled
         }
         load(item: item, requestID: requestID)
     }
@@ -497,7 +507,14 @@ final class PlaybackController {
     private func playIfReady() {
         guard shouldPlayWhenReady, seekTarget == nil, !isSeekInProgress,
               player.currentItem?.status == .readyToPlay else { return }
-        player.play()
+        if canStartImmediately {
+            // Preroll already filled the initial buffer. Avoid another stall-
+            // avoidance wait on Next, but retain normal recovery after a stall.
+            canStartImmediately = false
+            player.playImmediately(atRate: 1)
+        } else {
+            player.play()
+        }
         if !hasNotifiedReady {
             hasNotifiedReady = true
             onReadyToPlay?()
@@ -526,6 +543,7 @@ final class PlaybackController {
               currentTrack != nil,
               isLoading || player.currentItem != nil,
               player.currentItem?.status != .failed else { return }
+        canStartImmediately = false
         let upperBound = duration > 0 ? duration : seconds
         let target = min(max(seconds, 0), upperBound)
         seekTarget = target

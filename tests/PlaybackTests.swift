@@ -16,6 +16,27 @@ private final class BufferingTestPlayer: AVPlayer {
     }
 }
 
+// Control preroll completion to check both startup paths without network timing.
+private final class PrerollTestPlayer: AVPlayer {
+    var completePreroll: (@Sendable (Bool) -> Void)?
+    var immediateStarts = 0
+    var normalStarts = 0
+
+    override func preroll(atRate rate: Float, completionHandler: (@Sendable (Bool) -> Void)? = nil) {
+        completePreroll = completionHandler
+    }
+
+    override func playImmediately(atRate rate: Float) {
+        immediateStarts += 1
+        super.playImmediately(atRate: rate)
+    }
+
+    override func play() {
+        normalStarts += 1
+        super.play()
+    }
+}
+
 // Hold stream resolution between beginLoading and load. A local silent file
 // tests AVPlayer readiness without credentials, network access, or audio output.
 @main
@@ -53,6 +74,42 @@ struct PlaybackTests {
             url: fileURL, kind: .hls, codec: .aac,
             bitrateKilobitsPerSecond: 160, isPreview: false
         )
+
+        // Only a completed preroll can bypass the initial buffering wait.
+        // A seek invalidates that buffer, and a later resume uses normal waiting.
+        let preparationCases: [(Bool?, Double)] = [(true, 0), (false, 0), (nil, 0), (true, 0.5)]
+        for (finished, position) in preparationCases {
+            var standby: PrerollTestPlayer?
+            let controller = PlaybackController(defaults: defaults) { url in
+                let player = PrerollTestPlayer(url: url)
+                standby = player
+                return player
+            }
+            controller.prefetch(track(2)) { source }
+            try await until { standby?.completePreroll != nil }
+            if let finished {
+                standby!.completePreroll?(finished)
+                // The production callback publishes its result on the main actor.
+                try await Task.sleep(for: .milliseconds(30))
+            }
+            let request = controller.beginLoading(track: track(2), position: position)
+            let consumed = await controller.loadPrefetched(requestID: request)
+            precondition(consumed)
+            try await until { standby!.immediateStarts + standby!.normalStarts > 0 }
+            precondition(standby!.immediateStarts == (finished == true && position == 0 ? 1 : 0))
+            precondition(standby!.normalStarts == (finished == true && position == 0 ? 0 : 1))
+            precondition(controller.player.automaticallyWaitsToMinimizeStalling)
+            controller.pause()
+            if finished == nil {
+                // Completion after selection must not re-arm immediate startup.
+                standby!.completePreroll?(true)
+                try await Task.sleep(for: .milliseconds(30))
+            }
+            let normalStarts = standby!.normalStarts
+            controller.togglePlayPause()
+            precondition(standby!.normalStarts == normalStarts + 1)
+            controller.clearSession()
+        }
 
         // Sessions save the track and position without playback state.
         let encoded = try JSONEncoder().encode(
