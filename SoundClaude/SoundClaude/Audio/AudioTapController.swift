@@ -25,6 +25,12 @@ final class AudioTapController: ObservableObject {
     }
 
     func startForCurrentProcess() async {
+        // The tap captures the process, not an individual AVPlayer item.
+        // Keep capture and spectrum smoothing continuous across track changes.
+        switch state {
+        case .starting, .running: return
+        case .idle, .failed: break
+        }
         generation &+= 1
         let expectedGeneration = generation
         state = .starting
@@ -34,16 +40,14 @@ final class AudioTapController: ObservableObject {
             guard generation == expectedGeneration else { return }
             do {
                 let format = try await startNativeTap(processIdentifier: getpid())
-                guard generation == expectedGeneration else {
-                    await stopNativeTap()
-                    return
-                }
+                guard generation == expectedGeneration else { return }
                 analyzer.start(sampleRate: format.sampleRate)
                 state = .running(format)
                 return
             } catch ProcessTapError.processNotReady where attempt < 29 {
                 try? await Task.sleep(for: .milliseconds(100))
             } catch {
+                guard generation == expectedGeneration else { return }
                 state = .failed(
                     "The visualizer could not capture this app's audio. \(error.localizedDescription)"
                 )

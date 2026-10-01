@@ -76,7 +76,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private let depthState: MTLDepthStencilState?
     private let spectrumBuffer: OpaquePointer
     private let commandQueue: MTLCommandQueue
-    private let textureLoader: MTKTextureLoader
+    private var artworkTask: Task<MTLTexture?, Never>?
     private let fallbackTexture: MTLTexture
     private var artworkTexture: MTLTexture?
     private var artworkImage: CGImage?
@@ -139,7 +139,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         depth.isDepthWriteEnabled = false
         glowDepthState = device.makeDepthStencilState(descriptor: depth)
         self.accent = accent
-        textureLoader = MTKTextureLoader(device: device)
         let textureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: .rgba8Unorm, width: 1, height: 1, mipmapped: false
         )
@@ -166,9 +165,28 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 
     func updateArtwork(_ image: CGImage?) {
         guard artworkImage !== image else { return }
+        artworkTask?.cancel()
+        artworkTask = nil
         artworkImage = image
         artworkTexture = nil
         guard let image else { return }
+        let device = commandQueue.device
+        let task = Task.detached(priority: .userInitiated) {
+            guard !Task.isCancelled else { return nil as MTLTexture? }
+            return Self.makeArtworkTexture(image, device: device)
+        }
+        artworkTask = task
+        Task { @MainActor [weak self] in
+            let texture = await task.value
+            guard let self, !task.isCancelled, artworkImage === image else { return }
+            artworkTexture = texture
+            artworkTask = nil
+        }
+    }
+
+    deinit { artworkTask?.cancel() }
+
+    private static func makeArtworkTexture(_ image: CGImage, device: MTLDevice) -> MTLTexture? {
         // Grayscale images can load as single-channel textures, which the shader
         // reads as red. Convert to sRGB RGBA so every artwork supplies RGB.
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
@@ -180,20 +198,22 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                     | CGBitmapInfo.byteOrder32Big.rawValue
               ) else {
             NSLog("[Visualizer] Cannot create artwork bitmap context")
-            return
+            return nil
         }
         context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
         guard let rgbaImage = context.makeImage() else {
             NSLog("[Visualizer] Cannot create RGBA artwork image")
-            return
+            return nil
         }
         do {
-            artworkTexture = try textureLoader.newTexture(cgImage: rgbaImage, options: [
+            guard !Task.isCancelled else { return nil }
+            return try MTKTextureLoader(device: device).newTexture(cgImage: rgbaImage, options: [
                 .SRGB: false,
                 .origin: MTKTextureLoader.Origin.topLeft
             ])
         } catch {
             NSLog("[Visualizer] Cannot load artwork texture: %@", String(describing: error))
+            return nil
         }
     }
 

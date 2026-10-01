@@ -1,5 +1,4 @@
 import MetalKit
-import ImageIO
 import SwiftUI
 
 private final class TransparentMetalView: MTKView {
@@ -58,16 +57,13 @@ struct ArtworkVisualizerView: View {
                 artworkAccent = nil
                 artworkImage = nil
                 accentArtworkURL = nil
-                guard let url = artworkURL,
-                      let data = try? await artworkLoader.data(for: url, rendition: .square1080) else {
-                    guard !Task.isCancelled else { return }
-                    return
-                }
+                guard let url = artworkURL else { return }
+                async let image = try? artworkLoader.bitmap(for: url, rendition: .square1080)
+                async let color = try? artworkLoader.accentColor(for: url, rendition: .square1080)
+                let (loadedImage, loadedAccent) = await (image, color)
                 guard !Task.isCancelled else { return }
-                artworkAccent = ArtworkAccent.extract(from: data)
-                if let source = CGImageSourceCreateWithData(data as CFData, nil) {
-                    artworkImage = CGImageSourceCreateImageAtIndex(source, 0, nil)
-                }
+                artworkImage = loadedImage
+                artworkAccent = loadedAccent
                 accentArtworkURL = url
                 if let artworkImage {
                     onArtworkAspectChange(Float(artworkImage.width) / Float(artworkImage.height))

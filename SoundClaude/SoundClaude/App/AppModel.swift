@@ -319,7 +319,6 @@ final class AppModel: ObservableObject {
         )
         playbackRequestID = requestID
         errorMessage = nil
-        audioTap.stop()
         prefetchNextTrack()
 
         let task = Task { @MainActor in
@@ -750,7 +749,7 @@ final class AppModel: ObservableObject {
 
     private func prefetchArtwork(for track: SoundCloudTrack) async {
         guard let url = track.displayArtworkURL else { return }
-        async let thumbnail = try? artworkLoader.data(for: url, rendition: .square500)
+        async let thumbnail = try? artworkLoader.image(for: url, rendition: .square500)
         async let accent = try? artworkLoader.data(for: url)
         _ = await (thumbnail, accent)
     }

@@ -17,6 +17,9 @@ actor ArtworkLoader {
         totalCostLimit: 32 * 1_024 * 1_024
     )
     private var requests: [URL: Task<Data, Error>] = [:]
+    private let bitmaps = MemoryCache<NSString, CGImage>(
+        countLimit: 48, totalCostLimit: 24 * 1_024 * 1_024
+    )
 
     // Keep display images separate from compressed data. NSCache can evict
     // them under memory pressure; charge for decoded pixels, not file size.
@@ -37,17 +40,11 @@ actor ArtworkLoader {
     @MainActor
     func image(for url: URL, rendition: Rendition = .source) async throws -> NSImage? {
         if let cached = cachedImage(for: url, rendition: rendition) { return cached }
-        let data = try await data(for: url, rendition: rendition)
+        guard let bitmap = try await bitmap(for: url, rendition: rendition, maxPixelSize: 500)
+        else { return nil }
         try Task.checkCancellation()
-        // Another view (such as the reflection) may have populated the cache.
+        // Another view may have populated the display cache while decoding.
         if let cached = cachedImage(for: url, rendition: rendition) { return cached }
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let bitmap = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceShouldCacheImmediately: true,
-                kCGImageSourceThumbnailMaxPixelSize: 500
-              ] as CFDictionary) else { return nil }
         // These images serve thumbnails and blurred backdrops only. Even a
         // large source is decoded at at most 500 pixels on its longest edge.
         let image = NSImage(cgImage: bitmap, size: NSSize(width: bitmap.width, height: bitmap.height))
@@ -59,8 +56,27 @@ actor ArtworkLoader {
         return image
     }
 
-    func accentColor(for url: URL) async throws -> ArtworkAccent? {
-        let data = try await data(for: url)
+    // ImageIO decoding runs on this actor, never on the main actor. Cache the
+    // decoded pixels so prefetch also removes decoding from track transitions.
+    func bitmap(for url: URL, rendition: Rendition = .source, maxPixelSize: Int = 1080) async throws -> CGImage? {
+        let key = "\(resolvedURL(for: rendition, sourceURL: url).absoluteString)#\(maxPixelSize)" as NSString
+        if let cached = bitmaps.value(forKey: key) { return cached }
+        let data = try await data(for: url, rendition: rendition)
+        try Task.checkCancellation()
+        if let cached = bitmaps.value(forKey: key) { return cached }
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let bitmap = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+              ] as CFDictionary) else { return nil }
+        bitmaps.insert(bitmap, forKey: key, cost: bitmap.bytesPerRow * bitmap.height)
+        return bitmap
+    }
+
+    func accentColor(for url: URL, rendition: Rendition = .source) async throws -> ArtworkAccent? {
+        let data = try await data(for: url, rendition: rendition)
         try Task.checkCancellation()
         return ArtworkAccent.extract(from: data)
     }

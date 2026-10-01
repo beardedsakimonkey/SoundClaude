@@ -85,6 +85,10 @@ test:
 		SoundClaude/SoundClaude/Audio/SpectrumAnalyzer.swift \
 		tests/SpectrumAnalyzerTests.swift
 	/tmp/soundclaude-tests/spectrum
+	swiftc -o /tmp/soundclaude-tests/audio-tap-lifecycle \
+		SoundClaude/SoundClaude/Audio/AudioTapController.swift \
+		tests/AudioTapLifecycleTests.swift
+	/tmp/soundclaude-tests/audio-tap-lifecycle
 	swiftc -o /tmp/soundclaude-tests/artwork-cache \
 		SoundClaude/SoundClaude/Support/MemoryCache.swift \
 		SoundClaude/SoundClaude/Networking/ArtworkLoader.swift \

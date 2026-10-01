@@ -54,6 +54,19 @@ struct ArtworkCacheTests {
         precondition(loader.cachedImage(for: url) === backdrop)
         precondition(loader.cachedImage(for: url, rendition: .square500) === image)
 
+        // Visualizer pixels are decoded off the UI actor and bounded even if
+        // the server returns a larger source than the requested rendition.
+        async let visualizer = loader.bitmap(for: url, rendition: .square1080)
+        async let sharedVisualizer = loader.bitmap(for: url, rendition: .square1080)
+        let (large, sharedLarge) = try await (visualizer, sharedVisualizer)
+        precondition(large === sharedLarge, "Concurrent visualizers must share decoded pixels")
+        precondition(large?.width == 1080 && large?.height == 540)
+        let small = try await loader.bitmap(for: url, rendition: .square1080, maxPixelSize: 500)
+        precondition(small?.width == 500 && small?.height == 250)
+        precondition(small !== large, "Decode sizes must have separate cache entries")
+        let revisitedLarge = try await loader.bitmap(for: url, rendition: .square1080)
+        precondition(revisitedLarge === large)
+
         let invalidLoader = ArtworkLoader(client: SoundCloudClient(payload: Data([0, 1, 2])))
         let invalid = try await invalidLoader.image(for: url)
         precondition(invalid == nil && invalidLoader.cachedImage(for: url) == nil)
