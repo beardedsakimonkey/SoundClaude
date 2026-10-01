@@ -316,15 +316,19 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         if let buffer, let normalBuffer {
             let camera = ClothGroundControls.camera(size: view.drawableSize, camera: clothCamera,
                                                      artworkAspect: artworkAspect)
+            let bassHighlight = cloth.bassPulse * cloth.bassPulse * cloth.bassPulse
+                * (0.8 + 1.2 * cloth.bassPulseLevel)
+            // Strong bass hits triple the selected shine, then fade back to it.
+            let shineIntensity = clothSettings.shineIntensity * (1 + bassHighlight)
             // Six float4s, matching ClothUniforms in Metal.
             let uniforms = [
                 SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
                 camera,
-                SIMD4<Float>(clothSettings.shineIntensity, 0, clothSettings.showMesh ? 1 : 0, 0),
+                SIMD4<Float>(shineIntensity, 0, clothSettings.showMesh ? 1 : 0, 0),
                 SIMD4<Float>(Float(view.drawableSize.width), 0.48, ClothSimulation.groundDepth, Float(view.drawableSize.height)),
                 SIMD4<Float>(trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0, hasTrack ? 1 : 0, 0, 0),
                 SIMD4<Float>(cloth.bassOrigin.x, cloth.bassOrigin.y, clothSettings.impulseRadius,
-                             cloth.bassPulse * cloth.bassPulse * cloth.bassPulse * (0.8 + 1.2 * cloth.bassPulseLevel))
+                             bassHighlight * clothSettings.flashBrightness)
             ]
             return (buffer, normalBuffer, uniforms)
         }

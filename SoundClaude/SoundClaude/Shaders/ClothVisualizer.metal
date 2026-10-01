@@ -78,7 +78,8 @@ static ClothVertex clothSupportVertex(uint id, const device float4 *positions,
         uint face = (id % (12 * 12)) / 12, localVertex = id % 12;
         const uint cornerIndices[4] = {0, columns - 1, (rows - 1) * columns, rows * columns - 1};
         float3 anchor = positions[columns * rows + support].xyz;
-        float3 start = float3(anchor.xy, u.shadow.z), end = anchor;
+        // Keep the rope attachment recessed below the pillar's top.
+        float3 start = float3(anchor.xy, u.shadow.z), end = anchor + float3(0, 0, 0.15);
         float radius = 0.11;
         if (part == 1) { radius = 0.27; end = start + float3(0,0,0.10); }
         if (part == 2) { start = anchor; end = positions[cornerIndices[support]].xyz; radius = 0.028; material = 1; }
@@ -235,7 +236,9 @@ static float4 clothSurface(
     // Match the impulse's scene-space falloff, independent of camera rotation.
     float2 impulseOffset = in.scenePosition.xy - uniforms.bass.xy;
     float radiusSquared = max(uniforms.bass.z * uniforms.bass.z, 0.0001);
-    float flash = exp(-dot(impulseOffset, impulseOffset) / radiusSquared) * uniforms.bass.w;
+    float flash = frontFacing
+        ? exp(-dot(impulseOffset, impulseOffset) / radiusSquared) * uniforms.bass.w
+        : 0.0;
     float3 flashColor = float3(0.85, 0.94, 1.0) * flash;
     if (uniforms.appearance.z > 0.5) {
         // Show the actual rendered triangles, including each cell's diagonal.

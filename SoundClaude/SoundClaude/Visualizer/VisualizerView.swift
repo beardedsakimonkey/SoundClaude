@@ -203,11 +203,13 @@ struct VisualizerView: View {
                     tuningSlider("Bend compliance", value: $clothSettings.bendCompliance, range: 0...1, format: "%.3f")
                     tuningSlider("Gravity", value: $clothSettings.gravity, range: 0...10)
                     tuningSlider("Bass impulse", value: $clothSettings.impulseStrength, range: 0...20)
+                    tuningSlider("Treble impulse", value: $clothSettings.trebleImpulseStrength, range: 0...1, format: "%.2f")
                     tuningSlider("Impulse radius", value: $clothSettings.impulseRadius, range: 0.3...5)
                     Stepper("Solver passes: \(clothSettings.iterations)", value: $clothSettings.iterations, in: 1...10)
                     Divider()
                     Toggle("Show mesh (debug)", isOn: $clothSettings.showMesh)
                     tuningSlider("Shine intensity", value: $clothSettings.shineIntensity, range: 0...2)
+                    tuningSlider("Impulse flash brightness", value: $clothSettings.flashBrightness, range: 0...3)
                 }
             }
             .frame(maxHeight: 520)

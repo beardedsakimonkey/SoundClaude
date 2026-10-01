@@ -8,14 +8,15 @@ struct ClothSettings: Equatable {
     var height: Float = 4.5
     var damping: Float = 0.015
     var compliance: Float = 0.0001
-    var bendCompliance: Float = 0.02
+    var bendCompliance: Float = 0.014
     var gravity: Float = 3
-    var impulseStrength: Float = 15
+    var impulseStrength: Float = 10
     var impulseRadius: Float = 3
     var trebleImpulseStrength: Float = 0.14
     var trebleImpulseRadius: Float = 1.4
     var iterations = 1
     var shineIntensity: Float = 0.25
+    var flashBrightness: Float = 0.5
     var showMesh = false
 }
 
@@ -27,8 +28,8 @@ struct ClothCamera: Equatable {
     static let pitchRange: ClosedRange<Float> = 0.05...1.85
 
     func viewingPitch(distance: Float) -> Float {
-        // Orbit below the cloth, stopping the eye just above the ground.
-        let minimumHeight = ClothSimulation.groundDepth + 0.2
+        // Keep enough clearance to avoid clipping the ground at low angles.
+        let minimumHeight = ClothSimulation.groundDepth + 1
         let groundLimit = acos(max(-1, min(1, minimumHeight / max(0.1, distance))))
         return min(pitch, groundLimit)
     }
@@ -80,7 +81,7 @@ struct ClothSimulation {
         }
         attachments = cornerIndices.map { index in
             let p = positions[index]
-            let offset = SIMD3<Float>(p.x < 0 ? -0.9 : 0.9, p.y < 0 ? -0.9 : 0.9, 0.4)
+            let offset = SIMD3<Float>(p.x < 0 ? -0.9 : 0.9, p.y < 0 ? -0.9 : 0.9, 0.25)
             return SIMD4(p.x + offset.x, p.y + offset.y, offset.z, simd_length(offset))
         }
         previous = positions

@@ -131,7 +131,8 @@ struct ClothSimulationTests {
         }
         var flat = ClothSimulation().positions
         let original = flat
-        SCClothCollide(&flat, original, 41, 33, 0.025)
+        let settings = ClothSettings()
+        SCClothCollide(&flat, original, UInt32(settings.columns), UInt32(settings.rows), 0.025)
         precondition(flat == original, "Self-collision must leave a flat mesh unchanged")
         var collapsed = Array(repeating: SIMD4<Float>.zero, count: 10)
         let old = collapsed
@@ -152,15 +153,15 @@ struct ClothSimulationTests {
         precondition(camera.pitch < ClothCamera.pitchRange.upperBound,
                      "Reversing a drag at the tilt limit must respond immediately")
         let lowCamera = ClothCamera(pitch: ClothCamera.pitchRange.upperBound)
-        for distance: Float in [4, 18, 50] {
+        for distance: Float in [4, 9, 18, 32, 50, 90] {
             let height = distance * cos(lowCamera.viewingPitch(distance: distance))
-            precondition(height >= ClothSimulation.groundDepth + 0.2 - 0.00001,
-                         "The camera must stay above ground at every zoom")
+            precondition(height >= ClothSimulation.groundDepth + 1 - 0.00001,
+                         "The camera must keep one unit of ground clearance at every zoom")
             precondition(height < 0, "The camera must be able to orbit below the cloth")
         }
         precondition(abs(18 * cos(lowCamera.viewingPitch(distance: 18))
-                         - (ClothSimulation.groundDepth + 0.2)) < 0.00001,
-                     "The default orbit must reach close to the ground")
+                         - (ClothSimulation.groundDepth + 1)) < 0.00001,
+                     "The lowest orbit must stop at the ground clearance limit")
         var smallCamera = ClothCamera(), largeCamera = ClothCamera()
         smallCamera.orbit(delta: SIMD2(100, 50), viewport: viewport,
                           pitchRange: ClothCamera.pitchRange, pitchDirection: -1)
