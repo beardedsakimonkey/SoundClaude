@@ -13,6 +13,7 @@ struct PistonUniforms {
     float4 material; // roughness, metallic, unused, unused
     float4 finish; // reflection strength, edge softness, neutral rope glow, bloom strength
     float4 track; // progress, artwork aspect, has artwork, has track
+    float4 groundColor; // linear RGB, unused
 };
 struct PistonVertex {
     float4 position [[position]];
@@ -310,9 +311,10 @@ fragment PistonFragment pistonVisualizerFragment(
         float2 poolOffset = (floorPosition - float2(-2, 1.5)) / float2(11, 7);
         float pool = exp(-dot(poolOffset, poolOffset));
         float specular = pow(max(0.0, dot(n, normalize(light + view))), 18.0);
-        float3 ambient = float3(0.025, 0.033, 0.048);
-        float3 diffuseColor = float3(0.19, 0.21, 0.24) * diffuse * pool;
-        float3 highlight = float3(0.24, 0.26, 0.30) * specular * pool;
+        float3 groundTint = u.groundColor.rgb / float3(0.19, 0.21, 0.24);
+        float3 ambient = float3(0.025, 0.033, 0.048) * groundTint;
+        float3 diffuseColor = u.groundColor.rgb * diffuse * pool;
+        float3 highlight = float3(0.24, 0.26, 0.30) * groundTint * specular * pool;
         // Approximate each cap's ambient occlusion with a soft footprint.
         // Raised caps cast a wider, weaker patch; low caps darken contact areas.
         float occlusion = 0;

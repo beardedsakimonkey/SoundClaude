@@ -79,7 +79,9 @@ struct ArtworkVisualizerView: View {
 
     private var visualizerBackdrop: some View {
         GeometryReader { geometry in
-            let glow = Color(.sRGB, red: 0.24, green: 0.32, blue: 0.44)
+            let glowRGB = pistonSettings.backgroundGlowColor
+            let backgroundRGB = pistonSettings.backgroundColor
+            let glow = Color(.sRGBLinear, red: Double(glowRGB.x), green: Double(glowRGB.y), blue: Double(glowRGB.z))
             RadialGradient(
                 stops: [
                     .init(color: glow, location: 0),
@@ -91,7 +93,8 @@ struct ArtworkVisualizerView: View {
                 startRadius: 0,
                 endRadius: max(geometry.size.width, geometry.size.height) * 0.6
             )
-            .background(Color(white: 0.008))
+            .background(Color(.sRGBLinear, red: Double(backgroundRGB.x),
+                              green: Double(backgroundRGB.y), blue: Double(backgroundRGB.z)))
         }
         .allowsHitTesting(false)
     }

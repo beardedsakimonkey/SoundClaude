@@ -18,6 +18,9 @@ struct PistonSettings: Equatable {
     var stripeColor = SIMD3<Float>(0.144, 0.162, 0.189) // Linear RGB.
     var metalColor = SIMD3<Float>(0.523, 0.788, 1.0) // Linear RGB.
     var baseColor = SIMD3<Float>(0.279823, 0.353969, 0.415926) // Linear RGB, sampled from the reference.
+    var groundColor = SIMD3<Float>(0.19, 0.21, 0.24) // Linear RGB.
+    var backgroundColor = SIMD3<Float>(repeating: 0.000619195) // sRGB 0.008 in linear RGB.
+    var backgroundGlowColor = SIMD3<Float>(0.0469642, 0.0835351, 0.162647) // Linear RGB.
     var roughness: Float = 0.21
     var metallic: Float = 0.20
     var reflectionStrength: Float = 0.42

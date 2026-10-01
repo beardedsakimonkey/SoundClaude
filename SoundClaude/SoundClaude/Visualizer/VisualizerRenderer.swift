@@ -45,7 +45,7 @@ enum VisualizerShader: String, CaseIterable {
 
 final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var accent: ArtworkAccent
-    var shader: VisualizerShader = .cloth
+    var shader: VisualizerShader = .pistons
     var clothSettings = ClothSettings()
     var pistonSettings = PistonSettings()
     var trackProgress: Double = 0
@@ -288,6 +288,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         let progress = trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0
         let artworkAspect = artworkImage.map { Float($0.width) / Float($0.height) } ?? 1
         uniforms.append(SIMD4<Float>(progress, artworkAspect, artworkTexture == nil ? 0 : 1, hasTrack ? 1 : 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.groundColor, 0))
         return (buffer, uniforms, PistonSimulation.count *
             (32 * 12 * 3 + pistonSettings.stringsPerPiston * PistonSimulation.segments * 6))
     }
@@ -801,10 +802,11 @@ private final class VisualizerShaderReloader {
 
 // Shared camera projection keeps ground controls aligned with the Metal scene.
 enum PistonGroundControls {
-    static let pitchRange: ClosedRange<Float> = -0.25...1.2
-    static let defaultCamera = ClothCamera(pitch: pitchRange.lowerBound, zoom: 0.6)
+    static let pitchRange: ClosedRange<Float> = -1.8...1.2
+    static let defaultCamera = ClothCamera(pitch: -0.25, zoom: 0.6)
 
     enum Hit {
+        case playPause
         case previous
         case next
         case seek(Double)
@@ -813,12 +815,20 @@ enum PistonGroundControls {
     static func camera(size: CGSize, yaw: Float, pitch: Float, zoom: Float) -> SIMD4<Float> {
         let aspect = Float(size.width / max(1, size.height))
         let distance = max(13, 17 / max(0.1, aspect)) * zoom / 0.7
-        return SIMD4(aspect, yaw, min(pitchRange.upperBound, max(pitchRange.lowerBound, pitch)) + 0.25, distance)
+        // Orbit around y = 1; the floor is y = -1.65. Keep 0.75 clearance.
+        let groundLimit = asin(max(-1, min(1, -1.9 / distance)))
+        let viewingPitch = max(groundLimit, min(pitchRange.upperBound, max(pitchRange.lowerBound, pitch)) + 0.25)
+        return SIMD4(aspect, yaw, viewingPitch, distance)
+    }
+
+    static func orbitPitchRange(size: CGSize, zoom: Float) -> ClosedRange<Float> {
+        let lowest = camera(size: size, yaw: 0, pitch: pitchRange.lowerBound, zoom: zoom).z - 0.25
+        return lowest...pitchRange.upperBound
     }
 
     // Input points use SwiftUI's top-left origin. Intersect the view ray with
     // the same world-space floor used in PistonVisualizer.metal.
-    static func hit(at point: CGPoint, size: CGSize, camera: SIMD4<Float>) -> Hit? {
+    static func hit(at point: CGPoint, size: CGSize, camera: SIMD4<Float>, artworkAspect: Float = 1) -> Hit? {
         guard size.width > 0, size.height > 0,
               point.x >= 0, point.x <= size.width, point.y >= 0, point.y <= size.height else { return nil }
         let ndc = SIMD2<Float>(Float(point.x / size.width) * 2 - 1,
@@ -835,6 +845,11 @@ enum PistonGroundControls {
         let distance = (-2.65 - origin.y) / ray.y
         guard distance >= 0.1, distance < 100 else { return nil }
         let floor = origin + ray * distance
+        // Match the aspect-fitted artwork projection in PistonVisualizer.metal.
+        let fit = SIMD2(min(artworkAspect, 1), min(1 / max(artworkAspect, 0.001), 1))
+        if abs(floor.x) <= 1.6 * fit.x, abs(floor.z - 3.4) <= 1.6 * fit.y {
+            return .playPause
+        }
         // Match the circular projected buttons centered beside the artwork.
         for direction in [-1, 1] {
             let offset = SIMD2(floor.x - Float(direction) * 2.15, floor.z - 3.4)

@@ -56,7 +56,9 @@ struct VisualizerView: View {
                     camera.orbit(
                         delta: SIMD2(Float(delta.width), Float(delta.height)),
                         viewport: SIMD2(Float(viewportSize.width), Float(viewportSize.height)),
-                        pitchRange: shader.cameraPitchRange,
+                        pitchRange: shader == .pistons
+                            ? PistonGroundControls.orbitPitchRange(size: viewportSize, zoom: camera.zoom)
+                            : shader.cameraPitchRange,
                         pitchDirection: shader == .cloth ? -1 : 1)
                 }
                 .onEnded { _ in orbitTranslation = .zero }
@@ -71,9 +73,11 @@ struct VisualizerView: View {
                     } else {
                         let projection = PistonGroundControls.camera(size: viewportSize, yaw: camera.yaw,
                                                                      pitch: camera.pitch, zoom: camera.zoom)
-                        hit = PistonGroundControls.hit(at: value.location, size: viewportSize, camera: projection)
+                        hit = PistonGroundControls.hit(at: value.location, size: viewportSize, camera: projection,
+                                                       artworkAspect: artworkAspect)
                     }
                     switch hit {
+                    case .playPause: playback.togglePlayPause()
                     case .previous: playback.previous()
                     case .next: playback.next()
                     case .seek(let fraction): playback.seek(toFraction: fraction)
@@ -117,6 +121,9 @@ struct VisualizerView: View {
         .accessibilityValue(shader.title)
         .accessibilityActions {
             if playback.currentTrack != nil {
+                if shader == .pistons {
+                    Button(playback.isPlaying ? "Pause" : "Play") { playback.togglePlayPause() }
+                }
                 Button("Previous track") { playback.previous() }
                 Button("Next track") { playback.next() }
             }
@@ -152,6 +159,11 @@ struct VisualizerView: View {
                     tuningSlider("Stripe thickness", value: $pistonSettings.stripeThickness, range: 0...0.08, format: "%.3f")
                     tuningSlider("Stripe frequency", value: $pistonSettings.stripeFrequency, range: 1...12)
                     ColorPicker("Stripe color", selection: pistonColor(\.stripeColor), supportsOpacity: false)
+                    Divider()
+                    Text("Scene colors").font(.subheadline.bold())
+                    ColorPicker("Ground color", selection: pistonColor(\.groundColor), supportsOpacity: false)
+                    ColorPicker("Background color", selection: pistonColor(\.backgroundColor), supportsOpacity: false)
+                    ColorPicker("Background glow", selection: pistonColor(\.backgroundGlowColor), supportsOpacity: false)
                     Divider()
                     Text("Cylinder material").font(.subheadline.bold())
                     ColorPicker("Steel color", selection: pistonColor(\.metalColor), supportsOpacity: false)
