@@ -6,6 +6,7 @@ import simd
 enum VisualizerShader: String, CaseIterable {
     case cloth
     case pistons
+    case smoke
 
     // Pistons add a 0.25-radian tilt and orbit a point above the floor.
     var cameraPitchRange: ClosedRange<Float> {
@@ -22,6 +23,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .cloth: "Cloth"
         case .pistons: "Pistons"
+        case .smoke: "Smoke"
         }
     }
 
@@ -29,6 +31,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .cloth: "ClothVisualizer.metal"
         case .pistons: "PistonVisualizer.metal"
+        case .smoke: "SmokeVisualizer.metal"
         }
     }
 
@@ -36,6 +39,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .cloth: "clothVisualizer"
         case .pistons: "pistonVisualizer"
+        case .smoke: "smokeVisualizer"
         }
     }
 
@@ -45,7 +49,11 @@ enum VisualizerShader: String, CaseIterable {
 
 final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var accent: ArtworkAccent
-    var shader: VisualizerShader = .pistons
+    var shader: VisualizerShader = .pistons {
+        didSet { if shader != oldValue { smoke?.reset() } }
+    }
+    var smokeSettings = SmokeSettings()
+    private var smoke: SmokeSimulation?
     var clothSettings = ClothSettings()
     var pistonSettings = PistonSettings()
     var trackProgress: Double = 0
@@ -102,6 +110,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         sceneSampleCount = device.supportsTextureSampleCount(4) ? 4
             : (device.supportsTextureSampleCount(2) ? 2 : 1)
         do {
+            smoke = try SmokeSimulation(device: device, library: library)
             for shader in VisualizerShader.allCases {
                 pipelines[shader] = try Self.makePipelines(
                     device: device, library: library, pixelFormat: view.colorPixelFormat,
@@ -601,6 +610,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         _ = bands.withUnsafeMutableBufferPointer {
             SCSpectrumBufferRead(spectrumBuffer, $0.baseAddress, &rms, &bassLevel, &trebleLevel)
         }
+        let smokeTexture = shader == .smoke ? smoke?.encode(
+            commandBuffer: commandBuffer, width: Int(view.drawableSize.width),
+            height: Int(view.drawableSize.height), bands: bands, settings: smokeSettings) : nil
         let clothFrame = shader == .cloth
             ? prepareCloth(in: view) : nil
         let pistonFrame = shader == .pistons ? preparePistons(in: view) : nil
@@ -681,6 +693,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                     }
                 }
             }
+        } else if shader == .smoke, let smokeTexture {
+            encoder.setFragmentTexture(smokeTexture, index: 3)
+            var display = smokeSettings.display
+            encoder.setFragmentBytes(&display, length: MemoryLayout<SIMD4<Float>>.size, index: 3)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         } else if shader == .cloth {
             if let frame = clothFrame {
                 var uniforms = frame.uniforms

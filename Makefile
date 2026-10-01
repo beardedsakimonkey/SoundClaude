@@ -67,6 +67,10 @@ test-focus:
 # Standalone regression suites; no credentials or Keychain access required.
 test:
 	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/smoke \
+		SoundClaude/SoundClaude/Visualizer/SmokeSimulation.swift \
+		tests/SmokeSimulationTests.swift
+	/tmp/soundclaude-tests/smoke
 	clang -O2 -c SoundClaude/SoundClaude/Visualizer/PistonSolver.c -o /tmp/soundclaude-tests/piston-solver.o
 	swiftc -Onone -import-objc-header SoundClaude/SoundClaude/Visualizer/PistonSolver.h \
 		/tmp/soundclaude-tests/piston-solver.o -o /tmp/soundclaude-tests/pistons \

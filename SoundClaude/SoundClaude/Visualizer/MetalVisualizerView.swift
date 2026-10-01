@@ -18,6 +18,7 @@ private final class TransparentMetalView: MTKView {
 struct ArtworkVisualizerView: View {
     let shader: VisualizerShader
     let clothSettings: ClothSettings
+    let smokeSettings: SmokeSettings
     let pistonSettings: PistonSettings
     let trackProgress: Double
     let hasTrack: Bool
@@ -37,6 +38,7 @@ struct ArtworkVisualizerView: View {
         MetalVisualizerView(
             shader: shader,
             clothSettings: clothSettings,
+            smokeSettings: smokeSettings,
             pistonSettings: pistonSettings,
             trackProgress: trackProgress,
             hasTrack: hasTrack,
@@ -110,6 +112,7 @@ struct ArtworkVisualizerView: View {
 struct MetalVisualizerView: NSViewRepresentable {
     let shader: VisualizerShader
     let clothSettings: ClothSettings
+    let smokeSettings: SmokeSettings
     let pistonSettings: PistonSettings
     let trackProgress: Double
     let hasTrack: Bool
@@ -153,6 +156,7 @@ struct MetalVisualizerView: NSViewRepresentable {
         context.coordinator.renderer = renderer
         renderer?.shader = shader
         renderer?.clothSettings = clothSettings
+        renderer?.smokeSettings = smokeSettings
         renderer?.pistonSettings = pistonSettings
         renderer?.trackProgress = trackProgress
         renderer?.hasTrack = hasTrack
@@ -167,6 +171,7 @@ struct MetalVisualizerView: NSViewRepresentable {
         (view as? TransparentMetalView)?.onZoom = zoomHandler
         context.coordinator.renderer?.shader = shader
         context.coordinator.renderer?.clothSettings = clothSettings
+        context.coordinator.renderer?.smokeSettings = smokeSettings
         context.coordinator.renderer?.pistonSettings = pistonSettings
         context.coordinator.renderer?.trackProgress = trackProgress
         context.coordinator.renderer?.hasTrack = hasTrack
@@ -176,6 +181,7 @@ struct MetalVisualizerView: NSViewRepresentable {
     }
 
     private var zoomHandler: ((Float) -> Void)? {
+        guard shader != .smoke else { return nil }
         return { amount in
             clothCamera.zoom = min(2, max(0.2, clothCamera.zoom * exp(-amount)))
         }

@@ -9,7 +9,9 @@
 /* Begin PBXBuildFile section */
 		C92810000000000000000003 /* PistonSolver.c in Sources */ = {isa = PBXBuildFile; fileRef = C92800000000000000000003; settings = {COMPILER_FLAGS = "-O2"; }; };
 		C92810000000000000000002 /* PistonVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = C92800000000000000000002; };
+		C93010000000000000000002 /* SmokeVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = C93000000000000000000002; };
 		C92810000000000000000001 /* PistonSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92800000000000000000001; };
+		C93010000000000000000001 /* SmokeSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93000000000000000000001; };
 		C92410000000000000000003 /* ClothSolver.c in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000003; settings = {COMPILER_FLAGS = "-O2"; }; };
 		C92410000000000000000002 /* ClothVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000002; };
 		C92410000000000000000001 /* ClothSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000001; };
@@ -119,7 +121,9 @@
 		C92800000000000000000004 /* PistonSolver.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PistonSolver.h; sourceTree = "<group>"; };
 		C92800000000000000000003 /* PistonSolver.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = PistonSolver.c; sourceTree = "<group>"; };
 		C92800000000000000000002 /* PistonVisualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = PistonVisualizer.metal; sourceTree = "<group>"; };
+		C93000000000000000000002 /* SmokeVisualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = SmokeVisualizer.metal; sourceTree = "<group>"; };
 		C92800000000000000000001 /* PistonSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PistonSimulation.swift; sourceTree = "<group>"; };
+		C93000000000000000000001 /* SmokeSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeSimulation.swift; sourceTree = "<group>"; };
 		C92400000000000000000004 /* ClothSolver.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ClothSolver.h; sourceTree = "<group>"; };
 		C92400000000000000000003 /* ClothSolver.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ClothSolver.c; sourceTree = "<group>"; };
 		C92400000000000000000002 /* ClothVisualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = ClothVisualizer.metal; sourceTree = "<group>"; };
@@ -426,6 +430,7 @@
 				C92400000000000000000003 /* ClothSolver.c */,
 				C92400000000000000000001 /* ClothSimulation.swift */,
 				C92800000000000000000001 /* PistonSimulation.swift */,
+				C93000000000000000000001 /* SmokeSimulation.swift */,
 				C92800000000000000000004 /* PistonSolver.h */,
 				C92800000000000000000003 /* PistonSolver.c */,
 				D74B0EAE0000000000000002 /* VisualizerView.swift */,
@@ -440,6 +445,7 @@
 			children = (
 				C92400000000000000000002 /* ClothVisualizer.metal */,
 				C92800000000000000000002 /* PistonVisualizer.metal */,
+				C93000000000000000000002 /* SmokeVisualizer.metal */,
 				8D06FA75D610477E98EECAA2 /* PlayerArtworkGlass.metal */,
 			);
 			path = Shaders;
@@ -570,7 +576,9 @@
 				C92410000000000000000002 /* ClothVisualizer.metal in Sources */,
 				C92410000000000000000001 /* ClothSimulation.swift in Sources */,
 				C92810000000000000000002 /* PistonVisualizer.metal in Sources */,
+				C93010000000000000000002 /* SmokeVisualizer.metal in Sources */,
 				C92810000000000000000001 /* PistonSimulation.swift in Sources */,
+				C93010000000000000000001 /* SmokeSimulation.swift in Sources */,
 				C92810000000000000000003 /* PistonSolver.c in Sources */,
 				A10000000000000000000001 /* SoundClaudeApp.swift in Sources */,
 				A10000000000000000000013 /* KeyboardShortcutsView.swift in Sources */,

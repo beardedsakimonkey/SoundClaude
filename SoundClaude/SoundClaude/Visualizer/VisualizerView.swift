@@ -7,6 +7,7 @@ struct VisualizerView: View {
     let artworkLoader: ArtworkLoader
     let onClose: () -> Void
 
+    @State private var smokeSettings = SmokeSettings()
     @State private var pistonSettings = PistonSettings()
     @State private var clothSettings = ClothSettings()
     @State private var clothCamera = ClothCamera()
@@ -32,6 +33,7 @@ struct VisualizerView: View {
         ArtworkVisualizerView(
             shader: shader,
             clothSettings: clothSettings,
+            smokeSettings: smokeSettings,
             pistonSettings: pistonSettings,
             trackProgress: playback.duration > 0 ? playback.currentTime / playback.duration : 0,
             hasTrack: playback.currentTrack != nil,
@@ -50,6 +52,7 @@ struct VisualizerView: View {
             DragGesture(minimumDistance: 2)
                 .updating($isOrbiting) { _, active, _ in active = true }
                 .onChanged { value in
+                    guard shader != .smoke else { return }
                     let delta = CGSize(width: value.translation.width - orbitTranslation.width,
                                        height: value.translation.height - orbitTranslation.height)
                     orbitTranslation = value.translation
@@ -104,6 +107,8 @@ struct VisualizerView: View {
                 .popover(isPresented: $isShowingControls, arrowEdge: .bottom) {
                     if shader == .pistons {
                         pistonControls
+                    } else if shader == .smoke {
+                        smokeControls
                     } else {
                         clothControls
                     }
@@ -128,6 +133,52 @@ struct VisualizerView: View {
                 Button("Next track") { playback.next() }
             }
         }
+    }
+
+    private var smokeControls: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Smoke").font(.headline)
+                Spacer()
+                Button("Reset") { smokeSettings = SmokeSettings() }
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Puffs").font(.subheadline.bold())
+                    tuningSlider("Sensitivity", value: $smokeSettings.sensitivity, range: 0.25...3)
+                    tuningSlider("Size", value: $smokeSettings.puffSize, range: 0.3...3)
+                    tuningSlider("Force", value: $smokeSettings.force, range: 0...3)
+                    tuningSlider("Turbulence", value: $smokeSettings.turbulence, range: 0...3)
+                    tuningSlider("Spread", value: $smokeSettings.spread, range: 0...1)
+                        .help("How much of the view puffs spawn within, centered.")
+                    Divider()
+                    Text("Flow").font(.subheadline.bold())
+                    tuningSlider("Buoyancy", value: $smokeSettings.buoyancy, range: 0...2)
+                        .help("Makes dense smoke rise. 0 disables it.")
+                    tuningSlider("Swirl", value: $smokeSettings.swirl, range: 0...60, format: "%.1f")
+                        .help("Vorticity confinement: keeps curls and wisps from smoothing out.")
+                    tuningSlider("Drag", value: $smokeSettings.drag, range: 0...4)
+                    tuningSlider("Diffusion", value: $smokeSettings.diffusion, range: 0...12)
+                    tuningSlider("Decay", value: $smokeSettings.decay, range: 0.15...1.5)
+                    tuningSlider("Resolution", value: $smokeSettings.resolution, range: 256...1024, step: 64)
+                        .help("Longest side of the simulation grid. Changing it restarts the smoke.")
+                    Divider()
+                    Text("Color").font(.subheadline.bold())
+                    tuningSlider("Hue shift", value: $smokeSettings.hueShift, range: 0...360, format: "%.0f°")
+                        .help("Applies to newly emitted smoke.")
+                    tuningSlider("Hue spread", value: $smokeSettings.hueSpread, range: 0...1.5)
+                        .help("Hue difference between frequency groups. Applies to newly emitted smoke.")
+                    tuningSlider("Saturation", value: $smokeSettings.saturation, range: 0...1.2)
+                        .help("Applies to newly emitted smoke.")
+                    tuningSlider("Brightness", value: $smokeSettings.brightness, range: 0.25...4)
+                    tuningSlider("Glow", value: $smokeSettings.glow, range: 0...3)
+                    tuningSlider("Glow radius", value: $smokeSettings.glowRadius, range: 1...24, format: "%.1f")
+                }
+            }
+            .frame(maxHeight: 520)
+        }
+        .padding(20)
+        .frame(width: 320)
     }
 
     private var pistonControls: some View {
