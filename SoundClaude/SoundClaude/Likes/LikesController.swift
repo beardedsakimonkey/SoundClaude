@@ -13,10 +13,14 @@ final class LikesController: ObservableObject {
     @Published private var pendingLikes: [String: Bool] = [:]
     @Published private var updatedLikeCounts: [String: Int] = [:]
 
-    @Published private(set) var likedStationURNs: Set<String> = []
+    @Published private(set) var likedStations: [SoundCloudStationLikePage.Station] = [] {
+        didSet { likedStationURNs = Set(likedStations.map(\.urn)) }
+    }
+    private(set) var likedStationURNs: Set<String> = []
+    @Published private(set) var stationLikesErrorMessage: String?
     @Published private(set) var updatingStationURNs: Set<String> = []
     @Published private(set) var isLoadingStationLikes = false
-    private var hasLoadedStationLikes = false
+    @Published private(set) var hasLoadedStationLikes = false
     private var stationLikesTask: Task<Void, Error>?
 
     private let client: SoundCloudClient
@@ -76,6 +80,7 @@ final class LikesController: ObservableObject {
         guard accountID != nil, !hasLoadedStationLikes else { return }
         let session = sessionID
         isLoadingStationLikes = true
+        stationLikesErrorMessage = nil
         let task = Task { @MainActor in
             defer {
                 if sessionID == session {
@@ -84,6 +89,7 @@ final class LikesController: ObservableObject {
                 }
             }
             var urns = Set<String>()
+            var stations: [SoundCloudStationLikePage.Station] = []
             var url: URL?
             var visited = Set<URL>()
             repeat {
@@ -97,17 +103,24 @@ final class LikesController: ObservableObject {
                     throw SoundCloudError.invalidData
                 }
                 if let url { visited.insert(url) }
-                urns.formUnion(page.collection.map(\.urn))
+                stations.append(contentsOf: page.collection.filter { urns.insert($0.urn).inserted })
                 url = page.nextURL
             } while url != nil
-            likedStationURNs = urns
+            likedStations = stations
             hasLoadedStationLikes = true
         }
         stationLikesTask = task
-        try await task.value
+        do {
+            try await task.value
+        } catch {
+            if sessionID == session, !(error is CancellationError) {
+                stationLikesErrorMessage = error.localizedDescription
+            }
+            throw error
+        }
     }
 
-    func toggleStationLike(urn: String) async throws {
+    func toggleStationLike(urn: String, title: String? = nil) async throws {
         try await loadStationLikes()
         guard accountID != nil, !updatingStationURNs.contains(urn) else { return }
         let session = sessionID
@@ -121,9 +134,9 @@ final class LikesController: ObservableObject {
         try await client.setPlaylistLiked(urn: urn, isLiked: shouldLike, accessToken: token)
         guard sessionID == session else { throw CancellationError() }
         if shouldLike {
-            likedStationURNs.insert(urn)
+            likedStations.insert(.init(urn: urn, title: title), at: 0)
         } else {
-            likedStationURNs.remove(urn)
+            likedStations.removeAll { $0.urn == urn }
         }
     }
 
@@ -267,7 +280,8 @@ final class LikesController: ObservableObject {
     func clear() {
         stationLikesTask?.cancel()
         stationLikesTask = nil
-        likedStationURNs = []
+        likedStations = []
+        stationLikesErrorMessage = nil
         updatingStationURNs = []
         hasLoadedStationLikes = false
         isLoadingStationLikes = false

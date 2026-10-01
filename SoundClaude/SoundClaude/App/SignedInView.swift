@@ -60,6 +60,11 @@ struct SignedInView: View {
         return playlist.urn
     }
 
+    private var currentStationURN: String? {
+        guard case let .station(urn, _, _) = path.last else { return nil }
+        return urn
+    }
+
     var body: some View {
         // Keep overlays anchored to the window when a pushed page changes the split view's layout.
         GeometryReader { geometry in
@@ -232,12 +237,19 @@ struct SignedInView: View {
             SidebarView(
                 selection: sidebarSelection,
                 currentPlaylistURN: currentPlaylistURN,
+                currentStationURN: currentStationURN,
                 playlists: model.playlists,
                 likes: model.likes,
                 user: user,
                 artworkLoader: model.artworkLoader,
                 onPlayLikes: playLikes,
                 onShuffleLikes: shuffleLikes,
+                onSelectStation: { station in
+                    isShowingVisualizer = false
+                    isShowingQueue = false
+                    guard currentStationURN != station.urn else { return }
+                    showStation(station.urn, seedArtistName: station.displayTitle)
+                },
                 onSelectPlaylist: showPlaylist,
                 onPlayPlaylist: { playlist, contents in
                     guard let track = model.playback.isShuffleEnabled

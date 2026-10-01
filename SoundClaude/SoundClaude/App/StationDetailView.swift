@@ -295,7 +295,7 @@ struct StationDetailView: View {
             ) {
                 Task {
                     do {
-                        try await likes.toggleStationLike(urn: urn)
+                        try await likes.toggleStationLike(urn: urn, title: title)
                     } catch {
                         model.likeErrorMessage = error.localizedDescription
                     }

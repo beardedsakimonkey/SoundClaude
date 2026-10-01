@@ -3,12 +3,14 @@ import SwiftUI
 struct SidebarView: View {
     @Binding var selection: SidebarDestination?
     let currentPlaylistURN: String?
+    let currentStationURN: String?
     @ObservedObject var playlists: PlaylistsController
     @ObservedObject var likes: LikesController
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
     let onPlayLikes: () async -> Void
     let onShuffleLikes: () async -> Void
+    let onSelectStation: (SoundCloudStationLikePage.Station) -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onPlayPlaylist: (SoundCloudPlaylist, PlaylistContents) async -> Void
     let onShufflePlaylist: (SoundCloudPlaylist, PlaylistContents) async -> Void
@@ -32,6 +34,8 @@ struct SidebarView: View {
     @State private var playlistDeletion = PlaylistDeletionState()
     @AppStorage("sidebarPlaylistsExpanded") private var isPlaylistsExpanded = true
     @AppStorage("sidebarLikedPlaylistsExpanded") private var isLikedPlaylistsExpanded = true
+
+    @AppStorage("sidebarLikedStationsExpanded") private var isLikedStationsExpanded = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -181,8 +185,11 @@ struct SidebarView: View {
                         .transition(.opacity)
                     }
                 }
+                likedStationsSection
             }
             .padding(8)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: isLikedStationsExpanded)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: likes.likedStations.map(\.urn))
             .animation(
                 reduceMotion ? nil : .easeInOut(duration: 0.25),
                 value: isPlaylistsExpanded
@@ -216,9 +223,55 @@ struct SidebarView: View {
             guard isPlaylistsExpanded else { return }
             await playlists.load()
         }
+        .task(id: isLikedStationsExpanded) {
+            guard isLikedStationsExpanded else { return }
+            try? await likes.loadStationLikes()
+        }
         .task(id: isLikedPlaylistsExpanded) {
             guard isLikedPlaylistsExpanded else { return }
             await playlists.loadLikes()
+        }
+    }
+
+    private var likedStationsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Liked Stations", isExpanded: $isLikedStationsExpanded,
+                          isLoading: likes.isLoadingStationLikes)
+            if isLikedStationsExpanded {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(likes.likedStations) { station in
+                        Label {
+                            Text(station.displayTitle)
+                        } icon: {
+                            Image(systemName: "dot.radiowaves.left.and.right")
+                                .frame(width: 24, height: 24)
+                        }
+                        .lineLimit(1)
+                        .contentHelp(station.displayTitle)
+                        .modifier(SidebarRowStyle(
+                            isSelected: false,
+                            usesPrimaryForeground: currentStationURN == station.urn
+                        ) {
+                            onSelectStation(station)
+                        })
+                        .transition(.opacity)
+                    }
+                    if !likes.isLoadingStationLikes, let message = likes.stationLikesErrorMessage {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(message)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Button("Try Again") { Task { try? await likes.loadStationLikes() } }
+                                .modifier(SidebarHoverBackground())
+                        }
+                    } else if !likes.isLoadingStationLikes && likes.hasLoadedStationLikes && likes.likedStations.isEmpty {
+                        Text("No liked stations")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.opacity)
+            }
         }
     }
 

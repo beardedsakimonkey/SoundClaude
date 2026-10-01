@@ -467,7 +467,7 @@ struct QueueAndLikesTests {
             "{\"collection\":[],\"next_href\":\"\(next.absoluteString)\"}".utf8
         ))
         let stationLastPage = try JSONDecoder().decode(SoundCloudStationLikePage.self, from: Data(
-            "[{\"urn\":\"\(stationURN)\"}]".utf8
+            "[{\"urn\":\"\(stationURN)\",\"title\":\"Test station\"},{\"urn\":\"\(stationURN)\"}]".utf8
         ))
         var stationRequests: [URL?] = []
         client.fetchStations = { url in
@@ -477,6 +477,8 @@ struct QueueAndLikesTests {
         try await likes.loadStationLikes()
         precondition(stationRequests == [nil, next])
         precondition(likes.likedStationURNs == [stationURN])
+        precondition(likes.likedStations.count == 1)
+        precondition(likes.likedStations.first?.displayTitle == "Test station")
         let originalTracks = likes.tracks
         client.setPlaylistLike = { urn, shouldLike in
             precondition(urn == stationURN && !shouldLike)
@@ -484,24 +486,27 @@ struct QueueAndLikesTests {
         }
         try await likes.toggleStationLike(urn: stationURN)
         precondition(likes.likedStationURNs.isEmpty && likes.updatingStationURNs.isEmpty)
+        precondition(likes.likedStations.isEmpty)
         client.setPlaylistLike = { _, _ in throw SoundCloudError.invalidData }
         do {
             try await likes.toggleStationLike(urn: stationURN)
             preconditionFailure("Expected failed station like")
         } catch {}
         precondition(likes.likedStationURNs.isEmpty && likes.updatingStationURNs.isEmpty)
+        precondition(likes.likedStations.isEmpty)
         var stationMutation: CheckedContinuation<Void, Never>?
         client.setPlaylistLike = { urn, shouldLike in
             precondition(urn == stationURN && shouldLike)
             await withCheckedContinuation { stationMutation = $0 }
         }
-        let stationLike = Task { try await likes.toggleStationLike(urn: stationURN) }
+        let stationLike = Task { try await likes.toggleStationLike(urn: stationURN, title: "New station") }
         while stationMutation == nil { await Task.yield() }
         // Duplicate clicks do not issue a second mutation.
         try await likes.toggleStationLike(urn: stationURN)
         stationMutation?.resume()
         try await stationLike.value
         precondition(likes.likedStationURNs == [stationURN])
+        precondition(likes.likedStations.first?.displayTitle == "New station")
         precondition(likes.tracks == originalTracks)
 
         // Counts follow successful toggles even when callers retain the original track.
@@ -617,6 +622,7 @@ struct QueueAndLikesTests {
         await sync.value
         precondition(likes.tracks.isEmpty && !likes.isLoading)
         precondition(likes.likedStationURNs.isEmpty && likes.updatingStationURNs.isEmpty)
+        precondition(likes.likedStations.isEmpty)
         print("Queue and likes tests passed")
     }
 }
