@@ -184,15 +184,16 @@ struct PistonSimulationTests {
         }
     }
 
-    static func checkSmoothing() {
+    static func checkSuddenChangeSmoothing() {
         for travel: Float in [1, 5] {
-            for smoothing: Float in [0, 1, 10] {
+            for suddenChangeSmoothing: Float in [0, 1, 10] {
                 var simulation = PistonSimulation()
                 simulation.settings.stringsPerPiston = 4
                 simulation.settings.travel = travel
-                simulation.settings.smoothing = smoothing
+                simulation.settings.suddenChangeSmoothing = suddenChangeSmoothing
+                simulation.settings.motionSmoothing = 0
                 // Small changes in either direction, including a gradual ramp
-                // across the full range, must not acquire lag at high smoothing.
+                // across the full range, must not acquire lag at high sudden-change smoothing.
                 let levels = (0...100).map { Float($0) / 100 }
                     + (0...100).reversed().map { Float($0) / 100 }
                 for level in levels {
@@ -206,10 +207,11 @@ struct PistonSimulationTests {
 
         var rises: [Float] = []
         var falls: [Float] = []
-        for smoothing: Float in [0, 1, 10] {
+        for suddenChangeSmoothing: Float in [0, 1, 10] {
             var simulation = PistonSimulation()
             simulation.settings.stringsPerPiston = 4
-            simulation.settings.smoothing = smoothing
+            simulation.settings.suddenChangeSmoothing = suddenChangeSmoothing
+            simulation.settings.motionSmoothing = 0
             let top = 0.8 + simulation.settings.travel
             simulation.advance(delta: PistonSimulation.step, bands: [Float](repeating: 1, count: 64))
             rises.append(simulation.heights[0])
@@ -221,9 +223,9 @@ struct PistonSimulationTests {
             precondition(abs(simulation.heights[0] - top) < 0.00001)
             simulation.advance(delta: PistonSimulation.step, bands: [])
             falls.append(simulation.heights[0])
-            if smoothing == 0 {
+            if suddenChangeSmoothing == 0 {
                 precondition(abs(rises[0] - top) < 0.00001 && abs(falls[0] - 0.8) < 0.00001,
-                             "Zero smoothing must follow large changes immediately")
+                             "Zero sudden-change smoothing must follow large changes immediately")
             }
             for _ in 0..<240 {
                 let previous = simulation.heights[0]
@@ -232,13 +234,84 @@ struct PistonSimulationTests {
             }
             precondition(abs(simulation.heights[0] - 0.8) < 0.00001)
         }
-        precondition(rises[0] > rises[1] && rises[1] > rises[2], "Higher smoothing must soften large rises")
-        precondition(falls[0] < falls[1] && falls[1] < falls[2], "Higher smoothing must soften large falls")
-        print("Piston smoothing tests passed")
+        precondition(rises[0] > rises[1] && rises[1] > rises[2], "Higher sudden-change smoothing must soften large rises")
+        precondition(falls[0] < falls[1] && falls[1] < falls[2], "Higher sudden-change smoothing must soften large falls")
+        print("Piston sudden-change smoothing tests passed")
+    }
+
+    static func checkMotionSmoothing() {
+        for suddenChangeSmoothing: Float in [0, 8] {
+            for level: Float in [0.01, 1] {
+                var rises: [Float] = []
+                var falls: [Float] = []
+                for motionSmoothing: Float in [0, 0.5, 1] {
+                    var simulation = PistonSimulation()
+                    simulation.settings.stringsPerPiston = 4
+                    simulation.settings.suddenChangeSmoothing = suddenChangeSmoothing
+                    simulation.settings.motionSmoothing = motionSmoothing
+                    let bands = [Float](repeating: level, count: 64)
+                    let target = 0.8 + level * simulation.settings.travel
+                    simulation.advance(delta: PistonSimulation.step, bands: bands)
+                    rises.append(simulation.heights[0])
+                    precondition(simulation.heights[0] > 0.8 && simulation.heights[0] <= target)
+
+                    // Settle at the same height before comparing falling responses.
+                    simulation.settings.suddenChangeSmoothing = 0
+                    simulation.settings.motionSmoothing = 0
+                    simulation.advance(delta: PistonSimulation.step, bands: bands)
+                    simulation.settings.suddenChangeSmoothing = suddenChangeSmoothing
+                    simulation.settings.motionSmoothing = motionSmoothing
+                    simulation.advance(delta: PistonSimulation.step, bands: [])
+                    falls.append(simulation.heights[0])
+                    precondition(simulation.heights[0] >= 0.8 && simulation.heights[0] < target)
+
+                    // Turning both filters off must remove any remaining lag.
+                    simulation.settings.suddenChangeSmoothing = 0
+                    simulation.settings.motionSmoothing = 0
+                    simulation.advance(delta: PistonSimulation.step, bands: [])
+                    precondition(abs(simulation.heights[0] - 0.8) < 0.00001)
+                }
+                precondition(rises[0] > rises[1] && rises[1] > rises[2],
+                             "Motion smoothing must soften both small and large rises")
+                precondition(falls[0] < falls[1] && falls[1] < falls[2],
+                             "Motion smoothing must soften both small and large falls")
+            }
+        }
+
+        // At 1×, follow the original filter through rises, falls, and small changes.
+        var originalResponse = PistonSimulation()
+        originalResponse.settings.stringsPerPiston = 4
+        originalResponse.settings.suddenChangeSmoothing = 0
+        originalResponse.settings.motionSmoothing = 1
+        var expected: Float = 0.8
+        for level: Float in [1, 1, 0, 0, 0.01, 0.5, 0.49, 0] {
+            let target = 0.8 + level * originalResponse.settings.travel
+            expected += (target - expected) * (target > expected ? 0.22 : 0.075)
+            originalResponse.advance(delta: PistonSimulation.step,
+                bands: [Float](repeating: level, count: 64))
+            precondition(originalResponse.heights.allSatisfy { abs($0 - expected) < 0.00001 },
+                         "1× motion smoothing must reproduce the original rise and fall response")
+        }
+
+        var singleSteps = PistonSimulation()
+        singleSteps.settings.stringsPerPiston = 4
+        singleSteps.settings.motionSmoothing = 1
+        var groupedSteps = singleSteps
+        let bands = [Float](repeating: 0.5, count: 64)
+        for _ in 0..<120 {
+            singleSteps.advance(delta: PistonSimulation.step, bands: bands)
+        }
+        for _ in 0..<30 {
+            groupedSteps.advance(delta: PistonSimulation.step * 4, bands: bands)
+        }
+        precondition(zip(singleSteps.heights, groupedSteps.heights).allSatisfy { abs($0 - $1) < 0.00001 },
+                     "Motion smoothing must not depend on render frame rate")
+        print("Piston motion smoothing tests passed")
     }
 
     static func main() {
-        checkSmoothing()
+        checkMotionSmoothing()
+        checkSuddenChangeSmoothing()
         checkHeadTwist()
         checkElasticity()
         checkUndersideAttachment()

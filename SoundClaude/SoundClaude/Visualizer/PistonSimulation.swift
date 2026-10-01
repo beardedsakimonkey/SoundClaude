@@ -11,14 +11,15 @@ struct PistonSettings: Equatable {
     var damping: Float = 0.04
     var gravity: Float = 20
     var travel: Float = 2.7
-    var smoothing: Float = 8 // Smooth large, fast movements only; zero follows the target immediately.
+    var suddenChangeSmoothing: Float = 1 // Smooth large, fast movements only; zero disables it.
+    var motionSmoothing: Float = 0.25 // Multiplier of the original rise/fall smoothing; zero disables it.
     var headTwist: Float = 90 // Degrees over a full rise.
     var stripeThickness: Float = 0.0192
     var stripeFrequency: Float = 1
     var stripeColor = SIMD3<Float>(0.144, 0.162, 0.189) // Linear RGB.
     var metalColor = SIMD3<Float>(0.523, 0.788, 1.0) // Linear RGB.
-    var baseColor = SIMD3<Float>(0.279823, 0.353969, 0.415926) // Linear RGB, sampled from the reference.
-    var groundColor = SIMD3<Float>(0.19, 0.21, 0.24) // Linear RGB.
+    var baseColor = SIMD3<Float>(0.279823, 0.353969, 0.415926) // Linear RGB.
+    var groundColor = SIMD3<Float>(0.233544, 0.285116, 0.314244) // Linear RGB.
     var backgroundColor = SIMD3<Float>(repeating: 0.000619195) // sRGB 0.008 in linear RGB.
     var backgroundGlowColor = SIMD3<Float>(0.0469642, 0.0835351, 0.162647) // Linear RGB.
     var roughness: Float = 0.21
@@ -97,21 +98,29 @@ struct PistonSimulation {
         // Allow 2.5% of full travel per physics step without filtering. Smooth
         // only the excess, so small changes and gradual ramps have no added lag.
         let immediateTravel = abs(settings.travel) * 0.025
-        let riseRate: Float = settings.smoothing > 0 ? 1 - pow(0.78, 1 / settings.smoothing) : 1
-        let fallRate: Float = settings.smoothing > 0 ? 1 - pow(0.925, 1 / settings.smoothing) : 1
+        let suddenChangeRiseRate: Float = settings.suddenChangeSmoothing > 0 ? 1 - pow(0.78, 1 / settings.suddenChangeSmoothing) : 1
+        let suddenChangeFallRate: Float = settings.suddenChangeSmoothing > 0 ? 1 - pow(0.925, 1 / settings.suddenChangeSmoothing) : 1
+        let motionRiseRate: Float = settings.motionSmoothing > 0
+            ? 1 - pow(0.78, 1 / settings.motionSmoothing) : 1
+        let motionFallRate: Float = settings.motionSmoothing > 0
+            ? 1 - pow(0.925, 1 / settings.motionSmoothing) : 1
         while accumulator >= Self.step {
             accumulator -= Self.step
             let previousHeights = heights
             for piston in heights.indices {
                 let change = targets[piston] - heights[piston]
+                let motionRate = change > 0 ? motionRiseRate : motionFallRate
                 let excess = max(0, abs(change) - immediateTravel)
-                if excess == 0 || settings.smoothing <= 0 {
-                    heights[piston] = targets[piston]
+                if excess == 0 || settings.suddenChangeSmoothing <= 0 {
+                    heights[piston] = motionRate == 1
+                        ? targets[piston] : heights[piston] + change * motionRate
                     continue
                 }
-                let rate = change > 0 ? riseRate : fallRate
+                let rate = change > 0 ? suddenChangeRiseRate : suddenChangeFallRate
                 let movement = abs(change) - excess * (1 - rate)
-                heights[piston] += change > 0 ? movement : -movement
+                // Apply the separate motion filter to every movement,
+                // including the travel allowed through the sudden-change filter.
+                heights[piston] += (change > 0 ? movement : -movement) * motionRate
             }
             // Move only the pinned roots. Free nodes follow through the rope
             // constraints, retaining inertia as the heads turn and reverse.
