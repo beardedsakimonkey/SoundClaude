@@ -812,6 +812,23 @@ actor SoundCloudClient {
         return try await playlistPage(at: url, accessToken: accessToken)
     }
 
+    func likedStations(accessToken: String, pageURL: URL? = nil) async throws -> SoundCloudStationLikePage {
+        let url = pageURL ?? configuration.apiBaseURL.appending(path: "me/likes/system-playlists")
+            .appending(queryItems: [
+                URLQueryItem(name: "limit", value: "200"),
+                URLQueryItem(name: "linked_partitioning", value: "true"),
+            ])
+        try validateAPIURL(url)
+        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
+        try validate(response: response, data: data)
+        let page = try decoder.decode(SoundCloudStationLikePage.self, from: data)
+        if let nextURL = page.nextURL {
+            try validateAPIURL(nextURL)
+            guard nextURL != url else { throw SoundCloudError.invalidData }
+        }
+        return page
+    }
+
     func setPlaylistLiked(urn: String, isLiked: Bool, accessToken: String) async throws {
         let url = configuration.apiBaseURL.appending(path: "likes/playlists").appending(path: urn)
         let (data, response) = try await authenticatedRequest(

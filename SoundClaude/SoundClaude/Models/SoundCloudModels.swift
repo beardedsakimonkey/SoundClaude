@@ -469,6 +469,29 @@ struct RawPlaylistPage: Decodable {
     }
 }
 
+// The likes endpoint returns metadata without hydrated tracks.
+struct SoundCloudStationLikePage: Decodable, Sendable {
+    struct Station: Decodable, Sendable { let urn: String }
+    let collection: [Station]
+    let nextURL: URL?
+
+    enum CodingKeys: String, CodingKey {
+        case collection
+        case nextURL = "next_href"
+    }
+
+    init(from decoder: Decoder) throws {
+        if let stations = try? decoder.singleValueContainer().decode([Station].self) {
+            collection = stations
+            nextURL = nil
+        } else {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            collection = try container.decode([Station].self, forKey: .collection)
+            nextURL = try container.decodeIfPresent(URL.self, forKey: .nextURL)
+        }
+    }
+}
+
 struct SoundCloudStation: Sendable {
     let title: String?
     let description: String?

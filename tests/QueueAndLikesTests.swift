@@ -20,6 +20,16 @@ final class SoundCloudClient {
         requestedURLs.append(pageURL)
         return try await fetch(pageURL)
     }
+    var fetchStations: (URL?) async throws -> SoundCloudStationLikePage = { _ in
+        try JSONDecoder().decode(SoundCloudStationLikePage.self, from: Data("[]".utf8))
+    }
+    func likedStations(accessToken: String, pageURL: URL?) async throws -> SoundCloudStationLikePage {
+        try await fetchStations(pageURL)
+    }
+    var setPlaylistLike: (String, Bool) async throws -> Void = { _, _ in }
+    func setPlaylistLiked(urn: String, isLiked: Bool, accessToken: String) async throws {
+        try await setPlaylistLike(urn, isLiked)
+    }
     var setLike: () async throws -> Void = {}
     func setTrackLiked(urn: String, isLiked: Bool, accessToken: String) async throws {
         try await setLike()
@@ -451,6 +461,49 @@ struct QueueAndLikesTests {
         precondition(baseline.tracks.allSatisfy { likes.isLiked($0) })
         precondition(!likes.isLiked(track(99)))
 
+        // Station likes read all pages of metadata and do not change track likes.
+        let stationURN = "soundcloud:system-playlists:track-stations:123"
+        let stationPage = try JSONDecoder().decode(SoundCloudStationLikePage.self, from: Data(
+            "{\"collection\":[],\"next_href\":\"\(next.absoluteString)\"}".utf8
+        ))
+        let stationLastPage = try JSONDecoder().decode(SoundCloudStationLikePage.self, from: Data(
+            "[{\"urn\":\"\(stationURN)\"}]".utf8
+        ))
+        var stationRequests: [URL?] = []
+        client.fetchStations = { url in
+            stationRequests.append(url)
+            return url == nil ? stationPage : stationLastPage
+        }
+        try await likes.loadStationLikes()
+        precondition(stationRequests == [nil, next])
+        precondition(likes.likedStationURNs == [stationURN])
+        let originalTracks = likes.tracks
+        client.setPlaylistLike = { urn, shouldLike in
+            precondition(urn == stationURN && !shouldLike)
+            precondition(likes.updatingStationURNs.contains(urn))
+        }
+        try await likes.toggleStationLike(urn: stationURN)
+        precondition(likes.likedStationURNs.isEmpty && likes.updatingStationURNs.isEmpty)
+        client.setPlaylistLike = { _, _ in throw SoundCloudError.invalidData }
+        do {
+            try await likes.toggleStationLike(urn: stationURN)
+            preconditionFailure("Expected failed station like")
+        } catch {}
+        precondition(likes.likedStationURNs.isEmpty && likes.updatingStationURNs.isEmpty)
+        var stationMutation: CheckedContinuation<Void, Never>?
+        client.setPlaylistLike = { urn, shouldLike in
+            precondition(urn == stationURN && shouldLike)
+            await withCheckedContinuation { stationMutation = $0 }
+        }
+        let stationLike = Task { try await likes.toggleStationLike(urn: stationURN) }
+        while stationMutation == nil { await Task.yield() }
+        // Duplicate clicks do not issue a second mutation.
+        try await likes.toggleStationLike(urn: stationURN)
+        stationMutation?.resume()
+        try await stationLike.value
+        precondition(likes.likedStationURNs == [stationURN])
+        precondition(likes.tracks == originalTracks)
+
         // Counts follow successful toggles even when callers retain the original track.
         var countedTrack = track(20)
         countedTrack.likesCount = 1_234
@@ -563,6 +616,7 @@ struct QueueAndLikesTests {
         pending?.resume(returning: SoundCloudTrackPage(tracks: [track(99)], nextURL: nil))
         await sync.value
         precondition(likes.tracks.isEmpty && !likes.isLoading)
+        precondition(likes.likedStationURNs.isEmpty && likes.updatingStationURNs.isEmpty)
         print("Queue and likes tests passed")
     }
 }

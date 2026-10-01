@@ -111,6 +111,14 @@ struct StationDetailView: View {
             }
         }
         .task(id: loadAttempt) { await load() }
+        .task(id: urn) {
+            do {
+                try await likes.loadStationLikes()
+            } catch {
+                guard !Task.isCancelled else { return }
+                model.likeErrorMessage = error.localizedDescription
+            }
+        }
         .task(id: isOpeningSource) {
             guard isOpeningSource else { return }
             defer { isOpeningSource = false }
@@ -279,19 +287,17 @@ struct StationDetailView: View {
             }
             .labelStyle(.iconOnly)
             .disabled(currentStationTrack == nil)
-            if let track = currentStationTrack {
-                DetailLikeButton(
-                    isLiked: likes.isLiked(track),
-                    isUpdating: likes.updatingTrackURNs.contains(track.urn),
-                    iconOnly: true,
-                    subject: "track: \(track.title)"
-                ) {
-                    Task {
-                        do {
-                            try await likes.toggleLike(track)
-                        } catch {
-                            model.likeErrorMessage = error.localizedDescription
-                        }
+            DetailLikeButton(
+                isLiked: likes.likedStationURNs.contains(urn),
+                isUpdating: likes.isLoadingStationLikes || likes.updatingStationURNs.contains(urn),
+                iconOnly: true,
+                subject: "station: \(title)"
+            ) {
+                Task {
+                    do {
+                        try await likes.toggleStationLike(urn: urn)
+                    } catch {
+                        model.likeErrorMessage = error.localizedDescription
                     }
                 }
             }
