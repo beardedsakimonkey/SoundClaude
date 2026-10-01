@@ -7,7 +7,17 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := run
 
-.PHONY: build release run lsp icon test test-focus test-queue-drag test-navigation
+.PHONY: api build release run lsp icon test test-focus test-queue-drag test-navigation
+
+api:
+	@set -eu; \
+		tmp=$$(mktemp ./api.yaml.XXXXXX); \
+		trap 'rm -f "$$tmp"' EXIT HUP INT TERM; \
+		curl --fail --show-error --location \
+			https://raw.githubusercontent.com/soundcloud/api/master/openapi/api.yaml \
+			--output "$$tmp"; \
+		chmod 644 "$$tmp"; \
+		mv "$$tmp" api.yaml
 
 build:
 	xcodebuild \

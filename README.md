@@ -74,6 +74,12 @@ make lsp
 
 macOS asks for System Audio Recording access when the process tap starts.
 
+## API specification
+
+Run `make api` to replace the local `api.yaml` with the latest specification from
+the [SoundCloud API repository](https://github.com/soundcloud/api/blob/master/openapi/api.yaml).
+If the download fails, the local file stays unchanged.
+
 ## App icon
 
 The source image is `icon.png`. After you replace it with a square PNG, run
