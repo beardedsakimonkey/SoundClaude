@@ -250,6 +250,18 @@ struct SignedInView: View {
                     guard currentStationURN != station.urn else { return }
                     showStation(station.urn, seedArtistName: station.displayTitle)
                 },
+                onPlayStation: { station in
+                    let contents = try await model.station(urn: station.urn)
+                    try Task.checkCancellation()
+                    guard let track = contents.tracks.first else {
+                        throw SoundCloudError.api("This station has no playable tracks.")
+                    }
+                    await model.play(track, queue: TrackQueue(
+                        source: .station(station.urn),
+                        tracks: contents.tracks,
+                        stationTitle: contents.title ?? station.displayTitle
+                    ))
+                },
                 onSelectPlaylist: showPlaylist,
                 onPlayPlaylist: { playlist, contents in
                     guard let track = model.playback.isShuffleEnabled

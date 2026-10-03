@@ -11,6 +11,7 @@ struct SidebarView: View {
     let onPlayLikes: () async -> Void
     let onShuffleLikes: () async -> Void
     let onSelectStation: (SoundCloudStationLikePage.Station) -> Void
+    let onPlayStation: (SoundCloudStationLikePage.Station) async throws -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onPlayPlaylist: (SoundCloudPlaylist, PlaylistContents) async -> Void
     let onShufflePlaylist: (SoundCloudPlaylist, PlaylistContents) async -> Void
@@ -30,6 +31,8 @@ struct SidebarView: View {
     @State private var playlistLikeError: String?
     @State private var startingPlaylistURN: String?
     @State private var playlistPlaybackError: String?
+    @State private var startingStationURN: String?
+    @State private var stationPlaybackError: String?
     @State private var editingPlaylist: SoundCloudPlaylist?
     @State private var playlistDeletion = PlaylistDeletionState()
     @AppStorage("sidebarPlaylistsExpanded") private var isPlaylistsExpanded = true
@@ -75,6 +78,14 @@ struct SidebarView: View {
             Button("OK", role: .cancel) { playlistPlaybackError = nil }
         } message: {
             Text(playlistPlaybackError ?? "Please try again.")
+        }
+        .alert("Could not play station", isPresented: Binding(
+            get: { stationPlaybackError != nil },
+            set: { if !$0 { stationPlaybackError = nil } }
+        )) {
+            Button("OK", role: .cancel) { stationPlaybackError = nil }
+        } message: {
+            Text(stationPlaybackError ?? "Please try again.")
         }
     }
 
@@ -235,7 +246,7 @@ struct SidebarView: View {
 
     private var likedStationsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionHeader("Liked Stations", isExpanded: $isLikedStationsExpanded,
+            sectionHeader("Stations", isExpanded: $isLikedStationsExpanded,
                           isLoading: likes.isLoadingStationLikes)
             if isLikedStationsExpanded {
                 VStack(alignment: .leading, spacing: 0) {
@@ -248,12 +259,29 @@ struct SidebarView: View {
                         }
                         .lineLimit(1)
                         .contentHelp(station.displayTitle)
+                        .padding(.trailing, 28)
                         .modifier(SidebarRowStyle(
                             isSelected: false,
                             usesPrimaryForeground: currentStationURN == station.urn
                         ) {
                             onSelectStation(station)
                         })
+                        .simultaneousGesture(TapGesture(count: 2).onEnded {
+                            startStation(station)
+                        })
+                        .accessibilityAction(named: "Play station") {
+                            startStation(station)
+                        }
+                        .overlay(alignment: .trailing) {
+                            if startingStationURN == station.urn {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .frame(width: 24, height: 24)
+                                    .padding(.trailing, 8)
+                                    .accessibilityLabel("Loading \(station.displayTitle) for playback")
+                                    .allowsHitTesting(false)
+                            }
+                        }
                         .transition(.opacity)
                     }
                     if !likes.isLoadingStationLikes, let message = likes.stationLikesErrorMessage {
@@ -397,6 +425,20 @@ struct SidebarView: View {
                 }
         } else {
             row
+        }
+    }
+
+    private func startStation(_ station: SoundCloudStationLikePage.Station) {
+        guard startingStationURN == nil else { return }
+        startingStationURN = station.urn
+        Task { @MainActor in
+            defer { startingStationURN = nil }
+            do {
+                try await onPlayStation(station)
+            } catch {
+                guard !Task.isCancelled, !(error is CancellationError) else { return }
+                stationPlaybackError = "\(station.displayTitle): \(error.localizedDescription)"
+            }
         }
     }
 
