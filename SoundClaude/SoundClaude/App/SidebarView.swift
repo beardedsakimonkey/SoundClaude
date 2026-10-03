@@ -254,12 +254,13 @@ struct SidebarView: View {
                         Label {
                             Text(station.displayTitle)
                         } icon: {
-                            Image(systemName: "dot.radiowaves.left.and.right")
+                            Image(systemName: station.isStation
+                                  ? "dot.radiowaves.left.and.right" : "music.note.list")
                                 .frame(width: 24, height: 24)
                         }
                         .lineLimit(1)
                         .contentHelp(station.displayTitle)
-                        .padding(.trailing, 28)
+                        .padding(.trailing, startingStationURN == station.urn ? 28 : 0)
                         .modifier(SidebarRowStyle(
                             isSelected: false,
                             usesPrimaryForeground: currentStationURN == station.urn

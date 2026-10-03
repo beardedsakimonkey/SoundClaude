@@ -476,6 +476,10 @@ struct SoundCloudStationLikePage: Decodable, Sendable {
         var title: String? = nil
         var id: String { urn }
         var displayTitle: String { title ?? "Station" }
+        var isStation: Bool {
+            urn.hasPrefix("soundcloud:system-playlists:track-stations:")
+                || urn.hasPrefix("soundcloud:system-playlists:artist-stations:")
+        }
     }
     let collection: [Station]
     let nextURL: URL?
