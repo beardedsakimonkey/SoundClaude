@@ -14,7 +14,6 @@ struct SidebarView: View {
     let onPlayStation: (SoundCloudStationLikePage.Station) async throws -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onPlayPlaylist: (SoundCloudPlaylist, PlaylistContents) async -> Void
-    let onShufflePlaylist: (SoundCloudPlaylist, PlaylistContents) async -> Void
     let onDeletePlaylist: (SoundCloudPlaylist) -> Void
     let onSelectProfile: (SoundCloudUser) -> Void
     let onReselect: () -> Void
@@ -324,16 +323,16 @@ struct SidebarView: View {
             )
         }
             .lineLimit(1)
-            .padding(.trailing, 28)
+            .padding(.trailing, startingPlaylistURN == playlist.urn || addingToPlaylistURNs.contains(playlist.urn) ? 28 : 0)
             .contentHelp(playlist.title)
             .modifier(SidebarRowStyle(isSelected: false, usesPrimaryForeground: currentPlaylistURN == playlist.urn) {
                 onSelectPlaylist(playlist)
             })
             .simultaneousGesture(TapGesture(count: 2).onEnded {
-                startPlaylist(playlist, shuffle: false)
+                startPlaylist(playlist)
             })
             .accessibilityAction(named: "Play playlist") {
-                startPlaylist(playlist, shuffle: false)
+                startPlaylist(playlist)
             }
             .overlay(alignment: .trailing) {
                 if startingPlaylistURN == playlist.urn {
@@ -342,21 +341,6 @@ struct SidebarView: View {
                         .frame(width: 24, height: 24)
                         .padding(.trailing, 8)
                         .accessibilityLabel("Loading \(playlist.title) for playback")
-                } else if !addingToPlaylistURNs.contains(playlist.urn) {
-                    Button {
-                        startPlaylist(playlist, shuffle: true)
-                    } label: {
-                        Image(systemName: "shuffle")
-                            .frame(width: 24)
-                            .frame(maxHeight: .infinity)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .modifier(SidebarForegroundHover(idleOpacity: 0.3))
-                    .disabled(startingPlaylistURN != nil)
-                    .contentHelp("Shuffle \(playlist.title)")
-                    .accessibilityLabel("Shuffle \(playlist.title)")
-                    .padding(.trailing, 8)
                 }
             }
             .contextMenu {
@@ -443,7 +427,7 @@ struct SidebarView: View {
         }
     }
 
-    private func startPlaylist(_ playlist: SoundCloudPlaylist, shuffle: Bool) {
+    private func startPlaylist(_ playlist: SoundCloudPlaylist) {
         guard startingPlaylistURN == nil else { return }
         startingPlaylistURN = playlist.urn
         Task { @MainActor in
@@ -458,11 +442,7 @@ struct SidebarView: View {
                     ?? "This playlist has no playable tracks."
                 return
             }
-            if shuffle {
-                await onShufflePlaylist(playlist, contents)
-            } else {
-                await onPlayPlaylist(playlist, contents)
-            }
+            await onPlayPlaylist(playlist, contents)
         }
     }
 
