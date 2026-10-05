@@ -563,11 +563,9 @@ struct TrackWaveformView: View {
     private var barsAreCollapsed: Bool {
         if !reduceMotion, initialExpandedWaveform != nil { return false }
         return track == nil || (keepsBarsVisible && waveform == nil)
-            // A new AVPlayer item is installed while isLoading is true. Keep
-            // the detail bars flat and pulsing through that work, then expand
-            // when the item is ready. Pause/resume still animates immediately.
+            // Expand on the play request, including while audio is loading.
             || (collapsesBarsWhenPaused
-                && (!isCurrentTrack || !playback.isPlaybackActive || playback.isLoading))
+                && (!isCurrentTrack || !playback.isPlaybackActive))
     }
 
     private var showsHoverPreview: Bool {
