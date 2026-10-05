@@ -57,45 +57,45 @@ struct StationDetailView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            TrackCollectionBackdrop(artworkURL: artworkURL, loader: model.artworkLoader)
-                .ignoresSafeArea(edges: .top)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    header
-                    HStack {
-                        CountedSectionHeader(title: "Tracks", count: station?.trackCount ?? tracks.count)
-                        Spacer()
-                        TrackLayoutPicker(trackLayout: $trackLayout)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                header
+                HStack {
+                    CountedSectionHeader(title: "Tracks", count: station?.trackCount ?? tracks.count)
+                    Spacer()
+                    TrackLayoutPicker(trackLayout: $trackLayout)
+                }
+                if let message = model.errorMessage {
+                    Label(message, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(Color.accentColor)
+                }
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    TrackCollectionTracks(
+                        tracks: tracks, trackLayout: trackLayout, model: model,
+                        onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
+                        onPlayTrack: playTrack,
+                        fadesInTracks: true
+                    )
+                    if let errorMessage {
+                        Text(errorMessage).foregroundStyle(.secondary)
+                        Button("Try Again") { loadAttempt += 1 }
+                            .disabled(isLoading)
                     }
-                    if let message = model.errorMessage {
-                        Label(message, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        TrackCollectionTracks(
-                            tracks: tracks, trackLayout: trackLayout, model: model,
-                            onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
-                            onPlayTrack: playTrack,
-                            fadesInTracks: true
-                        )
-                        if let errorMessage {
-                            Text(errorMessage).foregroundStyle(.secondary)
-                            Button("Try Again") { loadAttempt += 1 }
-                                .disabled(isLoading)
-                        }
-                        if isLoading {
-                            ProgressView()
-                                .accessibilityLabel("Loading station")
-                                .frame(maxWidth: .infinity)
-                        } else if station != nil, tracks.isEmpty, errorMessage == nil {
-                            EmptyStateView("No playable tracks")
-                        }
+                    if isLoading {
+                        ProgressView()
+                            .accessibilityLabel("Loading station")
+                            .frame(maxWidth: .infinity)
+                    } else if station != nil, tracks.isEmpty, errorMessage == nil {
+                        EmptyStateView("No playable tracks")
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(24)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(24)
+        }
+        .background(alignment: .top) {
+            TrackCollectionBackdrop(artworkURL: artworkURL, loader: model.artworkLoader)
+                .ignoresSafeArea(edges: .top)
         }
         .navigationTitle(title)
         .toolbar {

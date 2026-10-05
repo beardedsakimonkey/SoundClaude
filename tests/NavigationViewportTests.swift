@@ -3,6 +3,7 @@ import SwiftUI
 
 final class Measurements {
     var proposals: [ProposedViewSize] = []
+    var pageFrame: CGRect = .zero
 }
 
 // Deliberately larger than the window, like tall artwork and long track lists.
@@ -52,6 +53,24 @@ private struct LifetimePage: View {
             precondition(ideal.width < 2000 && ideal.height < 3000, "Page content leaked into ideal size")
             precondition(measurements.proposals.isEmpty, "Sizing the viewport measured its content")
         }
+        // A short viewport must not center oversized content above its top edge.
+        let tallPage = NSHostingView(rootView:
+            Color.clear
+                .frame(height: 600)
+                .onGeometryChange(for: CGRect.self) { geometry in
+                    geometry.frame(in: .named("viewport"))
+                } action: { measurements.pageFrame = $0 }
+                .modifier(NavigationPageViewport())
+                .coordinateSpace(name: "viewport")
+        )
+        for height: CGFloat in [750, 300, 450, 800, 200] {
+            tallPage.frame.size = CGSize(width: 800, height: height)
+            tallPage.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+            precondition(abs(measurements.pageFrame.minY) < 0.5,
+                         "Page moved above the viewport when resized: \(measurements.pageFrame)")
+        }
+
         func page(_ route: Int?, retainsRoot: Bool = false) -> some View {
             NavigationStack {
                 CurrentNavigationPage(route: route, retainsRoot: retainsRoot) {

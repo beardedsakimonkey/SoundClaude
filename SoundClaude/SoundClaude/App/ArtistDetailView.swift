@@ -167,10 +167,7 @@ struct ArtistDetailView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            artworkBackdrop
-                .ignoresSafeArea(edges: .top)
-
+        Group {
             if let details {
                 detailsView(details)
             } else if isLoading {
@@ -186,6 +183,10 @@ struct ArtistDetailView: View {
                     Button("Try Again") { Task { await load() } }
                 }
             }
+        }
+        .background(alignment: .top) {
+            artworkBackdrop
+                .ignoresSafeArea(edges: .top)
         }
         .navigationTitle(details?.user.username ?? artist.username)
         .toolbar {

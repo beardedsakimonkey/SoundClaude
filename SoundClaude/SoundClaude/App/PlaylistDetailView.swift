@@ -55,37 +55,36 @@ struct PlaylistDetailView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                header
+                if let description = displayedPlaylist.description?
+                    .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
+                    ExpandableDescriptionText(
+                        description: description,
+                        onSelectArtist: onSelectArtist
+                    )
+                }
+                HStack {
+                    CountedSectionHeader(
+                        title: "Tracks",
+                        count: displayedPlaylist.trackCount ?? tracks.count
+                    )
+                    Spacer()
+                    TrackLayoutPicker(trackLayout: $trackLayout)
+                }
+                if let message = model.errorMessage {
+                    Label(message, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(Color.accentColor)
+                }
+                trackList
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(24)
+        }
+        .background(alignment: .top) {
             TrackCollectionBackdrop(artworkURL: artworkURL, loader: model.artworkLoader)
                 .ignoresSafeArea(edges: .top)
-
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    header
-                    if let description = displayedPlaylist.description?
-                        .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
-                        ExpandableDescriptionText(
-                            description: description,
-                            onSelectArtist: onSelectArtist
-                        )
-                    }
-                    HStack {
-                        CountedSectionHeader(
-                            title: "Tracks",
-                            count: displayedPlaylist.trackCount ?? tracks.count
-                        )
-                        Spacer()
-                        TrackLayoutPicker(trackLayout: $trackLayout)
-                    }
-                    if let message = model.errorMessage {
-                        Label(message, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    trackList
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(24)
-            }
         }
         .navigationTitle(displayedPlaylist.title)
         .toolbar {

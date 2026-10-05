@@ -33,7 +33,8 @@ struct NavigationPageViewport: ViewModifier {
     func body(content: Content) -> some View {
         GeometryReader { geometry in
             content
-                .frame(width: geometry.size.width, height: geometry.size.height)
+                // Keep oversized pages below the toolbar when the window is short.
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
         }
     }
 }
