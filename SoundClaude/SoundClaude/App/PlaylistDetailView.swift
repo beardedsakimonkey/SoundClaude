@@ -10,6 +10,7 @@ struct PlaylistDetailView: View {
     let onDeletePlaylist: (SoundCloudPlaylist) -> Void
 
     @ObservedObject var playlists: PlaylistsController
+    @ObservedObject var likes: LikesController
 
     private var contents: PlaylistContents? { playlists.cache.contents[playlist.urn] }
     private var tracks: [SoundCloudTrack] { contents?.tracks ?? [] }
@@ -26,7 +27,7 @@ struct PlaylistDetailView: View {
     @State private var removeTrackErrorMessage: String?
 
     private var isOwnedByCurrentUser: Bool {
-        guard case let .signedIn(user) = model.auth.state,
+        guard !playlist.isSystemPlaylist, case let .signedIn(user) = model.auth.state,
               let urn = user.urn else { return false }
         return displayedPlaylist.owner.urn == urn
     }
@@ -125,7 +126,15 @@ struct PlaylistDetailView: View {
             await load()
         }
         .task(id: displayedPlaylist.isPrivate) {
-            if !displayedPlaylist.isPrivate { await playlists.loadLikes() }
+            if playlist.isSystemPlaylist {
+                do {
+                    try await likes.loadStationLikes()
+                } catch {
+                    likeErrorMessage = error.localizedDescription
+                }
+            } else if !displayedPlaylist.isPrivate {
+                await playlists.loadLikes()
+            }
         }
         .alert("Could not update playlist like", isPresented: Binding(
             get: { likeErrorMessage != nil },
@@ -193,17 +202,20 @@ struct PlaylistDetailView: View {
                     }
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    ArtistLink(
-                        artist: displayedPlaylist.owner,
-                        artworkLoader: model.artworkLoader,
-                        showsAvatarBorder: true,
-                        onSelect: onSelectArtist
-                    )
+                    if !playlist.isSystemPlaylist {
+                        ArtistLink(
+                            artist: displayedPlaylist.owner,
+                            artworkLoader: model.artworkLoader,
+                            showsAvatarBorder: true,
+                            onSelect: onSelectArtist
+                        )
+                    }
 
                     RelativeTimestampView(
                         timestamp: displayedPlaylist.lastModified,
                         accessibilityPrefix: "Last updated",
-                        prefix: "Updated"
+                        prefix: "Updated",
+                        showsSeparator: !playlist.isSystemPlaylist
                     )
 
                 }
@@ -219,7 +231,7 @@ struct PlaylistDetailView: View {
                         playbackControls(iconOnly: true)
                             .labelStyle(.iconOnly)
                     }
-                    if !displayedPlaylist.isPrivate, let error = playlists.likesErrorMessage {
+                    if !playlist.isSystemPlaylist, !displayedPlaylist.isPrivate, let error = playlists.likesErrorMessage {
                         Text(error).font(.caption).foregroundStyle(.secondary)
                         Button("Retry likes") { Task { await playlists.loadLikes() } }
                     }
@@ -342,18 +354,26 @@ struct PlaylistDetailView: View {
 
     private var likeButton: some View {
         DetailLikeButton(
-            isLiked: playlists.likedPlaylistURNs.contains(playlist.urn),
+            isLiked: playlist.isSystemPlaylist
+                ? likes.likedStationURNs.contains(playlist.urn)
+                : playlists.likedPlaylistURNs.contains(playlist.urn),
             subject: "playlist"
         ) {
             Task {
                 do {
-                    try await playlists.toggleLike(displayedPlaylist)
+                    if playlist.isSystemPlaylist {
+                        try await likes.toggleStationLike(urn: playlist.urn, title: displayedPlaylist.title)
+                    } else {
+                        try await playlists.toggleLike(displayedPlaylist)
+                    }
                 } catch {
                     likeErrorMessage = error.localizedDescription
                 }
             }
         }
-        .disabled(!playlists.hasLoadedLikes || playlists.updatingLikeURNs.contains(playlist.urn))
+        .disabled(playlist.isSystemPlaylist
+            ? !likes.hasLoadedStationLikes || likes.updatingStationURNs.contains(playlist.urn)
+            : !playlists.hasLoadedLikes || playlists.updatingLikeURNs.contains(playlist.urn))
     }
 
     private var trackList: some View {

@@ -262,14 +262,15 @@ struct SidebarView: View {
                         .padding(.trailing, startingStationURN == station.urn ? 28 : 0)
                         .modifier(SidebarRowStyle(
                             isSelected: false,
-                            usesPrimaryForeground: currentStationURN == station.urn
+                            usesPrimaryForeground: station.isStation
+                                ? currentStationURN == station.urn : currentPlaylistURN == station.urn
                         ) {
                             onSelectStation(station)
                         })
                         .simultaneousGesture(TapGesture(count: 2).onEnded {
                             startStation(station)
                         })
-                        .accessibilityAction(named: "Play station") {
+                        .accessibilityAction(named: station.isStation ? "Play station" : "Play playlist") {
                             startStation(station)
                         }
                         .overlay(alignment: .trailing) {

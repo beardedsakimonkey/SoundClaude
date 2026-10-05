@@ -253,6 +253,16 @@ final class PlaylistsController: ObservableObject {
             do {
                 let hadCompleteContents = cache.contents[urn]?.isComplete == true
                 let token = try await accessToken(session: session)
+                if playlist.isSystemPlaylist {
+                    let contents = try await client.station(urn: urn, accessToken: token)
+                    try checkSession(session)
+                    cache.contents[urn] = PlaylistContents(
+                        playlist: .systemPlaylist(urn: urn, title: playlist.title, contents: contents),
+                        tracks: contents.tracks, hasLoadedPage: true
+                    )
+                    try await save(accountID: accountID, session: session)
+                    return
+                }
                 let details = try await client.playlist(urn: urn, accessToken: token)
                 try checkSession(session)
                 var refreshed = PlaylistContents(playlist: details)

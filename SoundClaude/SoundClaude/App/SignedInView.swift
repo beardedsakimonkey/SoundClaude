@@ -247,8 +247,12 @@ struct SignedInView: View {
                 onSelectStation: { station in
                     isShowingVisualizer = false
                     isShowingQueue = false
-                    guard currentStationURN != station.urn else { return }
-                    showStation(station.urn, seedArtistName: station.displayTitle)
+                    if station.isStation {
+                        guard currentStationURN != station.urn else { return }
+                        showStation(station.urn, seedArtistName: station.displayTitle)
+                    } else {
+                        showPlaylist(.systemPlaylist(urn: station.urn, title: station.displayTitle))
+                    }
                 },
                 onPlayStation: { station in
                     let contents = try await model.station(urn: station.urn)
@@ -257,7 +261,7 @@ struct SignedInView: View {
                         throw SoundCloudError.api("This station has no playable tracks.")
                     }
                     await model.play(track, queue: TrackQueue(
-                        source: .station(station.urn),
+                        source: station.isStation ? .station(station.urn) : .playlist(station.urn),
                         tracks: contents.tracks,
                         stationTitle: contents.title ?? station.displayTitle
                     ))
@@ -414,7 +418,8 @@ struct SignedInView: View {
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist,
                 onDeletePlaylist: removeDeletedPlaylist,
-                playlists: model.playlists
+                playlists: model.playlists,
+                likes: model.likes
             )
             .id(playlist.urn)
         case let .station(urn, seedTrack, seedArtistName):

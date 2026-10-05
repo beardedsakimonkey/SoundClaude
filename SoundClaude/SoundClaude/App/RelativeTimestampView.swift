@@ -5,12 +5,15 @@ struct RelativeTimestampView: View {
     let timestamp: String?
     let accessibilityPrefix: String
     var prefix: String? = nil
+    var showsSeparator = true
 
     var body: some View {
         if let date = parsedDate {
             let relativeTime = date.formatted(.relative(presentation: .numeric, unitsStyle: .wide))
-            Text("·")
-                .accessibilityHidden(true)
+            if showsSeparator {
+                Text("·")
+                    .accessibilityHidden(true)
+            }
             Text(prefix.map { "\($0) \(relativeTime)" } ?? relativeTime)
                 .contentHelp(date.formatted(date: .abbreviated, time: .shortened))
                 .accessibilityLabel("\(accessibilityPrefix) \(relativeTime)")

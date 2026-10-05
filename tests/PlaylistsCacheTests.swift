@@ -48,6 +48,14 @@ final class SoundCloudClient {
     var fetchTracks: (URL?) async throws -> SoundCloudTrackPage = { _ in
         SoundCloudTrackPage(tracks: [], nextURL: nil)
     }
+    var stationRequests: [String] = []
+    var playlistRequests: [String] = []
+    func station(urn: String, accessToken: String) async throws -> SoundCloudStation {
+        stationRequests.append(urn)
+        return SoundCloudStation(title: "Daily mix", description: "Your mix",
+            permalinkURL: URL(string: "https://soundcloud.com/discover/sets/daily-mix:1"),
+            lastUpdated: "2026-10-05T12:00:00Z", trackCount: 2, tracks: [track(4), track(5)])
+    }
     var details = makePlaylist(1)
     var fetchLikes: (URL?) async throws -> SoundCloudPlaylistPage = { _ in
         SoundCloudPlaylistPage(playlists: [], nextURL: nil)
@@ -65,7 +73,10 @@ final class SoundCloudClient {
         listRequests.append(pageURL)
         return try await fetchList(pageURL)
     }
-    func playlist(urn: String, accessToken: String) async throws -> SoundCloudPlaylist { details }
+    func playlist(urn: String, accessToken: String) async throws -> SoundCloudPlaylist {
+        playlistRequests.append(urn)
+        return details
+    }
     func playlistTracks(urn: String, accessToken: String, pageURL: URL?) async throws -> SoundCloudTrackPage {
         trackRequests.append(pageURL)
         return try await fetchTracks(pageURL)
@@ -115,6 +126,26 @@ struct PlaylistsCacheTests {
         await controller.restoreCache()
         precondition(controller.playlists == baseline.playlists && client.listRequests.isEmpty)
         precondition(controller.cache.contents["playlist:1"]?.tracks == [track(1), track(2), track(3)])
+
+        // System playlists use their own endpoint and arrive with all tracks.
+        let mixDirectory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: mixDirectory) }
+        let mixClient = SoundCloudClient()
+        let mixController = PlaylistsController(client: mixClient, auth: auth,
+            store: PlaylistsCacheStore(directory: mixDirectory))
+        let mix = SoundCloudPlaylist.systemPlaylist(
+            urn: "soundcloud:system-playlists:daily-mix:1", title: "Mix"
+        )
+        await mixController.loadPlaylist(mix)
+        let mixContents = mixController.cache.contents[mix.urn]
+        precondition(mixClient.stationRequests == [mix.urn])
+        precondition(mixClient.playlistRequests.isEmpty && mixClient.trackRequests.isEmpty)
+        precondition(mixContents?.isComplete == true)
+        precondition(mixContents?.tracks == [track(4), track(5)])
+        precondition(mixContents?.playlist.title == "Daily mix")
+        precondition(mixContents?.playlist.description == "Your mix")
+        precondition(mixContents?.playlist.lastModified == "2026-10-05T12:00:00Z")
+        precondition(mixController.playlistErrors[mix.urn] == nil)
 
         client.fetchTracks = { _ in
             SoundCloudTrackPage(tracks: [track(1), track(2), track(3)], nextURL: nil)

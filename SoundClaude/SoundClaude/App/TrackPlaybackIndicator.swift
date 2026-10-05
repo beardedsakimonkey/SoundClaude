@@ -47,7 +47,7 @@ struct TrackPlaybackIndicator: View {
     }
 
     private var audioIndicator: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !isAnimating)) { context in
+        TimelineView(.animation(paused: !isAnimating)) { context in
             HStack(alignment: .bottom, spacing: 2) {
                 ForEach(0..<3) { index in
                     RoundedRectangle(cornerRadius: 1)

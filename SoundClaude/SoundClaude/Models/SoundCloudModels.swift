@@ -286,6 +286,21 @@ struct SoundCloudPlaylist: Codable, Identifiable, Sendable, Hashable {
     var lastModified: String? = nil
     var createdAt: String? = nil
 
+    var isSystemPlaylist: Bool { urn.hasPrefix("soundcloud:system-playlists:") }
+
+    static func systemPlaylist(urn: String, title: String, contents: SoundCloudStation? = nil) -> Self {
+        let url = URL(string: "https://soundcloud.com")!
+        return Self(
+            urn: urn, title: contents?.title ?? title,
+            owner: SoundCloudUser(urn: nil, username: "SoundCloud", avatarURL: nil, permalinkURL: url),
+            artworkURL: nil,
+            permalinkURL: contents?.permalinkURL ?? url.appending(path: "discover/sets")
+                .appending(path: String(urn.dropFirst("soundcloud:system-playlists:".count))),
+            description: contents?.description, trackCount: contents?.trackCount,
+            durationMilliseconds: nil, isPrivate: false, lastModified: contents?.lastUpdated
+        )
+    }
+
     var id: String { urn }
 }
 
