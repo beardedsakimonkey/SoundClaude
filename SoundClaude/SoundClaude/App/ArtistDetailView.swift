@@ -338,6 +338,7 @@ struct ArtistDetailView: View {
                     )
                     .font(.body.weight(.semibold))
                     .layoutPriority(1)
+                    .modifier(FadeInOnAppear())
                     Spacer(minLength: 16)
                     ViewThatFits(in: .horizontal) {
                         artistActions
@@ -432,8 +433,7 @@ struct ArtistDetailView: View {
                                 .accessibilityHidden(true)
                                 Text(profile.title)
                                     .font(.body.weight(.semibold))
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.leading)
+                                    .lineLimit(1)
                             }
                             .foregroundStyle(hoveredWebProfileURL == profile.url ? .primary : .secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
