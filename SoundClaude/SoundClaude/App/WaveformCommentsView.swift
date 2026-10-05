@@ -8,10 +8,34 @@ struct WaveformCommentsView: View {
     let onSeek: (Double) -> Void
 
     @State private var index = WaveformCommentIndex([])
+    @State private var hasShownComments = false
     @State private var playbackID: String?
     @State private var seekRequest: Double?
 
     var body: some View {
+        Group {
+            // Hidden markers still create avatar views and image tasks. Wait
+            // for the bar transition before building them for a new track.
+            // Retain them on pause so resuming does not reload the avatars.
+            if showsComments || hasShownComments {
+                markers
+            }
+        }
+        .onChange(of: showsComments, initial: true) { _, visible in
+            if visible { hasShownComments = true }
+        }
+        .task(id: hasShownComments) {
+            guard hasShownComments else { return }
+            await loadComments()
+        }
+        .onChange(of: seekRequest) { _, fraction in
+            guard let fraction else { return }
+            onSeek(fraction)
+            seekRequest = nil
+        }
+    }
+
+    private var markers: some View {
         WaveformCommentMarkers(
             index: index,
             model: model,
@@ -26,12 +50,6 @@ struct WaveformCommentsView: View {
                 index: index, playback: model.playback, trackURN: track.urn,
                 activeID: $playbackID
             )
-        }
-        .task { await loadComments() }
-        .onChange(of: seekRequest) { _, fraction in
-            guard let fraction else { return }
-            onSeek(fraction)
-            seekRequest = nil
         }
     }
 

@@ -44,7 +44,9 @@ struct TrackWaveformView: View {
     @State private var isHovering = false
     @State private var pendingSeek: (trackURN: String, fraction: Double, id: UUID)?
     @State private var commentsReadyAppearance: CommentsAppearance?
-    private let commentsAppearanceDelay: Duration = .milliseconds(100)
+    @State private var commentsPresentedTrackURN: String?
+    // Leave comment fetching, layout, and avatar loading outside the bar spring.
+    private let commentsAppearanceDelay: Duration = .seconds(WaveformStaggeredSpring.duration)
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
     @Environment(\.contentHoverSuppression) private var hoverSuppression
@@ -137,16 +139,21 @@ struct TrackWaveformView: View {
                   appearance.hasWaveform,
                   appearance.isPlaybackActive,
                   !appearance.barsAreCollapsed else { return }
-            // Start only when this track's bars can expand, including on first load.
+            // Start the delay when this track's bars can expand, including on first load.
             if !appearance.reduceMotion {
                 do {
-                    try await Task.sleep(for: commentsAppearanceDelay)
+                    // A loaded track can resume quickly; a new track waits
+                    // for the full staggered spring before creating markers.
+                    let delay: Duration = commentsPresentedTrackURN == appearance.trackURN
+                        ? .milliseconds(100) : commentsAppearanceDelay
+                    try await Task.sleep(for: delay)
                 } catch {
                     return
                 }
             }
             guard !Task.isCancelled, appearance == commentsAppearance else { return }
             commentsReadyAppearance = appearance
+            commentsPresentedTrackURN = appearance.trackURN
         }
         .task {
             // Present the source view's bars before animating to the station's state.
@@ -738,15 +745,17 @@ private struct WaveformLoadingOpacity: ViewModifier {
 
 private struct WaveformStaggeredSpring: CustomAnimation {
     let reversesStagger: Bool
-    private let spring = Spring(duration: 0.45, bounce: 0.3)
-    private let staggerDuration: TimeInterval = 0.2
+    private static let spring = Spring(duration: 0.45, bounce: 0.3)
+    private static let staggerDuration: TimeInterval = 0.2
+    static var duration: TimeInterval { spring.settlingDuration + staggerDuration }
 
     func animate<V: VectorArithmetic>(
         value: V,
         time: TimeInterval,
         context: inout AnimationContext<V>
     ) -> V? {
-        guard time < spring.settlingDuration + staggerDuration else { return nil }
+        let spring = Self.spring
+        guard time < Self.duration else { return nil }
         guard var bars = value as? AnimatablePair<WaveformAmplitudes, Double> else {
             return spring.value(target: value, time: time)
         }
@@ -755,7 +764,7 @@ private struct WaveformStaggeredSpring: CustomAnimation {
         let lastIndex = max(bars.first.values.count - 1, 0)
         bars.first.values = bars.first.values.enumerated().map { index, amplitude in
             let staggerIndex = reversesStagger ? lastIndex - index : index
-            let delay = staggerDuration * Double(staggerIndex) / Double(max(lastIndex, 1))
+            let delay = Self.staggerDuration * Double(staggerIndex) / Double(max(lastIndex, 1))
             guard time > delay else { return 0 }
             return spring.value(target: amplitude, time: time - delay)
         }
