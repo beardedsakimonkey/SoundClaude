@@ -153,9 +153,9 @@ struct TrackCardView: View {
                 TrackPreviewBadge()
             }
         }
-        .modifier(TrackPlaybackTitleInset(inset: isCurrentTrack ? 16 : 0))
+        .modifier(TrackPlaybackTitleInset(inset: showsPlaybackIndicator ? 16 : 0))
         .overlay(alignment: .leading) {
-            if isCurrentTrack {
+            if showsPlaybackIndicator {
                 TrackPlaybackIndicator(
                     isPlaying: model.playback.isPlaying,
                     isLoading: model.playback.isLoading,
@@ -165,8 +165,12 @@ struct TrackCardView: View {
         }
         .animation(
             reduceMotion ? nil : .easeInOut(duration: 0.2),
-            value: isCurrentTrack
+            value: showsPlaybackIndicator
         )
+    }
+
+    private var showsPlaybackIndicator: Bool {
+        isCurrentTrack && model.playback.isPlaybackActive
     }
 
     private var isCurrentTrack: Bool {

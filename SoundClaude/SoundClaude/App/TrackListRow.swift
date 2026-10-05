@@ -30,6 +30,7 @@ struct TrackListRow: View {
         let isCurrentTrack = playback.currentTrack?.urn == track.urn
         let isPlaybackActive = isCurrentTrack
             ? playback.isPlaybackActive : isStartingPlayback
+        let showsPlaybackIndicator = isCurrentTrack && playback.isPlaybackActive
         let isLiked = likes.isLiked(track)
 
         HStack(spacing: 12) {
@@ -82,9 +83,9 @@ struct TrackListRow: View {
                         TrackPreviewBadge()
                     }
                 }
-                .modifier(TrackPlaybackTitleInset(inset: isCurrentTrack ? 16 : 0))
+                .modifier(TrackPlaybackTitleInset(inset: showsPlaybackIndicator ? 16 : 0))
                 .overlay(alignment: .leading) {
-                    if isCurrentTrack {
+                    if showsPlaybackIndicator {
                         TrackPlaybackIndicator(
                             isPlaying: playback.isPlaying,
                             isLoading: playback.isLoading,
@@ -95,7 +96,7 @@ struct TrackListRow: View {
                 }
                 .animation(
                     reduceMotion ? nil : .easeInOut(duration: 0.2),
-                    value: isCurrentTrack
+                    value: showsPlaybackIndicator
                 )
                 let likeCount = likes.likeCount(for: track)
                 if showsArtist || likeCount != nil || isLiked {

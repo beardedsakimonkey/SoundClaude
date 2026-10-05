@@ -45,11 +45,6 @@ struct TrackPlaybackIndicator: View {
             }
             .frame(width: 10, height: 9)
         }
-        .opacity(isPlaying ? 1 : 0.4)
-        .animation(
-            reduceMotion || contentAnimationsPaused ? nil : .easeInOut(duration: 0.2),
-            value: isPlaying
-        )
     }
 
     private func fakeHeight(for index: Int, at date: Date, animated: Bool) -> CGFloat {
@@ -79,11 +74,6 @@ struct TrackPlaybackIndicator: View {
                 updateLevels()
             }
         }
-        .opacity(isPlaying || isLoading ? 1 : 0.4)
-        .animation(
-            reduceMotion || contentAnimationsPaused ? nil : .easeInOut(duration: 0.2),
-            value: isPlaying || isLoading
-        )
         .onAppear { updateLevels() }
         .onChange(of: isPlaying) { _, _ in updateLevels() }
         .onChange(of: isAnimating) { _, _ in updateLevels() }
