@@ -279,6 +279,7 @@ struct TrackArtworkBackdropView: View {
     let loader: ArtworkLoader
     var fadesToBottom = true
     var animatesChanges = false
+    var transitionDuration: Double = 0.3
     var cachedImage: NSImage? = nil
 
     @State private var image: NSImage?
@@ -325,7 +326,7 @@ struct TrackArtworkBackdropView: View {
         .task(id: artworkURL) {
             guard cachedImage == nil else { return }
             if let artworkURL, let cached = loader.cachedImage(for: artworkURL) {
-                withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
+                withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: transitionDuration) : nil) {
                     image = cached
                 }
                 return
@@ -341,7 +342,7 @@ struct TrackArtworkBackdropView: View {
                 nextImage = nil
             }
             guard !Task.isCancelled else { return }
-            withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
+            withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: transitionDuration) : nil) {
                 image = nextImage
             }
         }

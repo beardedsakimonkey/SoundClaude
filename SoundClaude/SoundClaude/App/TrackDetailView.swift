@@ -44,9 +44,6 @@ struct TrackDetailView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            artworkBackdrop
-                .ignoresSafeArea(edges: .top)
-
             Group {
                 if let details {
                     detailsView(details)
@@ -71,6 +68,12 @@ struct TrackDetailView: View {
                 }
             }
         }
+        .preference(
+            key: TrackDetailBackdropPreferenceKey.self,
+            value: TrackDetailBackdropSource(
+                artworkURL: details?.track.displayArtworkURL ?? track.displayArtworkURL
+            )
+        )
         .navigationTitle(details?.track.title ?? track.title)
         .toolbar {
             if #available(macOS 26.0, *) {
@@ -107,34 +110,6 @@ struct TrackDetailView: View {
                 loader: model.artworkLoader,
                 cachedArtwork: $cachedFullSizeArtwork
             )
-        }
-    }
-
-    @ViewBuilder
-    private var artworkBackdrop: some View {
-        let backdrop = TrackArtworkBackdropView(
-            artworkURL: details?.track.displayArtworkURL ?? track.displayArtworkURL,
-            loader: model.artworkLoader,
-            fadesToBottom: false
-        )
-        .frame(height: 600)
-        .mask {
-            LinearGradient(
-                stops: [
-                    .init(color: .black, location: 0),
-                    .init(color: .black, location: 0.25),
-                    .init(color: .black.opacity(0.5), location: 0.65),
-                    .init(color: .clear, location: 1)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        }
-
-        if #available(macOS 26.0, *) {
-            backdrop.backgroundExtensionEffect()
-        } else {
-            backdrop
         }
     }
 
@@ -602,5 +577,53 @@ private struct TrackTagLayout: Layout {
             rowHeight = max(rowHeight, size.height)
         }
         return (CGSize(width: width ?? contentWidth, height: y + rowHeight), origins)
+    }
+}
+
+struct TrackDetailBackdropSource: Equatable {
+    let artworkURL: URL?
+}
+
+struct TrackDetailBackdropPreferenceKey: PreferenceKey {
+    static let defaultValue: TrackDetailBackdropSource? = nil
+
+    static func reduce(value: inout TrackDetailBackdropSource?, nextValue: () -> TrackDetailBackdropSource?) {
+        value = nextValue() ?? value
+    }
+}
+
+// Keep the backdrop outside the route identity so its image survives track navigation.
+struct TrackDetailBackdrop: View {
+    let artworkURL: URL?
+    let loader: ArtworkLoader
+
+    @ViewBuilder
+    var body: some View {
+        let backdrop = TrackArtworkBackdropView(
+            artworkURL: artworkURL,
+            loader: loader,
+            fadesToBottom: false,
+            animatesChanges: true,
+            transitionDuration: 0.8
+        )
+        .frame(height: 600)
+        .mask {
+            LinearGradient(
+                stops: [
+                    .init(color: .black, location: 0),
+                    .init(color: .black, location: 0.25),
+                    .init(color: .black.opacity(0.5), location: 0.65),
+                    .init(color: .clear, location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+
+        if #available(macOS 26.0, *) {
+            backdrop.backgroundExtensionEffect()
+        } else {
+            backdrop
+        }
     }
 }

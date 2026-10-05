@@ -342,6 +342,13 @@ struct SignedInView: View {
                     .environment(\.initialDetailArtworkRotation, initialDetailArtworkRotation)
                     .id(destinationID)
             }
+            .backgroundPreferenceValue(TrackDetailBackdropPreferenceKey.self) { source in
+                if let source {
+                    TrackDetailBackdrop(artworkURL: source.artworkURL, loader: model.artworkLoader)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .ignoresSafeArea(edges: .top)
+                }
+            }
             .modifier(NavigationPageActivity())
             .safeAreaPadding(.bottom, footerHeight)
             .mask { bottomFade }
