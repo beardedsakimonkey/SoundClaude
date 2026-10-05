@@ -377,49 +377,12 @@ private struct TrackCommentRow: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    if let user = comment.user {
-                        ArtistLink(
-                            artist: user,
-                            onSelect: onSelectArtist
-                        )
-                        .font(.headline)
-                        .fontWeight(.medium)
-                        .opacity(0.85)
-                    } else {
-                        Text("Unknown user")
-                            .foregroundStyle(.secondary)
-                    }
-                    if let timestamp = comment.timestampMilliseconds {
-                        let seconds = timestamp / 1_000
-                        let timeLabel = "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
-                        Text("at")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Button {
-                            let position = Double(timestamp) / 1_000
-                            if model.playback.currentTrack?.urn == track.urn {
-                                model.playback.seek(to: position)
-                            } else {
-                                Task { await model.play(track, position: position) }
-                            }
-                        } label: {
-                            Text(timeLabel)
-                        }
-                        .buttonStyle(CommentTimestampButtonStyle(color: timestampColor))
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(timestampColor)
-                        .contentHelp("Jump to \(timeLabel)")
-                        .accessibilityLabel("Jump to \(timeLabel) in \(track.title)")
-                    }
-                    if let createdAt = comment.createdAt {
-                        Text(createdAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .contentHelp(createdAt.formatted(date: .abbreviated, time: .shortened))
-                    }
-                    Spacer()
+                ViewThatFits(in: .horizontal) {
+                    header(showsRelativeAge: true)
+                        .fixedSize(horizontal: true, vertical: false)
+                    header(showsRelativeAge: false)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 ArtistMentionText(comment.body, onSelectArtist: onSelectArtist)
                     .textSelection(.enabled)
@@ -428,6 +391,55 @@ private struct TrackCommentRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    private func header(showsRelativeAge: Bool) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            if let user = comment.user {
+                ArtistLink(
+                    artist: user,
+                    onSelect: onSelectArtist
+                )
+                .font(.headline)
+                .fontWeight(.medium)
+                .opacity(0.85)
+            } else {
+                Text("Unknown user")
+                    .foregroundStyle(.secondary)
+            }
+            if let timestamp = comment.timestampMilliseconds {
+                let seconds = timestamp / 1_000
+                let timeLabel = "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
+                Text("at")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                Button {
+                    let position = Double(timestamp) / 1_000
+                    if model.playback.currentTrack?.urn == track.urn {
+                        model.playback.seek(to: position)
+                    } else {
+                        Task { await model.play(track, position: position) }
+                    }
+                } label: {
+                    Text(timeLabel)
+                }
+                .buttonStyle(CommentTimestampButtonStyle(color: timestampColor))
+                .font(.caption.monospacedDigit())
+                .fixedSize()
+                .foregroundStyle(timestampColor)
+                .contentHelp("Jump to \(timeLabel)")
+                .accessibilityLabel("Jump to \(timeLabel) in \(track.title)")
+            }
+            if showsRelativeAge, let createdAt = comment.createdAt {
+                Text(createdAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .contentHelp(createdAt.formatted(date: .abbreviated, time: .shortened))
+            }
+            Spacer(minLength: 0)
+        }
+        .lineLimit(1)
     }
 }
 
