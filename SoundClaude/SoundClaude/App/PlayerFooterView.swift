@@ -20,8 +20,6 @@ struct PlayerFooterView: View {
     @Binding var isShowingVisualizer: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var previousArtworkURL: URL?
-    @State private var hasPreviousTrack = false
     @State private var isHoveringSource = false
     @State private var isHoveringTitle = false
     @State private var isHoveringArtwork = false
@@ -232,10 +230,8 @@ struct PlayerFooterView: View {
     }
 
     private var artworkThumbnail: some View {
-        ZStack {
-            artworkFace(for: previousArtworkURL, isPrevious: true)
-            artworkFace(for: playback.currentTrack?.displayArtworkURL, isPrevious: false)
-        }
+        thumbnail(for: playback.currentTrack?.displayArtworkURL)
+        .id(playback.currentTrack?.displayArtworkURL)
         .animation(
             reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
             value: isHoveringArtwork
@@ -243,37 +239,6 @@ struct PlayerFooterView: View {
         .frame(width: artworkThumbnailSize, height: artworkThumbnailSize)
         .contentShape(artworkShape)
         .onContentHover { isHoveringArtwork = $0 }
-        .onChange(of: playback.currentTrack) { oldTrack, _ in
-            previousArtworkURL = oldTrack?.displayArtworkURL
-            hasPreviousTrack = oldTrack != nil
-        }
-    }
-
-    private func artworkFace(for url: URL?, isPrevious: Bool) -> some View {
-        let sign = playback.trackChangeDirection == .forward ? -1.0 : 1.0
-        let shouldFlip = !reduceMotion && hasPreviousTrack && playback.currentTrack != nil
-
-        // Keep image loading outside the animator's content closure so an image
-        // arriving during the flip does not replace the animated view.
-        return thumbnail(for: url)
-            .keyframeAnimator(initialValue: 180.0, trigger: playback.currentTrack?.urn) { content, angle in
-                let rotation = shouldFlip ? angle : 180
-
-                content
-                    .opacity((rotation < 90) == isPrevious ? 1 : 0)
-                    .rotation3DEffect(
-                        .degrees(sign * (isPrevious ? rotation : rotation - 180)),
-                        axis: (x: 0, y: 1, z: 0),
-                        perspective: 0.5
-                    )
-            } keyframes: { _ in
-                MoveKeyframe(0)
-                SpringKeyframe(
-                    180,
-                    spring: .init(duration: 0.42, bounce: 0.22),
-                    startVelocity: 450
-                )
-            }
     }
 
     private func thumbnail(for url: URL?) -> some View {
