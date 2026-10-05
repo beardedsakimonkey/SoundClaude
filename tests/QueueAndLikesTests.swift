@@ -479,6 +479,43 @@ struct QueueAndLikesTests {
         precondition(likes.likedStationURNs == [stationURN])
         precondition(likes.likedStations.count == 1)
         precondition(likes.likedStations.first?.displayTitle == "Test station")
+        let cachedStations = try await store.loadStations(accountID: "user:1")
+        precondition(cachedStations?.map(\.urn) == [stationURN])
+        precondition(cachedStations?.first?.title == "Test station")
+        let otherStations = try await store.loadStations(accountID: "user:2")
+        precondition(otherStations == nil)
+
+        // Reopening shows cached stations before the refresh finishes. Failed
+        // pagination must preserve both the visible list and the complete cache.
+        let reopenedClient = SoundCloudClient()
+        let reopened = LikesController(client: reopenedClient, auth: auth, store: store)
+        await reopened.restoreCache()
+        precondition(reopened.likedStationURNs == [stationURN])
+        precondition(!reopened.hasLoadedStationLikes)
+        reopenedClient.fetchStations = { url in
+            precondition(reopened.likedStations.first?.title == "Test station")
+            if url == nil { return stationPage }
+            throw SoundCloudError.invalidData
+        }
+        do {
+            try await reopened.loadStationLikes()
+            preconditionFailure("Expected failed station refresh")
+        } catch SoundCloudError.invalidData {}
+        precondition(reopened.likedStationURNs == [stationURN])
+        precondition(reopened.stationLikesErrorMessage != nil)
+        let afterFailedRefresh = try await store.loadStations(accountID: "user:1")
+        precondition(afterFailedRefresh?.map(\.urn) == [stationURN])
+        reopenedClient.fetchStations = { _ in
+            try JSONDecoder().decode(SoundCloudStationLikePage.self, from: Data("[]".utf8))
+        }
+        try await reopened.loadStationLikes()
+        precondition(reopened.likedStations.isEmpty && reopened.hasLoadedStationLikes)
+        precondition(reopened.stationLikesErrorMessage == nil)
+        let emptyStations = try await store.loadStations(accountID: "user:1")
+        precondition(emptyStations?.isEmpty == true)
+        reopened.clear()
+        precondition(reopened.likedStationURNs.isEmpty && !reopened.hasLoadedStationLikes)
+
         let originalTracks = likes.tracks
         client.setPlaylistLike = { urn, shouldLike in
             precondition(urn == stationURN && !shouldLike)
@@ -487,6 +524,8 @@ struct QueueAndLikesTests {
         try await likes.toggleStationLike(urn: stationURN)
         precondition(likes.likedStationURNs.isEmpty && likes.updatingStationURNs.isEmpty)
         precondition(likes.likedStations.isEmpty)
+        let afterStationUnlike = try await store.loadStations(accountID: "user:1")
+        precondition(afterStationUnlike?.isEmpty == true)
         client.setPlaylistLike = { _, _ in throw SoundCloudError.invalidData }
         do {
             try await likes.toggleStationLike(urn: stationURN)
@@ -508,6 +547,11 @@ struct QueueAndLikesTests {
         precondition(likes.likedStationURNs == [stationURN])
         precondition(likes.likedStations.first?.displayTitle == "New station")
         precondition(likes.tracks == originalTracks)
+        let afterStationLike = try await store.loadStations(accountID: "user:1")
+        precondition(afterStationLike?.first?.title == "New station")
+        await reopened.restoreCache()
+        precondition(reopened.likedStationURNs == [stationURN])
+        precondition(reopened.likedStations.first?.title == "New station")
 
         // Counts follow successful toggles even when callers retain the original track.
         var countedTrack = track(20)

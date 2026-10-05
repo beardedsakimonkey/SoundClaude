@@ -58,9 +58,12 @@ final class LikesController: ObservableObject {
         let task = Task { @MainActor in
             // A missing or damaged cache can be rebuilt from the API.
             let saved = try? await store.load(accountID: id)
+            let savedStations = try? await store.loadStations(accountID: id)
             guard sessionID == session else { return }
             cache = saved ?? LikesCache()
             tracks = cache.tracks
+            // Keep the session load flag false so cached stations refresh on entry.
+            likedStations = savedStations ?? []
             restoreTask = nil
         }
         restoreTask = task
@@ -77,7 +80,7 @@ final class LikesController: ObservableObject {
             try await stationLikesTask.value
             return
         }
-        guard accountID != nil, !hasLoadedStationLikes else { return }
+        guard let accountID, !hasLoadedStationLikes else { return }
         let session = sessionID
         isLoadingStationLikes = true
         stationLikesErrorMessage = nil
@@ -107,6 +110,8 @@ final class LikesController: ObservableObject {
                 url = page.nextURL
             } while url != nil
             likedStations = stations
+            try await store.saveStations(stations, accountID: accountID)
+            guard sessionID == session else { throw CancellationError() }
             hasLoadedStationLikes = true
         }
         stationLikesTask = task
@@ -122,7 +127,7 @@ final class LikesController: ObservableObject {
 
     func toggleStationLike(urn: String, title: String? = nil) async throws {
         try await loadStationLikes()
-        guard accountID != nil, !updatingStationURNs.contains(urn) else { return }
+        guard let accountID, !updatingStationURNs.contains(urn) else { return }
         let session = sessionID
         let shouldLike = !likedStationURNs.contains(urn)
         updatingStationURNs.insert(urn)
@@ -138,6 +143,7 @@ final class LikesController: ObservableObject {
         } else {
             likedStations.removeAll { $0.urn == urn }
         }
+        try await store.saveStations(likedStations, accountID: accountID)
     }
 
     func likeCount(for track: SoundCloudTrack) -> Int? {

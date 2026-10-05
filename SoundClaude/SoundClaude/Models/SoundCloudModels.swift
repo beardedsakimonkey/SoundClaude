@@ -471,7 +471,7 @@ struct RawPlaylistPage: Decodable {
 
 // The likes endpoint returns metadata without hydrated tracks.
 struct SoundCloudStationLikePage: Decodable, Sendable {
-    struct Station: Decodable, Sendable, Identifiable {
+    struct Station: Codable, Sendable, Identifiable {
         let urn: String
         var title: String? = nil
         var id: String { urn }

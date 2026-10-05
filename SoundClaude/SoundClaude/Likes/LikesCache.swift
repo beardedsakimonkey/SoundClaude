@@ -49,8 +49,21 @@ actor LikesCacheStore {
         try JSONEncoder().encode(cache).write(to: fileURL(accountID: accountID), options: .atomic)
     }
 
-    private func fileURL(accountID: String) -> URL {
+    func loadStations(accountID: String) throws -> [SoundCloudStationLikePage.Station]? {
+        let url = fileURL(accountID: accountID, suffix: "-stations")
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return try JSONDecoder().decode([SoundCloudStationLikePage.Station].self, from: Data(contentsOf: url))
+    }
+
+    func saveStations(_ stations: [SoundCloudStationLikePage.Station], accountID: String) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try JSONEncoder().encode(stations).write(
+            to: fileURL(accountID: accountID, suffix: "-stations"), options: .atomic
+        )
+    }
+
+    private func fileURL(accountID: String, suffix: String = "") -> URL {
         let key = SHA256.hash(data: Data(accountID.utf8)).map { String(format: "%02x", $0) }.joined()
-        return directory.appending(path: key + ".json")
+        return directory.appending(path: key + suffix + ".json")
     }
 }
