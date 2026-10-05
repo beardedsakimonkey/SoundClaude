@@ -1,7 +1,7 @@
 #include <metal_stdlib>
 using namespace metal;
 
-// grid: width, height, dt, decay. flow: drag, swirl, diffusion, buoyancy.
+// grid: width, height, dt, decay. flow: drag, swirl, diffusion, viscosity.
 // shape: puff size, force, turbulence. color: hue shift, hue spread, saturation.
 struct SmokeUniforms { float4 grid; float4 flow; float4 shape; float4 color; float4 puff[16]; };
 constexpr sampler smokeSampler(coord::pixel, address::clamp_to_edge, filter::linear);
@@ -16,14 +16,20 @@ kernel void smokeClear(texture2d<float, access::write> output [[texture(0)]], ui
 
 kernel void smokeVelocity(texture2d<float> source [[texture(0)]],
                           texture2d<float, access::write> output [[texture(1)]],
-                          texture2d<float> dye [[texture(2)]],
                           constant SmokeUniforms &u [[buffer(0)]], uint2 p [[thread_position_in_grid]]) {
     float2 pos = float2(p) + 0.5;
     float dt = u.grid.z, size = min(u.grid.x, u.grid.y);
     float2 v = smokeSample(source, pos).xy;
-    v = smokeSample(source, pos - v * dt).xy * exp(-dt * u.flow.x);
-    // Dense smoke rises; grid y points down the screen.
-    v.y -= u.flow.w * min(dye.read(p).a, 4.0) * size * 0.25 * dt;
+    float2 back = pos - v * dt;
+    v = smokeSample(source, back).xy;
+    if (u.flow.w > 0) {
+        float2 neighbors = (smokeSample(source, back + float2(1, 0)).xy
+                          + smokeSample(source, back - float2(1, 0)).xy
+                          + smokeSample(source, back + float2(0, 1)).xy
+                          + smokeSample(source, back - float2(0, 1)).xy) * 0.25;
+        v = mix(v, neighbors, 1 - exp(-dt * u.flow.w));
+    }
+    v *= exp(-dt * u.flow.x);
     for (int i = 0; i < 8; ++i) {
         float4 puff = u.puff[i * 2];
         float strength = u.puff[i * 2 + 1].x;

@@ -55,15 +55,6 @@ struct SmokeSimulationTests {
             }
         }
         func energy(_ texture: MTLTexture) -> Float { readback(texture).reduce(0, +) }
-        // Density-weighted mean row; smaller is higher on screen.
-        func centroidY(_ texture: MTLTexture) -> Float {
-            let values = readback(texture)
-            var weighted: Float = 0, total: Float = 0
-            for (index, alpha) in stride(from: 3, to: values.count, by: 4).map({ ($0 / 4, values[$0]) }) {
-                weighted += Float(index / texture.width) * alpha; total += alpha
-            }
-            return weighted / max(total, 0.0001)
-        }
         precondition(energy(frame(0, silence)) == 0)
         precondition(energy(simulation.bloomTexture!) == 0, "Silence must not produce bloom")
         let puff = frame(1, loud)
@@ -196,15 +187,51 @@ struct SmokeSimulationTests {
         precondition(energy(frame(241, silence)) == 0)
         precondition(energy(frame(242, silence, width: 128, height: 192)) == 0)
 
-        // With injected motion disabled, only buoyancy can move the smoke, and it must move up.
-        var still = SmokeSettings()
-        still.force = 0
-        still.buoyancy = 1.5
-        let rising = try SmokeSimulation(device: device, library: library)
-        let start = centroidY(frame(0, loud, simulation: rising, settings: still))
-        var risen: MTLTexture!
-        for i in 1...60 { risen = frame(i, silence, simulation: rising, settings: still) }
-        precondition(centroidY(risen) < start - 2, "Buoyant smoke must rise")
+        // A localized velocity peak must soften when viscosity is enabled.
+        let velocityPipeline = try device.makeComputePipelineState(function: library.makeFunction(name: "smokeVelocity")!)
+        let velocityDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba16Float, width: 16, height: 16, mipmapped: false)
+        velocityDescriptor.storageMode = .shared
+        velocityDescriptor.usage = [.shaderRead, .shaderWrite]
+        let velocityInput = device.makeTexture(descriptor: velocityDescriptor)!
+        let velocityOutput = device.makeTexture(descriptor: velocityDescriptor)!
+        var impulse = [Float16](repeating: 0, count: 16 * 16 * 4)
+        impulse[(8 * 16 + 8) * 4] = 8
+        impulse.withUnsafeBytes {
+            velocityInput.replace(region: MTLRegionMake2D(0, 0, 16, 16), mipmapLevel: 0,
+                                  withBytes: $0.baseAddress!, bytesPerRow: 16 * 8)
+        }
+        var peaks: [Float] = []
+        for viscosity: Float in [0, 30] {
+            var uniforms = [SIMD4<Float>(16, 16, 1 / 60, 0), SIMD4(0, 0, 0, viscosity),
+                            SIMD4(1, 0, 0, 0), .zero]
+            uniforms += Array(repeating: .zero, count: 16)
+            let command = queue.makeCommandBuffer()!
+            let encoder = command.makeComputeCommandEncoder()!
+            encoder.setComputePipelineState(velocityPipeline)
+            encoder.setTexture(velocityInput, index: 0)
+            encoder.setTexture(velocityOutput, index: 1)
+            uniforms.withUnsafeBytes { encoder.setBytes($0.baseAddress!, length: $0.count, index: 0) }
+            encoder.dispatchThreads(MTLSize(width: 16, height: 16, depth: 1),
+                                    threadsPerThreadgroup: MTLSize(width: 8, height: 8, depth: 1))
+            encoder.endEncoding(); command.commit(); command.waitUntilCompleted()
+            precondition(command.status == .completed)
+            peaks.append(readback(velocityOutput).max()!)
+        }
+        precondition(peaks[1] > 0 && peaks[1] < peaks[0] * 0.8,
+                     "Viscosity must smooth localized velocity peaks")
+
+        // Persistent liquid should retain color when both decay and diffusion are off.
+        var persistent = SmokeSettings.liquid
+        persistent.decay = 0
+        persistent.force = 0
+        persistent.spread = 0
+        let liquid = try SmokeSimulation(device: device, library: library)
+        let liquidEnergy = energy(frame(0, loud, simulation: liquid, settings: persistent))
+        var retained: MTLTexture!
+        for i in 1...60 { retained = frame(i, silence, simulation: liquid, settings: persistent) }
+        precondition(abs(energy(retained) / liquidEnergy - 1) < 0.01,
+                     "Zero decay must retain stationary fluid color")
 
         var gray = SmokeSettings()
         gray.saturation = 0
@@ -214,6 +241,6 @@ struct SmokeSimulationTests {
             let (r, g, b) = (grayDye[i], grayDye[i + 1], grayDye[i + 2])
             return abs(r - g) < 0.01 && abs(g - b) < 0.01
         }, "Zero saturation must emit gray smoke")
-        print("Smoke tests passed: onsets, strength, band isolation, GPU simulation and rendering, bloom, decay, reset, resize, buoyancy, saturation")
+        print("Smoke tests passed: onsets, strength, band isolation, GPU simulation and rendering, bloom, decay, reset, resize, viscosity, persistent liquid, saturation")
     }
 }

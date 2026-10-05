@@ -9,9 +9,10 @@ struct SmokeSettings {
     var puffSize: Float = 3
     var force: Float = 3
     var turbulence: Float = 2.33
-    var buoyancy: Float = 0 // Upward lift per unit of smoke density.
     var swirl: Float = 51.8 // Vorticity confinement.
     var drag: Float = 0.65
+    var viscosity: Float = 0 // Velocity smoothing rate; 0 preserves fine motion.
+    var pressureIterations = 20
     var diffusion: Float = 3
     var decay: Float = 1
     var brightness: Float = 4
@@ -26,6 +27,23 @@ struct SmokeSettings {
     var hueSpeed: Float = 3 // Degrees per second; 0 stops the hue cycle.
     var hueSpread: Float = 0.47 // Radians between adjacent frequency groups.
     var saturation: Float = 1.2
+
+    static var liquid: SmokeSettings {
+        var settings = SmokeSettings()
+        settings.force = 1.5
+        settings.turbulence = 0.5
+        settings.swirl = 12
+        settings.drag = 0.2
+        settings.viscosity = 24
+        settings.diffusion = 0
+        settings.decay = 0.05
+        settings.pressureIterations = 40
+        settings.hotCores = 0
+        settings.glow = 0.5
+        settings.bloomStrength = 0.3
+        settings.brightness = 2
+        return settings
+    }
 
     /// Matches `float4 display` in smokeVisualizerFragment.
     var display: SIMD4<Float> { SIMD4(glow, brightness, glowRadius, bloomStrength) }
@@ -116,7 +134,7 @@ final class SmokeSimulation {
         lastTime = time
         // Grid-space units keep puffs round at every viewport aspect ratio.
         var uniforms = [SIMD4<Float>(Float(w), Float(h), dt, settings.decay),
-                        SIMD4(settings.drag, settings.swirl, settings.diffusion, settings.buoyancy),
+                        SIMD4(settings.drag, settings.swirl, settings.diffusion, settings.viscosity),
                         SIMD4(settings.puffSize, settings.force, settings.turbulence, 0),
                         SIMD4((settings.hueShift + huePhase) * .pi / 180, settings.hueSpread, settings.saturation, 0)]
         let margin = (1 - min(1, max(0, settings.spread))) / 2
@@ -139,11 +157,11 @@ final class SmokeSimulation {
             for texture in velocity + dye + pressure + [divergence] { dispatch("Clear", [texture]) }
             needsClear = false
         }
-        dispatch("Velocity", [velocity[0], velocity[1], dye[0]])
+        dispatch("Velocity", [velocity[0], velocity[1]])
         dispatch("Vorticity", [velocity[1], velocity[0]])
         dispatch("Divergence", [velocity[0], divergence])
         dispatch("Clear", [pressure[0]])
-        for _ in 0..<20 {
+        for _ in 0..<min(60, max(4, settings.pressureIterations)) {
             dispatch("Pressure", [pressure[0], divergence, pressure[1]])
             pressure.swapAt(0, 1)
         }

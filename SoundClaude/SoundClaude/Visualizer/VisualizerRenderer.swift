@@ -23,7 +23,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .cloth: "Cloth"
         case .pistons: "Pistons"
-        case .smoke: "Smoke"
+        case .smoke: "Fluid"
         }
     }
 

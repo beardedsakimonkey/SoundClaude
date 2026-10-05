@@ -138,13 +138,19 @@ struct VisualizerView: View {
     private var smokeControls: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Smoke").font(.headline)
+                Text("Fluid").font(.headline)
                 Spacer()
                 Button("Reset") { smokeSettings = SmokeSettings() }
             }
+            HStack {
+                Text("Presets").font(.subheadline.bold())
+                Spacer()
+                Button("Liquid") { smokeSettings = .liquid }
+                Button("Smoke") { smokeSettings = SmokeSettings() }
+            }
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Puffs").font(.subheadline.bold())
+                    Text("Emission").font(.subheadline.bold())
                     tuningSlider("Sensitivity", value: $smokeSettings.sensitivity, range: 0.25...3)
                     tuningSlider("Size", value: $smokeSettings.puffSize, range: 0.3...6)
                     tuningSlider("Force", value: $smokeSettings.force, range: 0...6)
@@ -152,38 +158,43 @@ struct VisualizerView: View {
                     tuningSlider("Spread", value: $smokeSettings.spread, range: 0...1)
                         .help("How much of the view puffs spawn within, centered.")
                     Divider()
-                    Text("Flow").font(.subheadline.bold())
-                    tuningSlider("Buoyancy", value: $smokeSettings.buoyancy, range: 0...2)
-                        .help("Makes dense smoke rise. 0 disables it.")
+                    Text("Fluid dynamics").font(.subheadline.bold())
                     tuningSlider("Swirl", value: $smokeSettings.swirl, range: 0...60, format: "%.1f")
                         .help("Vorticity confinement: keeps curls and wisps from smoothing out.")
                     tuningSlider("Drag", value: $smokeSettings.drag, range: 0...4)
+                        .help("Slows the flow over time. 0 lets motion persist.")
+                    tuningSlider("Viscosity", value: $smokeSettings.viscosity, range: 0...30)
+                        .help("Smooths differences in flow velocity. Higher values soften small eddies; 0 disables it.")
                     tuningSlider("Diffusion", value: $smokeSettings.diffusion, range: 0...12)
-                    tuningSlider("Decay", value: $smokeSettings.decay, range: 0.15...1.5)
+                        .help("Blends density and color into nearby cells. 0 keeps sharper color boundaries.")
+                    tuningSlider("Decay", value: $smokeSettings.decay, range: 0...1.5)
+                        .help("Controls how quickly color fades. Lower values leave longer trails; 0 disables fading.")
+                    tuningSlider("Pressure iterations", value: $smokeSettings.pressureIterations, range: 4...60, step: 1)
+                        .help("Higher values reduce fluid compression but use more GPU time.")
                     tuningSlider("Resolution", value: $smokeSettings.resolution, range: 256...1024, step: 64)
-                        .help("Longest side of the simulation grid. Changing it restarts the smoke.")
+                        .help("Longest side of the simulation grid. Changing it restarts the fluid.")
                     Divider()
                     Text("Color").font(.subheadline.bold())
                     tuningSlider("Hue shift", value: $smokeSettings.hueShift, range: 0...360, format: "%.0f°")
-                        .help("Starting hue offset for newly emitted smoke.")
+                        .help("Starting hue offset for newly emitted color.")
                     tuningSlider("Hue speed", value: $smokeSettings.hueSpeed, range: 0...30, format: "%.1f°/s")
-                        .help("Gradually cycles the color of new smoke. 0 stops the cycle.")
+                        .help("Gradually cycles the color of new fluid. 0 stops the cycle.")
                     tuningSlider("Hue spread", value: $smokeSettings.hueSpread, range: 0...1.5)
-                        .help("Hue difference between frequency groups. Applies to newly emitted smoke.")
+                        .help("Hue difference between frequency groups. Applies to newly emitted color.")
                     tuningSlider("Saturation", value: $smokeSettings.saturation, range: 0...2.4)
-                        .help("Applies to newly emitted smoke.")
+                        .help("Applies to newly emitted color.")
                     tuningSlider("Brightness", value: $smokeSettings.brightness, range: 0.25...8)
                     tuningSlider("Hot cores", value: $smokeSettings.hotCores, range: 0...1)
-                        .help("Turns the brightest smoke toward white while keeping faint smoke colorful. 0 disables it.")
+                        .help("Turns the brightest fluid toward white while keeping faint fluid colorful. 0 disables it.")
                     tuningSlider("Glow", value: $smokeSettings.glow, range: 0...6)
                     tuningSlider("Glow radius", value: $smokeSettings.glowRadius, range: 1...48, format: "%.1f")
                     tuningSlider("Bloom", value: $smokeSettings.bloomStrength, range: 0...4)
-                        .help("Soft light around bright smoke. 0 disables bloom.")
+                        .help("Soft light around bright fluid. 0 disables bloom.")
                     tuningSlider("Bloom radius", value: $smokeSettings.bloomRadius, range: 1...64, format: "%.1f")
                     tuningSlider("Outer bloom", value: $smokeSettings.bloomWideStrength, range: 0...2)
                         .help("Adds a soft halo at three times the bloom radius. 0 keeps only the tight bloom.")
                     tuningSlider("Bloom threshold", value: $smokeSettings.bloomThreshold, range: 0...4)
-                        .help("Only smoke brighter than this value produces bloom.")
+                        .help("Only fluid brighter than this value produces bloom.")
                 }
             }
             .frame(maxHeight: 520)
