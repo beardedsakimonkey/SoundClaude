@@ -22,10 +22,10 @@ struct ClothSettings: Equatable {
 
 struct ClothCamera: Equatable {
     var yaw: Float = 0
-    var pitch: Float = 0.65
+    var pitch: Float = 0
     var zoom: Float = 0.7
 
-    static let pitchRange: ClosedRange<Float> = 0.05...1.85
+    static let pitchRange: ClosedRange<Float> = 0...1.85
 
     func viewingPitch(distance: Float) -> Float {
         // Keep enough clearance to avoid clipping the ground at low angles.
