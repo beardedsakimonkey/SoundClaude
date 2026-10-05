@@ -402,6 +402,7 @@ struct ArtistDetailView: View {
                         }
                     }
                     .frame(width: min(320, max(0, contentSize.width - 72) * 0.3), alignment: .leading)
+                    .modifier(FadeInOnAppear())
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

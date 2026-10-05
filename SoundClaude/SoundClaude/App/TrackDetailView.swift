@@ -464,6 +464,7 @@ private struct TrackDetailRelatedTracks: View {
                         ))
                     }
                 )
+                .modifier(FadeInOnAppear())
             }
             if let relatedTracksErrorMessage {
                 Text(relatedTracksErrorMessage).foregroundStyle(.secondary)
