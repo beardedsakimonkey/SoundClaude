@@ -110,17 +110,33 @@ struct TrackPlaybackIndicator: View {
     }
 }
 
-/// Change title spacing once when playback selection changes. Animating
-/// padding reflows the title and containing list during the waveform spring.
-/// Keep unrelated animations, such as queue row movement, intact.
+/// Reserve space once per selection change, then animate only the title's
+/// drawing offset. The layout has no animatable data, so its width changes
+/// immediately without disabling the title's movement animation.
 struct TrackPlaybackTitleInset: ViewModifier {
     let inset: CGFloat
 
     func body(content: Content) -> some View {
-        content
-            .padding(.leading, inset)
-            .transaction(value: inset) { transaction in
-                transaction.animation = nil
-            }
+        PlaybackTitleLayout(inset: inset) {
+            content
+        }
+        .offset(x: inset)
+    }
+}
+
+private struct PlaybackTitleLayout: Layout {
+    let inset: CGFloat
+
+    private func titleProposal(_ proposal: ProposedViewSize) -> ProposedViewSize {
+        ProposedViewSize(width: proposal.width.map { max(0, $0 - inset) }, height: proposal.height)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let size = subviews[0].sizeThatFits(titleProposal(proposal))
+        return CGSize(width: size.width + inset, height: size.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews[0].place(at: bounds.origin, anchor: .topLeading, proposal: titleProposal(proposal))
     }
 }
