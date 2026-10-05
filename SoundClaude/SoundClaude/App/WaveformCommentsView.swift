@@ -15,7 +15,7 @@ struct WaveformCommentsView: View {
     var body: some View {
         Group {
             // Hidden markers still create avatar views and image tasks. Wait
-            // for the bar transition before building them for a new track.
+            // until the bar transition nears its end before building them for a new track.
             // Retain them on pause so resuming does not reload the avatars.
             if showsComments || hasShownComments {
                 markers

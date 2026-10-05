@@ -45,8 +45,8 @@ struct TrackWaveformView: View {
     @State private var pendingSeek: (trackURN: String, fraction: Double, id: UUID)?
     @State private var commentsReadyAppearance: CommentsAppearance?
     @State private var commentsPresentedTrackURN: String?
-    // Leave comment fetching, layout, and avatar loading outside the bar spring.
-    private let commentsAppearanceDelay: Duration = .seconds(WaveformStaggeredSpring.duration)
+    // Start comment loading as the bar spring nears its end.
+    private let commentsAppearanceDelay: Duration = .seconds(WaveformStaggeredSpring.duration * 0.75)
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
     @Environment(\.contentHoverSuppression) private var hoverSuppression
@@ -143,7 +143,7 @@ struct TrackWaveformView: View {
             if !appearance.reduceMotion {
                 do {
                     // A loaded track can resume quickly; a new track waits
-                    // for the full staggered spring before creating markers.
+                    // until the staggered spring nears its end before creating markers.
                     let delay: Duration = commentsPresentedTrackURN == appearance.trackURN
                         ? .milliseconds(100) : commentsAppearanceDelay
                     try await Task.sleep(for: delay)
