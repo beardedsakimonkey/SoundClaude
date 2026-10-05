@@ -29,30 +29,21 @@ struct TrackPlaybackIndicator: View {
     }
 
     private var fakeIndicator: some View {
-        let shouldAnimate = isPlaying && !reduceMotion && !contentAnimationsPaused
+        let showsBars = isPlaying && !isLoading
+        let shouldAnimate = showsBars && !reduceMotion && !contentAnimationsPaused
         return TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !shouldAnimate)) { context in
-            // Draw inside fixed bounds. Changing child frame heights on
-            // each tick invalidates the surrounding track-list layout.
-            Canvas { drawing, size in
-                for index in 0..<3 {
-                    let height = fakeHeight(for: index, at: context.date, animated: shouldAnimate)
-                    let rect = CGRect(x: CGFloat(index) * 4, y: size.height - height, width: 2, height: height)
-                    drawing.fill(
-                        Path(roundedRect: rect, cornerRadius: 1),
-                        with: .color(color)
-                    )
-                }
-            }
+            PlaybackIndicatorBars(
+                growth: showsBars ? 1 : 0,
+                date: context.date,
+                animated: shouldAnimate
+            )
+            .fill(color)
             .frame(width: 10, height: 9)
+            .animation(
+                reduceMotion || contentAnimationsPaused ? nil : .easeInOut(duration: 0.3),
+                value: showsBars
+            )
         }
-    }
-
-    private func fakeHeight(for index: Int, at date: Date, animated: Bool) -> CGFloat {
-        guard isPlaying else { return 2 }
-        guard animated else { return index == 1 ? 9 : 5 }
-        let time = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.2)
-        let phase = time / 1.2 * 2 * .pi + Double(index) * 2 * .pi / 3
-        return 2 + CGFloat((sin(phase) + 1) / 2) * 7
     }
 
     private var audioIndicator: some View {
@@ -97,6 +88,33 @@ struct TrackPlaybackIndicator: View {
         }
         guard isAnimating, !isLoading, let snapshot = analyzer.playbackIndicatorLevels() else { return }
         levels = snapshot
+    }
+}
+
+// Animate the multiplier inside fixed bounds to keep the title layout stable.
+private struct PlaybackIndicatorBars: Shape {
+    var growth: CGFloat
+    let date: Date
+    let animated: Bool
+
+    var animatableData: CGFloat {
+        get { growth }
+        set { growth = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        for index in 0..<3 {
+            let time = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.2)
+            let phase = time / 1.2 * 2 * .pi + Double(index) * 2 * .pi / 3
+            let level = animated ? CGFloat((sin(phase) + 1) / 2) * 7 : (index == 1 ? 7 : 3)
+            let height = 2 + level * growth
+            path.addRoundedRect(
+                in: CGRect(x: rect.minX + CGFloat(index) * 4, y: rect.maxY - height, width: 2, height: height),
+                cornerSize: CGSize(width: 1, height: 1)
+            )
+        }
+        return path
     }
 }
 
