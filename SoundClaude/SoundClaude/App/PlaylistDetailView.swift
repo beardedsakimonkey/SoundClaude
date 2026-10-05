@@ -65,19 +65,21 @@ struct PlaylistDetailView: View {
                         onSelectArtist: onSelectArtist
                     )
                 }
-                HStack {
-                    CountedSectionHeader(
-                        title: "Tracks",
-                        count: displayedPlaylist.trackCount ?? tracks.count
-                    )
-                    Spacer()
-                    TrackLayoutPicker(trackLayout: $trackLayout)
+                VStack(alignment: .leading, spacing: trackLayout == .list ? 8 : 24) {
+                    HStack {
+                        CountedSectionHeader(
+                            title: "Tracks",
+                            count: displayedPlaylist.trackCount ?? tracks.count
+                        )
+                        Spacer()
+                        TrackLayoutPicker(trackLayout: $trackLayout)
+                    }
+                    if let message = model.errorMessage {
+                        Label(message, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    trackList
                 }
-                if let message = model.errorMessage {
-                    Label(message, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(Color.accentColor)
-                }
-                trackList
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)

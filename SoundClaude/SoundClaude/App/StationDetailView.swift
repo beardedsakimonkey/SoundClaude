@@ -60,33 +60,35 @@ struct StationDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 header
-                HStack {
-                    CountedSectionHeader(title: "Tracks", count: station?.trackCount ?? tracks.count)
-                    Spacer()
-                    TrackLayoutPicker(trackLayout: $trackLayout)
-                }
-                if let message = model.errorMessage {
-                    Label(message, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(Color.accentColor)
-                }
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    TrackCollectionTracks(
-                        tracks: tracks, trackLayout: trackLayout, model: model,
-                        onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
-                        onPlayTrack: playTrack,
-                        fadesInTracks: true
-                    )
-                    if let errorMessage {
-                        Text(errorMessage).foregroundStyle(.secondary)
-                        Button("Try Again") { loadAttempt += 1 }
-                            .disabled(isLoading)
+                VStack(alignment: .leading, spacing: trackLayout == .list ? 8 : 24) {
+                    HStack {
+                        CountedSectionHeader(title: "Tracks", count: station?.trackCount ?? tracks.count)
+                        Spacer()
+                        TrackLayoutPicker(trackLayout: $trackLayout)
                     }
-                    if isLoading {
-                        ProgressView()
-                            .accessibilityLabel("Loading station")
-                            .frame(maxWidth: .infinity)
-                    } else if station != nil, tracks.isEmpty, errorMessage == nil {
-                        EmptyStateView("No playable tracks")
+                    if let message = model.errorMessage {
+                        Label(message, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        TrackCollectionTracks(
+                            tracks: tracks, trackLayout: trackLayout, model: model,
+                            onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
+                            onPlayTrack: playTrack,
+                            fadesInTracks: true
+                        )
+                        if let errorMessage {
+                            Text(errorMessage).foregroundStyle(.secondary)
+                            Button("Try Again") { loadAttempt += 1 }
+                                .disabled(isLoading)
+                        }
+                        if isLoading {
+                            ProgressView()
+                                .accessibilityLabel("Loading station")
+                                .frame(maxWidth: .infinity)
+                        } else if station != nil, tracks.isEmpty, errorMessage == nil {
+                            EmptyStateView("No playable tracks")
+                        }
                     }
                 }
             }
