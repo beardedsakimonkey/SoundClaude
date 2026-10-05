@@ -2,30 +2,29 @@
 
 https://github.com/user-attachments/assets/071d9ff1-36c6-42a5-9b89-5cef9f318aae
 
-
 > [!NOTE]
-> This app requires a SoundCloud Client ID/Secret to use, which requires an
+> This app requires a SoundCloud client ID and secret, which require an
 > Artist Pro account. [Get an API Key](https://developers.soundcloud.com/docs/api/register-app#2-artist-pro-subscription-required)
 
-
 SoundClaude is a native macOS SoundCloud client built with SwiftUI, AVPlayer,
-Core Audio, Accelerate, and Metal. It feautres:
+Core Audio, Accelerate, and Metal. It features:
 
-- OAuth authorization-code authentication with PKCE and a loopback callback
-- Keychain token persistence and refresh
-- immediate launch from the saved account profile, with session validation in the background
-- authenticated stream resolution with final CDN host validation
-- one `AVPlayer` for Apple HLS/AAC playback
-- saved track, queue source, and playback position, with automatic resume at startup if playback was active at quit; cleared on sign-out
-- a locally cached feed with track and playlist posts, reposts, user avatars, and relative timestamps
-- queues from the feed, likes, artist tracks and reposts, playlists, and related tracks
-- account-specific likes metadata cached in Application Support; new likes sync when Likes opens
-- account-specific playlist metadata and opened playlist tracks cached locally
-- last library selection restored for each account; sidebar playlists open in the current navigation stack
-- sidebar search for tracks, playlists, and users, with paged results and track queues
-- a private Core Audio process tap for this app only
-- a fixed-capacity atomic PCM ring and fixed spectrum snapshot
-- an Accelerate FFT worker and an `MTKView` renderer
+- Support for shuffling likes and artist tracks (beyond just the
+  loaded tracks)
+- Cached playlist and station shortcuts in the sidebar
+- Support for search, feed, and history
+- Support for starting a station from the currently playing track without
+  interrupting playback
+- Support for dragging and dropping tracks into playlists and reordering queue items
+- Each track gets an accent color derived from the track artwork, used for
+  various UI elements, including the waveform
+- Responsive design that looks good at all window sizes
+- Light and dark modes
+- Built for desktop with hover feedback on interactive elements, right-click menus,
+  and keyboard shortcuts
+- Several physics-based music visualizers, including cloth, rope, and fluid
+  simulations
+- Expandable track artwork and artist photos
 
 ## Requirements
 
