@@ -38,11 +38,6 @@ Core Audio, Accelerate, and Metal. It features:
 Copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig`, then replace the
 placeholder values. The local file is ignored by Git.
 
-The client secret is suitable only for this personal development build. A
-distributed desktop app cannot keep an embedded client secret confidential.
-Use a trusted token-exchange service or another approved credential plan before
-distribution.
-
 ## Run
 
 To build and run from the command line:
@@ -57,8 +52,6 @@ To build and run the app with the Release configuration:
 make release
 ```
 
-The app is saved to `SoundClaude/DerivedData/Build/Products/Release/SoundClaude.app`.
-
 To run the regression suites:
 
 ```
@@ -71,18 +64,13 @@ To configure SourceKit-LSP and refresh its build data:
 make lsp
 ```
 
-macOS asks for System Audio Recording access when the process tap starts.
+To replace the local `api.yaml` with the latest specification from
+the [SoundCloud API repository](https://github.com/soundcloud/api/blob/master/openapi/api.yaml):
 
-## API specification
+```sh
+make api
+```
 
-Run `make api` to replace the local `api.yaml` with the latest specification from
-the [SoundCloud API repository](https://github.com/soundcloud/api/blob/master/openapi/api.yaml).
-If the download fails, the local file stays unchanged.
 
-## App icon
-
-The source image is `icon.png`. After you replace it with a square PNG, run
-`make icon` to regenerate the macOS icon sizes, rebuild the app, and refresh
-its registration with macOS. Quit and reopen the app to use the updated icon.
-If the Dock or app switcher still shows the old icon, run `killall Dock` to
-restart the Dock and refresh its display.
+> [!NOTE]
+> macOS asks for System Audio Recording access when the process tap starts.
