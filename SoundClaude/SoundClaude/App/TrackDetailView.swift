@@ -22,6 +22,8 @@ struct TrackDetailView: View {
     @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
+    private var isArtworkHoverActive: Bool { isHoveringArtwork || isShowingArtwork }
+
     init(
         track: SoundCloudTrack,
         model: AppModel,
@@ -125,8 +127,9 @@ struct TrackDetailView: View {
                         animatesChanges: true,
                         showsPlaceholderIcon: false,
                         cornerRadius: 12,
-                        artworkLift: isHoveringArtwork && !reduceMotion ? 8 : 0,
+                        artworkLift: isArtworkHoverActive && !reduceMotion ? 8 : 0,
                         scalesOnHover: false,
+                        isShowingArtwork: isShowingArtwork,
                         hoverAnimation: .spring(response: 0.45, dampingFraction: 0.9),
                         hoverOutAnimation: .spring(response: 0.6, dampingFraction: 1),
                         track: details.track,
@@ -141,17 +144,17 @@ struct TrackDetailView: View {
                     .animation(
                         reduceMotion ? nil : .spring(
                             response: 0.5,
-                            dampingFraction: isHoveringArtwork ? 0.9 : 1
+                            dampingFraction: isArtworkHoverActive ? 0.9 : 1
                         ),
-                        value: isHoveringArtwork
+                        value: isArtworkHoverActive
                     )
                     .animation(
                         reduceMotion ? nil : .spring(
                             response: 0.6,
-                            dampingFraction: isHoveringArtwork ? 0.9 : 1
+                            dampingFraction: isArtworkHoverActive ? 0.9 : 1
                         )
                     ) { content in
-                        content.scaleEffect(isHoveringArtwork && !reduceMotion ? 1.02 : 1)
+                        content.scaleEffect(isArtworkHoverActive && !reduceMotion ? 1.02 : 1)
                     }
                     .onContentHover { isHoveringArtwork = $0 }
 

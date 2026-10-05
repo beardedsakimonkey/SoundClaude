@@ -435,6 +435,7 @@ struct DetailArtworkView: View {
     var reflectionBlurRadius: CGFloat = 3
     var artworkLift: CGFloat = 0
     var scalesOnHover = true
+    var isShowingArtwork = false
     var hoverAnimation: Animation = .spring(response: 0.4, dampingFraction: 0.9)
     var hoverOutAnimation: Animation? = nil
     var track: SoundCloudTrack? = nil
@@ -468,6 +469,8 @@ struct DetailArtworkView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHoveringArtwork = false
     @State private var likeErrorMessage: String?
+
+    private var isArtworkHoverActive: Bool { isHoveringArtwork || isShowingArtwork }
 
     private var reflectionStops: [Gradient.Stop] {
         ReflectionFade.stops(
@@ -565,15 +568,15 @@ struct DetailArtworkView: View {
             animatesChanges: animatesChanges,
             showsPlaceholderIcon: showsPlaceholderIcon
         )
-        .scaleEffect(scalesOnHover && isHoveringArtwork && !reduceMotion ? 1.06 : 1)
+        .scaleEffect(scalesOnHover && isArtworkHoverActive && !reduceMotion ? 1.06 : 1)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius,
-            isHovering: isHoveringArtwork && !reduceMotion
+            isHovering: isArtworkHoverActive && !reduceMotion
         ))
         .animation(
-            reduceMotion ? nil : (isHoveringArtwork ? hoverAnimation : (hoverOutAnimation ?? hoverAnimation)),
-            value: isHoveringArtwork
+            reduceMotion ? nil : (isArtworkHoverActive ? hoverAnimation : (hoverOutAnimation ?? hoverAnimation)),
+            value: isArtworkHoverActive
         )
     }
 }
