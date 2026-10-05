@@ -6,6 +6,7 @@ struct HistoryView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @AppStorage("historyTrackLayout") private var trackLayout = TrackLayout.list
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var tracks: [SoundCloudTrack] { model.historyTracks }
 
     var body: some View {
@@ -31,6 +32,10 @@ struct HistoryView: View {
                 }
 
                 trackList
+                    .animation(
+                        reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85),
+                        value: tracks.map(\.id)
+                    )
 
                 if tracks.isEmpty {
                     EmptyStateView("No listening history")
