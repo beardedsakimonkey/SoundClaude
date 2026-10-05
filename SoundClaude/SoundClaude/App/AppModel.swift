@@ -222,11 +222,14 @@ final class AppModel: ObservableObject {
               queue.source != .station(urn), !tracks.isEmpty else { return }
         shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
-        // Keep the current player item and its state. Deduplication leaves the seed first,
+        // Keep the current player item and position. Deduplication leaves the seed first,
         // even when the station omits it or returns it later in the list.
         queue = TrackQueue(source: .station(urn), tracks: [currentTrack] + tracks, stationTitle: title)
         queue.setShuffle(playback.isShuffleEnabled, currentURN: currentTrack.urn)
         saveQueue()
+        if !playback.isPlaybackActive {
+            playback.togglePlayPause()
+        }
         prefetchNextTrack()
     }
 
