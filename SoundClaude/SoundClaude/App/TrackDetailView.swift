@@ -7,7 +7,7 @@ struct TrackDetailView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let track: SoundCloudTrack
-    @ObservedObject var model: AppModel
+    let model: AppModel
     @ObservedObject private var likes: LikesController
     @ObservedObject private var reposts: RepostsController
     let onSelectTrack: (SoundCloudTrack) -> Void
@@ -277,37 +277,8 @@ struct TrackDetailView: View {
     }
 
     private func playButton(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
-        playButtonLabel(for: track, iconOnly: iconOnly)
+        TrackDetailPlayButton(track: track, model: model, iconOnly: iconOnly)
             .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
-    }
-
-    private func playButtonLabel(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
-        let playback = model.playback
-        let isCurrentTrack = playback.currentTrack?.urn == track.urn
-        let isPlaying = isCurrentTrack && playback.isPlaybackActive
-
-        return Button {
-            if playback.currentTrack?.urn == track.urn {
-                playback.togglePlayPause()
-            } else {
-                Task { await model.play(track) }
-            }
-        } label: {
-            ZStack {
-                Label("Play", systemImage: "play.fill")
-                    .opacity(isPlaying ? 0 : 1)
-                    .accessibilityHidden(isPlaying)
-                Label("Pause", systemImage: "pause.fill")
-                    .opacity(isPlaying ? 1 : 0)
-                    .accessibilityHidden(!isPlaying)
-            }
-                .font(.title3.weight(.semibold))
-                .padding(.horizontal, iconOnly ? 0 : 24)
-                .frame(width: iconOnly ? 44 : nil)
-                .frame(minHeight: 24)
-        }
-        .contentHelp(isPlaying ? "Pause" : "Play")
-        .accessibilityLabel(isPlaying ? "Pause" : "Play")
     }
 
     private func likeButton(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
@@ -401,6 +372,43 @@ struct TrackDetailView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+}
+
+// Observe transport state here so loading and playback changes do not rebuild
+// the detail header, description, tags, and comment list.
+private struct TrackDetailPlayButton: View {
+    let track: SoundCloudTrack
+    let model: AppModel
+    let iconOnly: Bool
+
+    var body: some View {
+        let playback = model.playback
+        let isCurrentTrack = playback.currentTrack?.urn == track.urn
+        let isPlaying = isCurrentTrack && playback.isPlaybackActive
+
+        Button {
+            if playback.currentTrack?.urn == track.urn {
+                playback.togglePlayPause()
+            } else {
+                Task { await model.play(track) }
+            }
+        } label: {
+            ZStack {
+                Label("Play", systemImage: "play.fill")
+                    .opacity(isPlaying ? 0 : 1)
+                    .accessibilityHidden(isPlaying)
+                Label("Pause", systemImage: "pause.fill")
+                    .opacity(isPlaying ? 1 : 0)
+                    .accessibilityHidden(!isPlaying)
+            }
+                .font(.title3.weight(.semibold))
+                .padding(.horizontal, iconOnly ? 0 : 24)
+                .frame(width: iconOnly ? 44 : nil)
+                .frame(minHeight: 24)
+        }
+        .contentHelp(isPlaying ? "Pause" : "Play")
+        .accessibilityLabel(isPlaying ? "Pause" : "Play")
     }
 }
 
