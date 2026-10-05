@@ -228,7 +228,7 @@ static float4 clothSurface(
     }
     if (uniforms.appearance.w > 0.5) return float4(1);
     // Triangle winding identifies the material side even inside tight folds.
-    float faceBrightness = frontFacing ? 1.0 : 0.45;
+    float faceBrightness = frontFacing ? 1.0 : 0.25;
     float3 normal = clothBicubicNormal(in.uv, int2(uniforms.mesh.xy), normals);
     normal = clothCameraRotation(normal, uniforms.camera.y, uniforms.camera.z);
     float3 view = normalize(float3(0, 0, uniforms.camera.w) - in.world);
