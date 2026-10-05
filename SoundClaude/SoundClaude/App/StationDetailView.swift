@@ -10,7 +10,6 @@ struct StationDetailView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var station: SoundCloudStation?
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -155,7 +154,7 @@ struct StationDetailView: View {
             ZStack {
                 DetailArtworkView(
                     artworkURL: artworkURL, title: artworkTitle,
-                    loader: model.artworkLoader, size: 250, animatesChanges: true,
+                    loader: model.artworkLoader, size: 250, animatesChanges: false,
                     cornerRadius: 12,
                     scalesOnHover: false,
                     track: artworkTrack,
@@ -164,9 +163,9 @@ struct StationDetailView: View {
                     onShowArtwork: { isShowingArtwork = true }
                 )
                 .id(artworkTrack?.urn)
-                .transition(DetailArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
+                .transition(.identity)
             }
-            .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
+            .animation(nil, value: artworkTrack?.urn)
             .modifier(DetailArtworkRotation(
                 isShowingArtwork: isShowingArtwork,
                 flattensOnHover: true
@@ -185,12 +184,8 @@ struct StationDetailView: View {
                     .modifier(FadeInOnAppear())
                 NowPlayingTrackRow(
                     track: currentStationTrack,
-                    isPlaying: model.playback.isPlaying,
-                    isLoading: model.playback.isLoading,
-                    analyzer: model.analyzer,
                     onSelectTrack: onSelectTrack,
-                    onSelectArtist: onSelectArtist,
-                    appearanceDelay: .milliseconds(350)
+                    onSelectArtist: onSelectArtist
                 )
                 .offset(y: 12)
                 Spacer(minLength: 6)

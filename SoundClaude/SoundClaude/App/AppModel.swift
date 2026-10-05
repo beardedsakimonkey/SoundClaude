@@ -94,7 +94,14 @@ final class AppModel: ObservableObject {
         }
         playback.onTrackStarted = { [weak self] track in
             guard let self, case let .signedIn(user) = auth.state else { return }
-            historyTracks = historyStore.record(track, for: user)
+            historyStore.recordDeferred(track, for: user) { [weak self] tracks in
+                Task { @MainActor [weak self] in
+                    guard let self, case let .signedIn(currentUser) = auth.state,
+                          (currentUser.urn ?? currentUser.permalinkURL.absoluteString)
+                            == (user.urn ?? user.permalinkURL.absoluteString) else { return }
+                    historyTracks = tracks
+                }
+            }
         }
         historyAccountObservation = auth.$state.sink { [weak self] state in
             guard let self else { return }
@@ -750,8 +757,11 @@ final class AppModel: ObservableObject {
     private func prefetchArtwork(for track: SoundCloudTrack) async {
         guard let url = track.displayArtworkURL else { return }
         async let thumbnail = try? artworkLoader.image(for: url, rendition: .square500)
-        async let accent = try? artworkLoader.data(for: url)
-        _ = await (thumbnail, accent)
+        // Prepare the source rendition too: the backdrop uses it rather
+        // than square500. Cache the extracted accent, not just its JPEG data.
+        async let backdrop = try? artworkLoader.image(for: url)
+        async let accent = try? artworkLoader.accentColor(for: url)
+        _ = await (thumbnail, backdrop, accent)
     }
 
     private func selectRelativeTrack(offset: Int, isAutomatic: Bool = false) {

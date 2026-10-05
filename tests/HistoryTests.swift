@@ -2,7 +2,7 @@ import Foundation
 
 @main
 struct HistoryTests {
-    static func main() throws {
+    static func main() async throws {
         let suite = "HistoryTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -48,6 +48,26 @@ struct HistoryTests {
         defaults.set(Data("invalid".utf8), forKey: "history.tracks.user:1")
         precondition(store.restore(for: user).isEmpty)
         precondition(store.record(track(4), for: user) == [track(4)])
+        // Deferred writes keep rapid starts in order, including account changes,
+        // and perform persistence away from the UI thread.
+        store.recordDeferred(track(5), for: user, delay: 0.05) { _ in
+            precondition(!Thread.isMainThread)
+        }
+        store.recordDeferred(track(6), for: user, delay: 0.05) { _ in
+            precondition(!Thread.isMainThread)
+        }
+        store.recordDeferred(track(7), for: other, delay: 0.05) { _ in
+            precondition(!Thread.isMainThread)
+        }
+        let deferredTracks: [SoundCloudTrack] = await withCheckedContinuation { continuation in
+            store.recordDeferred(track(5), for: user, delay: 0.05) { tracks in
+                precondition(!Thread.isMainThread)
+                continuation.resume(returning: tracks)
+            }
+        }
+        precondition(deferredTracks == [track(5), track(6), track(4)])
+        precondition(store.restore(for: user) == deferredTracks)
+        precondition(store.restore(for: other) == [track(7), track(3)])
         print("Local history persistence, ordering, deduplication, account isolation, limit, recovery, and queue checks passed")
     }
 }

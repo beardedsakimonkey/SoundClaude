@@ -7,7 +7,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := run
 
-.PHONY: api build release run lsp icon test test-focus test-queue-drag test-navigation
+.PHONY: api build release run lsp icon test test-focus test-queue-drag test-navigation test-playback-title test-now-playing
 
 api:
 	@set -eu; \
@@ -219,3 +219,19 @@ test-navigation:
 		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 		tests/NavigationViewportTests.swift
 	/tmp/soundclaude-tests/navigation-viewport
+
+# Checks that selecting a track does not reflow its title on every animation frame.
+test-playback-title:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/playback-title \
+		SoundClaude/SoundClaude/App/TrackPlaybackIndicator.swift \
+		tests/PlaybackTitleLayoutTests.swift
+	/tmp/soundclaude-tests/playback-title
+
+# Keep Now Playing title changes out of the detail header's sizing.
+test-now-playing:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/now-playing \
+		SoundClaude/SoundClaude/App/NowPlayingTrackRow.swift \
+		tests/NowPlayingLayoutTests.swift
+	/tmp/soundclaude-tests/now-playing

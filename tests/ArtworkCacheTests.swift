@@ -25,6 +25,8 @@ struct ArtworkCacheTests {
             bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         )!
+        context.setFillColor(CGColor(red: 1, green: 0.2, blue: 0, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: 2000, height: 1000))
         let encoded = NSMutableData()
         let destination = CGImageDestinationCreateWithData(encoded, UTType.png.identifier as CFString, 1, nil)!
         CGImageDestinationAddImage(destination, context.makeImage()!, nil)
@@ -53,6 +55,16 @@ struct ArtworkCacheTests {
         let backdrop = try await loader.image(for: url)
         precondition(loader.cachedImage(for: url) === backdrop)
         precondition(loader.cachedImage(for: url, rendition: .square500) === image)
+
+        // Source prefetch prepares both the backdrop and its accent without
+        // another request when the detail view and footer arrive together.
+        async let firstAccent = loader.accentColor(for: url)
+        async let secondAccent = loader.accentColor(for: url)
+        let (accent, sharedAccent) = try await (firstAccent, secondAccent)
+        precondition(accent != nil && accent?.red == sharedAccent?.red
+                     && accent?.green == sharedAccent?.green && accent?.blue == sharedAccent?.blue)
+        let sourceRequests = await client.requests
+        precondition(sourceRequests == 2, "Backdrop and accents share the source request")
 
         // Visualizer pixels are decoded off the UI actor and bounded even if
         // the server returns a larger source than the requested rendition.

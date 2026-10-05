@@ -31,19 +31,19 @@ struct TrackPlaybackIndicator: View {
     private var fakeIndicator: some View {
         let shouldAnimate = isPlaying && !reduceMotion && !contentAnimationsPaused
         return TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !shouldAnimate)) { context in
-            HStack(alignment: .bottom, spacing: 2) {
-                ForEach(0..<3) { index in
+            // Draw inside fixed bounds. Changing child frame heights on
+            // each tick invalidates the surrounding track-list layout.
+            Canvas { drawing, size in
+                for index in 0..<3 {
                     let height = fakeHeight(for: index, at: context.date, animated: shouldAnimate)
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(color)
-                        .frame(width: 2, height: height)
-                        // The timeline already supplies each frame's height.
-                        // Do not start another animation on every tick or inherit
-                        // a parent animation when playback resumes.
-                        .animation(nil, value: height)
+                    let rect = CGRect(x: CGFloat(index) * 4, y: size.height - height, width: 2, height: height)
+                    drawing.fill(
+                        Path(roundedRect: rect, cornerRadius: 1),
+                        with: .color(color)
+                    )
                 }
             }
-            .frame(width: 10, height: 9, alignment: .bottom)
+            .frame(width: 10, height: 9)
         }
         .opacity(isPlaying ? 1 : 0.4)
         .animation(
@@ -110,16 +110,11 @@ struct TrackPlaybackIndicator: View {
     }
 }
 
-/// Recompute the title and badge layout from one interpolated inset each frame.
-/// Disable child interpolation only when the inset changes. Row movement must
-/// keep its animation when the inset stays the same.
-struct TrackPlaybackTitleInset: AnimatableModifier {
-    var inset: CGFloat
-
-    var animatableData: CGFloat {
-        get { inset }
-        set { inset = newValue }
-    }
+/// Change title spacing once when playback selection changes. Animating
+/// padding reflows the title and containing list during the waveform spring.
+/// Keep unrelated animations, such as queue row movement, intact.
+struct TrackPlaybackTitleInset: ViewModifier {
+    let inset: CGFloat
 
     func body(content: Content) -> some View {
         content

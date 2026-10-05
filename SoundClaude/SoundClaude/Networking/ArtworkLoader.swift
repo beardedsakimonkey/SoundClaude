@@ -17,6 +17,7 @@ actor ArtworkLoader {
         totalCostLimit: 32 * 1_024 * 1_024
     )
     private var requests: [URL: Task<Data, Error>] = [:]
+    private let accents = MemoryCache<NSURL, ArtworkAccent>(countLimit: 300)
     private let bitmaps = MemoryCache<NSString, CGImage>(
         countLimit: 48, totalCostLimit: 24 * 1_024 * 1_024
     )
@@ -76,9 +77,14 @@ actor ArtworkLoader {
     }
 
     func accentColor(for url: URL, rendition: Rendition = .source) async throws -> ArtworkAccent? {
+        let key = resolvedURL(for: rendition, sourceURL: url) as NSURL
+        if let cached = accents.value(forKey: key) { return cached }
         let data = try await data(for: url, rendition: rendition)
         try Task.checkCancellation()
-        return ArtworkAccent.extract(from: data)
+        if let cached = accents.value(forKey: key) { return cached }
+        guard let accent = ArtworkAccent.extract(from: data) else { return nil }
+        accents.insert(accent, forKey: key)
+        return accent
     }
 
     func data(

@@ -18,7 +18,6 @@ struct PlaylistDetailView: View {
     private var isLoading: Bool { playlists.loadingPlaylistURNs.contains(playlist.urn) }
     private var errorMessage: String? { playlists.playlistErrors[playlist.urn] }
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isShowingArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var likeErrorMessage: String?
@@ -57,7 +56,7 @@ struct PlaylistDetailView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            artworkBackdrop
+            TrackCollectionBackdrop(artworkURL: artworkURL, loader: model.artworkLoader)
                 .ignoresSafeArea(edges: .top)
 
             ScrollView {
@@ -159,10 +158,6 @@ struct PlaylistDetailView: View {
         }
     }
 
-    private var artworkBackdrop: some View {
-        TrackCollectionBackdrop(artworkURL: artworkURL, loader: model.artworkLoader)
-    }
-
     private var header: some View {
         HStack(alignment: .top, spacing: 24) {
             playlistArtwork
@@ -232,15 +227,10 @@ struct PlaylistDetailView: View {
 
                 NowPlayingTrackRow(
                     track: currentPlaylistTrack,
-                    isPlaying: model.playback.isPlaying,
-                    isLoading: model.playback.isLoading,
-                    analyzer: model.analyzer,
                     onSelectTrack: onSelectTrack,
-                    onSelectArtist: onSelectArtist,
-                    appearanceDelay: .milliseconds(350)
+                    onSelectArtist: onSelectArtist
                 )
                 .offset(y: 8)
-
                 Spacer(minLength: 6)
                 TrackWaveformView(
                     track: currentPlaylistTrack,
@@ -267,7 +257,7 @@ struct PlaylistDetailView: View {
                 title: artworkTitle,
                 loader: model.artworkLoader,
                 size: artworkSize,
-                animatesChanges: true,
+                animatesChanges: false,
                 cornerRadius: 12,
                 scalesOnHover: false,
                 track: artworkTrack,
@@ -278,9 +268,9 @@ struct PlaylistDetailView: View {
                 onShowArtwork: { isShowingArtwork = true }
             )
             .id(artworkTrack?.urn)
-            .transition(DetailArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
+            .transition(.identity)
         }
-        .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
+        .animation(nil, value: artworkTrack?.urn)
         .modifier(DetailArtworkRotation(
             isShowingArtwork: isShowingArtwork,
             flattensOnHover: true

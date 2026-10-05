@@ -21,6 +21,12 @@ private final class PrerollTestPlayer: AVPlayer {
     var completePreroll: (@Sendable (Bool) -> Void)?
     var immediateStarts = 0
     var normalStarts = 0
+    var currentTimeReads = 0
+
+    override func currentTime() -> CMTime {
+        currentTimeReads += 1
+        return super.currentTime()
+    }
 
     override func preroll(atRate rate: Float, completionHandler: (@Sendable (Bool) -> Void)? = nil) {
         completePreroll = completionHandler
@@ -99,6 +105,14 @@ struct PlaybackTests {
             precondition(standby!.immediateStarts == (finished == true && position == 0 ? 1 : 0))
             precondition(standby!.normalStarts == (finished == true && position == 0 ? 0 : 1))
             precondition(controller.player.automaticallyWaitsToMinimizeStalling)
+            precondition(standby!.currentTimeReads == 0,
+                         "Prepared playback and seek completion must use known positions, not synchronous clock reads")
+            let timeReads = standby!.currentTimeReads
+            let displayedPosition = controller.currentTime
+            controller.saveSession()
+            precondition(standby!.currentTimeReads == timeReads,
+                         "Saving a session must not synchronously query AVPlayer's clock")
+            precondition(controller.savedSession?.position == displayedPosition)
             controller.pause()
             if finished == nil {
                 // Completion after selection must not re-arm immediate startup.

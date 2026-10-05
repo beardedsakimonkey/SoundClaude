@@ -204,14 +204,15 @@ final class PlaybackController {
                 updateNowPlayingInfo()
             }
         }
-        timeObserver = player.addPeriodicTimeObserver(
+        let observedPlayer = player
+        timeObserver = observedPlayer.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 0.25, preferredTimescale: 600),
             queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
+        ) { [weak self, weak observedPlayer] time in
+            let seconds = time.seconds
+            Task { @MainActor [weak self, weak observedPlayer] in
+                guard let self, let observedPlayer, player === observedPlayer else { return }
                 if seekTarget == nil, let item = player.currentItem, item.status != .failed {
-                    let seconds = player.currentTime().seconds
                     currentTime = seconds.isFinite ? seconds : 0
                 }
                 let itemDuration = player.currentItem?.duration.seconds ?? 0
@@ -254,7 +255,9 @@ final class PlaybackController {
     func saveSession() {
         guard let track = currentTrack,
               player.currentItem?.status != .failed else { return }
-        let seconds = seekTarget ?? (player.currentItem == nil ? currentTime : player.currentTime().seconds)
+        // Use the observer's position instead of a blocking player-clock read.
+        // Pending seeks retain their exact requested position.
+        let seconds = seekTarget ?? currentTime
         let position = seconds.isFinite ? max(seconds, 0) : currentTime
         let session = SavedPlayback(track: track, position: position)
         guard let data = try? JSONEncoder().encode(session) else { return }
@@ -420,8 +423,9 @@ final class PlaybackController {
         guard loadingRequestID == requestID, let item = prepared.currentItem else { return }
         replacePlayer(with: prepared)
         // A fresh standby player is already at the start. Preserve its preroll
-        // instead of issuing a redundant seek before playback.
-        if seekFraction == nil, seekTarget == 0, prepared.currentTime().seconds == 0 {
+        // instead of issuing a redundant seek before playback. Prefetch only
+        // creates and prerolls this player; it never plays or seeks it.
+        if seekFraction == nil, seekTarget == 0 {
             seekTarget = nil
             canStartImmediately = isPrerolled
         }
@@ -614,7 +618,7 @@ final class PlaybackController {
             to: CMTime(seconds: target, preferredTimescale: 600),
             toleranceBefore: .zero,
             toleranceAfter: .zero
-        ) { [weak self, weak item] _ in
+        ) { [weak self, weak item] finished in
             Task { @MainActor [weak self, weak item] in
                 guard let self, let item, item === player.currentItem else {
                     return
@@ -624,8 +628,9 @@ final class PlaybackController {
                     seekIfNeeded()
                 } else {
                     seekTarget = nil
-                    let seconds = player.currentTime().seconds
-                    currentTime = seconds.isFinite ? seconds : 0
+                    // A successful zero-tolerance seek reached this target.
+                    // The periodic observer supplies subsequent clock updates.
+                    if finished { currentTime = target }
                     updateNowPlayingInfo()
                     saveSession()
                     playIfReady()
@@ -726,7 +731,7 @@ final class PlaybackController {
             return
         }
 
-        let playbackTime = elapsedTime ?? seekTarget ?? player.currentTime().seconds
+        let playbackTime = elapsedTime ?? seekTarget ?? currentTime
         let safePlaybackTime = playbackTime.isFinite ? playbackTime : 0
         let isPlayerPlaying = player.timeControlStatus == .playing
         MPNowPlayingInfoCenter.default().nowPlayingInfo = [
