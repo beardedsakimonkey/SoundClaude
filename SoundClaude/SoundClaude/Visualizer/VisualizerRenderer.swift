@@ -695,8 +695,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             }
         } else if shader == .smoke, let smokeTexture {
             encoder.setFragmentTexture(smokeTexture, index: 3)
+            encoder.setFragmentTexture(smoke?.bloomTexture, index: 4)
             var display = smokeSettings.display
             encoder.setFragmentBytes(&display, length: MemoryLayout<SIMD4<Float>>.size, index: 3)
+            var hotCores = smokeSettings.hotCores
+            encoder.setFragmentBytes(&hotCores, length: MemoryLayout<Float>.size, index: 4)
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         } else if shader == .cloth {
             if let frame = clothFrame {

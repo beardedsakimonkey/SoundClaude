@@ -65,9 +65,46 @@ struct SmokeSimulationTests {
             return weighted / max(total, 0.0001)
         }
         precondition(energy(frame(0, silence)) == 0)
+        precondition(energy(simulation.bloomTexture!) == 0, "Silence must not produce bloom")
         let puff = frame(1, loud)
         let initial = energy(puff)
         precondition(initial > 0)
+        precondition(energy(simulation.bloomTexture!) > 0, "Bright smoke must produce bloom")
+        var highThreshold = SmokeSettings()
+        highThreshold.bloomThreshold = 1_000_000
+        let thresholdSimulation = try SmokeSimulation(device: device, library: library)
+        _ = frame(0, loud, simulation: thresholdSimulation, settings: highThreshold)
+        precondition(energy(thresholdSimulation.bloomTexture!) == 0,
+                     "Smoke below the threshold must not produce bloom")
+        // Verify both bloom layers add together, and zero outer strength preserves the tight layer.
+        let combinePipeline = try device.makeComputePipelineState(function: library.makeFunction(name: "smokeBloomCombine")!)
+        let layerDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba32Float, width: 1, height: 1, mipmapped: false)
+        layerDescriptor.storageMode = .shared
+        layerDescriptor.usage = [.shaderRead, .shaderWrite]
+        let layers = (0..<3).map { _ in device.makeTexture(descriptor: layerDescriptor)! }
+        for (index, value) in [Float(0.2), Float(0.4)].enumerated() {
+            var pixel = SIMD4<Float>(value, value, value, 0)
+            layers[index].replace(region: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0,
+                                  withBytes: &pixel, bytesPerRow: 16)
+        }
+        for strength in [Float(0), SmokeSettings().bloomWideStrength, Float(1)] {
+            let command = queue.makeCommandBuffer()!
+            let combine = command.makeComputeCommandEncoder()!
+            combine.setComputePipelineState(combinePipeline)
+            for (index, texture) in layers.enumerated() { combine.setTexture(texture, index: index) }
+            var wideStrength = strength
+            combine.setBytes(&wideStrength, length: MemoryLayout<Float>.size, index: 0)
+            combine.dispatchThreads(MTLSize(width: 1, height: 1, depth: 1),
+                                    threadsPerThreadgroup: MTLSize(width: 1, height: 1, depth: 1))
+            combine.endEncoding(); command.commit(); command.waitUntilCompleted()
+            precondition(command.status == .completed)
+            var result = SIMD4<Float>.zero
+            layers[2].getBytes(&result, bytesPerRow: 16,
+                               from: MTLRegionMake2D(0, 0, 1, 1), mipmapLevel: 0)
+            precondition(abs(result.x - (0.2 + 0.4 * strength)) < 0.0001,
+                         "Outer bloom must add light without reducing the tight layer")
+        }
         let renderDescriptor = MTLRenderPipelineDescriptor()
         renderDescriptor.vertexFunction = library.makeFunction(name: "smokeVisualizerVertex")
         renderDescriptor.fragmentFunction = library.makeFunction(name: "smokeVisualizerFragment")
@@ -82,18 +119,73 @@ struct SmokeSimulationTests {
         pass.colorAttachments[0].texture = target
         pass.colorAttachments[0].loadAction = .clear
         pass.colorAttachments[0].storeAction = .store
-        let renderCommand = queue.makeCommandBuffer()!
-        let render = renderCommand.makeRenderCommandEncoder(descriptor: pass)!
-        render.setRenderPipelineState(pipeline)
-        render.setFragmentTexture(puff, index: 3)
-        var display = SmokeSettings().display
-        render.setFragmentBytes(&display, length: MemoryLayout<SIMD4<Float>>.size, index: 3)
-        render.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-        render.endEncoding(); renderCommand.commit(); renderCommand.waitUntilCompleted()
-        precondition(renderCommand.status == .completed)
-        var pixels = [UInt8](repeating: 0, count: 192 * 128 * 4)
-        target.getBytes(&pixels, bytesPerRow: 192 * 4,
-                        from: MTLRegionMake2D(0, 0, 192, 128), mipmapLevel: 0)
+        func renderPixels(_ texture: MTLTexture, settings: SmokeSettings = SmokeSettings()) -> [UInt8] {
+            let renderCommand = queue.makeCommandBuffer()!
+            let render = renderCommand.makeRenderCommandEncoder(descriptor: pass)!
+            render.setRenderPipelineState(pipeline)
+            render.setFragmentTexture(texture, index: 3)
+            render.setFragmentTexture(simulation.bloomTexture, index: 4)
+            var display = settings.display
+            render.setFragmentBytes(&display, length: MemoryLayout<SIMD4<Float>>.size, index: 3)
+            var hotCores = settings.hotCores
+            render.setFragmentBytes(&hotCores, length: MemoryLayout<Float>.size, index: 4)
+            render.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+            render.endEncoding(); renderCommand.commit(); renderCommand.waitUntilCompleted()
+            precondition(renderCommand.status == .completed)
+            var pixels = [UInt8](repeating: 0, count: 192 * 128 * 4)
+            target.getBytes(&pixels, bytesPerRow: 192 * 4,
+                            from: MTLRegionMake2D(0, 0, 192, 128), mipmapLevel: 0)
+            return pixels
+        }
+        let pixels = renderPixels(puff)
+        // A fixed red image isolates hot cores from random puff positions and bloom.
+        let coreDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .rgba32Float, width: 192, height: 128, mipmapped: false)
+        coreDescriptor.storageMode = .shared
+        coreDescriptor.usage = .shaderRead
+        let coreTexture = device.makeTexture(descriptor: coreDescriptor)!
+        var corePixels = [Float](repeating: 0, count: 192 * 128 * 4)
+        for i in 0..<(192 * 128) {
+            let column = i % 192
+            corePixels[i * 4] = column < 64 ? 0.01 : (column < 128 ? 0.25 : 3)
+            corePixels[i * 4 + 3] = 1
+        }
+        corePixels.withUnsafeBytes {
+            coreTexture.replace(region: MTLRegionMake2D(0, 0, 192, 128), mipmapLevel: 0,
+                                withBytes: $0.baseAddress!, bytesPerRow: 192 * 16)
+        }
+        var coreSettings = SmokeSettings()
+        coreSettings.glow = 0
+        coreSettings.bloomStrength = 0
+        coreSettings.hotCores = 0
+        let cold = renderPixels(coreTexture, settings: coreSettings)
+        coreSettings.hotCores = 1
+        let hot = renderPixels(coreTexture, settings: coreSettings)
+        let dim = (64 * 192 + 32) * 4, bright = (64 * 192 + 160) * 4
+        let moderate = (64 * 192 + 96) * 4
+        precondition(cold[dim..<(dim + 4)] == hot[dim..<(dim + 4)],
+                     "Hot cores must preserve faint smoke color")
+        precondition(hot[bright + 1] > 240 && hot[bright + 2] > 240 && cold[bright + 1] < 10,
+                     "Hot cores must turn bright saturated smoke toward white")
+        precondition(hot[moderate + 1] > cold[moderate + 1] + 20,
+                     "Hot cores must be visible at moderate smoke brightness")
+        // Follow a moderate red puff through one second of the default smoke decay.
+        // The white component should fade smoothly instead of disappearing at the old cutoff.
+        coreSettings.hotCores = SmokeSettings().hotCores
+        var previousGreen: UInt8 = 255
+        for step in 0...4 {
+            let intensity = Float(0.25) * exp(-Float(step) * 0.25 * coreSettings.decay)
+            for i in 0..<(192 * 128) { corePixels[i * 4] = intensity }
+            corePixels.withUnsafeBytes {
+                coreTexture.replace(region: MTLRegionMake2D(0, 0, 192, 128), mipmapLevel: 0,
+                                    withBytes: $0.baseAddress!, bytesPerRow: 192 * 16)
+            }
+            let fading = renderPixels(coreTexture, settings: coreSettings)
+            let green = fading[moderate + 1]
+            precondition(green <= previousGreen, "Hot cores must fade smoothly with the smoke")
+            precondition(green > 15, "Hot cores must remain visible as moderate smoke fades")
+            previousGreen = green
+        }
         precondition(stride(from: 0, to: pixels.count, by: 4).contains {
             max(pixels[$0], max(pixels[$0 + 1], pixels[$0 + 2])) > 180
         }, "Puffs should render bright color")
@@ -122,6 +214,6 @@ struct SmokeSimulationTests {
             let (r, g, b) = (grayDye[i], grayDye[i + 1], grayDye[i + 2])
             return abs(r - g) < 0.01 && abs(g - b) < 0.01
         }, "Zero saturation must emit gray smoke")
-        print("Smoke tests passed: onsets, strength, band isolation, GPU simulation and rendering, decay, reset, resize, buoyancy, saturation")
+        print("Smoke tests passed: onsets, strength, band isolation, GPU simulation and rendering, bloom, decay, reset, resize, buoyancy, saturation")
     }
 }
