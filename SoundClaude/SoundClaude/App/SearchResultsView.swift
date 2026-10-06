@@ -54,7 +54,7 @@ struct SearchResultsView: View {
             .frame(minHeight: searchViewportHeight, alignment: .topLeading)
         }
         .padding(contentPadding)
-        .navigationTitle("Search")
+        .navigationTitle(isGenreSearch || isTagSearch ? "Search" : query)
     }
 }
 

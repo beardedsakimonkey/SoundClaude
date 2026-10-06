@@ -76,7 +76,7 @@ private struct SearchFocusTests {
                     )
                     let searchHost = NSHostingView(rootView: SearchView(
                         user: user, searchText: .constant(""), focusRequest: UUID(),
-                        results: { Text("Results for \($0)") }
+                        onSearch: { _ in }
                     ))
                     window.contentView = searchHost
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -87,19 +87,19 @@ private struct SearchFocusTests {
                             precondition(searchField.currentEditor() == nil, "Outside click must release search focus")
                             searchHost.rootView = SearchView(
                                 user: user, searchText: .constant(""), focusRequest: UUID(),
-                                results: { Text("Results for \($0)") }
+                                onSearch: { _ in }
                             )
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                 precondition(searchField.currentEditor() != nil, "Reselecting Search must restore input focus")
                                 searchHost.rootView = SearchView(
                                     user: user, searchText: .constant(""), focusRequest: UUID(), isActive: false,
-                                    results: { Text("Results for \($0)") }
+                                    onSearch: { _ in }
                                 )
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     precondition(searchField.currentEditor() == nil, "A retained hidden search page must release focus")
                                     searchHost.rootView = SearchView(
                                         user: user, searchText: .constant(""), focusRequest: UUID(),
-                                        results: { Text("Results for \($0)") }
+                                        onSearch: { _ in }
                                     )
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                         precondition(searchField.currentEditor() != nil, "Returning to retained Search must restore requested focus")

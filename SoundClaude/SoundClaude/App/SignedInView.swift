@@ -366,6 +366,21 @@ struct SignedInView: View {
     @ViewBuilder
     private func routeView(_ route: Route) -> some View {
         switch route {
+        case let .search(query):
+            ScrollbarReservedScrollView { contentSize in
+                SearchResultsView(
+                    query: query,
+                    model: model,
+                    onSelectTrack: showTrack,
+                    onSelectPlaylist: showPlaylist,
+                    onSelectArtist: showArtist
+                )
+                .environment(\.searchViewportHeight, contentSize.height)
+            }
+            .background(alignment: .top) {
+                RouteGradientBackdrop()
+            }
+            .id(route)
         case let .tag(tag):
             ScrollView {
                 SearchResultsView(
@@ -493,17 +508,12 @@ struct SignedInView: View {
                 user: user,
                 searchText: $searchText,
                 focusRequest: searchFocusRequest,
-                isActive: isActive
-            ) { query in
-                SearchResultsView(
-                    query: query,
-                    contentPadding: 0,
-                    model: model,
-                    onSelectTrack: showTrack,
-                    onSelectPlaylist: showPlaylist,
-                    onSelectArtist: showArtist
-                )
-            }
+                isActive: isActive,
+                onSearch: { query in
+                    forwardPath.removeAll()
+                    path.append(.search(query))
+                }
+            )
         case .history:
             HistoryView(
                 model: model,
@@ -752,6 +762,7 @@ private struct QueueBlurModifier: AnimatableModifier {
 }
 
 private enum Route: Hashable {
+    case search(String)
     case genre(String)
     case tag(String)
     case playlist(SoundCloudPlaylist)

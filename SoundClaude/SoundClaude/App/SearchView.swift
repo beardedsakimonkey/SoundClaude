@@ -11,15 +11,14 @@ extension EnvironmentValues {
     }
 }
 
-struct SearchView<Results: View>: View {
+struct SearchView: View {
     let user: SoundCloudUser
     @Binding var searchText: String
     let focusRequest: UUID
     var isActive = true
-    @ViewBuilder let results: (String) -> Results
+    let onSearch: (String) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var submittedQuery: String?
     @State private var recentSearches: [String] = []
     @State private var isHoveringClearHistory = false
     @FocusState private var isSearchFocused: Bool
@@ -40,11 +39,6 @@ struct SearchView<Results: View>: View {
             await Task.yield()
             guard !Task.isCancelled, isActive else { return }
             isSearchFocused = true
-        }
-        .onChange(of: searchText) { _, text in
-            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                submittedQuery = nil
-            }
         }
         .onChange(of: isActive) { _, active in
             if !active { isSearchFocused = false }
@@ -68,10 +62,7 @@ struct SearchView<Results: View>: View {
             .frame(maxWidth: 400)
             .frame(maxWidth: .infinity, alignment: .center)
 
-            if let submittedQuery {
-                results(submittedQuery)
-                    .id(submittedQuery)
-            } else if !recentSearches.isEmpty {
+            if !recentSearches.isEmpty {
                 HStack {
                     Text("Recent")
                         .font(.headline)
@@ -112,7 +103,7 @@ struct SearchView<Results: View>: View {
         searchText = query
         recentSearches = store.record(query, for: user)
         isSearchFocused = false
-        submittedQuery = query
+        onSearch(query)
     }
 }
 
