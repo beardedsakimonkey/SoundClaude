@@ -44,10 +44,11 @@ final class WaveformShadingCache {
         // Build the shaded stops and interpolate them in OKLab, including
         // the white crest. Keep alpha constant throughout the surface.
         let profile: [(location: CGFloat, brightness: CGFloat, highlight: CGFloat)] = [
-            (0,    0.98, 0.08),
-            (0.08, 1,    0.30),
-            (0.24, 0.98, 0.12),
-            (1,    0.87, 0.03)
+            (0,    0.97, 0.10),
+            (0.1,  1,    0.34),
+            (0.26, 1,    0.12),
+            (0.55, 0.95, 0.03),
+            (1,    0.82, 0)
         ]
         let stops = profile.map { stop in
             // Keep a subtle crest on light backgrounds without a white stripe.
