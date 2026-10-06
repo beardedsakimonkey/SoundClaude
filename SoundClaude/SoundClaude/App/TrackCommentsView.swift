@@ -29,38 +29,13 @@ enum CommentSortOrder: String, CaseIterable {
 
 struct CommentSortMenu: View {
     @AppStorage("commentSortOrder") private var sortOrder = CommentSortOrder.newest
-    @State private var isHovered = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "arrow.down")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
-
-            Menu {
-                Picker("Sort comments", selection: $sortOrder) {
-                    ForEach(CommentSortOrder.allCases, id: \.self) { order in
-                        Text(order.title)
-                            .tag(order)
-                    }
-                }
-                .pickerStyle(.inline)
-            } label: {
-                Text(sortOrder.title)
-                    .font(.subheadline)
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .opacity(isHovered ? 1 : 0.7)
-            .onContentHover { isHovered = $0 }
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovered)
-            .accessibilityLabel("Sort comments")
-            .accessibilityValue(sortOrder.title)
-            .contentHelp("Sort comments")
-        }
-        .fixedSize(horizontal: true, vertical: false)
+        SortMenu(
+            label: "Sort comments",
+            selection: $sortOrder,
+            options: CommentSortOrder.allCases,
+            title: { $0.title }
+        )
     }
 }
 

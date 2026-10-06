@@ -1,6 +1,20 @@
 import Foundation
 import SwiftUI
 
+private enum LikesSortOrder: String, CaseIterable {
+    case newest
+    case oldest
+    case artist
+
+    var title: String {
+        switch self {
+        case .newest: "Newest"
+        case .oldest: "Oldest"
+        case .artist: "Artist"
+        }
+    }
+}
+
 struct LikesView: View {
     let user: SoundCloudUser
     let isActive: Bool
@@ -15,6 +29,7 @@ struct LikesView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding private var searchText: String
     @AppStorage("likesTrackLayout") private var trackLayout = TrackLayout.list
+    @AppStorage("likesSortOrder") private var sortOrder = LikesSortOrder.newest
     @FocusState private var isSearchFocused: Bool
     private let playback: PlaybackController
     private let analyzer: SpectrumAnalyzer
@@ -88,6 +103,12 @@ struct LikesView: View {
             }
             searchBar
                 .frame(maxWidth: 280)
+            SortMenu(
+                label: "Sort liked tracks",
+                selection: $sortOrder,
+                options: LikesSortOrder.allCases,
+                title: { $0.title }
+            )
             TrackLayoutPicker(trackLayout: $trackLayout)
         }
         .padding(20)
@@ -118,6 +139,25 @@ struct LikesView: View {
         }
     }
 
+    private var sortedTracks: [SoundCloudTrack] {
+        let tracks = filteredTracks
+        switch sortOrder {
+        case .newest:
+            // The cache keeps newest likes first, independent of upload dates.
+            return tracks
+        case .oldest:
+            return Array(tracks.reversed())
+        case .artist:
+            // Equal artist names retain their newest-like order.
+            return tracks.sorted {
+                $0.artist.username.precomposedStringWithCompatibilityMapping
+                    .localizedStandardCompare(
+                        $1.artist.username.precomposedStringWithCompatibilityMapping
+                    ) == .orderedAscending
+            }
+        }
+    }
+
     @ViewBuilder
     private var errorBanner: some View {
         if let message = appErrorMessage ?? likes.errorMessage {
@@ -144,7 +184,7 @@ struct LikesView: View {
             EmptyStateView("No liked tracks")
             .frame(maxWidth: .infinity, minHeight: 240)
         } else {
-            let tracks = filteredTracks
+            let tracks = sortedTracks
             LazyVStack(alignment: .leading, spacing: 0) {
                 if tracks.isEmpty, !searchQuery.isEmpty {
                     EmptyStateView("No matching tracks")
