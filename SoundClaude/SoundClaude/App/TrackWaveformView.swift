@@ -627,7 +627,7 @@ struct TrackWaveformView: View {
         _ amplitudes: WaveformAmplitudes,
         size: CGSize
     ) -> [CGRect] {
-        let barWidth: CGFloat = 2
+        let barWidth: CGFloat = layout == .detail ? 2.5 : 2
         let step: CGFloat = 4
         let inset = layout.horizontalBarInset(for: size.width)
         let availableHeight = layout.availableBarHeight(for: size.height)
