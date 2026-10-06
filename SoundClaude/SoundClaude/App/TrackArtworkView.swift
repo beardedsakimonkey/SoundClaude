@@ -173,7 +173,7 @@ struct FullSizeArtworkView: View {
                         .scaledToFit()
                         .accessibilityLabel("Artwork for \(title)")
                 } else if isLoading {
-                    ProgressView()
+                    LoadingSpinner()
                         .accessibilityLabel("Loading artwork")
                         .tint(.white)
                         .foregroundStyle(.white)

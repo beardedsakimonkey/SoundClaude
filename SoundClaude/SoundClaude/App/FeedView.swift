@@ -16,7 +16,7 @@ struct FeedView: View {
             RouteGradientBackdrop()
 
             if !feed.cache.hasLoadedPage, feed.errorMessage == nil {
-                ProgressView()
+                LoadingSpinner()
                     .accessibilityLabel("Loading feed")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -107,11 +107,11 @@ struct FeedView: View {
                         .disabled(feed.isLoading)
                 }
                 if feed.isLoading {
-                    ProgressView()
+                    LoadingSpinner()
                         .accessibilityLabel("Loading feed")
                         .frame(maxWidth: .infinity)
                 } else if nextPageURL != nil, feed.errorMessage == nil {
-                    ProgressView()
+                    LoadingSpinner()
                         .accessibilityLabel("Loading feed")
                         .frame(maxWidth: .infinity)
                         .task(id: nextPageURL) { await feed.loadMore() }

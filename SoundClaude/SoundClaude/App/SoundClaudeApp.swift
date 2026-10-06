@@ -57,7 +57,7 @@ struct SoundClaudeApp: App {
     }
 
     private func progressView(label: String) -> some View {
-        ProgressView()
+        LoadingSpinner()
             .accessibilityLabel(label)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

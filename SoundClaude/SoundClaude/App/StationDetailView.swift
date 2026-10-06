@@ -83,7 +83,7 @@ struct StationDetailView: View {
                                 .disabled(isLoading)
                         }
                         if isLoading {
-                            ProgressView()
+                            LoadingSpinner()
                                 .accessibilityLabel("Loading station")
                                 .frame(maxWidth: .infinity)
                         } else if station != nil, tracks.isEmpty, errorMessage == nil {

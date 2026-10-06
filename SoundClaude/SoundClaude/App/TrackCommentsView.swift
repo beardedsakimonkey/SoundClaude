@@ -85,7 +85,7 @@ struct TrackCommentsView: View {
             }
 
             if isLoading {
-                ProgressView()
+                LoadingSpinner()
                     .accessibilityLabel("Loading comments")
                     .frame(maxWidth: .infinity)
                     .modifier(FadeInOnAppear())
@@ -172,7 +172,7 @@ struct TrackCommentsView: View {
                 } label: {
                     ZStack {
                         if isPosting {
-                            ProgressView()
+                            LoadingSpinner()
                                 .controlSize(.small)
                         } else {
                             Image(systemName: "paperplane.fill")

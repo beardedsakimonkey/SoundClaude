@@ -128,7 +128,7 @@ struct PlaylistCardView: View {
                 }
 
                 if isLoading {
-                    ProgressView()
+                    LoadingSpinner()
                         .accessibilityLabel("Loading playlist")
                         .controlSize(.small)
                         .frame(width: 16, height: 16)

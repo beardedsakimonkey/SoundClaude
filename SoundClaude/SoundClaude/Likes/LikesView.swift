@@ -97,7 +97,7 @@ struct LikesView: View {
             }
             Spacer()
             if likes.isLoading {
-                ProgressView()
+                LoadingSpinner()
                     .accessibilityLabel("Syncing likes")
                     .controlSize(.small)
             }
@@ -259,7 +259,7 @@ struct LikesView: View {
         HStack {
             Spacer()
             if likes.isLoadingMore {
-                ProgressView()
+                LoadingSpinner()
                     .controlSize(.small)
             } else {
                 Button(likes.errorMessage == nil ? "Load more" : "Try again") {

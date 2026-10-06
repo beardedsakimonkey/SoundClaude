@@ -275,7 +275,7 @@ struct SidebarView: View {
                         }
                         .overlay(alignment: .trailing) {
                             if startingStationURN == station.urn {
-                                ProgressView()
+                                LoadingSpinner()
                                     .controlSize(.small)
                                     .frame(width: 24, height: 24)
                                     .padding(.trailing, 8)
@@ -337,7 +337,7 @@ struct SidebarView: View {
             }
             .overlay(alignment: .trailing) {
                 if startingPlaylistURN == playlist.urn {
-                    ProgressView()
+                    LoadingSpinner()
                         .controlSize(.small)
                         .frame(width: 24, height: 24)
                         .padding(.trailing, 8)
@@ -379,7 +379,7 @@ struct SidebarView: View {
                 }
                 .overlay(alignment: .trailing) {
                     if addingToPlaylistURNs.contains(playlist.urn), startingPlaylistURN != playlist.urn {
-                        ProgressView()
+                        LoadingSpinner()
                             .controlSize(.small)
                             .padding(.trailing, 8)
                             .accessibilityLabel("Adding track to \(playlist.title)")
@@ -464,7 +464,7 @@ struct SidebarView: View {
                     .accessibilityHidden(true)
                 Spacer()
                 if isLoading {
-                    ProgressView()
+                    LoadingSpinner()
                         .controlSize(.mini)
                         .accessibilityHidden(true)
                 }

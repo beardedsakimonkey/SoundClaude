@@ -51,7 +51,7 @@ struct ArtistUsersView: View {
                     }
                     .frame(maxWidth: .infinity)
                 } else if !hasLoaded || nextPageURL != nil {
-                    ProgressView()
+                    LoadingSpinner()
                         .accessibilityLabel("Loading \(list.title.lowercased())")
                         .frame(maxWidth: .infinity)
                         .task(id: nextPageURL) { await loadPage() }

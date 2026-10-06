@@ -72,7 +72,7 @@ struct PlaylistEditorView: View {
             }
             HStack {
                 if isSaving {
-                    ProgressView()
+                    LoadingSpinner()
                         .controlSize(.small)
                         .accessibilityLabel(playlist == nil ? "Creating playlist" : "Saving playlist")
                 }

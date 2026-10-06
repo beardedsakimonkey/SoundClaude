@@ -50,7 +50,7 @@ struct TrackDetailView: View {
                 if let details {
                     detailsView(details)
                 } else if isLoading {
-                    ProgressView()
+                    LoadingSpinner()
                         .accessibilityLabel("Loading track")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -477,7 +477,7 @@ private struct TrackDetailRelatedTracks: View {
                     .modifier(FadeInOnAppear())
             }
             if isLoadingRelatedTracks || (nextPageURL != nil && relatedTracksErrorMessage == nil) {
-                ProgressView()
+                LoadingSpinner()
                     .accessibilityLabel("Loading related tracks")
                     .frame(maxWidth: .infinity)
                     .modifier(FadeInOnAppear())

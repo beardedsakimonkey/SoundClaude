@@ -54,7 +54,7 @@ struct AddToPlaylistView: View {
             .overlay {
                 if ownedPlaylists.isEmpty {
                     if playlists.isLoading {
-                        ProgressView()
+                        LoadingSpinner()
                     } else {
                         Text("No playlists. Create a playlist in the sidebar first.")
                             .foregroundStyle(.secondary)
@@ -70,7 +70,7 @@ struct AddToPlaylistView: View {
                     .disabled(isAdding || playlists.isLoading)
             }
             HStack {
-                if isAdding { ProgressView().controlSize(.small) }
+                if isAdding { LoadingSpinner().controlSize(.small) }
                 Spacer()
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)

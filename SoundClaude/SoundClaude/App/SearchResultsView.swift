@@ -136,7 +136,7 @@ private struct SearchResultList: View {
 
                     Group {
                         if isLoading || (!hasLoaded && errorMessage == nil) {
-                            ProgressView()
+                            LoadingSpinner()
                                 .accessibilityLabel("Searching \(category.rawValue.lowercased())")
                         } else if let errorMessage {
                             VStack(spacing: 8) {

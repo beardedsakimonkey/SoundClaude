@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		FADE00000000000000000001 /* LoadingSpinner.swift in Sources */ = {isa = PBXBuildFile; fileRef = FADE00000000000000000002 /* LoadingSpinner.swift */; };
 		D10650000000000000000001 /* SortMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10650000000000000000002 /* SortMenu.swift */; };
 		C92810000000000000000003 /* PistonSolver.c in Sources */ = {isa = PBXBuildFile; fileRef = C92800000000000000000003; settings = {COMPILER_FLAGS = "-O2"; }; };
 		C92810000000000000000002 /* PistonVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = C92800000000000000000002; };
@@ -119,6 +120,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		FADE00000000000000000002 /* LoadingSpinner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingSpinner.swift; sourceTree = "<group>"; };
 		D10650000000000000000002 /* SortMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SortMenu.swift; sourceTree = "<group>"; };
 		C92800000000000000000004 /* PistonSolver.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PistonSolver.h; sourceTree = "<group>"; };
 		C92800000000000000000003 /* PistonSolver.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = PistonSolver.c; sourceTree = "<group>"; };
@@ -341,6 +343,7 @@
 				D922C0000000000000000004 /* WaveformShadingCache.swift */,
 				D921C0000000000000000002 /* WaveformCommentIndex.swift */,
 				A2000000000000000000002D /* TrackArtworkView.swift */,
+				FADE00000000000000000002 /* LoadingSpinner.swift */,
 				A2000000000000000000002E /* SignedInView.swift */,
 				D91700000000000000000012 /* RecentSearchStore.swift */,
 				D93000000000000000000012 /* HistoryStore.swift */,
@@ -630,6 +633,7 @@
 				D922C0000000000000000003 /* WaveformShadingCache.swift in Sources */,
 				D921C0000000000000000001 /* WaveformCommentIndex.swift in Sources */,
 				A10000000000000000000015 /* TrackArtworkView.swift in Sources */,
+				FADE00000000000000000001 /* LoadingSpinner.swift in Sources */,
 				A10000000000000000000016 /* SignedInView.swift in Sources */,
 				D91700000000000000000002 /* RecentSearchStore.swift in Sources */,
 				D93000000000000000000002 /* HistoryStore.swift in Sources */,

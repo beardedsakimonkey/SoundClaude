@@ -171,7 +171,7 @@ struct ArtistDetailView: View {
             if let details {
                 detailsView(details)
             } else if isLoading {
-                ProgressView()
+                LoadingSpinner()
                     .accessibilityLabel("Loading artist")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -539,7 +539,7 @@ struct ArtistDetailView: View {
             )
 
             if isLoadingRelatedArtists {
-                ProgressView()
+                LoadingSpinner()
                     .accessibilityLabel("Loading related artists")
                     .controlSize(.small)
             } else if let relatedArtistsErrorMessage {
@@ -660,7 +660,7 @@ struct ArtistDetailView: View {
                             .opacity(isShufflingTracks ? 0 : 1)
                             .overlay {
                                 if isShufflingTracks {
-                                    ProgressView()
+                                    LoadingSpinner()
                                         .controlSize(.mini)
                                         .accessibilityHidden(true)
                                 }
@@ -718,7 +718,7 @@ struct ArtistDetailView: View {
                         .opacity(isLoadingFollow ? 0 : 1)
                         .overlay {
                             if isLoadingFollow {
-                                ProgressView()
+                                LoadingSpinner()
                                     .controlSize(.mini)
                                     .accessibilityHidden(true)
                             }
@@ -828,7 +828,7 @@ struct ArtistDetailView: View {
                     .disabled(isLoadingTracks)
             }
             if isLoadingTracks || (nextPageURL != nil && tracksErrorMessage == nil) {
-                ProgressView()
+                LoadingSpinner()
                     .accessibilityLabel("Loading tracks")
                     .frame(maxWidth: .infinity)
                     .task(id: nextPageURL) {
@@ -869,7 +869,7 @@ struct ArtistDetailView: View {
             if isLoadingReposts || isLoadingRepostedPlaylists
                 || (repostsNextPageURL != nil && repostsErrorMessage == nil)
                 || (repostedPlaylistsNextPageURL != nil && repostedPlaylistsErrorMessage == nil) {
-                ProgressView()
+                LoadingSpinner()
                     .accessibilityLabel("Loading reposts")
                     .frame(maxWidth: .infinity)
                     .task(id: repostsNextPageURL) {
@@ -964,7 +964,7 @@ struct ArtistDetailView: View {
             if isLoadingLikes || isLoadingLikedPlaylists
                 || (likesNextPageURL != nil && likesErrorMessage == nil)
                 || (likedPlaylistsNextPageURL != nil && likedPlaylistsErrorMessage == nil) {
-                ProgressView()
+                LoadingSpinner()
                     .accessibilityLabel("Loading likes")
                     .frame(maxWidth: .infinity)
                     .task(id: likesNextPageURL) {
@@ -1016,7 +1016,7 @@ struct ArtistDetailView: View {
             }
             if isLoadingPlaylists
                 || (playlistsNextPageURL != nil && playlistsErrorMessage == nil) {
-                ProgressView()
+                LoadingSpinner()
                     .accessibilityLabel("Loading playlists")
                     .frame(maxWidth: .infinity)
                     .task(id: playlistsNextPageURL) {
