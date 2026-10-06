@@ -16,6 +16,7 @@ struct StationDetailView: View {
     @State private var loadAttempt = 0
     @State private var isShowingArtwork = false
     @State private var isHoveringStationTitle = false
+    @State private var isHoveringStationRow = false
     @State private var isOpeningSource = false
     @State private var sourceErrorMessage: String?
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
@@ -32,6 +33,14 @@ struct StationDetailView: View {
     private var currentStationTrack: SoundCloudTrack? {
         guard model.queue.source == .station(urn) else { return nil }
         return model.playback.currentTrack
+    }
+    private var displayedTrack: SoundCloudTrack? {
+        if let currentStationTrack { return currentStationTrack }
+        if let seedTrackURN, let currentTrack = model.playback.currentTrack,
+           currentTrack.urn == seedTrackURN {
+            return currentTrack
+        }
+        return tracks.first
     }
     private var artworkURL: URL? {
         currentStationTrack?.displayArtworkURL
@@ -172,23 +181,28 @@ struct StationDetailView: View {
                 flattensOnHover: true
             ))
             VStack(alignment: .leading, spacing: 10) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Label(stationType, systemImage: "dot.radiowaves.left.and.right")
-                        .labelStyle(.titleAndIcon)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 8) {
                     stationTitle
+                    stationLikeButton
+                        .opacity(isHoveringStationRow ? 1 : 0)
+                        .animation(
+                            .easeInOut(duration: 0.2),
+                            value: isHoveringStationRow
+                        )
                 }
+                .contentShape(Rectangle())
+                .onContentHover { isHoveringStationRow = $0 }
                 .modifier(FadeInOnAppear())
-                playbackControls
-                    .padding(.top, 8)
-                    .modifier(FadeInOnAppear())
                 NowPlayingTrackRow(
-                    track: currentStationTrack,
+                    track: displayedTrack,
+                    layout: .stacked,
+                    artworkLoader: model.artworkLoader,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist
                 )
-                .offset(y: 12)
+                playbackControls
+                    .padding(.top, 8)
+                    .modifier(FadeInOnAppear())
                 Spacer(minLength: 6)
                 TrackWaveformView(
                     track: currentStationTrack, model: model,
@@ -214,14 +228,17 @@ struct StationDetailView: View {
                 isOpeningSource = true
             }
         } label: {
-            Text(title)
-                .font(.system(size: 24, weight: .semibold))
+            Label {
+                Text(title)
+                    .underline(isHoveringStationTitle)
+            } icon: {
+                Image(systemName: "dot.radiowaves.left.and.right")
+            }
+                .labelStyle(.titleAndIcon)
+                .font(.body)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                .foregroundStyle(.primary)
-                .opacity(currentStationTrack != nil ? 0.6 : 0.9)
-                .animation(.easeInOut(duration: 0.2), value: currentStationTrack != nil)
-                .underline(isHoveringStationTitle)
+                .foregroundStyle(.secondary)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -229,6 +246,31 @@ struct StationDetailView: View {
         .disabled(isOpeningSource)
         .contentHelp(stationType == "Artist station" ? "View station artist" : "View station track")
         .accessibilityLabel("\(stationType == "Artist station" ? "View artist" : "View track"): \(title)")
+    }
+
+    private var stationLikeButton: some View {
+        let isLiked = likes.likedStationURNs.contains(urn)
+        let isUpdating = likes.isLoadingStationLikes || likes.updatingStationURNs.contains(urn)
+        let actionLabel = "\(isLiked ? "Unlike" : "Like") station: \(title)"
+        return Button {
+            Task {
+                do {
+                    try await likes.toggleStationLike(urn: urn, title: title)
+                } catch {
+                    model.likeErrorMessage = error.localizedDescription
+                }
+            }
+        } label: {
+            Image(systemName: isLiked ? "heart.fill" : "heart")
+                .foregroundStyle(isLiked ? Color.accentColor : .secondary)
+                .padding(4)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isUpdating)
+        .contentHelp(actionLabel)
+        .accessibilityLabel(actionLabel)
+        .accessibilityValue(isUpdating ? "Updating" : (isLiked ? "Liked" : "Not liked"))
     }
 
     private var playbackControls: some View {
@@ -283,17 +325,20 @@ struct StationDetailView: View {
             }
             .labelStyle(.iconOnly)
             .disabled(currentStationTrack == nil)
-            DetailLikeButton(
-                isLiked: likes.likedStationURNs.contains(urn),
-                isUpdating: likes.isLoadingStationLikes || likes.updatingStationURNs.contains(urn),
-                iconOnly: true,
-                subject: "station: \(title)"
-            ) {
-                Task {
-                    do {
-                        try await likes.toggleStationLike(urn: urn, title: title)
-                    } catch {
-                        model.likeErrorMessage = error.localizedDescription
+            if let track = displayedTrack {
+                DetailLikeButton(
+                    isLiked: likes.isLiked(track),
+                    isUpdating: likes.updatingTrackURNs.contains(track.urn),
+                    likeCount: likes.likeCount(for: track),
+                    iconOnly: iconOnly,
+                    subject: "track: \(track.title)"
+                ) {
+                    Task {
+                        do {
+                            try await likes.toggleLike(track)
+                        } catch {
+                            model.likeErrorMessage = error.localizedDescription
+                        }
                     }
                 }
             }

@@ -232,6 +232,7 @@ test-playback-title:
 test-now-playing:
 	@mkdir -p /tmp/soundclaude-tests
 	swiftc -o /tmp/soundclaude-tests/now-playing \
+		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
 		SoundClaude/SoundClaude/App/NowPlayingTrackRow.swift \
 		tests/NowPlayingLayoutTests.swift
 	/tmp/soundclaude-tests/now-playing
