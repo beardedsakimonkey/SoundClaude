@@ -144,7 +144,11 @@ private struct SearchResultList: View {
                                 Button("Try Again") { requestID = UUID() }
                             }
                         } else if nextPageURL != nil {
-                            Button("Load More") { requestID = UUID() }
+                            LoadingSpinner()
+                                .accessibilityLabel("Loading more \(category.rawValue.lowercased())")
+                                // Keep the request on the list so replacing this footer
+                                // with the loading state does not cancel the request.
+                                .onAppear { requestID = UUID() }
                         } else if isEmpty {
                             EmptyStateView("No \(category.rawValue.lowercased()) found")
                         }

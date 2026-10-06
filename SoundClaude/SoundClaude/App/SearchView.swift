@@ -71,7 +71,7 @@ struct SearchView: View {
                         store.clear(for: user)
                         recentSearches = []
                     } label: {
-                        Text("Clear history")
+                        Text("Clear")
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(isHoveringClearHistory ? Color.primary : Color.secondary)
