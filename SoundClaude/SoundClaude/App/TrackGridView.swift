@@ -163,8 +163,7 @@ struct TrackGridTile: View {
                     if isCurrentTrack {
                         TrackPlaybackIndicator(
                             isPlaying: playback.isPlaying,
-                            isLoading: playback.isLoading,
-                            analyzer: analyzer
+                            isLoading: playback.isLoading
                         )
                     }
                 }

@@ -434,7 +434,6 @@ struct DetailArtworkView: View {
     var cornerRadius: CGFloat = 6
     var reflectionBlurRadius: CGFloat = 3
     var artworkLift: CGFloat = 0
-    var scalesOnHover = true
     var isShowingArtwork = false
     var hoverAnimation: Animation = .spring(response: 0.4, dampingFraction: 0.9)
     var hoverOutAnimation: Animation? = nil
@@ -593,7 +592,6 @@ struct DetailArtworkView: View {
             animatesChanges: animatesChanges,
             showsPlaceholderIcon: showsPlaceholderIcon
         )
-        .scaleEffect(scalesOnHover && isArtworkHoverActive && !reduceMotion ? 1.06 : 1)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius,

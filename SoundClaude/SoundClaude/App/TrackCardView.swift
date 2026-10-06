@@ -158,8 +158,7 @@ struct TrackCardView: View {
             if showsPlaybackIndicator {
                 TrackPlaybackIndicator(
                     isPlaying: model.playback.isPlaying,
-                    isLoading: model.playback.isLoading,
-                    analyzer: model.analyzer
+                    isLoading: model.playback.isLoading
                 )
             }
         }

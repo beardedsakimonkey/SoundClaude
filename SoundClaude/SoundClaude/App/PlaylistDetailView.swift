@@ -272,7 +272,6 @@ struct PlaylistDetailView: View {
                 size: artworkSize,
                 animatesChanges: false,
                 cornerRadius: 12,
-                scalesOnHover: false,
                 track: artworkTrack,
                 likes: model.likes,
                 onAddToQueue: model.addToQueue,

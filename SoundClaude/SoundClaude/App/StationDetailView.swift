@@ -158,7 +158,6 @@ struct StationDetailView: View {
                     artworkURL: artworkURL, title: artworkTitle,
                     loader: model.artworkLoader, size: 250, animatesChanges: false,
                     cornerRadius: 12,
-                    scalesOnHover: false,
                     track: artworkTrack,
                     likes: model.likes,
                     onAddToQueue: model.addToQueue,

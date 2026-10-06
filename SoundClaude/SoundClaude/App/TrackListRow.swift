@@ -88,8 +88,7 @@ struct TrackListRow: View {
                     if showsPlaybackIndicator {
                         TrackPlaybackIndicator(
                             isPlaying: playback.isPlaying,
-                            isLoading: playback.isLoading,
-                            analyzer: analyzer
+                            isLoading: playback.isLoading
                         )
                         .opacity(0.9)
                     }

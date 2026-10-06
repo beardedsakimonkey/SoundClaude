@@ -3,32 +3,12 @@ import SwiftUI
 struct TrackPlaybackIndicator: View {
     let isPlaying: Bool
     let isLoading: Bool
-    let analyzer: SpectrumAnalyzer
     var color: Color = .accentColor
-    // Set to false to compare with the audio-driven indicator.
-    var useFakePlaybackIndicator = true
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
-    @State private var levels: [Float] = [0, 0, 0]
-
-    private var isAnimating: Bool { (isPlaying || isLoading) && !reduceMotion && !contentAnimationsPaused }
 
     var body: some View {
-        Group {
-            if useFakePlaybackIndicator {
-                fakeIndicator
-            } else {
-                audioIndicator
-            }
-        }
-        .fixedSize()
-        .allowsHitTesting(false)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(!useFakePlaybackIndicator && isLoading ? "Loading" : isPlaying ? "Now playing" : "Paused")
-    }
-
-    private var fakeIndicator: some View {
         let showsBars = isPlaying && !isLoading
         let shouldAnimate = showsBars && !reduceMotion && !contentAnimationsPaused
         return TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !shouldAnimate)) { context in
@@ -44,54 +24,13 @@ struct TrackPlaybackIndicator: View {
                 value: showsBars
             )
         }
-    }
-
-    private var audioIndicator: some View {
-        TimelineView(.animation(paused: !isAnimating)) { context in
-            HStack(alignment: .bottom, spacing: 2) {
-                ForEach(0..<3) { index in
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(color)
-                        .frame(width: 2, height: isLoading ? 2 : 2 + CGFloat(levels[index]) * 7)
-                        .animation(
-                            reduceMotion || contentAnimationsPaused || isLoading ? nil : .easeOut(duration: 0.2),
-                            value: levels[index]
-                        )
-                        .offset(y: loadingOffset(for: index, at: context.date))
-                }
-            }
-            .frame(width: 10, height: 9, alignment: .bottom)
-            .onChange(of: context.date) { _, _ in
-                updateLevels()
-            }
-        }
-        .onAppear { updateLevels() }
-        .onChange(of: isPlaying) { _, _ in updateLevels() }
-        .onChange(of: isAnimating) { _, _ in updateLevels() }
-        .onChange(of: isLoading) { _, _ in updateLevels() }
-    }
-
-    private func loadingOffset(for index: Int, at date: Date) -> CGFloat {
-        guard isLoading, !reduceMotion else { return 0 }
-        let cycleDuration = 1.5
-        let time = date.timeIntervalSinceReferenceDate
-            .truncatingRemainder(dividingBy: cycleDuration)
-        let phase = -Double(index) * 0.15
-        let bounce = max(0, sin((time + phase) / cycleDuration * 2 * .pi))
-        return -3 * CGFloat(bounce * bounce)
-    }
-
-    private func updateLevels() {
-        guard isPlaying else {
-            levels = [0, 0, 0]
-            return
-        }
-        guard isAnimating, !isLoading, let snapshot = analyzer.playbackIndicatorLevels() else { return }
-        levels = snapshot
+        .fixedSize()
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(isPlaying ? "Now playing" : "Paused")
     }
 }
 
-// Animate the multiplier inside fixed bounds to keep the title layout stable.
 private struct PlaybackIndicatorBars: Shape {
     var growth: CGFloat
     let date: Date

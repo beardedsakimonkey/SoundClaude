@@ -128,7 +128,6 @@ struct TrackDetailView: View {
                         showsPlaceholderIcon: false,
                         cornerRadius: 12,
                         artworkLift: isArtworkHoverActive && !reduceMotion ? 8 : 0,
-                        scalesOnHover: false,
                         isShowingArtwork: isShowingArtwork,
                         hoverAnimation: .spring(response: 0.45, dampingFraction: 0.9),
                         hoverOutAnimation: .spring(response: 0.6, dampingFraction: 1),
