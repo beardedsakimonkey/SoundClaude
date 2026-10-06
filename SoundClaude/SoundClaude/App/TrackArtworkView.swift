@@ -500,6 +500,8 @@ struct DetailArtworkView: View {
             artworkThumbnail
                 .scaleEffect(x: 1, y: -1)
                 .blur(radius: reflectionBlurRadius)
+                // Keep the mirrored silhouette rounded after the blur spreads its edges.
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                 // Mirror the lift below the ground while keeping the fade fixed.
                 .offset(y: reduceMotion ? 0 : artworkLift)
                 .frame(height: reflectionHeight, alignment: .top)
