@@ -28,9 +28,22 @@ extension EnvironmentValues {
     }
 }
 
-struct PlayerArtworkGlass: ViewModifier {
+struct PlayerArtworkGlass: ViewModifier, Animatable {
     let cornerRadius: CGFloat
-    let isHovering: Bool
+    // Moves the face reflection as the cover lifts toward the light. Zero keeps it fixed.
+    var hoverSweepTravel = 0.0
+    private var hoverProgress: Double
+
+    var animatableData: Double {
+        get { hoverProgress }
+        set { hoverProgress = newValue }
+    }
+
+    init(cornerRadius: CGFloat, isHovering: Bool, hoverSweepTravel: Double = 0) {
+        self.cornerRadius = cornerRadius
+        self.hoverSweepTravel = hoverSweepTravel
+        hoverProgress = isHovering ? 1 : 0
+    }
 
     @Environment(\.playerArtworkGlassParameters) private var parameters
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
@@ -40,6 +53,8 @@ struct PlayerArtworkGlass: ViewModifier {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         let enablesRefraction = parameters.isEnabled && !reduceTransparency
         let sampleOffset = ceil(parameters.refraction + parameters.dispersion) + 1
+        let sweepPosition = parameters.sweepPosition + hoverSweepTravel * hoverProgress
+        let sweepStrength = parameters.sweepStrength * (hoverSweepTravel > 0 ? 1 + 0.6 * hoverProgress : 1)
 
         content
             .compositingGroup()
@@ -57,9 +72,9 @@ struct PlayerArtworkGlass: ViewModifier {
                         .float(parameters.lipWidth),
                         .float(parameters.reflectionStrength),
                         .float(parameters.causticStrength),
-                        .float(parameters.sweepStrength),
+                        .float(sweepStrength),
                         .float(parameters.sweepWidth),
-                        .float(parameters.sweepPosition)
+                        .float(sweepPosition)
                     ),
                     // Include the largest color-channel bend plus filtering headroom.
                     maxSampleOffset: CGSize(width: sampleOffset, height: sampleOffset),

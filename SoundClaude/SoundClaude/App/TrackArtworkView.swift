@@ -446,6 +446,9 @@ struct DetailArtworkView: View {
     let onShowArtwork: () -> Void
 
     private var reflectionHeight: CGFloat { size * 0.45 }
+    private var displayedLift: CGFloat { reduceMotion ? 0 : artworkLift }
+    // 0 at rest, 1 at a typical 8pt hover lift.
+    private var liftProgress: CGFloat { min(displayedLift / 8, 1.5) }
 
     private enum ReflectionFade {
         // Opacity at the artwork's bottom edge (0...1).
@@ -495,7 +498,15 @@ struct DetailArtworkView: View {
                         )
                     }
                 }
-                .offset(y: reduceMotion ? 0 : -artworkLift)
+                // Raised covers cast a larger, softer shadow onto the backdrop.
+                .shadow(
+                    color: .black.opacity(0.22 * liftProgress),
+                    radius: 6 + 10 * liftProgress,
+                    x: 0,
+                    y: 4 + 10 * liftProgress
+                )
+                .offset(y: -displayedLift)
+                .zIndex(1)
 
             artworkThumbnail
                 .scaleEffect(x: 1, y: -1)
@@ -503,7 +514,7 @@ struct DetailArtworkView: View {
                 // Keep the mirrored silhouette rounded after the blur spreads its edges.
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                 // Mirror the lift below the ground while keeping the fade fixed.
-                .offset(y: reduceMotion ? 0 : artworkLift)
+                .offset(y: displayedLift)
                 .frame(height: reflectionHeight, alignment: .top)
                 .clipped()
                 .mask {
@@ -513,6 +524,7 @@ struct DetailArtworkView: View {
                         endPoint: .bottom
                     )
                 }
+                .overlay(alignment: .top) { contactShadow }
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
                 // Reserve space for the visible reflection; let its faint tail overflow.
@@ -559,6 +571,17 @@ struct DetailArtworkView: View {
         }
     }
 
+    // Occlusion where the cover meets the floor; it spreads and fades as the cover lifts.
+    private var contactShadow: some View {
+        Ellipse()
+            .fill(.black.opacity(0.4 - 0.22 * min(liftProgress, 1)))
+            .frame(width: size * (0.96 + 0.04 * liftProgress), height: 6 + 6 * liftProgress)
+            .blur(radius: 4 + 5 * liftProgress)
+            .offset(y: -3)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
     private var artworkThumbnail: some View {
         TrackArtworkView(
             artworkURL: artworkURL,
@@ -574,7 +597,8 @@ struct DetailArtworkView: View {
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius,
-            isHovering: isArtworkHoverActive && !reduceMotion
+            isHovering: isArtworkHoverActive && !reduceMotion,
+            hoverSweepTravel: 0.14
         ))
         .animation(
             reduceMotion ? nil : (isArtworkHoverActive ? hoverAnimation : (hoverOutAnimation ?? hoverAnimation)),
