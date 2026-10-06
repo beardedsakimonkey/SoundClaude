@@ -114,7 +114,7 @@ struct SignedInView: View {
                         .background {
                             RoundedRectangle(cornerRadius: 16)
                                 .fill(Color(white: colorScheme == .dark ? 0.20 : 0.94))
-                                .shadow(color: .black, radius: 12, y: 4)
+                                .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
                         }
                         .overlay {
                             RoundedRectangle(cornerRadius: 16)
