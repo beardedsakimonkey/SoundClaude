@@ -26,7 +26,6 @@ struct PlaylistDetailView: View {
     @State private var editingPlaylist: SoundCloudPlaylist?
     @State private var playlistDeletion = PlaylistDeletionState()
     @State private var removeTrackErrorMessage: String?
-    @State private var shuffledStartingTrackURN: String?
 
     private var isOwnedByCurrentUser: Bool {
         guard !playlist.isSystemPlaylist, case let .signedIn(user) = model.auth.state,
@@ -40,13 +39,7 @@ struct PlaylistDetailView: View {
         return model.playback.currentTrack
     }
 
-    private var startingTrack: SoundCloudTrack? {
-        if model.playback.isShuffleEnabled,
-           let track = tracks.first(where: { $0.urn == shuffledStartingTrackURN }) {
-            return track
-        }
-        return tracks.first
-    }
+    private var startingTrack: SoundCloudTrack? { tracks.first }
 
     private var displayedTrack: SoundCloudTrack? { currentPlaylistTrack ?? startingTrack }
 
@@ -124,13 +117,6 @@ struct PlaylistDetailView: View {
         }
         .task(id: playlist.urn) {
             await load()
-        }
-        .onChange(of: tracks.map(\.urn), initial: true) { _, _ in
-            updateStartingTrack()
-        }
-        .onChange(of: model.playback.isShuffleEnabled) { _, _ in
-            shuffledStartingTrackURN = nil
-            updateStartingTrack()
         }
         .task(id: displayedPlaylist.isPrivate) {
             if playlist.isSystemPlaylist {
@@ -488,16 +474,6 @@ struct PlaylistDetailView: View {
             tracks: tracks,
             nextPageURL: nextPageURL
         ))
-    }
-
-    private func updateStartingTrack() {
-        guard model.playback.isShuffleEnabled else {
-            shuffledStartingTrackURN = nil
-            return
-        }
-        if !tracks.contains(where: { $0.urn == shuffledStartingTrackURN }) {
-            shuffledStartingTrackURN = tracks.randomElement()?.urn
-        }
     }
 
     private func load() async {

@@ -20,7 +20,6 @@ struct StationDetailView: View {
     @State private var isOpeningSource = false
     @State private var sourceErrorMessage: String?
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
-    @State private var shuffledStartingTrackURN: String?
 
     init(
         urn: String,
@@ -54,13 +53,7 @@ struct StationDetailView: View {
         guard model.queue.source == .station(urn) else { return nil }
         return model.playback.currentTrack
     }
-    private var startingTrack: SoundCloudTrack? {
-        if model.playback.isShuffleEnabled,
-           let track = tracks.first(where: { $0.urn == shuffledStartingTrackURN }) {
-            return track
-        }
-        return tracks.first
-    }
+    private var startingTrack: SoundCloudTrack? { tracks.first }
 
     private var displayedTrack: SoundCloudTrack? {
         if let currentStationTrack { return currentStationTrack }
@@ -134,13 +127,6 @@ struct StationDetailView: View {
             }
         }
         .task(id: loadAttempt) { await load() }
-        .onChange(of: tracks.map(\.urn), initial: true) { _, _ in
-            updateStartingTrack()
-        }
-        .onChange(of: model.playback.isShuffleEnabled) { _, _ in
-            shuffledStartingTrackURN = nil
-            updateStartingTrack()
-        }
         .task(id: urn) {
             do {
                 try await likes.loadStationLikes()
@@ -372,16 +358,6 @@ struct StationDetailView: View {
 
     private func playTrack(_ track: SoundCloudTrack) async {
         await model.play(track, queue: TrackQueue(source: .station(urn), tracks: tracks, stationTitle: title))
-    }
-
-    private func updateStartingTrack() {
-        guard model.playback.isShuffleEnabled else {
-            shuffledStartingTrackURN = nil
-            return
-        }
-        if !tracks.contains(where: { $0.urn == shuffledStartingTrackURN }) {
-            shuffledStartingTrackURN = tracks.randomElement()?.urn
-        }
     }
 
     private func load() async {
