@@ -45,31 +45,7 @@ struct TrackDetailView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .top) {
-            Group {
-                if let details {
-                    detailsView(details)
-                } else if isLoading {
-                    LoadingSpinner()
-                        .accessibilityLabel("Loading track")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    ContentUnavailableView {
-                        Label(
-                            "Could not load track",
-                            systemImage: "exclamationmark.triangle"
-                        )
-                    } description: {
-                        Text(errorMessage ?? "An unknown error occurred.")
-                    } actions: {
-                        Button("Try Again") {
-                            Task { await load() }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-        }
+        detailsView
         .preference(
             key: TrackDetailBackdropPreferenceKey.self,
             value: TrackDetailBackdropSource(
@@ -115,146 +91,170 @@ struct TrackDetailView: View {
         }
     }
 
-    private func detailsView(_ details: SoundCloudTrackDetails) -> some View {
+    private var displayedTrack: SoundCloudTrack { details?.track ?? track }
+
+    // Keep the header mounted while the request fills in the rest of the page.
+    private var header: some View {
+        HStack(alignment: .top, spacing: 24) {
+            DetailArtworkView(
+                artworkURL: displayedTrack.displayArtworkURL,
+                title: displayedTrack.title,
+                loader: model.artworkLoader,
+                size: artworkSize,
+                animatesChanges: true,
+                showsPlaceholderIcon: false,
+                cornerRadius: 12,
+                artworkLift: isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverLift : 0,
+                isShowingArtwork: isShowingArtwork,
+                onImageHover: { isHoveringArtwork = $0 },
+                track: displayedTrack,
+                likes: model.likes,
+                onAddToQueue: model.addToQueue,
+                onShowArtwork: { isShowingArtwork = true }
+            )
+            .modifier(DetailArtworkRotation(
+                isRotated: false,
+                isShowingArtwork: isShowingArtwork,
+                imageHover: isHoveringArtwork
+            ))
+            .animation(
+                reduceMotion ? nil : (isArtworkHoverActive
+                    ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut),
+                value: isArtworkHoverActive
+            )
+            .animation(
+                reduceMotion ? nil : (isArtworkHoverActive
+                    ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut)
+            ) { content in
+                content.scaleEffect(isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverScale : 1)
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                if displayedTrack.access == .preview {
+                    TrackPreviewBadge(font: .callout)
+                }
+                Text(displayedTrack.title)
+                    .font(.system(size: 36, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .foregroundStyle(.primary)
+                    .opacity(0.9)
+                    .textSelection(.enabled)
+                    .modifier(FadeInOnAppear())
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    ArtistLink(
+                        artist: displayedTrack.artist,
+                        artworkLoader: model.artworkLoader,
+                        showsAvatarBorder: true,
+                        onSelect: onSelectArtist
+                    )
+
+                    RelativeTimestampView(
+                        timestamp: details?.createdAt,
+                        accessibilityPrefix: "Created"
+                    )
+                }
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .modifier(FadeInOnAppear())
+                ViewThatFits(in: .horizontal) {
+                    trackActions(for: displayedTrack, iconOnly: false)
+                        .labelStyle(.titleAndIcon)
+                        .fixedSize(horizontal: true, vertical: false)
+                    trackActions(for: displayedTrack, iconOnly: true)
+                        .labelStyle(.iconOnly)
+                }
+                .padding(.top, 8)
+                .modifier(FadeInOnAppear())
+
+                if displayedTrack.waveformURL != nil {
+                    Spacer(minLength: 6)
+                    TrackWaveformView(track: displayedTrack, model: model)
+                        .offset(y: -2)
+                }
+            }
+            // Put the waveform ground at the artwork's bottom edge.
+            .frame(
+                minHeight: displayedTrack.waveformURL != nil
+                    ? artworkSize + TrackWaveformView.Layout.detail.reflectionHeight : nil,
+                alignment: .topLeading
+            )
+        }
+    }
+
+    private var detailsView: some View {
         ScrollbarReservedScrollView { _ in
             VStack(alignment: .leading, spacing: 24) {
-                HStack(alignment: .top, spacing: 24) {
-                    DetailArtworkView(
-                        artworkURL: details.track.displayArtworkURL,
-                        title: details.track.title,
-                        loader: model.artworkLoader,
-                        size: artworkSize,
-                        animatesChanges: true,
-                        showsPlaceholderIcon: false,
-                        cornerRadius: 12,
-                        artworkLift: isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverLift : 0,
-                        isShowingArtwork: isShowingArtwork,
-                        onImageHover: { isHoveringArtwork = $0 },
-                        track: details.track,
-                        likes: model.likes,
-                        onAddToQueue: model.addToQueue,
-                        onShowArtwork: { isShowingArtwork = true }
-                    )
-                    .modifier(DetailArtworkRotation(
-                        isRotated: false,
-                        isShowingArtwork: isShowingArtwork,
-                        imageHover: isHoveringArtwork
-                    ))
-                    .animation(
-                        reduceMotion ? nil : (isArtworkHoverActive
-                            ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut),
-                        value: isArtworkHoverActive
-                    )
-                    .animation(
-                        reduceMotion ? nil : (isArtworkHoverActive
-                            ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut)
-                    ) { content in
-                        content.scaleEffect(isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverScale : 1)
-                    }
+                header
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        if details.track.access == .preview {
-                            TrackPreviewBadge(font: .callout)
-                        }
-                        Text(details.track.title)
-                            .font(.system(size: 36, weight: .semibold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
-                            .foregroundStyle(.primary)
-                            .opacity(0.9)
-                            .textSelection(.enabled)
-                            .modifier(FadeInOnAppear())
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            ArtistLink(
-                                artist: details.track.artist,
-                                artworkLoader: model.artworkLoader,
-                                showsAvatarBorder: true,
-                                onSelect: onSelectArtist
-                            )
-
-                            RelativeTimestampView(
-                                timestamp: details.createdAt,
-                                accessibilityPrefix: "Created"
-                            )
-                        }
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                        .modifier(FadeInOnAppear())
-                        ViewThatFits(in: .horizontal) {
-                            trackActions(for: details.track, iconOnly: false)
-                                .labelStyle(.titleAndIcon)
-                                .fixedSize(horizontal: true, vertical: false)
-                            trackActions(for: details.track, iconOnly: true)
-                                .labelStyle(.iconOnly)
-                        }
-                        .padding(.top, 8)
-                        .modifier(FadeInOnAppear())
-
-                        if details.track.waveformURL != nil {
-                            Spacer(minLength: 6)
-                            TrackWaveformView(track: details.track, model: model)
-                                .offset(y: -2)
-                        }
-                    }
-                    // Put the waveform ground at the artwork's bottom edge.
-                    .frame(
-                        minHeight: details.track.waveformURL != nil
-                            ? artworkSize + TrackWaveformView.Layout.detail.reflectionHeight : nil,
-                        alignment: .topLeading
-                    )
-                }
-
-                if let description = nonempty(details.description) {
-                    ExpandableDescriptionText(
-                        description: description,
-                        onSelectArtist: onSelectArtist
-                    )
-                    .id(track.urn)
-                }
-
-                if !details.tags.isEmpty {
-                    TagLayout {
-                        ForEach(Array(details.tags.enumerated()), id: \.offset) { _, tag in
-                            TagPill(tag: tag)
-                        }
-                    }
-                    .modifier(FadeInOnAppear())
-                }
-
-                HStack(alignment: .top, spacing: 24) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack(alignment: .firstTextBaseline) {
-                            CountedSectionHeader(
-                                title: "Comments",
-                                count: details.commentCount
-                            )
-                            Spacer()
-                            CommentSortMenu()
-                        }
-                        .modifier(FadeInOnAppear())
-
-                        TrackCommentsView(
-                            track: details.track,
-                            model: model,
-                            onSelectArtist: onSelectArtist,
-                            onCommentAdded: {
-                                if let count = self.details?.commentCount {
-                                    self.details?.commentCount = count + 1
-                                }
-                            }
+                if let details {
+                    if let description = nonempty(details.description) {
+                        ExpandableDescriptionText(
+                            description: description,
+                            onSelectArtist: onSelectArtist
                         )
                         .id(track.urn)
                     }
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
 
-                    TrackDetailRelatedTracks(
-                        track: track,
-                        model: model,
-                        onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist
-                    )
-                    .id(track.urn)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    if !details.tags.isEmpty {
+                        TagLayout {
+                            ForEach(Array(details.tags.enumerated()), id: \.offset) { _, tag in
+                                TagPill(tag: tag)
+                            }
+                        }
+                        .modifier(FadeInOnAppear())
+                    }
+
+                    HStack(alignment: .top, spacing: 24) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack(alignment: .firstTextBaseline) {
+                                CountedSectionHeader(
+                                    title: "Comments",
+                                    count: details.commentCount
+                                )
+                                Spacer()
+                                CommentSortMenu()
+                            }
+                            .modifier(FadeInOnAppear())
+
+                            TrackCommentsView(
+                                track: details.track,
+                                model: model,
+                                onSelectArtist: onSelectArtist,
+                                onCommentAdded: {
+                                    if let count = self.details?.commentCount {
+                                        self.details?.commentCount = count + 1
+                                    }
+                                }
+                            )
+                            .id(track.urn)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+
+                        TrackDetailRelatedTracks(
+                            track: track,
+                            model: model,
+                            onSelectTrack: onSelectTrack,
+                            onSelectArtist: onSelectArtist
+                        )
+                        .id(track.urn)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+                } else if isLoading {
+                    LoadingSpinner()
+                        .accessibilityLabel("Loading track")
+                        .frame(maxWidth: .infinity)
+                } else {
+                    ContentUnavailableView {
+                        Label("Could not load track", systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(errorMessage ?? "An unknown error occurred.")
+                    } actions: {
+                        Button("Try Again") {
+                            Task { await load() }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -363,8 +363,11 @@ struct TrackDetailView: View {
         isLoading = true
         errorMessage = nil
         do {
-            details = try await model.trackDetails(for: track)
+            let result = try await model.trackDetails(for: track)
+            try Task.checkCancellation()
+            details = result
         } catch {
+            guard !Task.isCancelled else { return }
             details = nil
             errorMessage = error.localizedDescription
         }
