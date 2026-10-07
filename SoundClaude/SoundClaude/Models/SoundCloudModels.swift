@@ -286,6 +286,10 @@ struct SoundCloudPlaylist: Codable, Identifiable, Sendable, Hashable {
     var lastModified: String? = nil
     var createdAt: String? = nil
 
+    var tagList: String? = nil
+
+    var tags: [String] { SoundCloudTags.parse(tagList) }
+
     var isSystemPlaylist: Bool { urn.hasPrefix("soundcloud:system-playlists:") }
 
     static func systemPlaylist(urn: String, title: String, contents: SoundCloudStation? = nil) -> Self {
@@ -561,6 +565,7 @@ struct RawPlaylist: Decodable {
     let sharing: String?
     let lastModified: String?
     let createdAt: String?
+    let tagList: String?
 
     enum CodingKeys: String, CodingKey {
         case urn, title, user, description, duration, sharing
@@ -569,6 +574,7 @@ struct RawPlaylist: Decodable {
         case trackCount = "track_count"
         case lastModified = "last_modified"
         case createdAt = "created_at"
+        case tagList = "tag_list"
     }
 
     func normalized() -> SoundCloudPlaylist? {
@@ -586,7 +592,8 @@ struct RawPlaylist: Decodable {
             durationMilliseconds: duration,
             isPrivate: sharing == "private",
             lastModified: lastModified,
-            createdAt: createdAt
+            createdAt: createdAt,
+            tagList: tagList
         )
     }
 }
@@ -671,7 +678,7 @@ struct RawTrack: Decodable {
     func normalizedDetails() -> SoundCloudTrackDetails? {
         guard let track = normalized() else { return nil }
         return SoundCloudTrackDetails(
-            tags: parsedTags,
+            tags: SoundCloudTags.parse(tagList),
             track: track,
             description: description,
             genre: genre,
@@ -680,28 +687,6 @@ struct RawTrack: Decodable {
             favoritingsCount: favoritingsCount,
             commentCount: commentCount
         )
-    }
-
-    private var parsedTags: [String] {
-        var tags: [String] = []
-        var tag = ""
-        var isQuoted = false
-        for character in tagList ?? "" {
-            if character == "\"" {
-                isQuoted.toggle()
-            } else if character.isWhitespace && !isQuoted {
-                if !tag.isEmpty { tags.append(tag) }
-                tag = ""
-            } else {
-                tag.append(character)
-            }
-        }
-        if !tag.isEmpty { tags.append(tag) }
-        // Machine tags are metadata and are not shown on SoundCloud track pages.
-        return tags.filter {
-            $0.range(of: #"^[^:\s]+:[^=\s]+="#, options: .regularExpression) == nil
-                && !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
     }
 
     private static func extractSecretToken(from url: URL?) -> String? {
@@ -862,4 +847,28 @@ struct PlaylistArtwork: Sendable {
 
     let data: Data
     let format: Format
+}
+
+private enum SoundCloudTags {
+    static func parse(_ tagList: String?) -> [String] {
+        var tags: [String] = []
+        var tag = ""
+        var isQuoted = false
+        for character in tagList ?? "" {
+            if character == "\"" {
+                isQuoted.toggle()
+            } else if character.isWhitespace && !isQuoted {
+                if !tag.isEmpty { tags.append(tag) }
+                tag = ""
+            } else {
+                tag.append(character)
+            }
+        }
+        if !tag.isEmpty { tags.append(tag) }
+        // Machine tags are metadata and are not shown on SoundCloud pages.
+        return tags.filter {
+            $0.range(of: #"^[^:\s]+:[^=\s]+="#, options: .regularExpression) == nil
+                && !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
 }

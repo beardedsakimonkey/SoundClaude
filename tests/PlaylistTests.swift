@@ -11,6 +11,20 @@ struct PlaylistTests {
              "duration":0,"sharing":"private",
              "user":{"username":"Owner","permalink_url":"https://soundcloud.com/owner"}}
             """
+        let tagFixtures: [(String?, [String])] = [
+            (nil, []),
+            ("", []),
+            (#"ambient "deep house" 日本語 geo:lat=43.555"#, ["ambient", "deep house", "日本語"]),
+        ]
+        for (tagList, expected) in tagFixtures {
+            var json = try JSONSerialization.jsonObject(with: Data(playlist.utf8)) as! [String: Any]
+            json["tag_list"] = tagList ?? (NSNull() as Any)
+            let data = try JSONSerialization.data(withJSONObject: json)
+            let normalized = try decoder.decode(RawPlaylist.self, from: data).normalized()!
+            precondition(normalized.tags == expected)
+            let cached = try decoder.decode(SoundCloudPlaylist.self, from: JSONEncoder().encode(normalized))
+            precondition(cached.tags == expected)
+        }
         let nextURL = "https://api.soundcloud.com/me/playlists?cursor=next"
         for (json, count, next) in [
             ("[\(playlist)]", 1, nil),
@@ -56,6 +70,7 @@ struct PlaylistTests {
         let legacyCache = try JSONEncoder().encode(undated)
         let cachedUndated = try decoder.decode(SoundCloudPlaylist.self, from: legacyCache)
         precondition(cachedUndated.lastModified == nil)
+        precondition(cachedUndated.tags.isEmpty)
 
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [PlaylistURLProtocol.self]

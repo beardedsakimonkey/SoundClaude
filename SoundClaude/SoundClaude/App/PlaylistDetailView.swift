@@ -191,6 +191,14 @@ struct PlaylistDetailView: View {
                     onSelectArtist: onSelectArtist
                 )
             }
+            if !displayedPlaylist.tags.isEmpty {
+                TagLayout {
+                    ForEach(Array(displayedPlaylist.tags.enumerated()), id: \.offset) { _, tag in
+                        TagPill(tag: tag)
+                    }
+                }
+                .modifier(FadeInOnAppear())
+            }
             playlistMetadata
         }
     }
