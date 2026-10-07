@@ -213,13 +213,20 @@ struct PlaylistDetailView: View {
                 .contentShape(Rectangle())
                 .onContentHover { isHoveringPlaylistLabel = $0 }
                 .modifier(FadeInOnAppear())
-                NowPlayingTrackRow(
-                    track: displayedTrack,
-                    layout: .stacked,
-                    artworkLoader: model.artworkLoader,
-                    onSelectTrack: onSelectTrack,
-                    onSelectArtist: onSelectArtist
-                )
+                Group {
+                    if let displayedTrack {
+                        DetailTrackHeadingSlot(
+                            track: displayedTrack,
+                            isCollection: true,
+                            artworkLoader: model.artworkLoader,
+                            onSelectTrack: onSelectTrack,
+                            onSelectArtist: onSelectArtist
+                        )
+                    } else {
+                        Color.clear
+                    }
+                }
+                .frame(minHeight: 64, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 16) {
                     ViewThatFits(in: .horizontal) {
@@ -333,6 +340,7 @@ struct PlaylistDetailView: View {
                         }
                     }
                 }
+                .detailSlot(trackURN: track.urn, isCollection: true)
             }
         }
     }
@@ -340,8 +348,12 @@ struct PlaylistDetailView: View {
     private func playButton(iconOnly: Bool) -> some View {
         let isStarting = currentPlaylistTrack == nil
         let isPlaying = !isStarting && model.playback.isPlaybackActive
-        let playLabel = isStarting ? "Start" : "Play"
-        return Button {
+        return DetailPlayButtonSlot(configuration: DetailPlayButtonConfiguration(
+            trackURN: displayedTrack?.urn, isCollection: true,
+            isStarting: isStarting, isPlaying: isPlaying,
+            isEnabled: currentPlaylistTrack != nil || !tracks.isEmpty,
+            iconOnly: iconOnly, subject: "playlist"
+        )) {
             if currentPlaylistTrack != nil {
                 model.playback.togglePlayPause()
             } else if let track = startingTrack {
@@ -351,32 +363,7 @@ struct PlaylistDetailView: View {
                     ))
                 }
             }
-        } label: {
-            ZStack {
-                Label(playLabel, systemImage: "play.fill")
-                    .animation(nil) { label in
-                        label.opacity(isPlaying ? 0 : 1)
-                    }
-                    .accessibilityHidden(isPlaying)
-                Label("Pause", systemImage: "pause.fill")
-                    .animation(nil) { label in
-                        label.opacity(isPlaying ? 1 : 0)
-                    }
-                    .accessibilityHidden(!isPlaying)
-            }
-            .foregroundStyle(isStarting ? Color.green : Color.primary)
-            .font(.title3.weight(.semibold))
-            .padding(.horizontal, iconOnly ? 0 : 24)
-            .frame(width: iconOnly ? 44 : nil)
-            .frame(minHeight: 24)
         }
-        .buttonStyle(TrackActionButtonStyle(
-            fill: isStarting ? .green.opacity(0.12) : .primary.opacity(0.12)
-        ))
-        .animation(.easeInOut(duration: 0.25), value: isStarting)
-        .disabled(currentPlaylistTrack == nil && tracks.isEmpty)
-        .contentHelp(isPlaying ? "Pause playlist" : "\(playLabel) playlist")
-        .accessibilityLabel(isPlaying ? "Pause playlist" : "\(playLabel) playlist")
     }
 
     private var trackNavigationButtons: some View {

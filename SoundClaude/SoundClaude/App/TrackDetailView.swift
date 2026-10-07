@@ -133,30 +133,12 @@ struct TrackDetailView: View {
                 if displayedTrack.access == .preview {
                     TrackPreviewBadge(font: .callout)
                 }
-                Text(displayedTrack.title)
-                    .font(.system(size: 36, weight: .semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .foregroundStyle(.primary)
-                    .opacity(0.9)
-                    .textSelection(.enabled)
-                    .modifier(FadeInOnAppear())
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    ArtistLink(
-                        artist: displayedTrack.artist,
-                        artworkLoader: model.artworkLoader,
-                        showsAvatarBorder: true,
-                        onSelect: onSelectArtist
-                    )
-
-                    RelativeTimestampView(
-                        timestamp: details?.createdAt,
-                        accessibilityPrefix: "Created"
-                    )
-                }
-                .font(.title3)
-                .foregroundStyle(.secondary)
-                .modifier(FadeInOnAppear())
+                DetailTrackHeadingSlot(
+                    track: displayedTrack,
+                    artworkLoader: model.artworkLoader,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist
+                )
                 ViewThatFits(in: .horizontal) {
                     trackActions(for: displayedTrack, iconOnly: false)
                         .labelStyle(.titleAndIcon)
@@ -267,7 +249,6 @@ struct TrackDetailView: View {
 
     private func playButton(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
         TrackDetailPlayButton(track: track, model: model, iconOnly: iconOnly)
-            .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
     }
 
     private func likeButton(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
@@ -286,6 +267,7 @@ struct TrackDetailView: View {
                 }
             }
         }
+        .detailSlot(trackURN: track.urn)
     }
 
     private func repostButton(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
@@ -379,28 +361,15 @@ private struct TrackDetailPlayButton: View {
         let isCurrentTrack = playback.currentTrack?.urn == track.urn
         let isPlaying = isCurrentTrack && playback.isPlaybackActive
 
-        Button {
+        DetailPlayButtonSlot(configuration: DetailPlayButtonConfiguration(
+            trackURN: track.urn, isPlaying: isPlaying, iconOnly: iconOnly
+        )) {
             if playback.currentTrack?.urn == track.urn {
                 playback.togglePlayPause()
             } else {
                 Task { await model.play(track) }
             }
-        } label: {
-            ZStack {
-                Label("Play", systemImage: "play.fill")
-                    .opacity(isPlaying ? 0 : 1)
-                    .accessibilityHidden(isPlaying)
-                Label("Pause", systemImage: "pause.fill")
-                    .opacity(isPlaying ? 1 : 0)
-                    .accessibilityHidden(!isPlaying)
-            }
-                .font(.title3.weight(.semibold))
-                .padding(.horizontal, iconOnly ? 0 : 24)
-                .frame(width: iconOnly ? 44 : nil)
-                .frame(minHeight: 24)
         }
-        .contentHelp(isPlaying ? "Pause" : "Play")
-        .accessibilityLabel(isPlaying ? "Pause" : "Play")
     }
 }
 

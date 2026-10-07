@@ -7,7 +7,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := run
 
-.PHONY: api build release run lsp icon test test-focus test-queue-drag test-navigation test-playback-title test-now-playing test-detail-waveform
+.PHONY: api build release run lsp icon test test-focus test-queue-drag test-navigation test-playback-title test-now-playing test-detail-waveform test-detail-heading
 
 api:
 	@set -eu; \
@@ -246,3 +246,36 @@ test-now-playing:
 		SoundClaude/SoundClaude/App/RelativeTimestampView.swift \
 		tests/NowPlayingLayoutTests.swift
 	/tmp/soundclaude-tests/now-playing
+
+# Keep title and artist mounted across track/station navigation.
+test-detail-heading:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/detail-heading \
+		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
+		SoundClaude/SoundClaude/App/DetailTrackHeading.swift \
+		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
+		SoundClaude/SoundClaude/App/RelativeTimestampView.swift \
+		tests/DetailTrackHeadingTests.swift
+	/tmp/soundclaude-tests/detail-heading
+
+# Keep play controls mounted and update their behavior across detail routes.
+.PHONY: test-detail-play-button
+test-detail-play-button:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/detail-play-button \
+		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
+		SoundClaude/SoundClaude/App/DetailPlayButton.swift \
+		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
+		tests/DetailPlayButtonTests.swift
+	/tmp/soundclaude-tests/detail-play-button
+
+# Keep track likes mounted and route clicks to the current detail page.
+.PHONY: test-detail-like-button
+test-detail-like-button:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/detail-like-button \
+		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
+		SoundClaude/SoundClaude/App/DetailLikeButton.swift \
+		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
+		tests/DetailLikeButtonTests.swift
+	/tmp/soundclaude-tests/detail-like-button

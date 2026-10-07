@@ -54,3 +54,56 @@ struct DetailLikeButton: View {
         }
     }
 }
+
+extension DetailLikeButton {
+    // Reserve the button's layout here while the navigation host owns its visible view.
+    func detailSlot(trackURN: String, isCollection: Bool = false) -> some View {
+        hidden()
+            .accessibilityHidden(true)
+            .anchorPreference(key: DetailLikeButtonPreferenceKey.self, value: .bounds) {
+                DetailLikeButtonSource(bounds: $0, trackURN: trackURN, isCollection: isCollection, button: self)
+            }
+    }
+}
+
+struct DetailLikeButtonSource {
+    let bounds: Anchor<CGRect>
+    let trackURN: String
+    let isCollection: Bool
+    let button: DetailLikeButton
+}
+
+struct DetailLikeButtonPreferenceKey: PreferenceKey {
+    static let defaultValue: DetailLikeButtonSource? = nil
+
+    static func reduce(value: inout DetailLikeButtonSource?, nextValue: () -> DetailLikeButtonSource?) {
+        value = nextValue() ?? value
+    }
+}
+
+struct DetailLikeButtonOverlay: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.overlayPreferenceValue(DetailLikeButtonPreferenceKey.self) { source in
+            GeometryReader { geometry in
+                if let source {
+                    let bounds = geometry[source.bounds]
+                    source.button
+                        .modifier(FadeInOnAppear())
+                        .id(source.trackURN)
+                        .transition(.identity)
+                        .geometryGroup()
+                        .frame(width: bounds.width, height: bounds.height)
+                        .position(x: bounds.midX, y: bounds.midY)
+                        .animation(nil, value: source.trackURN)
+                        .animation(
+                            reduceMotion ? nil : .easeInOut(duration: 0.3),
+                            value: source.isCollection
+                        )
+                }
+            }
+            .clipped()
+        }
+    }
+}

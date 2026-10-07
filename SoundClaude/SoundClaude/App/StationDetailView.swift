@@ -199,13 +199,20 @@ struct StationDetailView: View {
                 .contentShape(Rectangle())
                 .onContentHover { isHoveringStationRow = $0 }
                 .modifier(FadeInOnAppear())
-                NowPlayingTrackRow(
-                    track: displayedTrack,
-                    layout: .stacked,
-                    artworkLoader: model.artworkLoader,
-                    onSelectTrack: onSelectTrack,
-                    onSelectArtist: onSelectArtist
-                )
+                Group {
+                    if let displayedTrack {
+                        DetailTrackHeadingSlot(
+                            track: displayedTrack,
+                            isCollection: true,
+                            artworkLoader: model.artworkLoader,
+                            onSelectTrack: onSelectTrack,
+                            onSelectArtist: onSelectArtist
+                        )
+                    } else {
+                        Color.clear
+                    }
+                }
+                .frame(minHeight: 64, alignment: .leading)
                 playbackControls
                     .padding(.top, 10)
                     .modifier(FadeInOnAppear())
@@ -283,9 +290,13 @@ struct StationDetailView: View {
     private func playbackControls(iconOnly: Bool) -> some View {
         let isStarting = currentStationTrack == nil
         let isPlaying = !isStarting && model.playback.isPlaybackActive
-        let playLabel = isStarting ? "Start" : "Play"
         return HStack(spacing: 12) {
-            Button {
+            DetailPlayButtonSlot(configuration: DetailPlayButtonConfiguration(
+                trackURN: displayedTrack?.urn, isCollection: true,
+                isStarting: isStarting, isPlaying: isPlaying,
+                isEnabled: currentStationTrack != nil || !tracks.isEmpty,
+                iconOnly: iconOnly, subject: "station"
+            )) {
                 if currentStationTrack != nil {
                     model.playback.togglePlayPause()
                 } else if let seedTrackURN, model.playback.currentTrack?.urn == seedTrackURN {
@@ -295,31 +306,7 @@ struct StationDetailView: View {
                 } else if let track = startingTrack {
                     Task { await playTrack(track) }
                 }
-            } label: {
-                ZStack {
-                    Label(playLabel, systemImage: "play.fill")
-                        .animation(nil) { label in
-                            label.opacity(isPlaying ? 0 : 1)
-                        }
-                        .accessibilityHidden(isPlaying)
-                    Label("Pause", systemImage: "pause.fill")
-                        .animation(nil) { label in
-                            label.opacity(isPlaying ? 1 : 0)
-                        }
-                        .accessibilityHidden(!isPlaying)
-                }
-                .foregroundStyle(isStarting ? Color.green : Color.primary)
-                .padding(.horizontal, iconOnly ? 0 : 24)
-                .frame(width: iconOnly ? 44 : nil)
-                .frame(minHeight: 24)
             }
-            .buttonStyle(TrackActionButtonStyle(
-                fill: isStarting ? .green.opacity(0.12) : .primary.opacity(0.12)
-            ))
-            .animation(.easeInOut(duration: 0.25), value: isStarting)
-            .disabled(currentStationTrack == nil && tracks.isEmpty)
-            .contentHelp(isPlaying ? "Pause station" : "\(playLabel) station")
-            .accessibilityLabel(isPlaying ? "Pause station" : "\(playLabel) station")
             Group {
                 Button(action: model.playback.previous) {
                     Label("Previous track", systemImage: "backward.fill")
@@ -350,6 +337,7 @@ struct StationDetailView: View {
                         }
                     }
                 }
+                .detailSlot(trackURN: track.urn, isCollection: true)
             }
         }
         .font(.title3.weight(.semibold))
