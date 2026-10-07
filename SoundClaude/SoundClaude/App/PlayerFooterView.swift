@@ -358,7 +358,6 @@ struct PlayerFooterView: View {
                 .accessibilityValue(isShowingVisualizer ? "Open" : "Closed")
 
                 PlayerVolumeControl(playback: playback, usesCompactVolume: footerWidth < 1_000)
-                    .padding(.trailing, 4)
             }
             .buttonStyle(.borderless)
 
