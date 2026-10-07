@@ -277,7 +277,7 @@ struct PlaylistDetailView: View {
                 showsSeparator: !playlist.isSystemPlaylist
             )
         }
-        .font(.body)
+        .font(.callout)
         .foregroundStyle(.secondary)
         .opacity(0.9)
         .lineLimit(1)
