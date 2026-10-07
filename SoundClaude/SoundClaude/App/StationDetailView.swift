@@ -22,6 +22,25 @@ struct StationDetailView: View {
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var shuffledStartingTrackURN: String?
 
+    init(
+        urn: String,
+        seedTrack: SoundCloudTrack?,
+        seedArtistName: String?,
+        model: AppModel,
+        likes: LikesController,
+        onSelectTrack: @escaping (SoundCloudTrack) -> Void,
+        onSelectArtist: @escaping (SoundCloudUser) -> Void
+    ) {
+        self.urn = urn
+        self.seedTrack = seedTrack
+        self.seedArtistName = seedArtistName
+        self.model = model
+        self.likes = likes
+        self.onSelectTrack = onSelectTrack
+        self.onSelectArtist = onSelectArtist
+        _station = State(initialValue: model.cachedStation(urn: urn))
+    }
+
     private var seedTrackURN: String? { seedTrack?.urn }
     private var tracks: [SoundCloudTrack] { station?.tracks ?? [] }
     private var title: String { station?.title ?? seedTrack?.title ?? seedArtistName ?? "Station" }
@@ -354,6 +373,11 @@ struct StationDetailView: View {
     }
 
     private func load() async {
+        if let cached = model.cachedStation(urn: urn) {
+            station = cached
+            errorMessage = nil
+            return
+        }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }

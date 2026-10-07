@@ -53,6 +53,8 @@ final class AppModel: ObservableObject {
     private var waveformRequests: [URL: (id: UUID, task: Task<SoundCloudWaveform, Error>)] = [:]
     private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(countLimit: 100)
     private let artistHeaderCache = MemoryCache<NSURL, CachedArtistHeader>(countLimit: 10)
+    private let stationCache = MemoryCache<NSString, SoundCloudStation>(countLimit: 10)
+    private var stationCacheGeneration = UUID()
 
     init() {
         let configuration: SoundCloudConfiguration
@@ -182,6 +184,8 @@ final class AppModel: ObservableObject {
         waveformRequests.removeAll()
         waveformCache.removeAll()
         artistHeaderCache.removeAll()
+        stationCache.removeAll()
+        stationCacheGeneration = UUID()
         errorMessage = nil
         await auth.signOut()
     }
@@ -622,9 +626,20 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func cachedStation(urn: String) -> SoundCloudStation? {
+        stationCache.value(forKey: urn as NSString)
+    }
+
     func station(urn: String) async throws -> SoundCloudStation {
+        if let cached = cachedStation(urn: urn) { return cached }
+        let generation = stationCacheGeneration
         let accessToken = try await auth.validAccessToken()
-        return try await client.station(urn: urn, accessToken: accessToken)
+        let station = try await client.station(urn: urn, accessToken: accessToken)
+        try Task.checkCancellation()
+        // A response from a previous session must not repopulate the cache.
+        guard generation == stationCacheGeneration else { throw CancellationError() }
+        stationCache.insert(station, forKey: urn as NSString)
+        return station
     }
 
     func playlistDetails(for playlist: SoundCloudPlaylist) async throws -> SoundCloudPlaylist {
