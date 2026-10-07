@@ -166,19 +166,11 @@ struct TrackDetailView: View {
                 }
                 .padding(.top, 8)
                 .modifier(FadeInOnAppear())
-
-                if displayedTrack.waveformURL != nil {
-                    Spacer(minLength: 6)
-                    TrackWaveformView(track: displayedTrack, model: model)
-                        .offset(y: -2)
-                }
             }
-            // Put the waveform ground at the artwork's bottom edge.
-            .frame(
-                minHeight: displayedTrack.waveformURL != nil
-                    ? artworkSize + TrackWaveformView.Layout.detail.reflectionHeight : nil,
-                alignment: .topLeading
-            )
+            .modifier(DetailWaveformHeader(
+                track: displayedTrack,
+                showsWaveform: displayedTrack.waveformURL != nil
+            ))
         }
     }
 

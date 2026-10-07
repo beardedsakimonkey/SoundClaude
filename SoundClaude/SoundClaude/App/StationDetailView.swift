@@ -49,7 +49,7 @@ struct StationDetailView: View {
            currentTrack.urn == seedTrackURN {
             return currentTrack
         }
-        return startingTrack
+        return startingTrack ?? seedTrack
     }
     private var artworkURL: URL? {
         artworkTrack?.displayArtworkURL
@@ -181,7 +181,7 @@ struct StationDetailView: View {
                 isShowingArtwork: isShowingArtwork,
                 flattensOnHover: true
             ))
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     stationTitle
                     stationLikeButton
@@ -202,22 +202,14 @@ struct StationDetailView: View {
                     onSelectArtist: onSelectArtist
                 )
                 playbackControls
-                    .padding(.top, 8)
+                    .padding(.top, 10)
                     .modifier(FadeInOnAppear())
-                Spacer(minLength: 6)
-                TrackWaveformView(
-                    track: displayedTrack, model: model,
-                    invertsBarsOnTrackChange: true, collapsesBarsWhenPaused: true,
-                    keepsBarsVisible: true,
-                    onPlayTrack: playTrack
-                )
-                .offset(y: -2)
             }
-            .frame(
-                maxWidth: .infinity,
-                minHeight: 250 + TrackWaveformView.Layout.detail.reflectionHeight,
-                alignment: .topLeading
-            )
+            .modifier(DetailWaveformHeader(
+                track: displayedTrack,
+                isStation: true,
+                onPlayTrack: playTrack
+            ))
         }
     }
 

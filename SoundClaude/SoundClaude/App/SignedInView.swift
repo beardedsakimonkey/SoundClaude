@@ -353,6 +353,7 @@ struct SignedInView: View {
                         .ignoresSafeArea(edges: .top)
                 }
             }
+            .modifier(DetailWaveformOverlay(model: model))
             .modifier(NavigationPageActivity())
             .safeAreaPadding(.bottom, footerHeight)
             .mask { bottomFade }

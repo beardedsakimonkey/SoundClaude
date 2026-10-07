@@ -65,6 +65,7 @@
 		A1000000000000000000001C /* SignedOutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* SignedOutView.swift */; };
 		A1000000000000000000001D /* NavigationBackEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000035 /* NavigationBackEventView.swift */; };
 		A1000000000000000000001E /* TrackWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000036 /* TrackWaveformView.swift */; };
+		D100EF000000000000000001 /* DetailWaveformSlot.swift in Sources */ = {isa = PBXBuildFile; fileRef = D100EF000000000000000002 /* DetailWaveformSlot.swift */; };
 		D922C0000000000000000001 /* WaveformCommentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D922C0000000000000000002 /* WaveformCommentsView.swift */; };
 		D922C0000000000000000003 /* WaveformShadingCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D922C0000000000000000004 /* WaveformShadingCache.swift */; };
 		D921C0000000000000000001 /* WaveformCommentIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = D921C0000000000000000002 /* WaveformCommentIndex.swift */; };
@@ -198,6 +199,7 @@
 		A20000000000000000000034 /* SignedOutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedOutView.swift; sourceTree = "<group>"; };
 		A20000000000000000000035 /* NavigationBackEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationBackEventView.swift; sourceTree = "<group>"; };
 		A20000000000000000000036 /* TrackWaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackWaveformView.swift; sourceTree = "<group>"; };
+		D100EF000000000000000002 /* DetailWaveformSlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailWaveformSlot.swift; sourceTree = "<group>"; };
 		D922C0000000000000000002 /* WaveformCommentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformCommentsView.swift; sourceTree = "<group>"; };
 		D922C0000000000000000004 /* WaveformShadingCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformShadingCache.swift; sourceTree = "<group>"; };
 		D921C0000000000000000002 /* WaveformCommentIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformCommentIndex.swift; sourceTree = "<group>"; };
@@ -339,6 +341,7 @@
 				D91400000000000000000002 /* TrackGridView.swift */,
 				D922AA000000000000000002 /* TrackMenuItems.swift */,
 				A20000000000000000000036 /* TrackWaveformView.swift */,
+				D100EF000000000000000002 /* DetailWaveformSlot.swift */,
 				D922C0000000000000000002 /* WaveformCommentsView.swift */,
 				D922C0000000000000000004 /* WaveformShadingCache.swift */,
 				D921C0000000000000000002 /* WaveformCommentIndex.swift */,
@@ -629,6 +632,7 @@
 				D91400000000000000000001 /* TrackGridView.swift in Sources */,
 				D922AA000000000000000001 /* TrackMenuItems.swift in Sources */,
 				A1000000000000000000001E /* TrackWaveformView.swift in Sources */,
+				D100EF000000000000000001 /* DetailWaveformSlot.swift in Sources */,
 				D922C0000000000000000001 /* WaveformCommentsView.swift in Sources */,
 				D922C0000000000000000003 /* WaveformShadingCache.swift in Sources */,
 				D921C0000000000000000001 /* WaveformCommentIndex.swift in Sources */,

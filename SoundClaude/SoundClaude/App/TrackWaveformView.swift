@@ -89,7 +89,7 @@ struct TrackWaveformView: View {
                     // (including its progress labels) while the visualizer covers it.
                     Color.clear
                         .frame(height: height)
-                } else if layout == .compact || keepsBarsVisible || track == nil {
+                } else if layout == .compact || keepsBarsVisible || track == nil || waveform != nil {
                     waveformView(waveform)
                         .overlay {
                             if waveform == nil, let errorMessage {
@@ -102,8 +102,6 @@ struct TrackWaveformView: View {
                                     .accessibilityHidden(true)
                             }
                         }
-                } else if let waveform {
-                    waveformView(waveform)
                 } else if let errorMessage {
                     Label(errorMessage, systemImage: "waveform.slash")
                         .font(.callout)

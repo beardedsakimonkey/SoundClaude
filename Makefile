@@ -7,7 +7,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := run
 
-.PHONY: api build release run lsp icon test test-focus test-queue-drag test-navigation test-playback-title test-now-playing
+.PHONY: api build release run lsp icon test test-focus test-queue-drag test-navigation test-playback-title test-now-playing test-detail-waveform
 
 api:
 	@set -eu; \
@@ -227,6 +227,15 @@ test-playback-title:
 		SoundClaude/SoundClaude/App/TrackPlaybackIndicator.swift \
 		tests/PlaybackTitleLayoutTests.swift
 	/tmp/soundclaude-tests/playback-title
+
+# Keep the shared waveform mounted when detail routes change.
+test-detail-waveform:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/detail-waveform \
+		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
+		SoundClaude/SoundClaude/App/DetailWaveformSlot.swift \
+		tests/DetailWaveformLifetimeTests.swift
+	/tmp/soundclaude-tests/detail-waveform
 
 # Keep Now Playing title changes out of the detail header's sizing.
 test-now-playing:
