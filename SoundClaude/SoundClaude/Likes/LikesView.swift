@@ -111,6 +111,7 @@ struct LikesView: View {
             }
             searchBar
                 .frame(maxWidth: 280)
+                .padding(.leading, 8)
             SortMenu(
                 label: "Sort tracks",
                 selection: $sortOrder,
