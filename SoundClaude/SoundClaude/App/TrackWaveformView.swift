@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 
 struct TrackWaveformView: View {
@@ -191,8 +192,23 @@ struct TrackWaveformView: View {
                     && renderedHoverFraction >= renderedProgress ? 0.4 : 0.3
                 WaveformAnimatedCanvas(
                     amplitudes: amplitudes,
-                    hoverOpacity: showsHoverPreview ? hoverStrength : 0
-                ) { context, size, amplitudes, hoverOpacity in
+                    hoverOpacity: showsHoverPreview ? hoverStrength : 0,
+                    appearance: WaveformLayerAppearance(
+                        color: renderedProgressColor,
+                        hoverFraction: renderedHoverFraction,
+                        isCompact: layout == .compact,
+                        colorScheme: colorScheme,
+                        contrast: colorSchemeContrast
+                    ),
+                    clock: WaveformRevealClock(
+                        trackURN: track?.urn,
+                        progress: renderedProgress,
+                        duration: displayedDuration,
+                        isRunning: isCurrentTrack && playback.isPlaying
+                            && !playback.isLoading && !playback.isBuffering
+                            && pendingSeek == nil && !reduceMotion
+                    )
+                ) { context, size, amplitudes, hoverOpacity, progress in
                     guard size.width > 0, size.height > 0 else { return }
                     let bars = waveformBars(amplitudes, size: size)
                     let path = CGMutablePath()
@@ -230,7 +246,6 @@ struct TrackWaveformView: View {
                         .resolve(in: context.environment).cgColor
                     let shadow = Color.black.opacity(0.9)
                         .resolve(in: context.environment).cgColor
-                    let progress = renderedProgress
 
                     // Clip once outside the color layer so progress and hover
                     // cannot change antialiasing along the bar outline.
@@ -781,7 +796,9 @@ private struct WaveformStaggeredSpring: CustomAnimation {
 private struct WaveformAnimatedCanvas: View, Animatable {
     var amplitudes: WaveformAmplitudes
     var hoverOpacity: Double
-    var renderer: (inout GraphicsContext, CGSize, WaveformAmplitudes, Double) -> Void
+    var appearance: WaveformLayerAppearance
+    var clock: WaveformRevealClock
+    var renderer: (inout GraphicsContext, CGSize, WaveformAmplitudes, Double, Double) -> Void
 
     var animatableData: AnimatablePair<WaveformAmplitudes, Double> {
         get { AnimatablePair(amplitudes, hoverOpacity) }
@@ -792,9 +809,164 @@ private struct WaveformAnimatedCanvas: View, Animatable {
     }
 
     var body: some View {
-        Canvas { context, size in
-            renderer(&context, size, amplitudes, hoverOpacity)
+        WaveformRevealLayers(
+            amplitudes: amplitudes,
+            hoverOpacity: hoverOpacity,
+            appearance: appearance,
+            clock: clock,
+            renderer: renderer
+        )
+    }
+}
+
+private struct WaveformLayerAppearance: Equatable {
+    var color: Color
+    var hoverFraction: Double
+    var isCompact: Bool
+    var colorScheme: ColorScheme
+    var contrast: ColorSchemeContrast
+}
+
+private struct WaveformRevealClock: Equatable {
+    var trackURN: String?
+    var progress: Double
+    var duration: Double
+    var isRunning: Bool
+}
+
+/// Only replace the hosted Canvas content when its drawing inputs change.
+/// Playback samples update Core Animation masks without invalidating either Canvas.
+private struct WaveformRevealLayers: NSViewRepresentable {
+    var amplitudes: WaveformAmplitudes
+    var hoverOpacity: Double
+    var appearance: WaveformLayerAppearance
+    var clock: WaveformRevealClock
+    var renderer: (inout GraphicsContext, CGSize, WaveformAmplitudes, Double, Double) -> Void
+
+    func makeNSView(context: Context) -> WaveformRevealView {
+        WaveformRevealView()
+    }
+
+    func updateNSView(_ view: WaveformRevealView, context: Context) {
+        let drawing = WaveformRevealView.Drawing(
+            amplitudes: amplitudes, hoverOpacity: hoverOpacity, appearance: appearance
+        )
+        if view.drawing != drawing {
+            view.drawing = drawing
+            for (host, progress) in [(view.unplayed, 0.0), (view.played, 1.0)] {
+                host.rootView = AnyView(
+                    Canvas { context, size in
+                        renderer(&context, size, amplitudes, hoverOpacity, progress)
+                    }
+                    .environment(\.colorScheme, appearance.colorScheme)
+                )
+            }
         }
+        view.updateClock(clock)
+    }
+
+    static func dismantleNSView(_ view: WaveformRevealView, coordinator: ()) {
+        view.stopAnimation()
+    }
+}
+
+private final class WaveformRevealView: NSView {
+    struct Drawing: Equatable {
+        var amplitudes: WaveformAmplitudes
+        var hoverOpacity: Double
+        var appearance: WaveformLayerAppearance
+    }
+
+    var drawing: Drawing?
+    let unplayed = NSHostingView(rootView: AnyView(Color.clear))
+    let played = NSHostingView(rootView: AnyView(Color.clear))
+    private let unplayedMask = CALayer()
+    private let playedMask = CALayer()
+    private var clock: WaveformRevealClock?
+    private var clockTime: CFTimeInterval = 0
+    private var lastSize: CGSize = .zero
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        for (host, mask) in [(unplayed, unplayedMask), (played, playedMask)] {
+            host.sizingOptions = []
+            host.wantsLayer = true
+            addSubview(host)
+            mask.backgroundColor = NSColor.white.cgColor
+            host.layer?.mask = mask
+        }
+        playedMask.anchorPoint = CGPoint(x: 0, y: 0)
+        unplayedMask.anchorPoint = CGPoint(x: 1, y: 0)
+    }
+
+    convenience init() { self.init(frame: .zero) }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    // SwiftUI owns hover, seeking, and keyboard focus.
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func layout() {
+        super.layout()
+        unplayed.frame = bounds
+        played.frame = bounds
+        if lastSize != bounds.size {
+            lastSize = bounds.size
+            updateMasks(preservingPresentation: false)
+        }
+    }
+
+    func updateClock(_ value: WaveformRevealClock) {
+        guard clock != value else { return }
+        let continuous = clock?.trackURN == value.trackURN
+            && clock?.isRunning == true && value.isRunning
+        clock = value
+        clockTime = CACurrentMediaTime()
+        updateMasks(preservingPresentation: continuous)
+    }
+
+    func stopAnimation() {
+        playedMask.removeAllAnimations()
+        unplayedMask.removeAllAnimations()
+    }
+
+    private func updateMasks(preservingPresentation: Bool) {
+        guard let clock, bounds.width > 0, bounds.height > 0 else { return }
+        let running = clock.isRunning && clock.duration > 0
+        // Limit extrapolation if playback callbacks stop arriving.
+        let elapsed = running ? min(max(CACurrentMediaTime() - clockTime, 0), 0.5) : 0
+        let progress = min(max(clock.progress + (running ? elapsed / clock.duration : 0), 0), 1)
+        var start = progress
+        if preservingPresentation,
+           let presentation = playedMask.presentation() {
+            let visibleProgress = presentation.bounds.width / bounds.width
+            // Correct ordinary clock jitter smoothly; seeks must jump immediately.
+            if abs(visibleProgress - progress) * clock.duration < 0.5 {
+                start = visibleProgress
+            }
+        }
+        let interval = max(0, min(0.5 - elapsed, (1 - progress) * clock.duration))
+        let target = running ? min(progress + interval / clock.duration, 1) : progress
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        stopAnimation()
+        playedMask.position = .zero
+        unplayedMask.position = CGPoint(x: bounds.width, y: 0)
+        for (mask, from, to) in [
+            (playedMask, start, target),
+            (unplayedMask, 1 - start, 1 - target)
+        ] {
+            mask.bounds = CGRect(x: 0, y: 0, width: bounds.width * to, height: bounds.height)
+            if running, interval > 0 {
+                let animation = CABasicAnimation(keyPath: "bounds.size.width")
+                animation.fromValue = bounds.width * from
+                animation.toValue = bounds.width * to
+                animation.duration = interval
+                animation.timingFunction = CAMediaTimingFunction(name: .linear)
+                mask.add(animation, forKey: "playbackReveal")
+            }
+        }
+        CATransaction.commit()
     }
 }
 
