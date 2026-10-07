@@ -44,6 +44,7 @@ struct TrackWaveformView: View {
     @State private var hoverFraction: Double = 0
     @State private var isHovering = false
     @State private var pendingSeek: (trackURN: String, fraction: Double, id: UUID)?
+    @State private var loadingIndicatorTrackURN: String?
     @State private var commentsReadyAppearance: CommentsAppearance?
     @State private var commentsPresentedTrackURN: String?
     // Start comment loading as the bar spring nears its end.
@@ -120,6 +121,21 @@ struct TrackWaveformView: View {
         }
         .task(id: [track?.urn ?? "", track?.waveformURL?.absoluteString ?? ""]) {
             await load()
+        }
+        .onChange(of: loadingTrackURN) { _, _ in
+            loadingIndicatorTrackURN = nil
+        }
+        .task(id: loadingTrackURN) {
+            loadingIndicatorTrackURN = nil
+            guard let urn = loadingTrackURN else { return }
+            // Quick seeks should not flash the loading opacity.
+            do {
+                try await Task.sleep(for: .milliseconds(200))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled, loadingTrackURN == urn else { return }
+            loadingIndicatorTrackURN = urn
         }
         .onChange(of: commentsAppearance) { _, _ in
             // Clear readiness during the update, before a quick resume can reuse it.
@@ -533,12 +549,20 @@ struct TrackWaveformView: View {
         return playback.currentTrack?.urn == track.urn
     }
 
+    private var loadingTrackURN: String? {
+        isCurrentTrack && (playback.isLoading || playback.isBuffering) ? track?.urn : nil
+    }
+
+    private var showsLoadingIndicator: Bool {
+        loadingTrackURN != nil && loadingIndicatorTrackURN == loadingTrackURN
+    }
+
     private var shouldDimBars: Bool {
-        (isCurrentTrack && (playback.isLoading || playback.isBuffering)) || !isCurrentTrack
+        showsLoadingIndicator || !isCurrentTrack
     }
 
     private var shouldPulseBars: Bool {
-        isCurrentTrack && (playback.isLoading || playback.isBuffering) && !reduceMotion
+        showsLoadingIndicator && !reduceMotion
     }
 
     private var displayedCurrentTime: Double {
