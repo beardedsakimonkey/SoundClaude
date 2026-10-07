@@ -127,10 +127,9 @@ struct TrackDetailView: View {
                         animatesChanges: true,
                         showsPlaceholderIcon: false,
                         cornerRadius: 12,
-                        artworkLift: isArtworkHoverActive && !reduceMotion ? 8 : 0,
+                        artworkLift: isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverLift : 0,
                         isShowingArtwork: isShowingArtwork,
-                        hoverAnimation: .spring(response: 0.45, dampingFraction: 0.9),
-                        hoverOutAnimation: .spring(response: 0.6, dampingFraction: 1),
+                        onImageHover: { isHoveringArtwork = $0 },
                         track: details.track,
                         likes: model.likes,
                         onAddToQueue: model.addToQueue,
@@ -138,24 +137,20 @@ struct TrackDetailView: View {
                     )
                     .modifier(DetailArtworkRotation(
                         isRotated: false,
-                        isShowingArtwork: isShowingArtwork
+                        isShowingArtwork: isShowingArtwork,
+                        imageHover: isHoveringArtwork
                     ))
                     .animation(
-                        reduceMotion ? nil : .spring(
-                            response: 0.5,
-                            dampingFraction: isArtworkHoverActive ? 0.9 : 1
-                        ),
+                        reduceMotion ? nil : (isArtworkHoverActive
+                            ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut),
                         value: isArtworkHoverActive
                     )
                     .animation(
-                        reduceMotion ? nil : .spring(
-                            response: 0.6,
-                            dampingFraction: isArtworkHoverActive ? 0.9 : 1
-                        )
+                        reduceMotion ? nil : (isArtworkHoverActive
+                            ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut)
                     ) { content in
-                        content.scaleEffect(isArtworkHoverActive && !reduceMotion ? 1.02 : 1)
+                        content.scaleEffect(isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverScale : 1)
                     }
-                    .onContentHover { isHoveringArtwork = $0 }
 
                     VStack(alignment: .leading, spacing: 10) {
                         if details.track.access == .preview {

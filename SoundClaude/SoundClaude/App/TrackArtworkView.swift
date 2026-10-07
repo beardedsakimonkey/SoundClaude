@@ -349,16 +349,28 @@ struct TrackArtworkBackdropView: View {
     }
 }
 
-// Shared artwork treatment for track and playlist detail headers.
+enum DetailArtworkMotion {
+    static let hoverLift: CGFloat = 1
+    static let hoverScale: CGFloat = 1.04
+
+    static let hoverIn: Animation = .spring(response: 0.4, dampingFraction: 0.85)
+    static let hoverOut: Animation = .spring(response: 0.6, dampingFraction: 0.95)
+
+    static let sheenIn: Animation = .spring(response: 0.5, dampingFraction: 0.7)
+    static let sheenOut: Animation = .spring(response: 0.8, dampingFraction: 0.95)
+
+    static let rotationIn: Animation = .spring(response: 0.45, dampingFraction: 0.95)
+    static let rotationOut: Animation = .spring(response: 0.8, dampingFraction: 0.85)
+}
+
 struct DetailArtworkTransform {
-    var x = 0.0
-    var y = 22.0
-    var z = 0.0
+    var y = 18.0
     var perspective = 0.7
 }
 
 extension EnvironmentValues {
     @Entry var initialDetailArtworkRotation: Bool? = nil
+    @Entry var detailArtworkHoverActive = false
 }
 
 /// Rotates the artwork and its reflection together, resetting Y rotation on hover or while viewing artwork.
@@ -367,6 +379,8 @@ struct DetailArtworkRotation: ViewModifier {
     var isRotated = true
     var isShowingArtwork = false
     var flattensOnHover = true
+    // When supplied, the image owns hover tracking instead of the larger header.
+    var imageHover: Bool? = nil
 
     private let hoverInsets = EdgeInsets(top: 20, leading: 10, bottom: -10, trailing: 0)
 
@@ -381,45 +395,49 @@ struct DetailArtworkRotation: ViewModifier {
         return isRotated
     }
 
-    private var isRotationFlat: Bool { (flattensOnHover && isHovering) || isShowingArtwork }
+    private var activeHover: Bool { imageHover ?? isHovering }
+    private var isRotationFlat: Bool { (flattensOnHover && activeHover) || isShowingArtwork }
 
     func body(content: Content) -> some View {
-        content
+        hoverTracking(content
+            // Share one hover state with the image and its reflection.
+            .environment(\.detailArtworkHoverActive, activeHover || isShowingArtwork)
             .animation(
-                reduceMotion ? nil : .spring(response: isRotationFlat ? 0.5 : 0.75, dampingFraction: 1)
+                reduceMotion ? nil : (isRotationFlat
+                    ? DetailArtworkMotion.rotationIn : DetailArtworkMotion.rotationOut)
             ) { artwork in
                 rotated(artwork, perspective: displayedRotation ? transform.perspective : 0)
             }
             .onAppear { hasAppeared = true }
-            // Keep the adjusted hover bounds outside the transform.
-            .padding(hoverInsets)
-            .contentShape(Rectangle())
-            .onContentHover { isHovering = $0 }
-            // Preserve the artwork's original layout size.
-            .padding(EdgeInsets(
-                top: -hoverInsets.top,
-                leading: -hoverInsets.leading,
-                bottom: -hoverInsets.bottom,
-                trailing: -hoverInsets.trailing
-            ))
+        )
+    }
+
+    @ViewBuilder
+    private func hoverTracking<Artwork: View>(_ artwork: Artwork) -> some View {
+        if imageHover != nil {
+            artwork
+        } else {
+            artwork
+                // Keep the adjusted hover bounds outside the transform.
+                .padding(hoverInsets)
+                .contentShape(Rectangle())
+                .onContentHover { isHovering = $0 }
+                // Preserve the artwork's original layout size.
+                .padding(EdgeInsets(
+                    top: -hoverInsets.top,
+                    leading: -hoverInsets.leading,
+                    bottom: -hoverInsets.bottom,
+                    trailing: -hoverInsets.trailing
+                ))
+        }
     }
 
     private func rotated<Artwork: View>(_ artwork: Artwork, perspective: Double) -> some View {
         artwork
             .rotation3DEffect(
-                .degrees(displayedRotation ? transform.x : 0),
-                axis: (x: 1, y: 0, z: 0),
-                perspective: perspective
-            )
-            .rotation3DEffect(
                 .degrees(displayedRotation && !isRotationFlat ? transform.y : 0),
                 axis: (x: 0, y: 1, z: 0),
                 perspective: perspective
-            )
-            .rotation3DEffect(
-                .degrees(displayedRotation ? transform.z : 0),
-                axis: (x: 0, y: 0, z: 1),
-                perspective: 0
             )
     }
 }
@@ -435,8 +453,9 @@ struct DetailArtworkView: View {
     var reflectionBlurRadius: CGFloat = 3
     var artworkLift: CGFloat = 0
     var isShowingArtwork = false
-    var hoverAnimation: Animation = .spring(response: 0.4, dampingFraction: 0.9)
-    var hoverOutAnimation: Animation? = nil
+    var hoverAnimation: Animation = DetailArtworkMotion.sheenIn
+    var hoverOutAnimation: Animation = DetailArtworkMotion.sheenOut
+    var onImageHover: ((Bool) -> Void)? = nil
     var track: SoundCloudTrack? = nil
     @ObservedObject var likes: LikesController
     let onAddToQueue: (SoundCloudTrack) -> Void
@@ -469,7 +488,7 @@ struct DetailArtworkView: View {
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isHoveringArtwork = false
+    @Environment(\.detailArtworkHoverActive) private var isHoveringArtwork
     @State private var likeErrorMessage: String?
 
     private var isArtworkHoverActive: Bool { isHoveringArtwork || isShowingArtwork }
@@ -485,6 +504,7 @@ struct DetailArtworkView: View {
     var body: some View {
         VStack(spacing: 1) {
             draggableArtworkControl
+                .onContentHover { onImageHover?($0) }
                 .contextMenu {
                     if let track {
                         TrackMenuItems(
@@ -560,7 +580,6 @@ struct DetailArtworkView: View {
             }
             .buttonStyle(.plain)
             .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .onContentHover { isHoveringArtwork = $0 }
             .contentHelp("View full-size artwork")
             .accessibilityLabel(
                 "View full-size artwork for \(title)"
@@ -599,7 +618,7 @@ struct DetailArtworkView: View {
             hoverSweepTravel: 0.14
         ))
         .animation(
-            reduceMotion ? nil : (isArtworkHoverActive ? hoverAnimation : (hoverOutAnimation ?? hoverAnimation)),
+            reduceMotion ? nil : (isArtworkHoverActive ? hoverAnimation : hoverOutAnimation),
             value: isArtworkHoverActive
         )
     }
