@@ -582,6 +582,15 @@ final class PlaybackController {
         onNext?()
     }
 
+    /// Reuse the loaded item when queue navigation returns the current track.
+    func restartIfLoaded(_ track: SoundCloudTrack) -> Bool {
+        guard currentTrack?.urn == track.urn,
+              player.currentItem?.status == .readyToPlay else { return false }
+        seek(to: 0)
+        play()
+        return true
+    }
+
     func previous() {
         if currentTime > 3 {
             seek(to: 0)

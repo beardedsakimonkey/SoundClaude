@@ -797,6 +797,7 @@ final class AppModel: ObservableObject {
                 saveQueue()
                 // Queue edits cancel page selection, not the selected stream load.
                 trackSelectionTask = nil
+                if playback.restartIfLoaded(track) { return }
                 await loadPlayback(track, direction: offset < 0 ? .backward : .forward)
             } catch {
                 guard !Task.isCancelled, !(error is CancellationError) else { return }

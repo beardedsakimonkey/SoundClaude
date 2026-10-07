@@ -81,6 +81,35 @@ struct PlaybackTests {
             bitrateKilobitsPerSecond: 160, isPreview: false
         )
 
+        // A one-track queue wraps to the loaded track without replacing its
+        // player or item. Next also resumes a paused track from the start.
+        for repeatMode in ["all", "one"] {
+            defaults.set(repeatMode, forKey: "playback.repeatMode")
+            let controller = PlaybackController(defaults: defaults)
+            precondition(!controller.restartIfLoaded(track(1)))
+            let request = controller.beginLoading(track: track(1), position: 1, autoplay: false)
+            precondition(!controller.restartIfLoaded(track(1)))
+            controller.load(source: source, requestID: request)
+            try await until { !controller.isLoading && !controller.isBuffering }
+            let player = controller.player
+            let item = player.currentItem!
+            precondition(!controller.restartIfLoaded(track(2)))
+            controller.onNext = {
+                precondition(controller.restartIfLoaded(track(1)))
+            }
+            for _ in 0..<2 {
+                controller.next()
+                precondition(controller.currentTime == 0 && !controller.isLoading)
+                precondition(controller.isPlaybackActive)
+                try await until { controller.isPlaying && !controller.isBuffering }
+                precondition(controller.player === player && player.currentItem === item)
+                precondition(player.currentTime().seconds < 0.5)
+            }
+            controller.onNext = nil
+            controller.clearSession()
+        }
+        defaults.removeObject(forKey: "playback.repeatMode")
+
         // Only a completed preroll can bypass the initial buffering wait.
         // A seek invalidates that buffer, and a later resume uses normal waiting.
         let preparationCases: [(Bool?, Double)] = [(true, 0), (false, 0), (nil, 0), (true, 0.5)]
