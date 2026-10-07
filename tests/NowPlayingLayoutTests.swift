@@ -2,7 +2,12 @@ import AppKit
 import SwiftUI
 
 struct SoundCloudUser { let username: String }
-struct SoundCloudTrack { let urn: String; let title: String; let artist: SoundCloudUser }
+struct SoundCloudTrack {
+    let urn: String
+    let title: String
+    let artist: SoundCloudUser
+    var createdAt: String? = nil
+}
 struct ArtworkLoader {}
 struct ArtistLink: View {
     let artist: SoundCloudUser
@@ -24,7 +29,8 @@ struct NowPlayingLayoutTests {
         let tracks: [SoundCloudTrack?] = [
             nil,
             SoundCloudTrack(urn: "short", title: "Short", artist: artist),
-            SoundCloudTrack(urn: "long", title: String(repeating: "Long track title ", count: 20), artist: artist)
+            SoundCloudTrack(urn: "long", title: String(repeating: "Long track title ", count: 20), artist: artist,
+                           createdAt: "2025-01-01T12:00:00Z")
         ]
         for layout: NowPlayingTrackRow.Layout in [.inline, .stacked] {
             var baseline: CGSize?

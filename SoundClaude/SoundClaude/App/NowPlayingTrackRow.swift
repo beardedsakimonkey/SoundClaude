@@ -45,12 +45,22 @@ struct NowPlayingTrackRow: View {
                                 .opacity(0.9)
                                 .fixedSize()
                         }
-                        ArtistLink(
-                            artist: track.artist,
-                            artworkLoader: artworkLoader,
-                            showsAvatarBorder: layout == .stacked,
-                            onSelect: onSelectArtist
-                        )
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            ArtistLink(
+                                artist: track.artist,
+                                artworkLoader: artworkLoader,
+                                showsAvatarBorder: layout == .stacked,
+                                onSelect: onSelectArtist
+                            )
+                            .layoutPriority(1)
+                            if layout == .stacked {
+                                RelativeTimestampView(
+                                    timestamp: track.createdAt,
+                                    accessibilityPrefix: "Created"
+                                )
+                                .lineLimit(1)
+                            }
+                        }
                         .font(layout == .stacked ? .title3 : .title2)
                         .foregroundStyle(layout == .stacked ? .secondary : .primary)
                         .opacity(layout == .stacked ? 1 : 0.9)

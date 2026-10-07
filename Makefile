@@ -243,5 +243,6 @@ test-now-playing:
 	swiftc -o /tmp/soundclaude-tests/now-playing \
 		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
 		SoundClaude/SoundClaude/App/NowPlayingTrackRow.swift \
+		SoundClaude/SoundClaude/App/RelativeTimestampView.swift \
 		tests/NowPlayingLayoutTests.swift
 	/tmp/soundclaude-tests/now-playing
