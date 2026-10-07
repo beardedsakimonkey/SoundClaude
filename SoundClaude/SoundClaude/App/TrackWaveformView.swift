@@ -35,7 +35,6 @@ struct TrackWaveformView: View {
     @State private var shadingCache = WaveformShadingCache()
     @State private var waveform: SoundCloudWaveform?
     @State private var waveformTrackURN: String?
-    @State private var initialExpandedWaveform: SoundCloudWaveform?
     @State private var barDirection: Double = 1
     @State private var errorMessage: String?
     @State private var artworkAccent: ArtworkAccent?
@@ -64,7 +63,6 @@ struct TrackWaveformView: View {
         invertsBarsOnTrackChange: Bool = false,
         collapsesBarsWhenPaused: Bool? = nil,
         keepsBarsVisible: Bool = false,
-        initialExpandedWaveform: SoundCloudWaveform? = nil,
         onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
     ) {
         self.track = track
@@ -75,7 +73,6 @@ struct TrackWaveformView: View {
         self.invertsBarsOnTrackChange = invertsBarsOnTrackChange
         self.collapsesBarsWhenPaused = collapsesBarsWhenPaused ?? (layout == .detail)
         self.keepsBarsVisible = keepsBarsVisible
-        _initialExpandedWaveform = State(initialValue: initialExpandedWaveform)
         self.onPlayTrack = onPlayTrack
         playback = model.playback
         let cachedWaveform = track.flatMap { model.cachedWaveform(for: $0) }
@@ -93,7 +90,7 @@ struct TrackWaveformView: View {
                     Color.clear
                         .frame(height: height)
                 } else if layout == .compact || keepsBarsVisible || track == nil {
-                    waveformView(waveform ?? (reduceMotion ? nil : initialExpandedWaveform))
+                    waveformView(waveform)
                         .overlay {
                             if waveform == nil, let errorMessage {
                                 Text(errorMessage)
@@ -170,12 +167,6 @@ struct TrackWaveformView: View {
             guard !Task.isCancelled, appearance == commentsAppearance else { return }
             commentsReadyAppearance = appearance
             commentsPresentedTrackURN = appearance.trackURN
-        }
-        .task {
-            // Present the source view's bars before animating to the station's state.
-            await Task.yield()
-            guard !Task.isCancelled else { return }
-            initialExpandedWaveform = nil
         }
         .task(id: track?.displayArtworkURL) {
             artworkAccent = nil
@@ -591,7 +582,6 @@ struct TrackWaveformView: View {
     }
 
     private var barsAreCollapsed: Bool {
-        if !reduceMotion, initialExpandedWaveform != nil { return false }
         return track == nil || (keepsBarsVisible && waveform == nil)
             // Expand on the play request, including while audio is loading.
             || (collapsesBarsWhenPaused

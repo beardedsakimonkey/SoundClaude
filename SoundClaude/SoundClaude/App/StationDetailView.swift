@@ -20,6 +20,7 @@ struct StationDetailView: View {
     @State private var isOpeningSource = false
     @State private var sourceErrorMessage: String?
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
+    @State private var shuffledStartingTrackURN: String?
 
     private var seedTrackURN: String? { seedTrack?.urn }
     private var tracks: [SoundCloudTrack] { station?.tracks ?? [] }
@@ -34,36 +35,28 @@ struct StationDetailView: View {
         guard model.queue.source == .station(urn) else { return nil }
         return model.playback.currentTrack
     }
+    private var startingTrack: SoundCloudTrack? {
+        if model.playback.isShuffleEnabled,
+           let track = tracks.first(where: { $0.urn == shuffledStartingTrackURN }) {
+            return track
+        }
+        return tracks.first
+    }
+
     private var displayedTrack: SoundCloudTrack? {
         if let currentStationTrack { return currentStationTrack }
         if let seedTrackURN, let currentTrack = model.playback.currentTrack,
            currentTrack.urn == seedTrackURN {
             return currentTrack
         }
-        return tracks.first
+        return startingTrack
     }
     private var artworkURL: URL? {
-        currentStationTrack?.displayArtworkURL
-            ?? seedTrack?.displayArtworkURL
-            ?? tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
+        artworkTrack?.displayArtworkURL
     }
-    private var artworkTitle: String { currentStationTrack?.title ?? title }
+    private var artworkTitle: String { artworkTrack?.title ?? title }
 
-    private var artworkTrack: SoundCloudTrack? {
-        if let currentStationTrack, currentStationTrack.displayArtworkURL != nil {
-            return currentStationTrack
-        }
-        if let seedTrack, seedTrack.displayArtworkURL != nil { return seedTrack }
-        return tracks.first(where: { $0.displayArtworkURL != nil })
-    }
-
-    private var initialExpandedWaveform: SoundCloudWaveform? {
-        guard currentStationTrack == nil,
-              let seedTrack,
-              model.playback.currentTrack?.urn == seedTrack.urn,
-              model.playback.isPlaybackActive else { return nil }
-        return model.cachedWaveform(for: seedTrack)
-    }
+    private var artworkTrack: SoundCloudTrack? { displayedTrack ?? seedTrack }
 
     var body: some View {
         ScrollView {
@@ -122,6 +115,13 @@ struct StationDetailView: View {
             }
         }
         .task(id: loadAttempt) { await load() }
+        .onChange(of: tracks.map(\.urn), initial: true) { _, _ in
+            updateStartingTrack()
+        }
+        .onChange(of: model.playback.isShuffleEnabled) { _, _ in
+            shuffledStartingTrackURN = nil
+            updateStartingTrack()
+        }
         .task(id: urn) {
             do {
                 try await likes.loadStationLikes()
@@ -206,10 +206,10 @@ struct StationDetailView: View {
                     .modifier(FadeInOnAppear())
                 Spacer(minLength: 6)
                 TrackWaveformView(
-                    track: currentStationTrack, model: model,
+                    track: displayedTrack, model: model,
                     invertsBarsOnTrackChange: true, collapsesBarsWhenPaused: true,
                     keepsBarsVisible: true,
-                    initialExpandedWaveform: initialExpandedWaveform
+                    onPlayTrack: playTrack
                 )
                 .offset(y: -2)
             }
@@ -294,7 +294,7 @@ struct StationDetailView: View {
                     model.continuePlaybackInStation(
                         urn: urn, title: title, tracks: tracks, continuingTrackURN: seedTrackURN
                     )
-                } else if let track = tracks.first {
+                } else if let track = startingTrack {
                     Task { await playTrack(track) }
                 }
             } label: {
@@ -349,6 +349,16 @@ struct StationDetailView: View {
 
     private func playTrack(_ track: SoundCloudTrack) async {
         await model.play(track, queue: TrackQueue(source: .station(urn), tracks: tracks, stationTitle: title))
+    }
+
+    private func updateStartingTrack() {
+        guard model.playback.isShuffleEnabled else {
+            shuffledStartingTrackURN = nil
+            return
+        }
+        if !tracks.contains(where: { $0.urn == shuffledStartingTrackURN }) {
+            shuffledStartingTrackURN = tracks.randomElement()?.urn
+        }
     }
 
     private func load() async {

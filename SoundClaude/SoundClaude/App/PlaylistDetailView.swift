@@ -53,19 +53,15 @@ struct PlaylistDetailView: View {
     private var displayedTrack: SoundCloudTrack? { currentPlaylistTrack ?? startingTrack }
 
     private var artworkURL: URL? {
-        if let track = currentPlaylistTrack {
+        if let track = displayedTrack {
             return track.displayArtworkURL
         }
-        return displayedPlaylist.artworkURL ?? tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
+        return displayedPlaylist.artworkURL
     }
 
-    private var artworkTitle: String { currentPlaylistTrack?.title ?? displayedPlaylist.title }
+    private var artworkTitle: String { displayedTrack?.title ?? displayedPlaylist.title }
 
-    private var artworkTrack: SoundCloudTrack? {
-        if let currentPlaylistTrack { return currentPlaylistTrack }
-        guard displayedPlaylist.artworkURL == nil else { return nil }
-        return tracks.first(where: { $0.displayArtworkURL != nil })
-    }
+    private var artworkTrack: SoundCloudTrack? { displayedTrack }
 
     var body: some View {
         ScrollView {
@@ -258,11 +254,12 @@ struct PlaylistDetailView: View {
                 .modifier(FadeInOnAppear())
                 Spacer(minLength: 6)
                 TrackWaveformView(
-                    track: currentPlaylistTrack,
+                    track: displayedTrack,
                     model: model,
                     invertsBarsOnTrackChange: true,
                     collapsesBarsWhenPaused: true,
-                    keepsBarsVisible: true
+                    keepsBarsVisible: true,
+                    onPlayTrack: playTrack
                 )
                 .offset(y: -2)
             }
