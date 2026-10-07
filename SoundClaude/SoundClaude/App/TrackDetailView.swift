@@ -568,8 +568,7 @@ struct TrackDetailBackdrop: View {
             artworkURL: artworkURL,
             loader: loader,
             fadesToBottom: false,
-            animatesChanges: true,
-            transitionDuration: 0.8
+            animatesChanges: true
         )
         .frame(height: 600)
         .mask {
