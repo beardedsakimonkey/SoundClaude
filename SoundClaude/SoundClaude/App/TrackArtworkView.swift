@@ -350,6 +350,22 @@ struct TrackArtworkBackdropView: View {
     }
 }
 
+/// Hands its content an overscan that interpolates frame by frame, keeping the artwork's size,
+/// the glass's slab room and the reflection mask in step while it animates.
+private struct AnimatedOverscan<Content: View>: View, Animatable {
+    var overscan: CGFloat
+    @ViewBuilder let content: (CGFloat) -> Content
+
+    var animatableData: CGFloat {
+        get { overscan }
+        set { overscan = newValue }
+    }
+
+    var body: some View {
+        content(overscan)
+    }
+}
+
 enum DetailArtworkMotion {
     static let hoverLift: CGFloat = 1
     static let hoverScale: CGFloat = 1.04
@@ -416,7 +432,8 @@ struct DetailArtworkRotation: ViewModifier {
             // Share one hover state with the image and its reflection.
             .environment(\.detailArtworkHoverActive, activeHover || isShowingArtwork)
             .environment(\.detailArtworkYRotation, targetRotation)
-            .environment(\.detailArtworkTurn, isRotated ? turn : 0)
+            // Follow the displayed pose so the overscan grows with the turn instead of ahead of it.
+            .environment(\.detailArtworkTurn, displayedRotation ? turn : 0)
             .animation(
                 reduceMotion ? nil : (isRotationFlat
                     ? DetailArtworkMotion.rotationIn : DetailArtworkMotion.rotationOut)
@@ -561,8 +578,33 @@ struct DetailArtworkView: View {
     }
 
     var body: some View {
+        // Interpolate the overscan so the zoomed crop eases in with the turn.
+        AnimatedOverscan(overscan: displayedOverscan) { overscan in
+            artworkStack(overscan: overscan)
+        }
+        .animation(
+            reduceMotion ? nil : (turn == 0
+                ? DetailArtworkMotion.rotationIn : DetailArtworkMotion.rotationOut),
+            value: turn
+        )
+        #if DEBUG
+        .popover(isPresented: $isShowingSlabControls, arrowEdge: .trailing) {
+            slabControls
+        }
+        #endif
+        .alert("Could not update like", isPresented: Binding(
+            get: { likeErrorMessage != nil },
+            set: { if !$0 { likeErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { likeErrorMessage = nil }
+        } message: {
+            Text(likeErrorMessage ?? "Please try again.")
+        }
+    }
+
+    private func artworkStack(overscan: CGFloat) -> some View {
         VStack(spacing: 1) {
-            draggableArtworkControl
+            draggableArtworkControl(overscan: overscan)
                 .onContentHover { onImageHover?($0) }
                 .contextMenu {
                     if let track {
@@ -590,7 +632,7 @@ struct DetailArtworkView: View {
                 .offset(y: -displayedLift)
                 .zIndex(1)
 
-            artworkThumbnail(reflectionBlurRadius: reflectionBlurRadius)
+            artworkThumbnail(overscan: overscan, reflectionBlurRadius: reflectionBlurRadius)
                 .scaleEffect(x: 1, y: -1)
                 // Mirror the lift below the ground while keeping the fade fixed.
                 .offset(y: displayedLift)
@@ -602,7 +644,7 @@ struct DetailArtworkView: View {
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .padding(.horizontal, -displayedOverscan)
+                    .padding(.horizontal, -overscan)
                 }
                 .overlay(alignment: .top) { contactShadow }
                 .allowsHitTesting(false)
@@ -610,39 +652,26 @@ struct DetailArtworkView: View {
                 // Reserve space for the visible reflection; let its faint tail overflow.
                 .frame(height: 32, alignment: .top)
         }
-        #if DEBUG
-        .popover(isPresented: $isShowingSlabControls, arrowEdge: .trailing) {
-            slabControls
-        }
-        #endif
-        .alert("Could not update like", isPresented: Binding(
-            get: { likeErrorMessage != nil },
-            set: { if !$0 { likeErrorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { likeErrorMessage = nil }
-        } message: {
-            Text(likeErrorMessage ?? "Please try again.")
-        }
     }
 
     @ViewBuilder
-    private var draggableArtworkControl: some View {
+    private func draggableArtworkControl(overscan: CGFloat) -> some View {
         if let track {
-            artworkControl
+            artworkControl(overscan: overscan)
                 .trackDraggable(track)
                 .contentHelp(artworkURL != nil ? "View full-size artwork or drag to a playlist" : "Drag to a playlist")
         } else {
-            artworkControl
+            artworkControl(overscan: overscan)
         }
     }
 
     @ViewBuilder
-    private var artworkControl: some View {
+    private func artworkControl(overscan: CGFloat) -> some View {
         if artworkURL != nil {
             Button {
                 onShowArtwork()
             } label: {
-                artworkThumbnail()
+                artworkThumbnail(overscan: overscan)
             }
             .buttonStyle(.plain)
             .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
@@ -651,7 +680,7 @@ struct DetailArtworkView: View {
                 "View full-size artwork for \(title)"
             )
         } else {
-            artworkThumbnail()
+            artworkThumbnail(overscan: overscan)
         }
     }
 
@@ -666,11 +695,11 @@ struct DetailArtworkView: View {
             .accessibilityHidden(true)
     }
 
-    private func artworkThumbnail(reflectionBlurRadius: CGFloat? = nil) -> some View {
+    private func artworkThumbnail(overscan: CGFloat, reflectionBlurRadius: CGFloat? = nil) -> some View {
         TrackArtworkView(
             artworkURL: artworkURL,
             loader: loader,
-            size: size + displayedOverscan * 2,
+            size: size + overscan * 2,
             rendition: .square500,
             shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
             showsBorder: false,
@@ -684,7 +713,7 @@ struct DetailArtworkView: View {
             isHovering: isArtworkHoverActive && !reduceMotion,
             hoverSweepTravel: 0.14,
             slabThickness: displayedSlabThickness,
-            artworkOverscan: displayedOverscan
+            artworkOverscan: overscan
         ))
         .animation(
             reduceMotion ? nil : (isArtworkHoverActive ? hoverAnimation : hoverOutAnimation),
@@ -693,7 +722,7 @@ struct DetailArtworkView: View {
         .modifier(DetailArtworkReflectionBlur(
             radius: reflectionBlurRadius,
             cornerRadius: cornerRadius,
-            maxShift: PlayerArtworkGlass.slabPadding(thickness: displayedSlabThickness, overscan: displayedOverscan)
+            maxShift: PlayerArtworkGlass.slabPadding(thickness: displayedSlabThickness, overscan: overscan)
         ))
         // A layer this far behind the face projects like the face shifted by depth * tan(angle);
         // positive angles bring the leading edge forward.
