@@ -199,7 +199,9 @@ struct PlaylistDetailView: View {
                 }
                 .modifier(FadeInOnAppear())
             }
-            playlistMetadata
+            if !playlist.isSystemPlaylist || playlistTimestamp.hasTimestamp {
+                playlistMetadata
+            }
         }
     }
 
@@ -215,6 +217,12 @@ struct PlaylistDetailView: View {
                         .lineLimit(1)
                         .textSelection(.enabled)
                         .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
+                    if displayedPlaylist.isPrivate {
+                        Image(systemName: "lock.fill")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("Private playlist")
+                    }
                     if !displayedPlaylist.isPrivate {
                         likeButton
                             .opacity(isHoveringPlaylistLabel ? 1 : 0)
@@ -267,23 +275,28 @@ struct PlaylistDetailView: View {
         }
     }
 
+    private var playlistTimestamp: RelativeTimestampView {
+        RelativeTimestampView(
+            timestamp: displayedPlaylist.lastModified,
+            accessibilityPrefix: "Last updated",
+            prefix: "Updated",
+            showsSeparator: false,
+            systemImage: "clock"
+        )
+    }
+
     private var playlistMetadata: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            playlistTimestamp
             if !playlist.isSystemPlaylist {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(displayedPlaylist.isPrivate ? "Private playlist by" : "Public playlist by")
+                    Text("by")
                     ArtistLink(
                         artist: displayedPlaylist.owner,
                         onSelect: onSelectArtist
                     )
                 }
             }
-            RelativeTimestampView(
-                timestamp: displayedPlaylist.lastModified,
-                accessibilityPrefix: "Last updated",
-                prefix: "Updated",
-                showsSeparator: !playlist.isSystemPlaylist
-            )
         }
         .font(.callout)
         .foregroundStyle(.secondary)
