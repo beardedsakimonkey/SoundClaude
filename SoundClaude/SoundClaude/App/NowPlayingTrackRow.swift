@@ -6,8 +6,6 @@ struct NowPlayingTrackRow: View {
     let track: SoundCloudTrack?
     var layout: Layout = .inline
     var artworkLoader: ArtworkLoader? = nil
-    /// Dims the title while the track is only a preview of what would play.
-    var isTitleDimmed = false
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
@@ -35,9 +33,7 @@ struct NowPlayingTrackRow: View {
                                 .truncationMode(.tail)
                                 .underline(isHoveringTrackTitle)
                                 .font(layout == .stacked ? .system(size: 28, weight: .semibold) : .title2)
-                                .foregroundStyle(isTitleDimmed ? HierarchicalShapeStyle.secondary : .primary)
                                 .opacity(0.9)
-                                .animation(.easeInOut(duration: 0.35), value: isTitleDimmed)
                         }
                         .buttonStyle(.plain)
                         .onContentHover { isHoveringTrackTitle = $0 }

@@ -217,8 +217,6 @@ struct StationDetailView: View {
                     track: displayedTrack,
                     layout: .stacked,
                     artworkLoader: model.artworkLoader,
-                    isTitleDimmed: !model.playback.isPlaybackActive
-                        || displayedTrack?.urn != model.playback.currentTrack?.urn,
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist
                 )
