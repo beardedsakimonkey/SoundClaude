@@ -288,7 +288,10 @@ struct TrackWaveformView: View {
                     value: barDirection
                 )
                 .animation(
-                    reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.3),
+                    reduceMotion ? nil : .spring(
+                        duration: 0.35,
+                        bounce: barsAreCollapsed && !showsHoverPreview ? 0.05 : 0.3
+                    ),
                     value: showsHoverPreview
                 )
                 .animation(
@@ -296,7 +299,10 @@ struct TrackWaveformView: View {
                     value: hoverFraction
                 )
                 .animation(
-                    reduceMotion || !animatesBarTransitions ? nil : .spring(duration: 0.35, bounce: 0.3),
+                    reduceMotion || !animatesBarTransitions ? nil : .spring(
+                        duration: 0.35,
+                        bounce: barsAreCollapsed ? 0.05 : 0.3
+                    ),
                     value: barsAreCollapsed
                 )
                 .modifier(WaveformLoadingOpacity(
@@ -340,8 +346,8 @@ struct TrackWaveformView: View {
                 )
                 .contentHelp(
                     track == nil ? "Start playback to see the waveform."
-                        : isCurrentTrack ? "Click or drag to seek."
-                        : "Click or drag to play from this position."
+                        : isCurrentTrack ? "Click to seek."
+                        : "Click to play from this position."
                 )
                 .overlay(alignment: .bottom) {
                     if layout == .detail, let track {
