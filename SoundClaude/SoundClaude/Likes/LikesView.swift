@@ -112,10 +112,11 @@ struct LikesView: View {
             searchBar
                 .frame(maxWidth: 280)
             SortMenu(
-                label: "Sort liked tracks",
+                label: "Sort tracks",
                 selection: $sortOrder,
                 options: LikesSortOrder.allCases,
-                title: { $0.title }
+                title: { $0.title },
+                systemImage: "line.3.horizontal.decrease.circle"
             )
             TrackLayoutPicker(trackLayout: $trackLayout)
         }

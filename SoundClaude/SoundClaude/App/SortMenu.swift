@@ -5,17 +5,20 @@ struct SortMenu<Order: Hashable>: View {
     @Binding var selection: Order
     let options: [Order]
     let title: (Order) -> String
+    var systemImage: String? = nil
     @State private var isHovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "arrow.down")
-                .font(.subheadline)
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
+            if systemImage == nil {
+                Image(systemName: "arrow.down")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
 
-            Menu {
+            let menu = Menu {
                 Picker(label, selection: $selection) {
                     ForEach(options, id: \.self) { order in
                         Text(title(order))
@@ -24,10 +27,27 @@ struct SortMenu<Order: Hashable>: View {
                 }
                 .pickerStyle(.inline)
             } label: {
-                Text(title(selection))
-                    .font(.subheadline)
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                } else {
+                    Text(title(selection))
+                        .font(.subheadline)
+                }
             }
-            .menuStyle(.borderlessButton)
+
+            Group {
+                if systemImage != nil {
+                    menu
+                        .menuStyle(.button)
+                        .buttonStyle(.plain)
+                } else {
+                    menu
+                        .menuStyle(.borderlessButton)
+                }
+            }
+            .menuIndicator(systemImage == nil ? .visible : .hidden)
             .fixedSize()
             .opacity(isHovered ? 1 : 0.7)
             .onContentHover { isHovered = $0 }
