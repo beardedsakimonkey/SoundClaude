@@ -237,7 +237,6 @@ struct StationDetailView: View {
                 .labelStyle(.titleAndIcon)
                 .font(.body)
                 .lineLimit(1)
-                .minimumScaleFactor(0.6)
                 .foregroundStyle(.secondary)
                 .contentShape(Rectangle())
         }
@@ -262,7 +261,7 @@ struct StationDetailView: View {
             }
         } label: {
             Image(systemName: isLiked ? "heart.fill" : "heart")
-                .foregroundStyle(isLiked ? Color.accentColor : .secondary)
+                .foregroundStyle(.secondary)
                 .padding(4)
                 .contentShape(Rectangle())
         }

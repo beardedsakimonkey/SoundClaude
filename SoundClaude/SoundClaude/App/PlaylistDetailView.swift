@@ -205,7 +205,6 @@ struct PlaylistDetailView: View {
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.6)
                         .textSelection(.enabled)
                         .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
                     if !displayedPlaylist.isPrivate {
@@ -408,7 +407,7 @@ struct PlaylistDetailView: View {
             }
         } label: {
             Image(systemName: isLiked ? "heart.fill" : "heart")
-                .foregroundStyle(isLiked ? Color.accentColor : .secondary)
+                .foregroundStyle(.secondary)
                 .padding(4)
                 .contentShape(Rectangle())
         }
