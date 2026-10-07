@@ -75,6 +75,7 @@ struct StationDetailView: View {
                         Spacer()
                         TrackLayoutPicker(trackLayout: $trackLayout)
                     }
+                    .modifier(FadeInOnAppear())
                     if let message = model.errorMessage {
                         Label(message, systemImage: "exclamationmark.triangle")
                             .foregroundStyle(Color.accentColor)
