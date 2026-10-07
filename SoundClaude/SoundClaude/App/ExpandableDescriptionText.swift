@@ -4,6 +4,7 @@ struct ExpandableDescriptionText: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let description: ArtistMentionText
+    private let descriptionStyle: HierarchicalShapeStyle
 
     private let collapsedLineLimit = 5
     private let opacity = 0.9
@@ -17,8 +18,13 @@ struct ExpandableDescriptionText: View {
         !isExpanded && fullHeight > collapsedHeight
     }
 
-    init(description: String, onSelectArtist: @escaping (SoundCloudUser) -> Void) {
+    init(
+        description: String,
+        descriptionStyle: HierarchicalShapeStyle = .primary,
+        onSelectArtist: @escaping (SoundCloudUser) -> Void
+    ) {
         self.description = ArtistMentionText(description, onSelectArtist: onSelectArtist)
+        self.descriptionStyle = descriptionStyle
     }
 
     @ViewBuilder
@@ -34,6 +40,7 @@ struct ExpandableDescriptionText: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             selectableDescription
+                .foregroundStyle(descriptionStyle)
                 // Keep the full text laid out while its visible height animates.
                 .lineLimit(fullHeight > 0 ? nil : collapsedLineLimit)
                 .fixedSize(horizontal: false, vertical: true)
