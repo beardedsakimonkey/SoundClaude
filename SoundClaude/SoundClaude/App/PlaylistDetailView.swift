@@ -20,11 +20,13 @@ struct PlaylistDetailView: View {
     private var errorMessage: String? { playlists.playlistErrors[playlist.urn] }
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
     @State private var isShowingArtwork = false
+    @State private var isHoveringPlaylistLabel = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var likeErrorMessage: String?
     @State private var editingPlaylist: SoundCloudPlaylist?
     @State private var playlistDeletion = PlaylistDeletionState()
     @State private var removeTrackErrorMessage: String?
+    @State private var shuffledStartingTrackURN: String?
 
     private var isOwnedByCurrentUser: Bool {
         guard !playlist.isSystemPlaylist, case let .signedIn(user) = model.auth.state,
@@ -39,6 +41,16 @@ struct PlaylistDetailView: View {
                 || tracks.contains(where: { $0.urn == track.urn }) else { return nil }
         return track
     }
+
+    private var startingTrack: SoundCloudTrack? {
+        if model.playback.isShuffleEnabled,
+           let track = tracks.first(where: { $0.urn == shuffledStartingTrackURN }) {
+            return track
+        }
+        return tracks.first
+    }
+
+    private var displayedTrack: SoundCloudTrack? { currentPlaylistTrack ?? startingTrack }
 
     private var artworkURL: URL? {
         if let track = currentPlaylistTrack {
@@ -59,13 +71,6 @@ struct PlaylistDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 header
-                if let description = displayedPlaylist.description?
-                    .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
-                    ExpandableDescriptionText(
-                        description: description,
-                        onSelectArtist: onSelectArtist
-                    )
-                }
                 VStack(alignment: .leading, spacing: trackLayout == .list ? 8 : 24) {
                     HStack {
                         CountedSectionHeader(
@@ -125,6 +130,13 @@ struct PlaylistDetailView: View {
         .task(id: playlist.urn) {
             await load()
         }
+        .onChange(of: tracks.map(\.urn), initial: true) { _, _ in
+            updateStartingTrack()
+        }
+        .onChange(of: model.playback.isShuffleEnabled) { _, _ in
+            shuffledStartingTrackURN = nil
+            updateStartingTrack()
+        }
         .task(id: displayedPlaylist.isPrivate) {
             if playlist.isSystemPlaylist {
                 do {
@@ -169,59 +181,49 @@ struct PlaylistDetailView: View {
     }
 
     private var header: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            artworkAndPlayback
+            if let description = displayedPlaylist.description?
+                .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
+                ExpandableDescriptionText(
+                    description: description,
+                    onSelectArtist: onSelectArtist
+                )
+                .foregroundStyle(.secondary)
+            }
+            playlistMetadata
+        }
+    }
+
+    private var artworkAndPlayback: some View {
         HStack(alignment: .top, spacing: 24) {
             playlistArtwork
             VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .center, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Image(systemName: "music.note.list")
-                            .foregroundStyle(.primary.opacity(0.6))
-                            .accessibilityHidden(true)
-                        Text(displayedPlaylist.title)
-                            .foregroundStyle(.primary)
-                            .opacity(currentPlaylistTrack != nil ? 0.6 : 0.9)
-                            .animation(.easeInOut(duration: 0.2), value: currentPlaylistTrack != nil)
-                            .textSelection(.enabled)
-                            .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
-                    }
-                    .font(.system(size: 24, weight: .semibold))
-
-                    if displayedPlaylist.isPrivate {
-                        Text("Private")
-                            .font(.callout.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .overlay {
-                                Capsule()
-                                    .strokeBorder(.secondary.opacity(0.35), lineWidth: 1)
-                            }
-                            .fixedSize()
-                            .contentHelp("Private playlist")
-                            .accessibilityLabel("Private playlist")
+                HStack(spacing: 8) {
+                    Label(displayedPlaylist.title, systemImage: "music.note.list")
+                        .labelStyle(.titleAndIcon)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .textSelection(.enabled)
+                        .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
+                    if !displayedPlaylist.isPrivate {
+                        likeButton
+                            .opacity(isHoveringPlaylistLabel ? 1 : 0)
+                            .animation(.easeInOut(duration: 0.2), value: isHoveringPlaylistLabel)
                     }
                 }
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    if !playlist.isSystemPlaylist {
-                        ArtistLink(
-                            artist: displayedPlaylist.owner,
-                            artworkLoader: model.artworkLoader,
-                            showsAvatarBorder: true,
-                            onSelect: onSelectArtist
-                        )
-                    }
-
-                    RelativeTimestampView(
-                        timestamp: displayedPlaylist.lastModified,
-                        accessibilityPrefix: "Last updated",
-                        prefix: "Updated",
-                        showsSeparator: !playlist.isSystemPlaylist
-                    )
-
-                }
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+                .contentShape(Rectangle())
+                .onContentHover { isHoveringPlaylistLabel = $0 }
+                .modifier(FadeInOnAppear())
+                NowPlayingTrackRow(
+                    track: displayedTrack,
+                    layout: .stacked,
+                    artworkLoader: model.artworkLoader,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist
+                )
 
                 VStack(alignment: .leading, spacing: 16) {
                     ViewThatFits(in: .horizontal) {
@@ -237,13 +239,7 @@ struct PlaylistDetailView: View {
                     }
                 }
                 .padding(.top, 8)
-
-                NowPlayingTrackRow(
-                    track: currentPlaylistTrack,
-                    onSelectTrack: onSelectTrack,
-                    onSelectArtist: onSelectArtist
-                )
-                .offset(y: 8)
+                .modifier(FadeInOnAppear())
                 Spacer(minLength: 6)
                 TrackWaveformView(
                     track: currentPlaylistTrack,
@@ -260,7 +256,33 @@ struct PlaylistDetailView: View {
                 minHeight: artworkSize + TrackWaveformView.Layout.detail.reflectionHeight,
                 alignment: .topLeading
             )
+            .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var playlistMetadata: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            if !playlist.isSystemPlaylist {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(displayedPlaylist.isPrivate ? "Private playlist by" : "Public playlist by")
+                    ArtistLink(
+                        artist: displayedPlaylist.owner,
+                        onSelect: onSelectArtist
+                    )
+                }
+            }
+            RelativeTimestampView(
+                timestamp: displayedPlaylist.lastModified,
+                accessibilityPrefix: "Last updated",
+                prefix: "Updated",
+                showsSeparator: !playlist.isSystemPlaylist
+            )
+        }
+        .font(.body)
+        .foregroundStyle(.secondary)
+        .opacity(0.9)
+        .lineLimit(1)
+        .modifier(FadeInOnAppear())
     }
 
     private var playlistArtwork: some View {
@@ -293,7 +315,23 @@ struct PlaylistDetailView: View {
         HStack(spacing: 12) {
             playButton(iconOnly: iconOnly)
             trackNavigationButtons
-            if !displayedPlaylist.isPrivate { likeButton }
+            if let track = displayedTrack {
+                DetailLikeButton(
+                    isLiked: likes.isLiked(track),
+                    isUpdating: likes.updatingTrackURNs.contains(track.urn),
+                    likeCount: likes.likeCount(for: track),
+                    iconOnly: iconOnly,
+                    subject: "track: \(track.title)"
+                ) {
+                    Task {
+                        do {
+                            try await likes.toggleLike(track)
+                        } catch {
+                            model.likeErrorMessage = error.localizedDescription
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -302,7 +340,7 @@ struct PlaylistDetailView: View {
         return Button {
             if currentPlaylistTrack != nil {
                 model.playback.togglePlayPause()
-            } else if let track = model.playback.isShuffleEnabled ? tracks.randomElement() : tracks.first {
+            } else if let track = startingTrack {
                 Task {
                     await model.play(track, queue: TrackQueue(
                         source: .playlist(playlist.urn), tracks: tracks, nextPageURL: nextPageURL
@@ -352,12 +390,11 @@ struct PlaylistDetailView: View {
     }
 
     private var likeButton: some View {
-        DetailLikeButton(
-            isLiked: playlist.isSystemPlaylist
-                ? likes.likedStationURNs.contains(playlist.urn)
-                : playlists.likedPlaylistURNs.contains(playlist.urn),
-            subject: "playlist"
-        ) {
+        let isLiked = playlist.isSystemPlaylist
+            ? likes.likedStationURNs.contains(playlist.urn)
+            : playlists.likedPlaylistURNs.contains(playlist.urn)
+        let actionLabel = "\(isLiked ? "Unlike" : "Like") playlist: \(displayedPlaylist.title)"
+        return Button {
             Task {
                 do {
                     if playlist.isSystemPlaylist {
@@ -369,7 +406,16 @@ struct PlaylistDetailView: View {
                     likeErrorMessage = error.localizedDescription
                 }
             }
+        } label: {
+            Image(systemName: isLiked ? "heart.fill" : "heart")
+                .foregroundStyle(isLiked ? Color.accentColor : .secondary)
+                .padding(4)
+                .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .contentHelp(actionLabel)
+        .accessibilityLabel(actionLabel)
+        .accessibilityValue(isLiked ? "Liked" : "Not liked")
         .disabled(playlist.isSystemPlaylist
             ? !likes.hasLoadedStationLikes || likes.updatingStationURNs.contains(playlist.urn)
             : !playlists.hasLoadedLikes || playlists.updatingLikeURNs.contains(playlist.urn))
@@ -416,6 +462,16 @@ struct PlaylistDetailView: View {
             tracks: tracks,
             nextPageURL: nextPageURL
         ))
+    }
+
+    private func updateStartingTrack() {
+        guard model.playback.isShuffleEnabled else {
+            shuffledStartingTrackURN = nil
+            return
+        }
+        if !tracks.contains(where: { $0.urn == shuffledStartingTrackURN }) {
+            shuffledStartingTrackURN = tracks.randomElement()?.urn
+        }
     }
 
     private func load() async {
