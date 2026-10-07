@@ -354,7 +354,9 @@ struct PlaylistDetailView: View {
     }
 
     private func playButton(iconOnly: Bool) -> some View {
-        let isPlaying = currentPlaylistTrack != nil && model.playback.isPlaybackActive
+        let isStarting = currentPlaylistTrack == nil
+        let isPlaying = !isStarting && model.playback.isPlaybackActive
+        let playLabel = isStarting ? "Start" : "Play"
         return Button {
             if currentPlaylistTrack != nil {
                 model.playback.togglePlayPause()
@@ -367,22 +369,30 @@ struct PlaylistDetailView: View {
             }
         } label: {
             ZStack {
-                Label("Play", systemImage: "play.fill")
-                    .opacity(isPlaying ? 0 : 1)
+                Label(playLabel, systemImage: "play.fill")
+                    .animation(nil) { label in
+                        label.opacity(isPlaying ? 0 : 1)
+                    }
                     .accessibilityHidden(isPlaying)
                 Label("Pause", systemImage: "pause.fill")
-                    .opacity(isPlaying ? 1 : 0)
+                    .animation(nil) { label in
+                        label.opacity(isPlaying ? 1 : 0)
+                    }
                     .accessibilityHidden(!isPlaying)
             }
+            .foregroundStyle(isStarting ? Color.green : Color.primary)
             .font(.title3.weight(.semibold))
             .padding(.horizontal, iconOnly ? 0 : 24)
             .frame(width: iconOnly ? 44 : nil)
             .frame(minHeight: 24)
         }
-        .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
+        .buttonStyle(TrackActionButtonStyle(
+            fill: isStarting ? .green.opacity(0.12) : .primary.opacity(0.12)
+        ))
+        .animation(.easeInOut(duration: 0.25), value: isStarting)
         .disabled(currentPlaylistTrack == nil && tracks.isEmpty)
-        .contentHelp(isPlaying ? "Pause playlist" : "Play playlist")
-        .accessibilityLabel(isPlaying ? "Pause playlist" : "Play playlist")
+        .contentHelp(isPlaying ? "Pause playlist" : "\(playLabel) playlist")
+        .accessibilityLabel(isPlaying ? "Pause playlist" : "\(playLabel) playlist")
     }
 
     private var trackNavigationButtons: some View {

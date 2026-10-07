@@ -245,7 +245,7 @@ struct ArtworkAccent: Sendable {
                 winner = Self.fromHSV(
                     hue: hsv.hue,
                     saturation: 0.2 + 0.7 * hsv.saturation,
-                    brightness: max(0.75, hsv.brightness)
+                    brightness: max(0.8, hsv.brightness)
                 )
             }
         }

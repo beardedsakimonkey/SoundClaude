@@ -295,8 +295,9 @@ struct StationDetailView: View {
     }
 
     private func playbackControls(iconOnly: Bool) -> some View {
-        let isPlaying = currentStationTrack != nil && model.playback.isPlaybackActive
-        let playLabel = currentStationTrack == nil ? "Start" : "Play"
+        let isStarting = currentStationTrack == nil
+        let isPlaying = !isStarting && model.playback.isPlaybackActive
+        let playLabel = isStarting ? "Start" : "Play"
         return HStack(spacing: 12) {
             Button {
                 if currentStationTrack != nil {
@@ -311,14 +312,25 @@ struct StationDetailView: View {
             } label: {
                 ZStack {
                     Label(playLabel, systemImage: "play.fill")
-                        .opacity(isPlaying ? 0 : 1).accessibilityHidden(isPlaying)
+                        .animation(nil) { label in
+                            label.opacity(isPlaying ? 0 : 1)
+                        }
+                        .accessibilityHidden(isPlaying)
                     Label("Pause", systemImage: "pause.fill")
-                        .opacity(isPlaying ? 1 : 0).accessibilityHidden(!isPlaying)
+                        .animation(nil) { label in
+                            label.opacity(isPlaying ? 1 : 0)
+                        }
+                        .accessibilityHidden(!isPlaying)
                 }
+                .foregroundStyle(isStarting ? Color.green : Color.primary)
                 .padding(.horizontal, iconOnly ? 0 : 24)
                 .frame(width: iconOnly ? 44 : nil)
                 .frame(minHeight: 24)
             }
+            .buttonStyle(TrackActionButtonStyle(
+                fill: isStarting ? .green.opacity(0.12) : .primary.opacity(0.12)
+            ))
+            .animation(.easeInOut(duration: 0.25), value: isStarting)
             .disabled(currentStationTrack == nil && tracks.isEmpty)
             .contentHelp(isPlaying ? "Pause station" : "\(playLabel) station")
             .accessibilityLabel(isPlaying ? "Pause station" : "\(playLabel) station")
