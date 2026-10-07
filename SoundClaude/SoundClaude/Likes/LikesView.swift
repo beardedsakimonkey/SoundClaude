@@ -79,7 +79,11 @@ struct LikesView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task { await likes.loadLikedTracks() }
+        // Root pages stay mounted, so sync on every entry to pick up likes made elsewhere.
+        .task(id: isActive) {
+            guard isActive else { return }
+            await likes.loadLikedTracks()
+        }
         .onChange(of: isActive) { _, active in
             if !active { isSearchFocused = false }
         }
