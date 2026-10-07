@@ -36,10 +36,8 @@ struct PlaylistDetailView: View {
 
     private var displayedPlaylist: SoundCloudPlaylist { contents?.playlist ?? playlist }
     private var currentPlaylistTrack: SoundCloudTrack? {
-        guard let track = model.playback.currentTrack,
-              model.queue.source == .playlist(playlist.urn)
-                || tracks.contains(where: { $0.urn == track.urn }) else { return nil }
-        return track
+        guard model.queue.source == .playlist(playlist.urn) else { return nil }
+        return model.playback.currentTrack
     }
 
     private var startingTrack: SoundCloudTrack? {
