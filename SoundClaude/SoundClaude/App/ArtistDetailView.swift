@@ -160,6 +160,7 @@ struct ArtistDetailView: View {
         self.onSelectStation = onSelectStation
         let cached = model.cachedArtistDetails(for: artist)
         _details = State(initialValue: cached)
+        _webProfiles = State(initialValue: model.cachedArtistWebProfiles(for: cached?.user ?? artist) ?? [])
         _isLoading = State(initialValue: cached == nil)
         let cachedHeader = model.cachedArtistHeader(for: artist)
         _headerImage = State(initialValue: cachedHeader?.image)
@@ -599,9 +600,12 @@ struct ArtistDetailView: View {
     }
 
     private func loadWebProfiles() async {
-        webProfiles = []
         webProfilesErrorMessage = nil
         guard let user = details?.user, user.urn != nil else { return }
+        if let cached = model.cachedArtistWebProfiles(for: user) {
+            webProfiles = cached
+            return
+        }
         do {
             let profiles = try await model.artistWebProfiles(for: user)
             try Task.checkCancellation()

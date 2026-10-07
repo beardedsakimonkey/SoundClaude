@@ -52,6 +52,8 @@ final class AppModel: ObservableObject {
     >(countLimit: 50, totalCostLimit: 8 * 1_024 * 1_024)
     private var waveformRequests: [URL: (id: UUID, task: Task<SoundCloudWaveform, Error>)] = [:]
     private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(countLimit: 100)
+    private let artistWebProfilesCache = MemoryCache<NSURL, [SoundCloudWebProfile]>(countLimit: 100)
+    private var artistWebProfilesCacheGeneration = UUID()
     private let artistHeaderCache = MemoryCache<NSURL, CachedArtistHeader>(countLimit: 10)
     private let stationCache = MemoryCache<NSString, SoundCloudStation>(countLimit: 10)
     private var stationCacheGeneration = UUID()
@@ -180,6 +182,8 @@ final class AppModel: ObservableObject {
         feed.clear()
         trackDetailsCache.removeAll()
         artistDetailsCache.removeAll()
+        artistWebProfilesCache.removeAll()
+        artistWebProfilesCacheGeneration = UUID()
         for request in waveformRequests.values { request.task.cancel() }
         waveformRequests.removeAll()
         waveformCache.removeAll()
@@ -439,10 +443,21 @@ final class AppModel: ObservableObject {
         return details
     }
 
+    func cachedArtistWebProfiles(for artist: SoundCloudUser) -> [SoundCloudWebProfile]? {
+        artistWebProfilesCache.value(forKey: artist.permalinkURL as NSURL)
+    }
+
     func artistWebProfiles(for artist: SoundCloudUser) async throws -> [SoundCloudWebProfile] {
+        if let cached = cachedArtistWebProfiles(for: artist) { return cached }
         guard let urn = artist.urn else { throw SoundCloudError.invalidData }
+        let generation = artistWebProfilesCacheGeneration
         let accessToken = try await auth.validAccessToken()
-        return try await client.artistWebProfiles(urn: urn, accessToken: accessToken)
+        let profiles = try await client.artistWebProfiles(urn: urn, accessToken: accessToken)
+        try Task.checkCancellation()
+        // A response from a previous session must not repopulate the cache.
+        guard generation == artistWebProfilesCacheGeneration else { throw CancellationError() }
+        artistWebProfilesCache.insert(profiles, forKey: artist.permalinkURL as NSURL)
+        return profiles
     }
 
     func relatedArtists(for artist: SoundCloudUser) async throws -> [SoundCloudUser] {
