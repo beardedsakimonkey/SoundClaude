@@ -59,7 +59,7 @@ struct StationDetailView: View {
     private var artworkTrack: SoundCloudTrack? { displayedTrack ?? seedTrack }
 
     var body: some View {
-        ScrollView {
+        ScrollbarReservedScrollView { _ in
             VStack(alignment: .leading, spacing: 24) {
                 header
                 VStack(alignment: .leading, spacing: trackLayout == .list ? 8 : 24) {
