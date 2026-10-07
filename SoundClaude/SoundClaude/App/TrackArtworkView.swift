@@ -372,6 +372,10 @@ struct DetailArtworkTransform {
 extension EnvironmentValues {
     @Entry var initialDetailArtworkRotation: Bool? = nil
     @Entry var detailArtworkHoverActive = false
+    // Target Y rotation in degrees; the artwork's slab edge animates toward it alongside the turn.
+    @Entry var detailArtworkYRotation = 0.0
+    // The configured turn when the artwork rotates at all; sizes the slab's artwork overscan.
+    @Entry var detailArtworkTurn = 0.0
 }
 
 /// Rotates the artwork and its reflection together, resetting Y rotation on hover or while viewing artwork.
@@ -391,6 +395,13 @@ struct DetailArtworkRotation: ViewModifier {
     @Environment(\.initialDetailArtworkRotation) private var initialRotation
     @State private var hasAppeared = false
 
+    #if DEBUG
+    @AppStorage(DetailArtworkSlabTuning.turnKey) private var debugTurn = DetailArtworkTransform().y
+    private var turn: Double { debugTurn }
+    #else
+    private var turn: Double { transform.y }
+    #endif
+
     private var displayedRotation: Bool {
         if !reduceMotion, !hasAppeared, let initialRotation { return initialRotation }
         return isRotated
@@ -398,11 +409,14 @@ struct DetailArtworkRotation: ViewModifier {
 
     private var activeHover: Bool { imageHover ?? isHovering }
     private var isRotationFlat: Bool { (flattensOnHover && activeHover) || isShowingArtwork }
+    private var targetRotation: Double { displayedRotation && !isRotationFlat ? turn : 0 }
 
     func body(content: Content) -> some View {
         hoverTracking(content
             // Share one hover state with the image and its reflection.
             .environment(\.detailArtworkHoverActive, activeHover || isShowingArtwork)
+            .environment(\.detailArtworkYRotation, targetRotation)
+            .environment(\.detailArtworkTurn, isRotated ? turn : 0)
             .animation(
                 reduceMotion ? nil : (isRotationFlat
                     ? DetailArtworkMotion.rotationIn : DetailArtworkMotion.rotationOut)
@@ -436,7 +450,7 @@ struct DetailArtworkRotation: ViewModifier {
     private func rotated<Artwork: View>(_ artwork: Artwork, perspective: Double) -> some View {
         artwork
             .rotation3DEffect(
-                .degrees(displayedRotation && !isRotationFlat ? transform.y : 0),
+                .degrees(targetRotation),
                 axis: (x: 0, y: 1, z: 0),
                 perspective: perspective
             )
@@ -452,6 +466,8 @@ struct DetailArtworkView: View {
     var showsPlaceholderIcon = true
     var cornerRadius: CGFloat = 6
     var reflectionBlurRadius: CGFloat = 3
+    // Depth of the glass slab, visible along the near edge while rotated.
+    var slabThickness: CGFloat = 10
     var artworkLift: CGFloat = 0
     var isShowingArtwork = false
     var hoverAnimation: Animation = DetailArtworkMotion.sheenIn
@@ -490,7 +506,49 @@ struct DetailArtworkView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.detailArtworkHoverActive) private var isHoveringArtwork
+    @Environment(\.detailArtworkYRotation) private var rotation
+    @Environment(\.detailArtworkTurn) private var turn
     @State private var likeErrorMessage: String?
+
+    #if DEBUG
+    @AppStorage(DetailArtworkSlabTuning.thicknessKey) private var debugSlabThickness = 10.0
+    @AppStorage(DetailArtworkSlabTuning.frontDarkeningKey) private var debugSlabFrontDarkening =
+        PlayerArtworkGlassParameters.detail.slabFrontDarkening
+    @AppStorage(DetailArtworkSlabTuning.backDarkeningKey) private var debugSlabBackDarkening =
+        PlayerArtworkGlassParameters.detail.slabBackDarkening
+    @AppStorage(DetailArtworkSlabTuning.lipPositionKey) private var debugLipPosition =
+        PlayerArtworkGlassParameters.detail.lipPosition
+    @AppStorage(DetailArtworkSlabTuning.lipWidthKey) private var debugLipWidth =
+        PlayerArtworkGlassParameters.detail.lipWidth
+    @AppStorage(DetailArtworkSlabTuning.lipStrengthKey) private var debugLipStrength =
+        PlayerArtworkGlassParameters.detail.reflectionStrength
+    @AppStorage(DetailArtworkSlabTuning.rimStrokeKey) private var debugRimStroke =
+        PlayerArtworkGlassParameters.detail.rimStrokeOpacity
+    @AppStorage(DetailArtworkSlabTuning.turnKey) private var debugTurn = DetailArtworkTransform().y
+    @State private var isShowingSlabControls = false
+
+    private var displayedSlabThickness: CGFloat { debugSlabThickness }
+    private var glassParameters: PlayerArtworkGlassParameters {
+        var parameters = PlayerArtworkGlassParameters.detail
+        parameters.slabFrontDarkening = debugSlabFrontDarkening
+        parameters.slabBackDarkening = debugSlabBackDarkening
+        parameters.lipPosition = debugLipPosition
+        parameters.lipWidth = debugLipWidth
+        parameters.reflectionStrength = debugLipStrength
+        parameters.rimStrokeOpacity = debugRimStroke
+        return parameters
+    }
+    #else
+    private var displayedSlabThickness: CGFloat { slabThickness }
+    private var glassParameters: PlayerArtworkGlassParameters { .detail }
+    #endif
+
+    // Artwork drawn past the face on every side, just enough for the widest slab edge at the
+    // configured turn. The face shows a zoomed crop and the edge shows the rest, so the image
+    // runs continuously onto the edge.
+    private var displayedOverscan: CGFloat {
+        displayedSlabThickness * tan(abs(turn) * .pi / 180)
+    }
 
     private var isArtworkHoverActive: Bool { isHoveringArtwork || isShowingArtwork }
 
@@ -517,6 +575,10 @@ struct DetailArtworkView: View {
                             isUpdatingPlaylist: isUpdatingPlaylist
                         )
                     }
+                    #if DEBUG
+                    Divider()
+                    Button("Tune Glass…") { isShowingSlabControls = true }
+                    #endif
                 }
                 // Raised covers cast a larger, softer shadow onto the backdrop.
                 .shadow(
@@ -528,21 +590,19 @@ struct DetailArtworkView: View {
                 .offset(y: -displayedLift)
                 .zIndex(1)
 
-            artworkThumbnail
+            artworkThumbnail(reflectionBlurRadius: reflectionBlurRadius)
                 .scaleEffect(x: 1, y: -1)
-                .blur(radius: reflectionBlurRadius)
-                // Keep the mirrored silhouette rounded after the blur spreads its edges.
-                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                 // Mirror the lift below the ground while keeping the fade fixed.
                 .offset(y: displayedLift)
                 .frame(height: reflectionHeight, alignment: .top)
-                .clipped()
+                // The fade also clips the reflection's height; widen it to keep the slab edge.
                 .mask {
                     LinearGradient(
                         stops: reflectionStops,
                         startPoint: .top,
                         endPoint: .bottom
                     )
+                    .padding(.horizontal, -displayedOverscan)
                 }
                 .overlay(alignment: .top) { contactShadow }
                 .allowsHitTesting(false)
@@ -550,6 +610,11 @@ struct DetailArtworkView: View {
                 // Reserve space for the visible reflection; let its faint tail overflow.
                 .frame(height: 32, alignment: .top)
         }
+        #if DEBUG
+        .popover(isPresented: $isShowingSlabControls, arrowEdge: .trailing) {
+            slabControls
+        }
+        #endif
         .alert("Could not update like", isPresented: Binding(
             get: { likeErrorMessage != nil },
             set: { if !$0 { likeErrorMessage = nil } }
@@ -577,7 +642,7 @@ struct DetailArtworkView: View {
             Button {
                 onShowArtwork()
             } label: {
-                artworkThumbnail
+                artworkThumbnail()
             }
             .buttonStyle(.plain)
             .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
@@ -586,7 +651,7 @@ struct DetailArtworkView: View {
                 "View full-size artwork for \(title)"
             )
         } else {
-            artworkThumbnail
+            artworkThumbnail()
         }
     }
 
@@ -601,26 +666,147 @@ struct DetailArtworkView: View {
             .accessibilityHidden(true)
     }
 
-    private var artworkThumbnail: some View {
+    private func artworkThumbnail(reflectionBlurRadius: CGFloat? = nil) -> some View {
         TrackArtworkView(
             artworkURL: artworkURL,
             loader: loader,
-            size: size,
+            size: size + displayedOverscan * 2,
             rendition: .square500,
             shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
             showsBorder: false,
             animatesChanges: animatesChanges,
             showsPlaceholderIcon: showsPlaceholderIcon
         )
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        // Lay out at the face size; the glass masks the overscan that spills past it.
+        .frame(width: size, height: size)
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius,
             isHovering: isArtworkHoverActive && !reduceMotion,
-            hoverSweepTravel: 0.14
+            hoverSweepTravel: 0.14,
+            slabThickness: displayedSlabThickness,
+            artworkOverscan: displayedOverscan
         ))
         .animation(
             reduceMotion ? nil : (isArtworkHoverActive ? hoverAnimation : hoverOutAnimation),
             value: isArtworkHoverActive
         )
+        .modifier(DetailArtworkReflectionBlur(
+            radius: reflectionBlurRadius,
+            cornerRadius: cornerRadius,
+            maxShift: PlayerArtworkGlass.slabPadding(thickness: displayedSlabThickness, overscan: displayedOverscan)
+        ))
+        // A layer this far behind the face projects like the face shifted by depth * tan(angle);
+        // positive angles bring the leading edge forward.
+        .modifier(PlayerArtworkGlassSlab(
+            shift: -displayedSlabThickness * tan(rotation * .pi / 180)
+        ))
+        // Match DetailArtworkRotation's springs so the edge tracks the turn.
+        .animation(
+            reduceMotion ? nil : (rotation == 0
+                ? DetailArtworkMotion.rotationIn : DetailArtworkMotion.rotationOut),
+            value: rotation
+        )
+        .environment(\.playerArtworkGlassParameters, glassParameters)
+    }
+
+    #if DEBUG
+    private var slabControls: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Artwork glass").font(.headline)
+                Spacer()
+                Button("Reset") {
+                    let defaults = PlayerArtworkGlassParameters.detail
+                    debugSlabThickness = 10
+                    debugSlabFrontDarkening = defaults.slabFrontDarkening
+                    debugSlabBackDarkening = defaults.slabBackDarkening
+                    debugLipPosition = defaults.lipPosition
+                    debugLipWidth = defaults.lipWidth
+                    debugLipStrength = defaults.reflectionStrength
+                    debugRimStroke = defaults.rimStrokeOpacity
+                    debugTurn = DetailArtworkTransform().y
+                }
+            }
+            slabSlider("Thickness (pt)", value: $debugSlabThickness, range: 0...30, step: 0.5)
+            slabSlider("Front darkening", value: $debugSlabFrontDarkening, range: 0...1, step: 0.01)
+            slabSlider("Back darkening", value: $debugSlabBackDarkening, range: 0...1, step: 0.01)
+            slabSlider("Turn (°)", value: $debugTurn, range: 0...35, step: 0.5)
+            Divider()
+            slabSlider("Lip position (pt)", value: $debugLipPosition, range: 0...8, step: 0.1)
+            slabSlider("Lip width (pt)", value: $debugLipWidth, range: 0.1...6, step: 0.05)
+            slabSlider("Lip strength", value: $debugLipStrength, range: 0...2, step: 0.05)
+            slabSlider("Rim stroke", value: $debugRimStroke, range: 0...1.5, step: 0.01)
+            Text("Settings are saved and apply to all detail artwork in debug builds. Hover flattens the cover, so move the pointer off it to preview.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(20)
+        .frame(width: 320)
+    }
+
+    private func slabSlider(
+        _ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(value.wrappedValue, format: .number.precision(.fractionLength(2)))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: value, in: range, step: step) { Text(title) }
+        }
+    }
+    #endif
+}
+
+/// Blurs the reflection, then clips it to the face plus the slab edge so the silhouette
+/// stays crisp while the edge animates with the turn.
+private struct DetailArtworkReflectionBlur: ViewModifier {
+    let radius: CGFloat?
+    let cornerRadius: CGFloat
+    // The glass caps the edge at its padding; match it so blur doesn't spill past the edge.
+    let maxShift: CGFloat
+
+    @Environment(\.playerArtworkGlassSlabShift) private var slabShift
+
+    func body(content: Content) -> some View {
+        if let radius {
+            content
+                .blur(radius: radius)
+                .clipShape(SlabOutline(shift: min(max(slabShift, -maxShift), maxShift), cornerRadius: cornerRadius))
+        } else {
+            content
+        }
     }
 }
+
+/// The face's rounded rect stretched sideways by the slab edge.
+private struct SlabOutline: Shape {
+    var shift: CGFloat
+    let cornerRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).path(in: CGRect(
+            x: rect.minX + min(shift, 0),
+            y: rect.minY,
+            width: rect.width + abs(shift),
+            height: rect.height
+        ))
+    }
+}
+
+#if DEBUG
+// Debug-only storage keys shared by the slab popover and DetailArtworkRotation.
+enum DetailArtworkSlabTuning {
+    static let thicknessKey = "debug.slab.thickness"
+    static let frontDarkeningKey = "debug.slab.frontDarkening"
+    static let backDarkeningKey = "debug.slab.backDarkening"
+    static let turnKey = "debug.slab.turn"
+    static let lipPositionKey = "debug.slab.lipPosition"
+    static let lipWidthKey = "debug.slab.lipWidth"
+    static let lipStrengthKey = "debug.slab.lipStrength"
+    static let rimStrokeKey = "debug.slab.rimStroke"
+}
+#endif
