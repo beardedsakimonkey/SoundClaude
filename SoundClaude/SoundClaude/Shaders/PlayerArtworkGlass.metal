@@ -117,10 +117,14 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     float reflection = reflectionStrength * lip * (0.12 + 0.48 * highlight + 0.24 * counterlight)
         + caustic * counterlight * causticStrength;
 
-    // Broad, faint reflection across the face.
+    // Two parallel reflections: a broad band and a thinner, fainter streak.
+    // Both follow the same hover motion, with a gap that scales with their width.
     float2 uv = local / max(size, float2(1.0));
     float sweep = uv.y + 0.45 * uv.x - sweepPosition;
-    reflection += sweepStrength * exp(-pow(sweep / max(sweepWidth, 0.001), 2.0));
+    float width = max(sweepWidth, 0.001);
+    float broadStreak = exp(-pow(sweep / width, 2.0));
+    float thinStreak = exp(-pow((sweep - width * 2.0) / (width * 0.4), 2.0));
+    reflection += sweepStrength * (broadStreak + thinStreak * 0.7);
     color = mix(color, half3(1.0), half(saturate(reflection)));
     half4 face = half4(color * faceAlpha, faceAlpha);
     return face + edge * (1.0h - face.a);

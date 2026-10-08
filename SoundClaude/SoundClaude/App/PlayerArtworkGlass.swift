@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Defaults match the original shader. Overrides are scoped to the preview artwork.
+// Shared glass defaults. Detail artwork uses its own tuned values below.
 struct PlayerArtworkGlassParameters {
     var isEnabled = true
     var rimWidth = 8.0
@@ -8,7 +8,7 @@ struct PlayerArtworkGlassParameters {
     var edgeDarkening = 0.16
     var lipPosition = 1.1
     var lipWidth = 0.85
-    var reflectionStrength = 1.0
+    var reflectionStrength = 0.75
     var causticStrength = 0.15
     var sweepStrength = 0.065
     var sweepWidth = 0.19
@@ -155,8 +155,8 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
                 )
             }
             .padding(.horizontal, -slabPadding)
-            .shadow(color: .black.opacity(0.20), radius: 1, x: 0, y: 1)
-            .shadow(color: .black.opacity(0.24), radius: 4, x: 0, y: 4)
+            .shadow(color: .black.opacity(0.14), radius: 1, x: 0, y: 1)
+            .shadow(color: .black.opacity(0.16), radius: 6, x: 0, y: 3)
     }
 }
 
