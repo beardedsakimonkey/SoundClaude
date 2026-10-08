@@ -105,6 +105,7 @@ struct TrackDetailView: View {
                 showsPlaceholderIcon: false,
                 cornerRadius: 12,
                 artworkLift: isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverLift : 0,
+                hoverStyle: .lift,
                 isShowingArtwork: isShowingArtwork,
                 onImageHover: { isHoveringArtwork = $0 },
                 track: displayedTrack,

@@ -536,6 +536,12 @@ struct DetailArtworkRotation: ViewModifier {
 }
 
 struct DetailArtworkView: View {
+    enum HoverStyle {
+        case lift, rotation
+
+        var shineTravel: Double { self == .lift ? 0.35 : 1.4 }
+    }
+
     let artworkURL: URL?
     let title: String
     let loader: ArtworkLoader
@@ -547,6 +553,7 @@ struct DetailArtworkView: View {
     // Depth of the glass slab, visible along the near edge while rotated.
     var slabThickness: CGFloat = 8
     var artworkLift: CGFloat = 0
+    var hoverStyle: HoverStyle = .rotation
     var isShowingArtwork = false
     var hoverAnimation: Animation = DetailArtworkMotion.sheenIn
     var hoverOutAnimation: Animation = DetailArtworkMotion.sheenOut
@@ -609,12 +616,17 @@ struct DetailArtworkView: View {
         PlayerArtworkGlassParameters.detail.sweepWidth
     @AppStorage("debug.shine.position") private var debugShinePosition =
         PlayerArtworkGlassParameters.detail.sweepPosition
-    @AppStorage("debug.shine.travel") private var debugShineTravel = 1.4
+    @AppStorage("debug.shine.rotationTravel") private var debugRotationShineTravel = 1.4
+    @AppStorage("debug.shine.trackTravel") private var debugTrackShineTravel = 0.35
     @AppStorage("debug.shine.hoverBoost") private var debugShineHoverBoost =
         PlayerArtworkGlassParameters.detail.hoverSweepBoost
     @State private var isShowingSlabControls = false
 
-    private var displayedShineTravel: Double { debugShineTravel }
+    private var shineTravelBinding: Binding<Double> {
+        hoverStyle == .lift ? $debugTrackShineTravel : $debugRotationShineTravel
+    }
+
+    private var displayedShineTravel: Double { shineTravelBinding.wrappedValue }
 
     private var displayedSlabThickness: CGFloat { debugSlabThickness }
     private var glassParameters: PlayerArtworkGlassParameters {
@@ -632,7 +644,7 @@ struct DetailArtworkView: View {
         return parameters
     }
     #else
-    private var displayedShineTravel: Double { 1.4 }
+    private var displayedShineTravel: Double { hoverStyle.shineTravel }
     private var displayedSlabThickness: CGFloat { slabThickness }
     private var glassParameters: PlayerArtworkGlassParameters { .detail }
     #endif
@@ -836,7 +848,7 @@ struct DetailArtworkView: View {
                         debugShineStrength = defaults.sweepStrength
                         debugShineWidth = defaults.sweepWidth
                         debugShinePosition = defaults.sweepPosition
-                        debugShineTravel = 1.4
+                        shineTravelBinding.wrappedValue = hoverStyle.shineTravel
                         debugShineHoverBoost = defaults.hoverSweepBoost
                     }
                 }
@@ -844,7 +856,7 @@ struct DetailArtworkView: View {
                 slabSlider("Shine strength", value: $debugShineStrength, range: 0...0.5, step: 0.01)
                 slabSlider("Shine width", value: $debugShineWidth, range: 0.01...1, step: 0.01)
                 slabSlider("Rest position", value: $debugShinePosition, range: -0.5...2, step: 0.01)
-                slabSlider("Hover travel", value: $debugShineTravel, range: 0...1.5, step: 0.01)
+                slabSlider("Hover travel", value: shineTravelBinding, range: 0...1.5, step: 0.01)
                 slabSlider("Hover brightness boost", value: $debugShineHoverBoost, range: 0...4, step: 0.05)
                 Divider()
                 Text("Front light").font(.subheadline.bold())
