@@ -40,7 +40,8 @@ struct TrackCardView: View {
                     artworkURL: track.displayArtworkURL,
                     loader: model.artworkLoader,
                     size: 140,
-                    rendition: .square500
+                    rendition: .square500,
+                    shape: RoundedRectangle(cornerRadius: 8, style: .continuous)
                 )
             }
             .buttonStyle(.plain)

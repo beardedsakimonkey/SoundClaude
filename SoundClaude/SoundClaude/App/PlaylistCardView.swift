@@ -44,6 +44,7 @@ struct PlaylistCardView: View {
                     loader: model.artworkLoader,
                     size: 140,
                     rendition: .square500,
+                    shape: RoundedRectangle(cornerRadius: 8, style: .continuous),
                     animatesChanges: true
                 )
             }
