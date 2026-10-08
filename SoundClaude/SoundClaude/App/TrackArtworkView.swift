@@ -590,10 +590,10 @@ struct DetailArtworkView: View {
 
     #if DEBUG
     @AppStorage(DetailArtworkSlabTuning.thicknessKey) private var debugSlabThickness = 10.0
-    @AppStorage(DetailArtworkSlabTuning.frontDarkeningKey) private var debugSlabFrontDarkening =
-        PlayerArtworkGlassParameters.detail.slabFrontDarkening
-    @AppStorage(DetailArtworkSlabTuning.backDarkeningKey) private var debugSlabBackDarkening =
-        PlayerArtworkGlassParameters.detail.slabBackDarkening
+    @AppStorage(DetailArtworkSlabTuning.darknessKey) private var debugSlabDarkness =
+        PlayerArtworkGlassParameters.detail.slabDarkness
+    @AppStorage(DetailArtworkSlabTuning.depthShadingKey) private var debugSlabDepthShading =
+        PlayerArtworkGlassParameters.detail.slabDepthShading
     @AppStorage(DetailArtworkSlabTuning.lipPositionKey) private var debugLipPosition =
         PlayerArtworkGlassParameters.detail.lipPosition
     @AppStorage(DetailArtworkSlabTuning.lipWidthKey) private var debugLipWidth =
@@ -623,8 +623,8 @@ struct DetailArtworkView: View {
     private var displayedSlabThickness: CGFloat { debugSlabThickness }
     private var glassParameters: PlayerArtworkGlassParameters {
         var parameters = PlayerArtworkGlassParameters.detail
-        parameters.slabFrontDarkening = debugSlabFrontDarkening
-        parameters.slabBackDarkening = debugSlabBackDarkening
+        parameters.slabDarkness = debugSlabDarkness
+        parameters.slabDepthShading = debugSlabDepthShading
         parameters.lipPosition = debugLipPosition
         parameters.lipWidth = debugLipWidth
         parameters.reflectionStrength = debugLipStrength
@@ -830,8 +830,8 @@ struct DetailArtworkView: View {
                     Button("Reset") {
                         let defaults = PlayerArtworkGlassParameters.detail
                         debugSlabThickness = 10
-                        debugSlabFrontDarkening = defaults.slabFrontDarkening
-                        debugSlabBackDarkening = defaults.slabBackDarkening
+                        debugSlabDarkness = defaults.slabDarkness
+                        debugSlabDepthShading = defaults.slabDepthShading
                         debugLipPosition = defaults.lipPosition
                         debugLipWidth = defaults.lipWidth
                         debugLipStrength = defaults.reflectionStrength
@@ -856,12 +856,16 @@ struct DetailArtworkView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Divider()
-                Text("Slab and rim").font(.subheadline.bold())
+                Text("Slab edge").font(.subheadline.bold())
                 slabSlider("Thickness (pt)", value: $debugSlabThickness, range: 0...30, step: 0.5)
-                slabSlider("Front darkening", value: $debugSlabFrontDarkening, range: 0...1, step: 0.01)
-                slabSlider("Back darkening", value: $debugSlabBackDarkening, range: 0...1, step: 0.01)
+                slabSlider("Darkness", value: $debugSlabDarkness, range: 0...1, step: 0.01)
+                slabSlider("Depth shading", value: $debugSlabDepthShading, range: 0...1, step: 0.01)
+                Text("Darkness shades the whole edge. Depth shading adds shadow toward the back; zero gives an even shade.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 slabSlider("Turn (°)", value: $debugTurn, range: 0...35, step: 0.5)
                 Divider()
+                Text("Rim").font(.subheadline.bold())
                 slabSlider("Lip position (pt)", value: $debugLipPosition, range: 0...8, step: 0.1)
                 slabSlider("Lip width (pt)", value: $debugLipWidth, range: 0.1...6, step: 0.05)
                 slabSlider("Lip strength", value: $debugLipStrength, range: 0...2, step: 0.05)
@@ -932,8 +936,8 @@ private struct SlabOutline: Shape {
 // Debug-only storage keys shared by the slab popover and DetailArtworkRotation.
 enum DetailArtworkSlabTuning {
     static let thicknessKey = "debug.slab.thickness"
-    static let frontDarkeningKey = "debug.slab.frontDarkening"
-    static let backDarkeningKey = "debug.slab.backDarkening"
+    static let darknessKey = "debug.slab.darkness"
+    static let depthShadingKey = "debug.slab.depthShading"
     static let turnKey = "debug.slab.turn"
     static let lipPositionKey = "debug.slab.lipPosition"
     static let lipWidthKey = "debug.slab.lipWidth"

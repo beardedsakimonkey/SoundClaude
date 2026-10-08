@@ -14,9 +14,9 @@ struct PlayerArtworkGlassParameters {
     var sweepWidth = 0.19
     var sweepPosition = 0.24
     var hoverSweepBoost = 0.0
-    // Darkening of the slab's side at the face and at the back.
-    var slabFrontDarkening = 0.32
-    var slabBackDarkening = 0.54
+    // Base darkness, then the fraction of remaining light removed toward the back.
+    var slabDarkness = 0.32
+    var slabDepthShading = (0.54 - 0.32) / (1.0 - 0.32)
     // Scales the hairline rim stroke drawn over the face.
     var rimStrokeOpacity = 1.0
 }
@@ -135,7 +135,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
                         .float2(slabPadding, 0),
                         .float(artworkOverscan > 0 ? 1 : 0),
                         .float(slabShift),
-                        .float2(parameters.slabFrontDarkening, parameters.slabBackDarkening)
+                        .float2(parameters.slabDarkness, parameters.slabDepthShading)
                     ),
                     maxSampleOffset: .zero,
                     isEnabled: enablesGlass
