@@ -823,7 +823,7 @@ private final class VisualizerShaderReloader {
 // Shared camera projection keeps ground controls aligned with the Metal scene.
 enum PistonGroundControls {
     static let pitchRange: ClosedRange<Float> = -1.8...1.2
-    static let defaultCamera = ClothCamera(pitch: -0.25, zoom: 0.6)
+    static let defaultCamera = ClothCamera(pitch: -0.35, zoom: 0.55)
 
     enum Hit {
         case playPause
