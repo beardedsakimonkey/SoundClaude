@@ -22,8 +22,21 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     half4 sample = layer.sample(position);
     half3 color = sample.rgb / max(sample.a, 0.001h);
     float back = saturate(faceDistance / abs(slabShift));
-    // Overall darkness and additional depth shading use independent controls.
-    color *= half((1.0 - slabShading.x) * (1.0 - slabShading.y * back));
+    // Apply more shading to dark artwork so the edge is not defined mainly by
+    // bright patches. Bound the correction near black to retain shadow detail,
+    // and scale RGB together to preserve the artwork's color ratios.
+    float brightness = saturate(dot(float3(color), float3(0.2126, 0.7152, 0.0722)));
+    float transmission = (1.0 - saturate(slabShading.x))
+        * (1.0 - saturate(slabShading.y) * back);
+    float shadowWeight = 1.0 / mix(0.35, 1.0, brightness);
+    color *= half(pow(transmission, shadowWeight));
+    // A faint neutral reflection separates the glass side from the print.
+    // Fade it out as the projected side closes, avoiding a flash at zero turn.
+    float sideVisibility = smoothstep(0.0, 2.0, abs(slabShift));
+    color = mix(color, half3(0.78h, 0.80h, 0.81h), half(0.07 * back * sideVisibility));
+    float backLip = exp(-pow(max(-hull, 0.0) / 0.65, 2.0));
+    float sideLight = mix(0.06, 0.18, 1.0 - saturate(local.y / size.y));
+    color = mix(color, half3(1.0h), half(backLip * sideLight * sideVisibility));
     return half4(color, 1.0h) * (sample.a * half(coverage));
 }
 
