@@ -192,11 +192,9 @@ struct TrackWaveformView: View {
                 let renderedProgress = progress
                 let renderedProgressColor = progressColor
                 let renderedHoverFraction = hoverFraction
-                let hoverStrength = colorScheme == .light
-                    && renderedHoverFraction >= renderedProgress ? 0.4 : 0.3
                 WaveformAnimatedCanvas(
                     amplitudes: amplitudes,
-                    hoverOpacity: showsHoverPreview ? hoverStrength : 0
+                    hoverOpacity: showsHoverPreview ? 0.3 : 0
                 ) { context, size, amplitudes, hoverOpacity in
                     guard size.width > 0, size.height > 0 else { return }
                     let bars = waveformBars(amplitudes, size: size)
@@ -236,8 +234,7 @@ struct TrackWaveformView: View {
                     let background = backgroundColor.cgColor
                     let color = renderedProgressColor
                         .resolve(in: context.environment).cgColor
-                    // In light mode, retain the accent in the seek preview.
-                    let highlight = Color.white.opacity(colorScheme == .dark ? 0.9 : 0.12)
+                    let highlight = Color.white.opacity(0.9)
                         .resolve(in: context.environment).cgColor
                     let shadow = Color.black.opacity(0.9)
                         .resolve(in: context.environment).cgColor
