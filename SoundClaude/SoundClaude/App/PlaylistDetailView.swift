@@ -19,6 +19,7 @@ struct PlaylistDetailView: View {
     private var isLoading: Bool { playlists.loadingPlaylistURNs.contains(playlist.urn) }
     private var errorMessage: String? { playlists.playlistErrors[playlist.urn] }
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isShowingArtwork = false
     @State private var isHoveringPlaylistLabel = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
@@ -301,7 +302,7 @@ struct PlaylistDetailView: View {
                 title: artworkTitle,
                 loader: model.artworkLoader,
                 size: artworkSize,
-                animatesChanges: false,
+                animatesChanges: true,
                 cornerRadius: 12,
                 track: artworkTrack,
                 likes: model.likes,
@@ -311,9 +312,9 @@ struct PlaylistDetailView: View {
                 onShowArtwork: { isShowingArtwork = true }
             )
             .id(artworkTrack?.urn)
-            .transition(.identity)
+            .transition(DetailArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
         }
-        .animation(nil, value: artworkTrack?.urn)
+        .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
         .modifier(DetailArtworkRotation(
             isShowingArtwork: isShowingArtwork,
             flattensOnHover: true

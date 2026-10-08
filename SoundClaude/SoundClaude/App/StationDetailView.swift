@@ -10,6 +10,7 @@ struct StationDetailView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var station: SoundCloudStation?
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -171,7 +172,7 @@ struct StationDetailView: View {
             ZStack {
                 DetailArtworkView(
                     artworkURL: artworkURL, title: artworkTitle,
-                    loader: model.artworkLoader, size: 250, animatesChanges: false,
+                    loader: model.artworkLoader, size: 250, animatesChanges: true,
                     cornerRadius: 12,
                     track: artworkTrack,
                     likes: model.likes,
@@ -179,9 +180,9 @@ struct StationDetailView: View {
                     onShowArtwork: { isShowingArtwork = true }
                 )
                 .id(artworkTrack?.urn)
-                .transition(.identity)
+                .transition(DetailArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
             }
-            .animation(nil, value: artworkTrack?.urn)
+            .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
             .modifier(DetailArtworkRotation(
                 isShowingArtwork: isShowingArtwork,
                 flattensOnHover: true
