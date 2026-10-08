@@ -223,12 +223,18 @@ struct TrackWaveformView: View {
                         )
                         path.closeSubpath()
                     }
-                    let backgroundOpacity = layout == .compact ? 0.3 : 0.5
+                    let backgroundOpacity = layout == .compact ? 0.9 : 0.5
                     let backgroundStrength = colorScheme == .light
                         && colorSchemeContrast != .increased ? 0.6 : 1.0
-                    let background = Color.secondary.opacity(backgroundOpacity * backgroundStrength)
-                        .resolve(in: context.environment).cgColor
-                    let color = renderedProgressColor.opacity(layout == .compact ? 0.8 : 1)
+                    var backgroundColor = Color.secondary.opacity(backgroundOpacity * backgroundStrength)
+                        .resolve(in: context.environment)
+                    if layout == .compact {
+                        backgroundColor.red *= 0.4
+                        backgroundColor.green *= 0.4
+                        backgroundColor.blue *= 0.4
+                    }
+                    let background = backgroundColor.cgColor
+                    let color = renderedProgressColor
                         .resolve(in: context.environment).cgColor
                     // In light mode, retain the accent in the seek preview.
                     let highlight = Color.white.opacity(colorScheme == .dark ? 0.9 : 0.12)
