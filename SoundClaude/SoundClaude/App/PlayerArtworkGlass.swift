@@ -19,20 +19,22 @@ struct PlayerArtworkGlassParameters {
     // Base darkness, then the fraction of remaining light removed toward the back.
     var slabDarkness = 0.32
     var slabDepthShading = (0.54 - 0.32) / (1.0 - 0.32)
-    // Scales the hairline rim stroke drawn over the face.
-    var rimStrokeOpacity = 1.0
 }
 
 extension PlayerArtworkGlassParameters {
-    // Turned detail covers: a broader, dimmer lip and stroke so the lit corner doesn't
-    // read as a hard line against the slab edge.
+    // Detail artwork defaults captured from the Tune Glass controls.
     static var detail: Self {
         var parameters = Self()
-        parameters.hoverSweepBoost = 0.6
-        parameters.lipPosition = 1.8
-        parameters.lipWidth = 1.8
-        parameters.reflectionStrength = 0.55
-        parameters.rimStrokeOpacity = 0.44
+        parameters.sweepStrength = 0.04
+        parameters.sweepWidth = 0.2
+        parameters.sweepPosition = -0.31
+        parameters.hoverSweepBoost = 0.25
+        parameters.faceShading = 1.0
+        parameters.slabDarkness = 0.23
+        parameters.slabDepthShading = 0.36
+        parameters.lipPosition = 1.0
+        parameters.lipWidth = 1.0
+        parameters.reflectionStrength = 0.5
         return parameters
     }
 }
@@ -153,20 +155,6 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
                 )
             }
             .padding(.horizontal, -slabPadding)
-            .overlay {
-                shape.strokeBorder(LinearGradient(
-                    stops: [
-                        .init(color: .white.opacity(0.8 * parameters.rimStrokeOpacity), location: 0),
-                        .init(color: .white.opacity(0.18 * parameters.rimStrokeOpacity), location: 0.3),
-                        .init(color: .white.opacity(0.05 * parameters.rimStrokeOpacity), location: 0.55),
-                        .init(color: .white.opacity(0.5 * parameters.rimStrokeOpacity), location: 1)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ), lineWidth: 0.5)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-            }
             .shadow(color: .black.opacity(0.20), radius: 1, x: 0, y: 1)
             .shadow(color: .black.opacity(0.24), radius: 4, x: 0, y: 4)
     }
