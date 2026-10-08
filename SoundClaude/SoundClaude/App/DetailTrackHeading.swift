@@ -82,6 +82,7 @@ struct DetailTrackHeadingPreferenceKey: PreferenceKey {
 
 struct DetailTrackHeadingOverlay: ViewModifier {
     let artworkLoader: ArtworkLoader
+    let routeID: AnyHashable
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
@@ -110,6 +111,9 @@ struct DetailTrackHeadingOverlay: ViewModifier {
                     .position(x: bounds.midX, y: bounds.midY)
                     .modifier(DetailNavigationAnimation(
                         trackURN: source.track.urn, isCollection: source.isCollection
+                    ))
+                    .modifier(DetailControlLifetime(
+                        routeID: routeID, trackURN: source.track.urn
                     ))
                 }
             }

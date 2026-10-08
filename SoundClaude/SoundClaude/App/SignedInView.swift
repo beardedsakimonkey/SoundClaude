@@ -354,7 +354,9 @@ struct SignedInView: View {
                 }
             }
             .modifier(DetailWaveformOverlay(model: model))
-            .modifier(DetailTrackHeadingOverlay(artworkLoader: model.artworkLoader))
+            .modifier(DetailTrackHeadingOverlay(
+                artworkLoader: model.artworkLoader, routeID: AnyHashable(path.last)
+            ))
             .modifier(DetailPlayButtonOverlay(routeID: AnyHashable(path.last)))
             .modifier(DetailLikeButtonOverlay(routeID: AnyHashable(path.last)))
             .modifier(NavigationPageActivity())

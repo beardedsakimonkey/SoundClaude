@@ -56,7 +56,9 @@ private final class HeadingLifetime: ObservableObject {
                 }
                 .padding(.top, collection ? 60 : 24)
             }
-            .modifier(DetailTrackHeadingOverlay(artworkLoader: ArtworkLoader()))
+            .modifier(DetailTrackHeadingOverlay(
+                artworkLoader: ArtworkLoader(), routeID: AnyHashable(collection ? 1 : 0)
+            ))
         }
         let host = NSHostingView(rootView: page(collection: false))
         host.frame.size = CGSize(width: 600, height: 400)
