@@ -59,7 +59,9 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     float2 origin,
     float masksFace,
     float slabShift,
-    float2 slabShading
+    float2 slabShading,
+    float rotation,
+    float faceShading
 ) {
     // `origin` places the face inside a layer padded to make room for the slab edge.
     float2 local = position - origin;
@@ -91,6 +93,19 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     float rim = 1.0 - smoothstep(0.0, max(rimWidth, 0.001), depth);
     // Work in straight RGB, then restore the original antialiased silhouette.
     half3 color = original.rgb / max(original.a, 0.001h);
+    // A point light four cover widths in front of the face. Positive Y turns
+    // bring the left edge closer to the light and move the right edge away.
+    float2 facePoint = p / max(size.x, 1.0);
+    float lightDistance = 4.0;
+    float flatDistanceSquared = lightDistance * lightDistance + dot(facePoint, facePoint);
+    float turnedDistanceSquared = flatDistanceSquared
+        + 2.0 * lightDistance * facePoint.x * sin(rotation);
+    // Diffuse incidence and distance falloff, relative to the unturned face,
+    // give a gradient while preserving the original artwork when facing forward.
+    float frontLight = saturate(cos(rotation)
+        * pow(flatDistanceSquared / max(turnedDistanceSquared, 0.001), 1.5));
+    // Increase contrast smoothly so strong settings do not clip the dark side.
+    color *= half(pow(max(frontLight, 0.0001), max(faceShading, 0.0)));
 
     float2 light = float2(cos(lightAngle), sin(lightAngle));
     float facing = dot(normal, light);
