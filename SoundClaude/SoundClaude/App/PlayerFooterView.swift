@@ -247,7 +247,7 @@ struct PlayerFooterView: View {
             shape: artworkShape,
             showsBorder: false
         )
-        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.12 : 1)
+        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.15 : 1)
         .clipShape(artworkShape)
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius - contentInset,
