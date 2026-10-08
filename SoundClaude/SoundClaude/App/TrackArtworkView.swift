@@ -86,6 +86,25 @@ struct TrackArtworkView: View {
     }
 }
 
+struct DetailArtworkTrackAnimation: ViewModifier {
+    let trackURN: String?
+    @State private var previousTrackURN: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            // Loading the first track is not a track change.
+            .animation(
+                previousTrackURN != nil && trackURN != nil
+                    ? .easeInOut(duration: reduceMotion ? 0.2 : 0.45) : nil,
+                value: trackURN
+            )
+            .onChange(of: trackURN, initial: true) { _, newValue in
+                previousTrackURN = newValue
+            }
+    }
+}
+
 struct DetailArtworkTransition: Transition {
     let playback: PlaybackController
     let reduceMotion: Bool

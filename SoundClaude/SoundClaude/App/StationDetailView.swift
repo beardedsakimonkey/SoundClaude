@@ -172,7 +172,7 @@ struct StationDetailView: View {
             ZStack {
                 DetailArtworkView(
                     artworkURL: artworkURL, title: artworkTitle,
-                    loader: model.artworkLoader, size: 250, animatesChanges: true,
+                    loader: model.artworkLoader, size: 250,
                     cornerRadius: 12,
                     track: artworkTrack,
                     likes: model.likes,
@@ -182,7 +182,7 @@ struct StationDetailView: View {
                 .id(artworkTrack?.urn)
                 .transition(DetailArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
             }
-            .animation(.easeInOut(duration: reduceMotion ? 0.2 : 0.45), value: artworkTrack?.urn)
+            .modifier(DetailArtworkTrackAnimation(trackURN: artworkTrack?.urn))
             .modifier(DetailArtworkRotation(
                 isShowingArtwork: isShowingArtwork,
                 flattensOnHover: true
