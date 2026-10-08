@@ -288,6 +288,13 @@ struct TrackWaveformView: View {
                         addGroundReflection(in: &context, size: size, drawBars: drawBars)
                     }
                 }
+                .transaction { transaction in
+                    // Playlist bars must also ignore hover and inherited animations.
+                    if !animatesBarTransitions {
+                        transaction.animation = nil
+                        transaction.disablesAnimations = true
+                    }
+                }
                 // Resampling during window resizing must not start or extend a spring.
                 .animation(nil, value: proxy.size)
                 .animation(
