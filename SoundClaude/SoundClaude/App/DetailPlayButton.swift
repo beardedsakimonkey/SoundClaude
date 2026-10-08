@@ -17,6 +17,14 @@ struct DetailPlayButton: View {
     let configuration: DetailPlayButtonConfiguration
     let action: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var foregroundColor: Color {
+        guard configuration.isStarting else { return .primary }
+        return colorScheme == .light
+            ? Color(.sRGB, red: 0.18, green: 0.50, blue: 0.30)
+            : .green
+    }
 
     var body: some View {
         Button(action: action) {
@@ -29,7 +37,7 @@ struct DetailPlayButton: View {
                     .accessibilityHidden(!configuration.isPlaying)
             }
             .animation(nil, value: configuration.isPlaying)
-            .foregroundStyle(configuration.isStarting ? Color.green : Color.primary)
+            .foregroundStyle(foregroundColor)
             .font(.title3.weight(.semibold))
             .padding(.horizontal, configuration.iconOnly ? 0 : 24)
             .frame(width: configuration.iconOnly ? 44 : nil)
