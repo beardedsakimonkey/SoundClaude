@@ -87,14 +87,20 @@ struct DetailTrackHeadingOverlay: ViewModifier {
             GeometryReader { geometry in
                 if let source {
                     let bounds = geometry[source.bounds]
-                    DetailTrackHeading(
-                        track: source.track, isCollection: source.isCollection,
-                        artworkLoader: artworkLoader,
-                        onSelectTrack: source.onSelectTrack, onSelectArtist: source.onSelectArtist
+                    ZStack(alignment: .leading) {
+                        DetailTrackHeading(
+                            track: source.track, isCollection: source.isCollection,
+                            artworkLoader: artworkLoader,
+                            onSelectTrack: source.onSelectTrack, onSelectArtist: source.onSelectArtist
+                        )
+                        .id(source.track.urn)
+                        .transition(source.isCollection ? .opacity : .identity)
+                    }
+                    .animation(
+                        source.isCollection && !reduceMotion ? .easeInOut(duration: 0.3) : nil,
+                        value: source.track.urn
                     )
                     .modifier(FadeInOnAppear())
-                    .id(source.track.urn)
-                    .transition(.identity)
                     .geometryGroup()
                     .frame(width: bounds.width, height: bounds.height)
                     .position(x: bounds.midX, y: bounds.midY)
