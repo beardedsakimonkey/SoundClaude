@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // Anchor both headers to the artwork, independent of title and control heights.
@@ -29,16 +30,18 @@ struct DetailWaveformSlot: View {
     let track: SoundCloudTrack?
     var isStation = false
     var onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
+    @State private var scrollTarget = DetailWaveformScrollTarget()
 
     var body: some View {
         Color.clear
             .frame(height: TrackWaveformView.Layout.detail.height)
+            .background(DetailWaveformScrollAnchor(target: scrollTarget))
             .allowsHitTesting(false)
             .accessibilityHidden(true)
             .anchorPreference(key: DetailWaveformPreferenceKey.self, value: .bounds) {
                 DetailWaveformSource(
                     bounds: $0, track: track, isStation: isStation,
-                    onPlayTrack: onPlayTrack
+                    onPlayTrack: onPlayTrack, scrollTarget: scrollTarget
                 )
             }
     }
@@ -49,6 +52,57 @@ struct DetailWaveformSource {
     let track: SoundCloudTrack?
     let isStation: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
+    let scrollTarget: DetailWaveformScrollTarget
+}
+
+final class DetailWaveformScrollTarget {
+    weak var anchor: NSView?
+}
+
+private struct DetailWaveformScrollAnchor: NSViewRepresentable {
+    let target: DetailWaveformScrollTarget
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        target.anchor = view
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        target.anchor = view
+    }
+}
+
+// The shared waveform is outside the page's scroll view. Return wheel events
+// to the scroll view that contains its slot, leaving clicks and drags to SwiftUI.
+private struct DetailWaveformScrollForwarder: NSViewRepresentable {
+    let target: DetailWaveformScrollTarget
+
+    func makeNSView(context: Context) -> DetailWaveformScrollView {
+        DetailWaveformScrollView()
+    }
+
+    func updateNSView(_ view: DetailWaveformScrollView, context: Context) {
+        view.target = target
+    }
+}
+
+final class DetailWaveformScrollView: NSView {
+    var target: DetailWaveformScrollTarget?
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard NSApp.currentEvent?.type == .scrollWheel,
+              target?.anchor?.enclosingScrollView != nil else { return nil }
+        return super.hitTest(point)
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        if let scrollView = target?.anchor?.enclosingScrollView {
+            scrollView.scrollWheel(with: event)
+        } else {
+            super.scrollWheel(with: event)
+        }
+    }
 }
 
 struct DetailWaveformPreferenceKey: PreferenceKey {
@@ -76,6 +130,7 @@ struct DetailWaveformOverlay: ViewModifier {
                             keepsBarsVisible: source.isStation,
                             onPlayTrack: source.onPlayTrack
                         )
+                        .overlay(DetailWaveformScrollForwarder(target: source.scrollTarget))
                         .frame(width: bounds.width, height: bounds.height)
                         .position(x: bounds.midX, y: bounds.midY)
                     }

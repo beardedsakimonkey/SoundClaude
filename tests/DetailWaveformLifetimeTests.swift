@@ -5,6 +5,11 @@ import SwiftUI
 struct SoundCloudTrack { let urn: String }
 final class AppModel {}
 
+private final class WaveformTestApplication: NSApplication {
+    var testEvent: NSEvent?
+    override var currentEvent: NSEvent? { testEvent ?? super.currentEvent }
+}
+
 private final class WaveformLifetime: ObservableObject {
     static var creations = 0
     init() { Self.creations += 1 }
@@ -48,7 +53,7 @@ struct TrackWaveformView: View {
 
 @main struct DetailWaveformLifetimeTests {
     @MainActor static func main() async {
-        _ = NSApplication.shared
+        let app = WaveformTestApplication.shared as! WaveformTestApplication
         let model = AppModel()
         var playedURN: String?
         func page(station: Bool, track: String = "same", y: CGFloat = 30, showsSlot: Bool = true) -> some View {
@@ -130,6 +135,56 @@ struct TrackWaveformView: View {
                 }
             }
         }
-        print("Detail waveform lifetime, positioning, and playback callback tests passed")
+        // The overlay must route wheel events to the slot's actual scroll view.
+        let scrollingHost = NSHostingView(rootView:
+            ScrollView {
+                VStack(spacing: 0) {
+                    DetailWaveformSlot(track: SoundCloudTrack(urn: "scroll"))
+                    Color.clear.frame(height: 1200)
+                }
+            }
+            .modifier(DetailWaveformOverlay(model: model))
+        )
+        let scrollWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+            styleMask: [.borderless], backing: .buffered, defer: false
+        )
+        scrollWindow.contentView = scrollingHost
+        scrollWindow.orderFront(nil)
+        defer { scrollWindow.orderOut(nil) }
+        scrollingHost.frame.size = CGSize(width: 800, height: 600)
+        scrollingHost.layoutSubtreeIfNeeded()
+        try? await Task.sleep(for: .milliseconds(30))
+        scrollingHost.layoutSubtreeIfNeeded()
+        func descendants(_ view: NSView) -> [NSView] {
+            [view] + view.subviews.flatMap(descendants)
+        }
+        let forwarder = descendants(scrollingHost).compactMap { $0 as? DetailWaveformScrollView }.first!
+        let scrollView = forwarder.target!.anchor!.enclosingScrollView!
+        let point = forwarder.convert(
+            NSPoint(x: forwarder.bounds.midX, y: forwarder.bounds.midY), to: forwarder.superview
+        )
+        let wheel = NSEvent(cgEvent: CGEvent(
+            scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1,
+            wheel1: -60, wheel2: 0, wheel3: 0
+        )!)!
+        app.testEvent = wheel
+        precondition(forwarder.hitTest(point) === forwarder, "Wheel events must reach the forwarder")
+        let hostPoint = forwarder.convert(
+            NSPoint(x: forwarder.bounds.midX, y: forwarder.bounds.midY), to: scrollingHost.superview
+        )
+        precondition(scrollingHost.hitTest(hostPoint) === forwarder,
+                     "The waveform overlay must route wheel events through the forwarder")
+        let initialY = scrollView.contentView.bounds.minY
+        forwarder.scrollWheel(with: wheel)
+        try? await Task.sleep(for: .milliseconds(250))
+        precondition(scrollView.contentView.bounds.minY > initialY, "Wheel event did not scroll the page")
+        app.testEvent = NSEvent.mouseEvent(
+            with: .leftMouseDown, location: .zero, modifierFlags: [], timestamp: 0,
+            windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1
+        )
+        precondition(forwarder.hitTest(point) == nil, "Clicks must pass through to waveform seeking")
+        app.testEvent = nil
+        print("Detail waveform lifetime, positioning, playback callback, and scroll tests passed")
     }
 }

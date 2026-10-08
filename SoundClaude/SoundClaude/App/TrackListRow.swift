@@ -126,7 +126,7 @@ struct TrackListRow: View {
                         }
                     }
                     .font(.caption)
-                    .foregroundStyle(isCurrentTrack ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(.secondary)
                 }
             }
             .lineLimit(1)
