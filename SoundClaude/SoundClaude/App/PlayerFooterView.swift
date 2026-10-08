@@ -108,6 +108,7 @@ struct PlayerFooterView: View {
                             .multilineTextAlignment(.leading)
                             .underline(isHoveringTitle)
                             .foregroundStyle(.primary)
+                            .opacity(0.9)
                     }
                     .buttonStyle(.plain)
                     .keyboardShortcut("f", modifiers: [])
