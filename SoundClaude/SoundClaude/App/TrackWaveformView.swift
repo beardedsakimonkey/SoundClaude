@@ -716,6 +716,10 @@ struct TrackWaveformView: View {
             errorMessage = nil
             return
         }
+        // Different pages can supply different metadata for the same track.
+        // A URL change restarts this task, but must not clear loaded bars or
+        // recreate the comment subtree when the cache no longer has them.
+        if waveformTrackURN == track.urn, waveform != nil { return }
         if let cachedWaveform = model.cachedWaveform(for: track) {
             setWaveform(cachedWaveform)
             errorMessage = nil

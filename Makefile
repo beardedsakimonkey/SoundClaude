@@ -279,3 +279,16 @@ test-detail-like-button:
 		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
 		tests/DetailLikeButtonTests.swift
 	/tmp/soundclaude-tests/detail-like-button
+
+# Exercise real waveform loading and comment visibility across detail routes.
+.PHONY: test-track-waveform-navigation
+test-track-waveform-navigation:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/track-waveform-navigation \
+		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
+		SoundClaude/SoundClaude/App/DetailWaveformSlot.swift \
+		SoundClaude/SoundClaude/App/TrackWaveformView.swift \
+		SoundClaude/SoundClaude/App/WaveformShadingCache.swift \
+		SoundClaude/SoundClaude/App/ContentHover.swift \
+		tests/TrackWaveformNavigationTests.swift
+	/tmp/soundclaude-tests/track-waveform-navigation
