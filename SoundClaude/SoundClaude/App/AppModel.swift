@@ -797,15 +797,25 @@ final class AppModel: ObservableObject {
         _ = await (thumbnail, backdrop, accent)
     }
 
-    private func selectRelativeTrack(offset: Int, isAutomatic: Bool = false) {
+    func navigateTrack(from track: SoundCloudTrack, offset: Int, queue: TrackQueue) {
+        guard !queue.tracks.isEmpty else { return }
+        shuffleQueueTask?.cancel()
+        self.queue = queue
+        self.queue.setShuffle(playback.isShuffleEnabled, currentURN: track.urn)
+        saveQueue()
+        selectRelativeTrack(offset: offset, anchorURN: track.urn)
+    }
+
+    private func selectRelativeTrack(offset: Int, isAutomatic: Bool = false, anchorURN: String? = nil) {
         trackSelectionTask?.cancel()
         trackSelectionTask = Task { @MainActor [weak self] in
             guard let self, !Task.isCancelled else { return }
+            let currentURN = anchorURN ?? playback.currentTrack?.urn
             do {
                 // Likes use the disk-backed library, including pages added during playback.
-                queue.replaceLikes(likes.tracks, currentURN: playback.currentTrack?.urn)
+                queue.replaceLikes(likes.tracks, currentURN: currentURN)
                 if !playback.isShuffleEnabled, offset > 0 {
-                    while queue.needsNextPage(after: playback.currentTrack?.urn) {
+                    while queue.needsNextPage(after: currentURN) {
                         let page = try await nextQueuePage()
                         try Task.checkCancellation()
                         try queue.append(page)
@@ -814,7 +824,7 @@ final class AppModel: ObservableObject {
                 }
                 try Task.checkCancellation()
                 guard let track = queue.relativeTrack(
-                    to: playback.currentTrack?.urn,
+                    to: currentURN,
                     offset: offset,
                     wraps: !isAutomatic || playback.repeatMode == .all
                 ) else {

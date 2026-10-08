@@ -369,14 +369,18 @@ struct PlaylistDetailView: View {
 
     private var trackNavigationButtons: some View {
         Group {
-            Button(action: model.playback.previous) {
+            Button {
+                navigateTrack(backward: true)
+            } label: {
                 Label("Previous track", systemImage: "backward.fill")
                     .frame(width: 44, height: 24)
             }
             .contentHelp("Previous track")
             .accessibilityLabel("Previous track")
 
-            Button(action: model.playback.next) {
+            Button {
+                navigateTrack(backward: false)
+            } label: {
                 Label("Next track", systemImage: "forward.fill")
                     .frame(width: 44, height: 24)
             }
@@ -386,7 +390,24 @@ struct PlaylistDetailView: View {
         .labelStyle(.iconOnly)
         .font(.title3.weight(.semibold))
         .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
-        .disabled(currentPlaylistTrack == nil)
+        .disabled(currentPlaylistTrack == nil && tracks.isEmpty)
+    }
+
+    private func navigateTrack(backward: Bool) {
+        if currentPlaylistTrack != nil {
+            if backward {
+                model.playback.previous()
+                if !model.playback.isPlaybackActive {
+                    model.playback.togglePlayPause()
+                }
+            } else {
+                model.playback.next()
+            }
+        } else if let track = startingTrack {
+            model.navigateTrack(from: track, offset: backward ? -1 : 1, queue: TrackQueue(
+                source: .playlist(playlist.urn), tracks: tracks, nextPageURL: nextPageURL
+            ))
+        }
     }
 
     private var likeButton: some View {
