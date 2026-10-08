@@ -4,6 +4,7 @@ import SwiftUI
 struct DetailTrackHeadingSlot: View {
     let track: SoundCloudTrack
     var isCollection = false
+    var collectionURN: String? = nil
     let artworkLoader: ArtworkLoader
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
@@ -17,7 +18,7 @@ struct DetailTrackHeadingSlot: View {
         .accessibilityHidden(true)
         .anchorPreference(key: DetailTrackHeadingPreferenceKey.self, value: .bounds) {
             DetailTrackHeadingSource(
-                bounds: $0, track: track, isCollection: isCollection,
+                bounds: $0, track: track, isCollection: isCollection, collectionURN: collectionURN,
                 onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist
             )
         }
@@ -66,6 +67,7 @@ struct DetailTrackHeadingSource {
     let bounds: Anchor<CGRect>
     let track: SoundCloudTrack
     let isCollection: Bool
+    let collectionURN: String?
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 }
@@ -96,6 +98,8 @@ struct DetailTrackHeadingOverlay: ViewModifier {
                         .id(source.track.urn)
                         .transition(source.isCollection ? .opacity : .identity)
                     }
+                    // Track changes fade only while staying in the same collection.
+                    .animation(nil, value: source.collectionURN)
                     .animation(
                         source.isCollection && !reduceMotion ? .easeInOut(duration: 0.3) : nil,
                         value: source.track.urn

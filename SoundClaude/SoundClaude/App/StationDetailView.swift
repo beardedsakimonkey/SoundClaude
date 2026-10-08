@@ -204,6 +204,7 @@ struct StationDetailView: View {
                         DetailTrackHeadingSlot(
                             track: displayedTrack,
                             isCollection: true,
+                            collectionURN: urn,
                             artworkLoader: model.artworkLoader,
                             onSelectTrack: onSelectTrack,
                             onSelectArtist: onSelectArtist
