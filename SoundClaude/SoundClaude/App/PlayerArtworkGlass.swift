@@ -13,6 +13,7 @@ struct PlayerArtworkGlassParameters {
     var sweepStrength = 0.065
     var sweepWidth = 0.19
     var sweepPosition = 0.24
+    var hoverSweepBoost = 0.0
     // Darkening of the slab's side at the face and at the back.
     var slabFrontDarkening = 0.32
     var slabBackDarkening = 0.54
@@ -25,6 +26,7 @@ extension PlayerArtworkGlassParameters {
     // read as a hard line against the slab edge.
     static var detail: Self {
         var parameters = Self()
+        parameters.hoverSweepBoost = 0.6
         parameters.lipPosition = 1.8
         parameters.lipWidth = 1.8
         parameters.reflectionStrength = 0.55
@@ -108,7 +110,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
         let slabPadding = enablesGlass ? Self.slabPadding(thickness: slabThickness, overscan: artworkOverscan) : 0
         let slabShift = min(max(slabShift, -slabPadding), slabPadding)
         let sweepPosition = parameters.sweepPosition + hoverSweepTravel * hoverProgress
-        let sweepStrength = parameters.sweepStrength * (hoverSweepTravel > 0 ? 1 + 0.6 * hoverProgress : 1)
+        let sweepStrength = parameters.sweepStrength * (1 + parameters.hoverSweepBoost * hoverProgress)
 
         content
             .padding(.horizontal, slabPadding)

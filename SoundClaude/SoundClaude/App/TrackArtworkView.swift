@@ -542,7 +542,22 @@ struct DetailArtworkView: View {
     @AppStorage(DetailArtworkSlabTuning.rimStrokeKey) private var debugRimStroke =
         PlayerArtworkGlassParameters.detail.rimStrokeOpacity
     @AppStorage(DetailArtworkSlabTuning.turnKey) private var debugTurn = DetailArtworkTransform().y
+    @AppStorage("debug.shine.strength") private var debugShineStrength =
+        PlayerArtworkGlassParameters.detail.sweepStrength
+    @AppStorage("debug.shine.width") private var debugShineWidth =
+        PlayerArtworkGlassParameters.detail.sweepWidth
+    @AppStorage("debug.shine.position") private var debugShinePosition =
+        PlayerArtworkGlassParameters.detail.sweepPosition
+    @AppStorage("debug.shine.travel") private var debugShineTravel = 0.14
+    @AppStorage("debug.shine.hoverBoost") private var debugShineHoverBoost =
+        PlayerArtworkGlassParameters.detail.hoverSweepBoost
+    @State private var previewsHoverShine = false
     @State private var isShowingSlabControls = false
+
+    private var displayedShineTravel: Double { debugShineTravel }
+    private var isShineHoverActive: Bool {
+        isArtworkHoverActive || (isShowingSlabControls && previewsHoverShine)
+    }
 
     private var displayedSlabThickness: CGFloat { debugSlabThickness }
     private var glassParameters: PlayerArtworkGlassParameters {
@@ -553,9 +568,15 @@ struct DetailArtworkView: View {
         parameters.lipWidth = debugLipWidth
         parameters.reflectionStrength = debugLipStrength
         parameters.rimStrokeOpacity = debugRimStroke
+        parameters.sweepStrength = debugShineStrength
+        parameters.sweepWidth = debugShineWidth
+        parameters.sweepPosition = debugShinePosition
+        parameters.hoverSweepBoost = debugShineHoverBoost
         return parameters
     }
     #else
+    private var displayedShineTravel: Double { 0.14 }
+    private var isShineHoverActive: Bool { isArtworkHoverActive }
     private var displayedSlabThickness: CGFloat { slabThickness }
     private var glassParameters: PlayerArtworkGlassParameters { .detail }
     #endif
@@ -710,14 +731,14 @@ struct DetailArtworkView: View {
         .frame(width: size, height: size)
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius,
-            isHovering: isArtworkHoverActive && !reduceMotion,
-            hoverSweepTravel: 0.14,
+            isHovering: isShineHoverActive && !reduceMotion,
+            hoverSweepTravel: displayedShineTravel,
             slabThickness: displayedSlabThickness,
             artworkOverscan: overscan
         ))
         .animation(
-            reduceMotion ? nil : (isArtworkHoverActive ? hoverAnimation : hoverOutAnimation),
-            value: isArtworkHoverActive
+            reduceMotion ? nil : (isShineHoverActive ? hoverAnimation : hoverOutAnimation),
+            value: isShineHoverActive
         )
         .modifier(DetailArtworkReflectionBlur(
             radius: reflectionBlurRadius,
@@ -740,37 +761,57 @@ struct DetailArtworkView: View {
 
     #if DEBUG
     private var slabControls: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Artwork glass").font(.headline)
-                Spacer()
-                Button("Reset") {
-                    let defaults = PlayerArtworkGlassParameters.detail
-                    debugSlabThickness = 10
-                    debugSlabFrontDarkening = defaults.slabFrontDarkening
-                    debugSlabBackDarkening = defaults.slabBackDarkening
-                    debugLipPosition = defaults.lipPosition
-                    debugLipWidth = defaults.lipWidth
-                    debugLipStrength = defaults.reflectionStrength
-                    debugRimStroke = defaults.rimStrokeOpacity
-                    debugTurn = DetailArtworkTransform().y
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text("Artwork glass").font(.headline)
+                    Spacer()
+                    Button("Reset") {
+                        let defaults = PlayerArtworkGlassParameters.detail
+                        debugSlabThickness = 10
+                        debugSlabFrontDarkening = defaults.slabFrontDarkening
+                        debugSlabBackDarkening = defaults.slabBackDarkening
+                        debugLipPosition = defaults.lipPosition
+                        debugLipWidth = defaults.lipWidth
+                        debugLipStrength = defaults.reflectionStrength
+                        debugRimStroke = defaults.rimStrokeOpacity
+                        debugTurn = DetailArtworkTransform().y
+                        debugShineStrength = defaults.sweepStrength
+                        debugShineWidth = defaults.sweepWidth
+                        debugShinePosition = defaults.sweepPosition
+                        debugShineTravel = 0.14
+                        debugShineHoverBoost = defaults.hoverSweepBoost
+                        previewsHoverShine = false
+                    }
                 }
+                Text("Hover shine").font(.subheadline.bold())
+                Toggle("Preview hover shine", isOn: $previewsHoverShine)
+                slabSlider("Shine strength", value: $debugShineStrength, range: 0...0.5, step: 0.01)
+                slabSlider("Shine width", value: $debugShineWidth, range: 0.01...1, step: 0.01)
+                slabSlider("Rest position", value: $debugShinePosition, range: -0.5...2, step: 0.01)
+                slabSlider("Hover travel", value: $debugShineTravel, range: 0...1.5, step: 0.01)
+                slabSlider("Hover brightness boost", value: $debugShineHoverBoost, range: 0...4, step: 0.05)
+                Text("Preview holds the shine at its hover position. Turn it off to test with the pointer. Reduce Motion disables hover shine movement.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Divider()
+                Text("Slab and rim").font(.subheadline.bold())
+                slabSlider("Thickness (pt)", value: $debugSlabThickness, range: 0...30, step: 0.5)
+                slabSlider("Front darkening", value: $debugSlabFrontDarkening, range: 0...1, step: 0.01)
+                slabSlider("Back darkening", value: $debugSlabBackDarkening, range: 0...1, step: 0.01)
+                slabSlider("Turn (°)", value: $debugTurn, range: 0...35, step: 0.5)
+                Divider()
+                slabSlider("Lip position (pt)", value: $debugLipPosition, range: 0...8, step: 0.1)
+                slabSlider("Lip width (pt)", value: $debugLipWidth, range: 0.1...6, step: 0.05)
+                slabSlider("Lip strength", value: $debugLipStrength, range: 0...2, step: 0.05)
+                slabSlider("Rim stroke", value: $debugRimStroke, range: 0...1.5, step: 0.01)
+                Text("Settings are saved and apply to all detail artwork in debug builds. Move the pointer off the artwork to preview the slab.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            slabSlider("Thickness (pt)", value: $debugSlabThickness, range: 0...30, step: 0.5)
-            slabSlider("Front darkening", value: $debugSlabFrontDarkening, range: 0...1, step: 0.01)
-            slabSlider("Back darkening", value: $debugSlabBackDarkening, range: 0...1, step: 0.01)
-            slabSlider("Turn (°)", value: $debugTurn, range: 0...35, step: 0.5)
-            Divider()
-            slabSlider("Lip position (pt)", value: $debugLipPosition, range: 0...8, step: 0.1)
-            slabSlider("Lip width (pt)", value: $debugLipWidth, range: 0.1...6, step: 0.05)
-            slabSlider("Lip strength", value: $debugLipStrength, range: 0...2, step: 0.05)
-            slabSlider("Rim stroke", value: $debugRimStroke, range: 0...1.5, step: 0.01)
-            Text("Settings are saved and apply to all detail artwork in debug builds. Hover flattens the cover, so move the pointer off it to preview.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            .padding(20)
         }
-        .padding(20)
-        .frame(width: 320)
+        .frame(width: 360, height: 600)
     }
 
     private func slabSlider(
