@@ -50,6 +50,18 @@ struct PlaylistCardView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Open playlist: \(displayedPlaylist.title)")
+            .overlay(alignment: .bottomTrailing) {
+                if isLoading {
+                    LoadingSpinner()
+                        .accessibilityLabel("Loading playlist")
+                        .controlSize(.small)
+                        .frame(width: 16, height: 16)
+                        .padding(8)
+                        .background(.regularMaterial, in: Circle())
+                        .padding(8)
+                        .allowsHitTesting(false)
+                }
+            }
 
             VStack(alignment: .leading, spacing: 6) {
                 Button {
@@ -115,26 +127,15 @@ struct PlaylistCardView: View {
         .frame(height: CGFloat(min(tracks.count, isExpanded ? 8 : 5)) * 40)
         .scrollDisabled(!isExpanded)
 
-        if isLoading || (!tracks.isEmpty && (isExpanded || trackCount > 5)) {
-            HStack(spacing: 8) {
-                if !tracks.isEmpty && (isExpanded || trackCount > 5) {
-                    Button(isExpanded ? "View fewer tracks" : "View \(trackCount) tracks") {
-                        isExpanded.toggle()
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(isHoveringTrackToggle ? Color.primary : Color.secondary)
-                    .font(.callout)
-                    .onContentHover { isHoveringTrackToggle = $0 }
-                    .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
-                }
-
-                if isLoading {
-                    LoadingSpinner()
-                        .accessibilityLabel("Loading playlist")
-                        .controlSize(.small)
-                        .frame(width: 16, height: 16)
-                }
+        if !tracks.isEmpty && (isExpanded || trackCount > 5) {
+            Button(isExpanded ? "View fewer tracks" : "View \(trackCount) tracks") {
+                isExpanded.toggle()
             }
+            .buttonStyle(.plain)
+            .foregroundStyle(isHoveringTrackToggle ? Color.primary : Color.secondary)
+            .font(.callout)
+            .onContentHover { isHoveringTrackToggle = $0 }
+            .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
             .padding(.vertical, 8)
         }
 
