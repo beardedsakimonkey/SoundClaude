@@ -29,8 +29,6 @@ struct SortMenu<Order: Hashable>: View {
             } label: {
                 if let systemImage {
                     Image(systemName: systemImage)
-                        .frame(width: 36, height: 36)
-                        .contentShape(Rectangle())
                 } else {
                     Text(title(selection))
                         .font(.subheadline)
@@ -42,6 +40,9 @@ struct SortMenu<Order: Hashable>: View {
                     menu
                         .menuStyle(.button)
                         .buttonStyle(.plain)
+                        // Keep header spacing outside the menu's popup anchor.
+                        .fixedSize()
+                        .frame(width: 36, height: 36)
                 } else {
                     menu
                         .menuStyle(.borderlessButton)
