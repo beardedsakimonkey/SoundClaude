@@ -82,6 +82,8 @@ struct DetailLikeButtonPreferenceKey: PreferenceKey {
 }
 
 struct DetailLikeButtonOverlay: ViewModifier {
+    let routeID: AnyHashable
+
     func body(content: Content) -> some View {
         content.overlayPreferenceValue(DetailLikeButtonPreferenceKey.self) { source in
             GeometryReader { geometry in
@@ -89,12 +91,14 @@ struct DetailLikeButtonOverlay: ViewModifier {
                     let bounds = geometry[source.bounds]
                     source.button
                         .modifier(FadeInOnAppear())
-                        .transition(.identity)
                         .geometryGroup()
                         .frame(width: bounds.width, height: bounds.height)
                         .position(x: bounds.midX, y: bounds.midY)
                         .modifier(DetailNavigationAnimation(
                             trackURN: source.trackURN, isCollection: source.isCollection
+                        ))
+                        .modifier(DetailControlLifetime(
+                            routeID: routeID, trackURN: source.trackURN
                         ))
                 }
             }

@@ -33,7 +33,7 @@ extension View {
 
     @MainActor static func runTests() async {
         var selectedRoute: Int?
-        func page(route: Int, enabled: Bool = true, iconOnly: Bool = false) -> some View {
+        func page(route: Int, trackURN: String = "same", enabled: Bool = true, iconOnly: Bool = false) -> some View {
             CurrentNavigationPage(route: route) {
                 Color.clear
             } destination: { route in
@@ -42,13 +42,13 @@ extension View {
                         isLiked: route != 0, isUpdating: !enabled,
                         likeCount: 42, iconOnly: iconOnly, subject: "track"
                     ) { selectedRoute = route }
-                    .detailSlot(trackURN: "same", isCollection: route != 0)
+                    .detailSlot(trackURN: trackURN, isCollection: route != 0)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, route == 0 ? 24 : 60)
             }
-            .modifier(DetailLikeButtonOverlay())
+            .modifier(DetailLikeButtonOverlay(routeID: route))
         }
         let host = NSHostingView(rootView: page(route: 0))
         host.frame.size = CGSize(width: 600, height: 400)
@@ -65,6 +65,14 @@ extension View {
             await layout()
             precondition(ButtonLifetime.creations == before + 1,
                          "Only the hidden sizing button should remount during navigation")
+        }
+        // Only navigation to a different track gets a fresh entrance fade.
+        for (route, trackURN, newButtons) in [(1, "other", 2), (1, "next", 0), (1, "same", 0), (0, "other", 2), (2, "same", 2), (2, "next", 0)] {
+            let before = ButtonLifetime.creations
+            host.rootView = page(route: route, trackURN: trackURN)
+            await layout()
+            precondition(ButtonLifetime.creations == before + newButtons,
+                         "Only navigation to a different track should remount the visible button")
         }
         let window = NSWindow(
             contentRect: NSRect(x: 100, y: 100, width: 600, height: 400),

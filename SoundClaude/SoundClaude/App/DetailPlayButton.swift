@@ -91,6 +91,8 @@ struct DetailPlayButtonPreferenceKey: PreferenceKey {
 }
 
 struct DetailPlayButtonOverlay: ViewModifier {
+    let routeID: AnyHashable
+
     func body(content: Content) -> some View {
         content.overlayPreferenceValue(DetailPlayButtonPreferenceKey.self) { source in
             GeometryReader { geometry in
@@ -98,13 +100,15 @@ struct DetailPlayButtonOverlay: ViewModifier {
                     let bounds = geometry[source.bounds]
                     DetailPlayButton(configuration: source.configuration, action: source.action)
                         .modifier(FadeInOnAppear())
-                        .transition(.identity)
                         .geometryGroup()
                         .frame(width: bounds.width, height: bounds.height)
                         .position(x: bounds.midX, y: bounds.midY)
                         .modifier(DetailNavigationAnimation(
                             trackURN: source.configuration.trackURN,
                             isCollection: source.configuration.isCollection
+                        ))
+                        .modifier(DetailControlLifetime(
+                            routeID: routeID, trackURN: source.configuration.trackURN
                         ))
                 }
             }

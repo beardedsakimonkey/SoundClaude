@@ -355,8 +355,8 @@ struct SignedInView: View {
             }
             .modifier(DetailWaveformOverlay(model: model))
             .modifier(DetailTrackHeadingOverlay(artworkLoader: model.artworkLoader))
-            .modifier(DetailPlayButtonOverlay())
-            .modifier(DetailLikeButtonOverlay())
+            .modifier(DetailPlayButtonOverlay(routeID: AnyHashable(path.last)))
+            .modifier(DetailLikeButtonOverlay(routeID: AnyHashable(path.last)))
             .modifier(NavigationPageActivity())
             .safeAreaPadding(.bottom, footerHeight)
             .mask { bottomFade }
