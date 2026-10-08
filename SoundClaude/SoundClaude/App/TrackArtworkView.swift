@@ -119,9 +119,31 @@ struct DetailArtworkTransition: Transition {
         case .didDisappear: -distance
         }
 
+        content.modifier(DetailArtworkSlide(
+            offset: reduceMotion ? 0 : offset,
+            opacity: phase.isIdentity ? 1 : 0
+        ))
+    }
+}
+
+private struct DetailArtworkSlide: ViewModifier, Animatable {
+    var offset: CGFloat
+    var opacity: Double
+
+    var animatableData: AnimatablePair<CGFloat, Double> {
+        get { AnimatablePair(offset, opacity) }
+        set {
+            offset = newValue.first
+            opacity = newValue.second
+        }
+    }
+
+    func body(content: Content) -> some View {
+        // Pass the interpolated position to the entire cover on every frame.
+        // Newly loaded images then receive the current position, not the target.
         content
-            .offset(x: reduceMotion ? 0 : offset)
-            .opacity(phase.isIdentity ? 1 : 0)
+            .offset(x: offset)
+            .opacity(opacity)
     }
 }
 
