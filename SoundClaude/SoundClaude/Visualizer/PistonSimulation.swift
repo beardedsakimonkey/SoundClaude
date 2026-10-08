@@ -11,7 +11,7 @@ struct PistonSettings: Equatable {
     var damping: Float = 0.04
     var gravity: Float = 20
     var travel: Float = 2.7
-    var suddenChangeSmoothing: Float = 1 // Smooth large, fast movements only; zero disables it.
+    var suddenChangeSmoothing: Float = 2 // Smooth large, fast movements only; zero disables it.
     var motionSmoothing: Float = 0.25 // Multiplier of the original rise/fall smoothing; zero disables it.
     var headTwist: Float = 90 // Degrees over a full rise.
     var stripeThickness: Float = 0.0192

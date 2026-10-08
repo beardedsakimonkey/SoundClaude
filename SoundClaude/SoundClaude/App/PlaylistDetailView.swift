@@ -168,7 +168,6 @@ struct PlaylistDetailView: View {
                 .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
                 ExpandableDescriptionText(
                     description: description,
-                    descriptionStyle: .secondary,
                     onSelectArtist: onSelectArtist
                 )
             }
