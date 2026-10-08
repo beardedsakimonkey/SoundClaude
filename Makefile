@@ -253,6 +253,7 @@ test-detail-heading:
 	swiftc -o /tmp/soundclaude-tests/detail-heading \
 		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 		SoundClaude/SoundClaude/App/DetailTrackHeading.swift \
+		SoundClaude/SoundClaude/App/DetailNavigationAnimation.swift \
 		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
 		SoundClaude/SoundClaude/App/RelativeTimestampView.swift \
 		tests/DetailTrackHeadingTests.swift
@@ -265,6 +266,7 @@ test-detail-play-button:
 	swiftc -o /tmp/soundclaude-tests/detail-play-button \
 		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 		SoundClaude/SoundClaude/App/DetailPlayButton.swift \
+		SoundClaude/SoundClaude/App/DetailNavigationAnimation.swift \
 		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
 		tests/DetailPlayButtonTests.swift
 	/tmp/soundclaude-tests/detail-play-button
@@ -276,6 +278,7 @@ test-detail-like-button:
 	swiftc -o /tmp/soundclaude-tests/detail-like-button \
 		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 		SoundClaude/SoundClaude/App/DetailLikeButton.swift \
+		SoundClaude/SoundClaude/App/DetailNavigationAnimation.swift \
 		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
 		tests/DetailLikeButtonTests.swift
 	/tmp/soundclaude-tests/detail-like-button

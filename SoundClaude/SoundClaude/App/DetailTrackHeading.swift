@@ -108,13 +108,9 @@ struct DetailTrackHeadingOverlay: ViewModifier {
                     .geometryGroup()
                     .frame(width: bounds.width, height: bounds.height)
                     .position(x: bounds.midX, y: bounds.midY)
-                    // Override the page animation when navigation also changes the track.
-                    .animation(nil, value: source.track.urn)
-                    // Scroll and resize updates stay immediate. Only the page layout animates.
-                    .animation(
-                        reduceMotion ? nil : .easeInOut(duration: 0.3),
-                        value: source.isCollection
-                    )
+                    .modifier(DetailNavigationAnimation(
+                        trackURN: source.track.urn, isCollection: source.isCollection
+                    ))
                 }
             }
             .clipped()

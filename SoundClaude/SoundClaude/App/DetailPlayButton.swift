@@ -91,8 +91,6 @@ struct DetailPlayButtonPreferenceKey: PreferenceKey {
 }
 
 struct DetailPlayButtonOverlay: ViewModifier {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     func body(content: Content) -> some View {
         content.overlayPreferenceValue(DetailPlayButtonPreferenceKey.self) { source in
             GeometryReader { geometry in
@@ -104,11 +102,10 @@ struct DetailPlayButtonOverlay: ViewModifier {
                         .geometryGroup()
                         .frame(width: bounds.width, height: bounds.height)
                         .position(x: bounds.midX, y: bounds.midY)
-                        .animation(nil, value: source.configuration.trackURN)
-                        .animation(
-                            reduceMotion ? nil : .easeInOut(duration: 0.3),
-                            value: source.configuration.isCollection
-                        )
+                        .modifier(DetailNavigationAnimation(
+                            trackURN: source.configuration.trackURN,
+                            isCollection: source.configuration.isCollection
+                        ))
                 }
             }
             .clipped()

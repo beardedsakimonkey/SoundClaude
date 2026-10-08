@@ -82,8 +82,6 @@ struct DetailLikeButtonPreferenceKey: PreferenceKey {
 }
 
 struct DetailLikeButtonOverlay: ViewModifier {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     func body(content: Content) -> some View {
         content.overlayPreferenceValue(DetailLikeButtonPreferenceKey.self) { source in
             GeometryReader { geometry in
@@ -95,11 +93,9 @@ struct DetailLikeButtonOverlay: ViewModifier {
                         .geometryGroup()
                         .frame(width: bounds.width, height: bounds.height)
                         .position(x: bounds.midX, y: bounds.midY)
-                        .animation(nil, value: source.trackURN)
-                        .animation(
-                            reduceMotion ? nil : .easeInOut(duration: 0.3),
-                            value: source.isCollection
-                        )
+                        .modifier(DetailNavigationAnimation(
+                            trackURN: source.trackURN, isCollection: source.isCollection
+                        ))
                 }
             }
             .clipped()
