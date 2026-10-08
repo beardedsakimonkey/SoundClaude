@@ -191,7 +191,7 @@ struct PlaylistDetailView: View {
             playlistArtwork
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
-                    Label(displayedPlaylist.title, systemImage: "music.note.list")
+                    Label("Playlist: \(displayedPlaylist.title)", systemImage: "music.note.list")
                         .labelStyle(.titleAndIcon)
                         .font(.body)
                         .foregroundStyle(.secondary)

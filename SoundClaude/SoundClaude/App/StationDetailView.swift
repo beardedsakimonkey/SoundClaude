@@ -236,7 +236,7 @@ struct StationDetailView: View {
             }
         } label: {
             Label {
-                Text(title)
+                Text("Station: \(title)")
                     .underline(isHoveringStationTitle)
             } icon: {
                 Image(systemName: "dot.radiowaves.left.and.right")
