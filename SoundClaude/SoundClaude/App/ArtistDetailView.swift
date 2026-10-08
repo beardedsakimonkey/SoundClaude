@@ -168,13 +168,12 @@ struct ArtistDetailView: View {
     }
 
     var body: some View {
-        Group {
+        ZStack {
             if let details {
                 detailsView(details)
             } else if isLoading {
                 LoadingSpinner()
                     .accessibilityLabel("Loading artist")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView {
                     Label("Could not load artist", systemImage: "exclamationmark.triangle")
@@ -185,6 +184,7 @@ struct ArtistDetailView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(alignment: .top) {
             artworkBackdrop
                 .ignoresSafeArea(edges: .top)
