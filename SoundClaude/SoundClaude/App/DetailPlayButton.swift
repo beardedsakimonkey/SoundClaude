@@ -100,7 +100,6 @@ struct DetailPlayButtonOverlay: ViewModifier {
                     let bounds = geometry[source.bounds]
                     DetailPlayButton(configuration: source.configuration, action: source.action)
                         .modifier(FadeInOnAppear())
-                        .id(source.configuration.trackURN)
                         .transition(.identity)
                         .geometryGroup()
                         .frame(width: bounds.width, height: bounds.height)

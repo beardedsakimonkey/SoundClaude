@@ -91,7 +91,6 @@ struct DetailLikeButtonOverlay: ViewModifier {
                     let bounds = geometry[source.bounds]
                     source.button
                         .modifier(FadeInOnAppear())
-                        .id(source.trackURN)
                         .transition(.identity)
                         .geometryGroup()
                         .frame(width: bounds.width, height: bounds.height)
