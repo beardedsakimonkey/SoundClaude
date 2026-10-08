@@ -37,7 +37,7 @@ struct DetailPlayButton: View {
         }
         .labelStyle(DetailPlayButtonLabelStyle(iconOnly: configuration.iconOnly))
         .buttonStyle(TrackActionButtonStyle(
-            fill: configuration.isStarting ? .green.opacity(0.12) : .primary.opacity(0.12)
+            fill: .primary.opacity(0.12)
         ))
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: configuration.isStarting)
         .disabled(!configuration.isEnabled)
