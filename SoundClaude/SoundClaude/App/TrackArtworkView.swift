@@ -57,7 +57,7 @@ struct TrackArtworkView: View {
         .overlay {
             if showsBorder {
                 shape
-                    .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                    .strokeBorder(.white.opacity(0.15), lineWidth: 1)
             }
         }
         .accessibilityHidden(true)
