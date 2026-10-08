@@ -167,6 +167,7 @@ struct TrackDetailView: View {
                             description: description,
                             onSelectArtist: onSelectArtist
                         )
+                        .modifier(FadeInOnAppear())
                         .id(track.urn)
                     }
 
