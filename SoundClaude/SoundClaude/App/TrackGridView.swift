@@ -77,6 +77,8 @@ struct TrackGridTile: View {
 
     var body: some View {
         let isPlaybackActive = isCurrentTrack && playback.isPlaybackActive
+        let isLiked = likes.isLiked(track)
+        let likeCount = likes.likeCount(for: track)
 
         VStack(alignment: .leading, spacing: 8) {
             GeometryReader { geometry in
@@ -172,10 +174,30 @@ struct TrackGridTile: View {
                     value: isCurrentTrack
                 )
 
-                ArtistLink(artist: track.artist, onSelect: onSelectArtist)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                    if likeCount != nil || isLiked {
+                        Text("·")
+                            .accessibilityHidden(true)
+                        HStack(alignment: .firstTextBaseline, spacing: 2) {
+                            Image(systemName: isLiked ? "heart.fill" : "heart")
+                            if let likeCount {
+                                Text(likeCount.formatted())
+                            }
+                        }
+                        .font(.system(size: 9))
+                        .fixedSize()
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(
+                            [isLiked ? "Liked" : nil, likeCount.map { "\($0.formatted()) likes" }]
+                                .compactMap { $0 }
+                                .joined(separator: ", ")
+                        )
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
             }
         }
         .contentShape(Rectangle())
