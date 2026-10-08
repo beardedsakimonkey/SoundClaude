@@ -48,6 +48,11 @@ struct TrackCardView: View {
             .trackDraggable(track)
             .contentHelp("View track or drag to a playlist")
             .accessibilityLabel("Open track: \(track.title)")
+            .trackContextMenu(
+                track: track,
+                likes: likes,
+                onAddToQueue: model.addToQueue
+            )
 
             VStack(alignment: .leading, spacing: 6) {
                 ViewThatFits(in: .horizontal) {

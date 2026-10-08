@@ -1,5 +1,45 @@
 import SwiftUI
 
+extension View {
+    func trackContextMenu(
+        track: SoundCloudTrack?,
+        likes: LikesController,
+        onAddToQueue: @escaping (SoundCloudTrack) -> Void
+    ) -> some View {
+        modifier(TrackContextMenu(track: track, likes: likes, onAddToQueue: onAddToQueue))
+    }
+}
+
+private struct TrackContextMenu: ViewModifier {
+    let track: SoundCloudTrack?
+    let likes: LikesController
+    let onAddToQueue: (SoundCloudTrack) -> Void
+
+    @State private var likeErrorMessage: String?
+
+    func body(content: Content) -> some View {
+        content
+            .contextMenu {
+                if let track {
+                    TrackMenuItems(
+                        track: track,
+                        likes: likes,
+                        likeErrorMessage: $likeErrorMessage,
+                        onAddToQueue: onAddToQueue
+                    )
+                }
+            }
+            .alert("Could not update like", isPresented: Binding(
+                get: { likeErrorMessage != nil },
+                set: { if !$0 { likeErrorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { likeErrorMessage = nil }
+            } message: {
+                Text(likeErrorMessage ?? "Please try again.")
+            }
+    }
+}
+
 struct TrackMenuItems: View {
     let track: SoundCloudTrack
     @ObservedObject var likes: LikesController

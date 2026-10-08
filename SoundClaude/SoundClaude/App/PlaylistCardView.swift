@@ -50,6 +50,11 @@ struct PlaylistCardView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Open playlist: \(displayedPlaylist.title)")
+            .trackContextMenu(
+                track: waveformTrack,
+                likes: model.likes,
+                onAddToQueue: model.addToQueue
+            )
             .overlay(alignment: .bottomTrailing) {
                 if isLoading {
                     LoadingSpinner()
