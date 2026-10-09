@@ -711,13 +711,18 @@ struct DetailArtworkView: View {
                     Button("Tune Glass…") { isShowingSlabControls = true }
                     #endif
                 }
-                // Raised covers cast a larger, softer shadow onto the backdrop.
-                .shadow(
-                    color: .black.opacity(0.22 * liftProgress),
-                    radius: 6 + 10 * liftProgress,
-                    x: 0,
-                    y: 4 + 10 * liftProgress
-                )
+                // Only a physical lift darkens the shadow; rotation keeps the resting opacity.
+                .animation(
+                    reduceMotion ? nil : (displayedLift > 0
+                        ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut)
+                ) { artwork in
+                    artwork.shadow(
+                        color: .black.opacity(displayedLift > 0 ? 0.44 : 0.22),
+                        radius: 6 + 10 * liftProgress,
+                        x: 0,
+                        y: 4 + 10 * liftProgress
+                    )
+                }
                 .offset(y: -displayedLift)
                 .zIndex(1)
 
