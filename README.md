@@ -22,8 +22,7 @@ Core Audio, Accelerate, and Metal. It features:
 - Light and dark modes
 - Built for desktop with hover feedback on interactive elements, right-click menus,
   and keyboard shortcuts
-- Several physics-based music visualizers, including cloth, rope, and fluid
-  simulations
+- Several physics-based music visualizers, including cloth and rope simulations
 - Expandable track artwork and artist photos
 
 ## Requirements
