@@ -55,6 +55,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var smokeSettings = SmokeSettings()
     private var smoke: SmokeSimulation?
     var clothSettings = ClothSettings()
+    // Match the pole, foot, rope and rounded cap geometry in clothSupportVertex.
+    private let clothSupportVertexCount = 4 * (12 * 9 + 2 * 12 * 12 + 12 * 4 * 6)
     var pistonSettings = PistonSettings()
     var trackProgress: Double = 0
     var hasTrack = false
@@ -393,7 +395,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
             }
             // Merge poles, feet and ropes into the mask; exclude the ground plane.
-            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 4 * 3 * 12 * 12)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: clothSupportVertexCount)
         }
     }
 
@@ -733,7 +735,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                     encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
                 }
                 // Four supports, each with a pillar, foot and rope.
-                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 4 * 3 * 12 * 12)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: clothSupportVertexCount)
             }
         }
         encoder.endEncoding()

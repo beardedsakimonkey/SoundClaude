@@ -71,16 +71,24 @@ static ClothVertex clothSupportVertex(uint id, const device float4 *positions,
     uint columns = uint(u.mesh.x), rows = uint(u.mesh.y);
     float3 p, normal;
     float material = 0;
-    const uint supportVertices = 3 * 12 * 12;
+    // Pole sides and bottom, foot and rope cylinders, then four dome bands.
+    const uint poleVertices = 12 * 9;
+    const uint cylinderVertices = poleVertices + 2 * 12 * 12;
+    const uint supportVertices = cylinderVertices + 12 * 4 * 6;
     {
         uint support = id / supportVertices;
-        uint part = (id % supportVertices) / (12 * 12);
-        uint face = (id % (12 * 12)) / 12, localVertex = id % 12;
+        uint supportVertex = id % supportVertices;
+        bool dome = supportVertex >= cylinderVertices;
+        uint part = supportVertex < poleVertices || dome ? 0 : 1 + (supportVertex - poleVertices) / (12 * 12);
+        uint partVertex = part == 0 ? supportVertex : (supportVertex - poleVertices) % (12 * 12);
+        uint face = partVertex / (part == 0 ? 9 : 12);
+        uint localVertex = partVertex % (part == 0 ? 9 : 12);
         const uint cornerIndices[4] = {0, columns - 1, (rows - 1) * columns, rows * columns - 1};
         float3 anchor = positions[columns * rows + support].xyz;
         // Keep the rope attachment recessed below the pillar's top.
         float3 start = float3(anchor.xy, u.shadow.z), end = anchor + float3(0, 0, 0.15);
         float radius = 0.11;
+        if (part == 0) end.z -= radius;
         if (part == 1) { radius = 0.27; end = start + float3(0,0,0.10); }
         if (part == 2) { start = anchor; end = positions[cornerIndices[support]].xyz; radius = 0.028; material = 1; }
         float3 axis = normalize(end - start);
@@ -91,7 +99,17 @@ static ClothVertex clothSupportVertex(uint id, const device float4 *positions,
         uint side = localVertex < 6 ? ring[localVertex] : (localVertex % 3 == 2 ? 1 : 0);
         float angle = (float(face + side) / 12.0) * 2.0 * M_PI_F;
         float3 radial = tangent * cos(angle) + bitangent * sin(angle);
-        if (localVertex < 6) {
+        if (dome) {
+            uint domeVertex = supportVertex - cylinderVertices;
+            uint band = domeVertex / (12 * 6);
+            uint segment = (domeVertex / 6) % 12;
+            uint corner = domeVertex % 6;
+            float longitude = float(segment + ring[corner]) / 12.0 * 2.0 * M_PI_F;
+            float latitude = float(band + top[corner]) / 4.0 * 0.5 * M_PI_F;
+            float3 domeRadial = tangent * cos(longitude) + bitangent * sin(longitude);
+            normal = domeRadial * cos(latitude) + axis * sin(latitude);
+            p = end + normal * radius;
+        } else if (localVertex < 6) {
             p = mix(start, end, float(top[localVertex])) + radial * radius;
             normal = radial;
         } else {
