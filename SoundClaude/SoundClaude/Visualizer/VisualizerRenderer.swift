@@ -354,9 +354,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             let uniforms = [
                 SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
                 camera,
-                SIMD4<Float>(shineIntensity, 0, clothSettings.showMesh ? 1 : 0, 0),
+                SIMD4<Float>(shineIntensity, clothSettings.groundBrightness, clothSettings.showMesh ? 1 : 0, 0),
                 SIMD4<Float>(Float(view.drawableSize.width), 0.48, ClothSimulation.groundDepth, Float(view.drawableSize.height)),
-                SIMD4<Float>(trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0, hasTrack ? 1 : 0, 0, 0),
+                SIMD4<Float>(trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0, hasTrack ? 1 : 0, clothSettings.groundTileSize, 0),
                 SIMD4<Float>(cloth.bassOrigin.x, cloth.bassOrigin.y, clothSettings.impulseRadius,
                              bassHighlight * clothSettings.flashBrightness)
             ]
@@ -478,8 +478,10 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         drawMask: (MTLRenderCommandEncoder) -> Void
     ) -> MTLTexture? {
         guard let device = view.device else { return nil }
-        // Bound the offscreen cost and keep softness proportional to the viewport.
-        let scale = min(1, 512 / max(1, max(view.drawableSize.width, view.drawableSize.height)))
+        // Resolve cloth folds and thin supports at higher resolution, capped to
+        // bound offscreen cost. Blur below keeps softness proportional to the viewport.
+        let maximumDimension: CGFloat = shader == .cloth ? 2048 : 512
+        let scale = min(1, maximumDimension / max(1, max(view.drawableSize.width, view.drawableSize.height)))
         let width = max(1, Int(view.drawableSize.width * scale))
         let height = max(1, Int(view.drawableSize.height * scale))
         if shadowMask?.width != width || shadowMask?.height != height {
@@ -925,7 +927,7 @@ enum ClothGroundControls {
             }
         }
         let offset = SIMD2(local.x - min(3, max(-3, local.x)), local.y)
-        if simd_length_squared(offset) <= 0.2 * 0.2 {
+        if simd_length_squared(offset) <= 0.26 * 0.26 {
             return .seek(Double(min(1, max(0, (local.x + 3) / 6))))
         }
         return nil

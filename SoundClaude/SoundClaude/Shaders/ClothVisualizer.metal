@@ -4,9 +4,9 @@ using namespace metal;
 struct ClothUniforms {
     float4 mesh; // columns, rows, width, height
     float4 camera; // aspect, yaw, pitch, distance
-    float4 appearance; // shine intensity, unused, mesh debug, pass (cloth, mask, ground, supports, support mask)
+    float4 appearance; // shine intensity, ground brightness, mesh debug, pass (cloth, mask, ground, supports, support mask)
     float4 shadow; // viewport width, opacity, ground depth, viewport height
-    float4 track; // progress, has track, unused, unused
+    float4 track; // progress, has track, ground tile size, unused
     float4 bass; // impulse origin XY, radius, flash intensity
 };
 
@@ -156,15 +156,126 @@ vertex ClothVertex clothVisualizerVertex(
     return out;
 }
 
+static float clothSpeckleHash(float2 p) {
+    float3 q = fract(float3(p.xyx) * 0.1031);
+    q += dot(q, q.yzx + 33.33);
+    return fract((q.x + q.y) * q.z);
+}
+
+static float clothStoneNoise(float2 p, float footprint) {
+    float2 cell = floor(p);
+    float2 blend = fract(p);
+    blend = blend * blend * (3.0 - 2.0 * blend);
+    float value = mix(mix(clothSpeckleHash(cell), clothSpeckleHash(cell + float2(1, 0)), blend.x),
+                      mix(clothSpeckleHash(cell + float2(0, 1)), clothSpeckleHash(cell + 1.0), blend.x),
+                      blend.y);
+    return mix(value, 0.5, smoothstep(0.25, 0.8, footprint));
+}
+
+static float3 clothSpeckledFloor(float2 p, float3 accentColor) {
+    float2 grid = p * 2.5;
+    float2 cell = floor(grid);
+    float seed = clothSpeckleHash(cell);
+    float2 center = 0.2 + 0.6 * float2(clothSpeckleHash(cell + 17.3),
+                                      clothSpeckleHash(cell + 41.7));
+    float2 offset = fract(grid) - center;
+    float angle = clothSpeckleHash(cell + 9.2) * 6.283185;
+    float2 local = float2(cos(angle) * offset.x - sin(angle) * offset.y,
+                         sin(angle) * offset.x + cos(angle) * offset.y);
+    local.y *= mix(1.2, 2.4, clothSpeckleHash(cell + 63.1));
+    float radius = mix(0.04, 0.13, clothSpeckleHash(cell + 28.6));
+    // Slightly uneven, elongated flecks, scattered across an otherwise flat base.
+    float distance = length(local) + 0.2 * local.x - radius;
+    float aa = max(fwidth(distance), 0.001);
+    float footprint = max(length(dfdx(grid)), length(dfdy(grid)));
+    float fleck = (1.0 - smoothstep(-aa, aa, distance)) * step(0.68, seed);
+    // Fade flecks smaller than a pixel to prevent sparkle while orbiting.
+    fleck *= 1.0 - smoothstep(radius * 0.5, radius * 2.0, footprint);
+    float3 tint = clothSpeckleHash(cell + 82.4) < 0.65
+        ? accentColor * 0.78 : mix(accentColor, float3(1), 0.12);
+    return mix(accentColor, tint, fleck);
+}
+
+static float2 clothTileSite(float2 cell) {
+    return cell + 0.15 + 0.7 * float2(clothSpeckleHash(cell + 103.7),
+                                     clothSpeckleHash(cell + 251.9));
+}
+
+static float clothTileGroutExtra(float2 cell) {
+    float seed = clothSpeckleHash(cell + 487.3);
+    // Roughly one in ten tiles has wider joints around its perimeter.
+    return seed > 0.9 ? mix(0.006, 0.012, (seed - 0.9) * 10.0) : 0.0;
+}
+
+static float3 clothTiledFloor(float2 p, float3 accentColor, float tileSize) {
+    float2 grid = p / tileSize;
+    float2 cell = floor(grid);
+    float2 nearestCell = cell;
+    float2 nearest = float2(0);
+    float nearestDistance = 1e10;
+    for (int y = -2; y <= 2; ++y) {
+        for (int x = -2; x <= 2; ++x) {
+            float2 candidate = cell + float2(x, y);
+            float2 offset = clothTileSite(candidate) - grid;
+            float distance = dot(offset, offset);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearestCell = candidate;
+                nearest = offset;
+            }
+        }
+    }
+    // Start with the geometric edge, then weather the grout and tile lip below.
+    float edge = 1e10;
+    float2 edgeNormal = float2(0);
+    float groutExtra = clothTileGroutExtra(nearestCell);
+    for (int y = -2; y <= 2; ++y) {
+        for (int x = -2; x <= 2; ++x) {
+            if (x == 0 && y == 0) continue;
+            float2 neighborCell = nearestCell + float2(x, y);
+            float2 neighbor = clothTileSite(neighborCell) - grid;
+            float2 separation = neighbor - nearest;
+            float2 normal = normalize(separation);
+            float distance = dot(0.5 * (nearest + neighbor), normal);
+            // Both tiles agree on the shared joint width. Compare inset edges
+            // so wider joints also meet cleanly at corners.
+            distance -= max(groutExtra, clothTileGroutExtra(neighborCell));
+            if (distance < edge) {
+                edge = distance;
+                edgeNormal = normal;
+            }
+        }
+    }
+    float footprint = max(length(dfdx(grid)), length(dfdy(grid)));
+    float aa = max(footprint * 0.5, 0.0001);
+    float detail = 1.0 - smoothstep(0.025, 0.15, footprint);
+    float worldFootprint = footprint * tileSize;
+    float wear = clothStoneNoise(p * 1.7 + 7.4, worldFootprint * 1.7);
+    float roughness = clothStoneNoise(p * 18.0, worldFootprint * 18.0);
+    float groutWidth = 0.004 + 0.005 * roughness;
+    float seam = (1.0 - smoothstep(groutWidth - aa, groutWidth + aa, edge)) * detail;
+    float lip = edge - groutWidth;
+    float bevelWidth = mix(0.009, 0.022, wear);
+    float bevel = (1.0 - smoothstep(0.0, bevelWidth + aa, lip)) * detail;
+    float dirt = (1.0 - smoothstep(0.0, 0.045 + aa, lip)) * detail;
+    // Keep each tile close to the accent, with sparse flecks across its face.
+    float shade = mix(0.91, 1.0, clothSpeckleHash(nearestCell + 379.1));
+    float3 base = accentColor * mix(0.955, shade, detail);
+    float3 color = clothSpeckledFloor(p, base);
+    // Restrained surface wear; beveled edges and recessed grout carry most of
+    // the texture. Light the bevels from the same side as the cloth and poles.
+    float grain = clothStoneNoise(p * 65.0 + 51.3, worldFootprint * 65.0);
+    color *= 1.0 + 0.045 * (wear - 0.5) + 0.025 * (grain - 0.5);
+    color *= 1.0 - dirt * (0.04 + 0.09 * wear);
+    float bevelLight = dot(edgeNormal, normalize(float2(-0.4, 0.6)));
+    color *= 1.0 + bevel * bevelLight * 0.16;
+    float3 grout = accentColor * (0.50 + 0.10 * roughness + 0.06 * wear);
+    return mix(color, grout, seam);
+}
+
 static float3 clothFloor(float2 p, const device float4 *positions,
-                         constant ClothUniforms &u) {
-    float2 footprint = max(fwidth(p), float2(0.0001));
-    float3 color = float3(0.19, 0.205, 0.22);
-    // Fine slab joints provide perspective cues without a high-contrast grid.
-    float2 jointDistance = abs(fract(p / 3.0 + 0.5) - 0.5) * 3.0;
-    float2 joint = 1.0 - smoothstep(float2(0.012), 0.012 + footprint, jointDistance);
-    joint *= 1.0 - smoothstep(float2(0.15), float2(0.6), footprint);
-    color *= 1.0 - 0.16 * max(joint.x, joint.y);
+                         constant ClothUniforms &u, float3 accentColor) {
+    float3 color = clothTiledFloor(p, accentColor, max(u.track.z, 0.5));
     float occlusion = 0.0;
     for (uint support = 0; support < 4; ++support) {
         float3 anchor = positions[uint(u.mesh.x * u.mesh.y) + support].xyz;
@@ -193,16 +304,19 @@ static float4 clothSurface(
             constexpr sampler shadowFilter(filter::linear, address::clamp_to_zero);
             float2 screenUV = in.position.xy / uniforms.shadow.xw;
             float shadow = shadowMask.sample(shadowFilter, screenUV).r * uniforms.shadow.y;
-            float3 floor = clothFloor(in.scenePosition.xy, positions, uniforms) * (1.0 - shadow);
+            float3 floor = clothFloor(in.scenePosition.xy, positions, uniforms, accentColor.rgb) * (1.0 - shadow);
+            floor *= uniforms.appearance.y;
             if (uniforms.track.y > 0.5) {
                 float2 local = in.scenePosition.xy + float2(0, uniforms.mesh.w * 0.5 + 1.8);
-                float railDistance = length(float2(local.x - clamp(local.x, -2.94, 2.94), local.y)) - 0.06;
+                float railDistance = length(float2(local.x - clamp(local.x, -2.88, 2.88), local.y)) - 0.12;
                 float aa = max(fwidth(railDistance), 0.008);
                 float rail = 1.0 - smoothstep(-aa, aa, railDistance);
                 float fill = uniforms.track.x <= 0 ? 0 : (uniforms.track.x >= 1 ? 1
                     : 1.0 - smoothstep(-3.0 + 6.0 * uniforms.track.x - aa,
                                       -3.0 + 6.0 * uniforms.track.x + aa, local.x));
-                floor = mix(floor, mix(float3(0.23, 0.25, 0.28), float3(0.40, 0.44, 0.48), fill), rail);
+                // Screen the filled portion for contrast while preserving the floor texture.
+                float3 filledRail = 1.0 - (1.0 - floor) * (1.0 - 0.35);
+                floor = mix(floor, mix(floor * 0.50, filledRail, fill), rail);
                 for (int direction = -1; direction <= 1; direction += 2) {
                     float2 button = local - float2(float(direction) * 4.0, 0);
                     float radius = length(button);
@@ -211,18 +325,14 @@ static float4 clothSurface(
                     float2 icon = float2(button.x * float(direction), button.y);
                     float triangle = max(-0.15 - icon.x, abs(icon.y) - (0.30 - icon.x) * 0.6);
                     float cutout = 1.0 - smoothstep(-feather, feather, triangle);
-                    floor = mix(floor, float3(0.36, 0.40, 0.44), disk * (1.0 - cutout));
+                    floor *= mix(1.0, 0.55, disk * (1.0 - cutout));
                 }
             }
-            // Fade only at the horizon, independent of camera distance.
-            float3 sightline = normalize(float3(0, 0, uniforms.camera.w) - in.world);
-            float3 groundNormal = clothCameraRotation(float3(0, 0, 1), uniforms.camera.y, uniforms.camera.z);
-            float haze = 1.0 - smoothstep(0.02, 0.18, abs(dot(sightline, groundNormal)));
-            return float4(mix(floor, float3(0.035, 0.045, 0.06), haze), 1);
+            return float4(floor, 1);
         }
         float light = 0.35 + 0.65 * abs(dot(normalize(in.supportNormal), normalize(float3(-0.4, 0.6, 1))));
         float3 color = in.uv.x > 1.5 ? float3(0.085, 0.09, 0.10)
-                    : in.uv.x > 0.5 ? float3(0.72, 0.65, 0.50) : float3(0.28, 0.31, 0.35);
+                    : in.uv.x > 0.5 ? float3(0.72, 0.65, 0.50) : float3(0.23, 0.26, 0.29);
         float contact = 0.65 + 0.35 * smoothstep(0.0, 0.65, in.scenePosition.z - uniforms.shadow.z);
         return float4(color * light * contact, 1);
     }
@@ -307,5 +417,18 @@ fragment ClothFragment clothVisualizerFragment(
         in.world = clothCameraRotation(in.scenePosition, uniforms.camera.y, uniforms.camera.z);
         depth = min(0.9999999, (distance - 0.1) * 100.0 / (99.9 * distance));
     }
-    return {clothSurface(in, frontFacing, artwork, shadowMask, accentColor, uniforms, normals, positions), depth};
+    float4 color = clothSurface(in, frontFacing, artwork, shadowMask, accentColor, uniforms, normals, positions);
+    bool isShadowMask = (uniforms.appearance.w > 0.5 && uniforms.appearance.w < 1.5)
+                     || uniforms.appearance.w > 3.5;
+    if (!isShadowMask) {
+        // Distance fog starts just behind the subject. Anchor the clear
+        // zone to the orbit distance so zooming out does not bury the cloth.
+        float distance = length(float3(0, 0, uniforms.camera.w) - in.world);
+        float fogDistance = max(0.0, distance - uniforms.camera.w - 2.0);
+        float density = fogDistance * 0.06;
+        float fog = 1.0 - exp(-density * density);
+        // Match the SwiftUI sky backdrop so the horizon disappears into fog.
+        color.rgb = mix(color.rgb, float3(0.035, 0.045, 0.06), fog);
+    }
+    return {color, depth};
 }

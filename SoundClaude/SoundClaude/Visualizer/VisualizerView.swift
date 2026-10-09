@@ -297,6 +297,8 @@ struct VisualizerView: View {
                     Toggle("Show mesh (debug)", isOn: $clothSettings.showMesh)
                     tuningSlider("Shine intensity", value: $clothSettings.shineIntensity, range: 0...2)
                     tuningSlider("Impulse flash brightness", value: $clothSettings.flashBrightness, range: 0...3)
+                    tuningSlider("Ground brightness", value: $clothSettings.groundBrightness, range: 0...2)
+                    tuningSlider("Tile size", value: $clothSettings.groundTileSize, range: 0.5...8)
                 }
             }
             .frame(maxHeight: 520)

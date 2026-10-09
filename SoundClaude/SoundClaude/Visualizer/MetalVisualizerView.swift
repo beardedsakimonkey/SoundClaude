@@ -61,7 +61,8 @@ struct ArtworkVisualizerView: View {
                 accentArtworkURL = nil
                 guard let url = artworkURL else { return }
                 async let image = try? artworkLoader.bitmap(for: url, rendition: .square1080)
-                async let color = try? artworkLoader.accentColor(for: url, rendition: .square1080)
+                // Use the same source rendition as the waveform for a shared accent.
+                async let color = try? artworkLoader.accentColor(for: url)
                 let (loadedImage, loadedAccent) = await (image, color)
                 guard !Task.isCancelled else { return }
                 artworkImage = loadedImage
@@ -133,6 +134,7 @@ struct MetalVisualizerView: NSViewRepresentable {
         let view = TransparentMetalView()
         view.device = MTLCreateSystemDefaultDevice()
         view.colorPixelFormat = .bgra8Unorm
+        view.colorspace = CGColorSpace(name: CGColorSpace.sRGB)
         view.depthStencilPixelFormat = .depth32Float
         view.clearColor = MTLClearColor(
             red: 0,
