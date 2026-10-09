@@ -8,6 +8,7 @@ struct ClothUniforms {
     float4 shadow; // viewport width, opacity, ground depth, viewport height
     float4 track; // progress, has track, ground tile size, camera target offset
     float4 bass; // impulse origin XY, radius, flash intensity
+    float4 playback; // is playing, reserved
 };
 
 struct ClothVertex {
@@ -333,24 +334,28 @@ static float4 clothSurface(
             floor *= uniforms.appearance.y;
             if (uniforms.track.y > 0.5) {
                 float2 local = in.scenePosition.xy + float2(0, uniforms.mesh.w * 0.5 + 1.8);
-                float railDistance = length(float2(local.x - clamp(local.x, -2.88, 2.88), local.y)) - 0.12;
+                float railDistance = length(float2(local.x - clamp(local.x, -0.88, 4.88), local.y)) - 0.12;
                 float aa = max(fwidth(railDistance), 0.008);
                 float rail = 1.0 - smoothstep(-aa, aa, railDistance);
                 float fill = uniforms.track.x <= 0 ? 0 : (uniforms.track.x >= 1 ? 1
-                    : 1.0 - smoothstep(-3.0 + 6.0 * uniforms.track.x - aa,
-                                      -3.0 + 6.0 * uniforms.track.x + aa, local.x));
-                // Screen the filled portion for contrast while preserving the floor texture.
+                    : 1.0 - smoothstep(-1.0 + 6.0 * uniforms.track.x - aa,
+                                      -1.0 + 6.0 * uniforms.track.x + aa, local.x));
+                // Screen the filled rail and icons while preserving the floor texture.
                 float3 filledRail = 1.0 - (1.0 - floor) * (1.0 - 0.35);
                 floor = mix(floor, mix(floor * 0.50, filledRail, fill), rail);
-                for (int direction = -1; direction <= 1; direction += 2) {
-                    float2 button = local - float2(float(direction) * 4.0, 0);
+                // Previous, play/pause, next, grouped to the left of the rail.
+                for (int index = 0; index < 3; ++index) {
+                    float2 button = local - float2(-4.5 + float(index) * 1.2, 0);
                     float radius = length(button);
                     float feather = max(fwidth(radius), 0.008);
                     float disk = 1.0 - smoothstep(0.5 - feather, 0.5 + feather, radius);
-                    float2 icon = float2(button.x * float(direction), button.y);
-                    float triangle = max(-0.15 - icon.x, abs(icon.y) - (0.30 - icon.x) * 0.6);
-                    float cutout = 1.0 - smoothstep(-feather, feather, triangle);
-                    floor *= mix(1.0, 0.55, disk * (1.0 - cutout));
+                    float2 icon = float2(button.x * (index == 0 ? -1.0 : 1.0), button.y);
+                    float shape = max(-0.15 - icon.x, abs(icon.y) - (0.30 - icon.x) * 0.6);
+                    if (index == 1 && uniforms.playback.x > 0.5) {
+                        shape = max(abs(abs(button.x) - 0.12) - 0.055, abs(button.y) - 0.20);
+                    }
+                    float iconMask = 1.0 - smoothstep(-feather, feather, shape);
+                    floor = mix(floor, mix(floor * 0.55, filledRail, iconMask), disk);
                 }
             }
             return float4(floor, 1);

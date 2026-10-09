@@ -56,6 +56,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var pistonSettings = PistonSettings()
     var trackProgress: Double = 0
     var hasTrack = false
+    var isPlaying = false
     var clothCamera = ClothCamera()
 
     private var shadowMask: MTLTexture?
@@ -351,7 +352,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 * (0.8 + 1.2 * cloth.bassPulseLevel)
             // Strong bass hits triple the selected shine, then fade back to it.
             let shineIntensity = clothSettings.shineIntensity * (1 + bassHighlight)
-            // Six float4s, matching ClothUniforms in Metal.
+            // Seven float4s, matching ClothUniforms in Metal.
             let uniforms = [
                 SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
                 camera,
@@ -359,7 +360,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 SIMD4<Float>(Float(view.drawableSize.width), 0.48, ClothSimulation.groundDepth, Float(view.drawableSize.height)),
                 SIMD4<Float>(trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0, hasTrack ? 1 : 0, clothSettings.groundTileSize, ClothGroundControls.targetOffset),
                 SIMD4<Float>(cloth.bassOrigin.x, cloth.bassOrigin.y, clothSettings.impulseRadius,
-                             bassHighlight * clothSettings.flashBrightness)
+                             bassHighlight * clothSettings.flashBrightness),
+                SIMD4<Float>(isPlaying ? 1 : 0, 0, 0, 0)
             ]
             return (buffer, normalBuffer, uniforms)
         }
@@ -942,14 +944,18 @@ enum ClothGroundControls {
         guard distance >= 0.1, distance < 100 else { return nil }
         let floor = origin + ray * distance
         let local = SIMD2(floor.x, floor.y + height * 0.5 + 1.8)
-        for direction in [-1, 1] {
-            if simd_length_squared(local - SIMD2(Float(direction) * 4, 0)) <= 0.55 * 0.55 {
-                return direction < 0 ? .previous : .next
+        // Match the previous/play-pause/next group and rail in ClothVisualizer.metal.
+        let buttons: [(Float, PistonGroundControls.Hit)] = [
+            (-4.5, .previous), (-3.3, .playPause), (-2.1, .next)
+        ]
+        for (x, action) in buttons {
+            if simd_length_squared(local - SIMD2(x, 0)) <= 0.55 * 0.55 {
+                return action
             }
         }
-        let offset = SIMD2(local.x - min(3, max(-3, local.x)), local.y)
+        let offset = SIMD2(local.x - min(5, max(-1, local.x)), local.y)
         if simd_length_squared(offset) <= 0.26 * 0.26 {
-            return .seek(Double(min(1, max(0, (local.x + 3) / 6))))
+            return .seek(Double(min(1, max(0, (local.x + 1) / 6))))
         }
         return nil
     }

@@ -35,6 +35,7 @@ struct VisualizerView: View {
             pistonSettings: pistonSettings,
             trackProgress: playback.duration > 0 ? playback.currentTime / playback.duration : 0,
             hasTrack: playback.currentTrack != nil,
+            isPlaying: playback.isPlaying,
             clothCamera: Binding(get: { camera }, set: { camera = $0 }),
             spectrumBuffer: spectrumBuffer,
             artworkURL: playback.currentTrack?.displayArtworkURL,
@@ -129,9 +130,7 @@ struct VisualizerView: View {
         .accessibilityValue(shader.title)
         .accessibilityActions {
             if playback.currentTrack != nil {
-                if shader == .pistons {
-                    Button(playback.isPlaying ? "Pause" : "Play") { playback.togglePlayPause() }
-                }
+                Button(playback.isPlaying ? "Pause" : "Play") { playback.togglePlayPause() }
                 Button("Previous track") { playback.previous() }
                 Button("Next track") { playback.next() }
             }

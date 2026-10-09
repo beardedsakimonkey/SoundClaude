@@ -21,6 +21,7 @@ struct ArtworkVisualizerView: View {
     let pistonSettings: PistonSettings
     let trackProgress: Double
     let hasTrack: Bool
+    let isPlaying: Bool
     @Binding var clothCamera: ClothCamera
     let spectrumBuffer: OpaquePointer
     let artworkURL: URL?
@@ -40,6 +41,7 @@ struct ArtworkVisualizerView: View {
             pistonSettings: pistonSettings,
             trackProgress: trackProgress,
             hasTrack: hasTrack,
+            isPlaying: isPlaying,
             clothCamera: $clothCamera,
             spectrumBuffer: spectrumBuffer,
             accent: accent,
@@ -114,6 +116,7 @@ struct MetalVisualizerView: NSViewRepresentable {
     let pistonSettings: PistonSettings
     let trackProgress: Double
     let hasTrack: Bool
+    let isPlaying: Bool
     @Binding var clothCamera: ClothCamera
     let spectrumBuffer: OpaquePointer
     let accent: ArtworkAccent
@@ -158,6 +161,7 @@ struct MetalVisualizerView: NSViewRepresentable {
         renderer?.pistonSettings = pistonSettings
         renderer?.trackProgress = trackProgress
         renderer?.hasTrack = hasTrack
+        renderer?.isPlaying = isPlaying
         renderer?.clothCamera = clothCamera
         renderer?.updateArtwork(artworkImage)
         view.onZoom = zoomHandler
@@ -172,6 +176,7 @@ struct MetalVisualizerView: NSViewRepresentable {
         context.coordinator.renderer?.pistonSettings = pistonSettings
         context.coordinator.renderer?.trackProgress = trackProgress
         context.coordinator.renderer?.hasTrack = hasTrack
+        context.coordinator.renderer?.isPlaying = isPlaying
         context.coordinator.renderer?.clothCamera = clothCamera
         context.coordinator.renderer?.accent = accent
         context.coordinator.renderer?.updateArtwork(artworkImage)
