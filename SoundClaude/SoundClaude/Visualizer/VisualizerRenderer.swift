@@ -49,6 +49,10 @@ enum VisualizerShader: String, CaseIterable {
 
 final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var accent: ArtworkAccent
+    private var displayedAccent: SIMD3<Float>
+    private var accentTransitionFrom: SIMD3<Float>
+    private var accentTransitionTarget: SIMD3<Float>
+    private var accentTransitionStart: Double?
     var shader: VisualizerShader = .pistons {
         didSet { if shader != oldValue { smoke?.reset() } }
     }
@@ -150,6 +154,10 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         depth.isDepthWriteEnabled = false
         glowDepthState = device.makeDepthStencilState(descriptor: depth)
         self.accent = accent
+        let rgb = SIMD3<Float>(Float(accent.red), Float(accent.green), Float(accent.blue))
+        displayedAccent = rgb
+        accentTransitionFrom = rgb
+        accentTransitionTarget = rgb
         let textureDescriptor = MTLTextureDescriptor.texture2DDescriptor(
             pixelFormat: .rgba8Unorm, width: 1, height: 1, mipmapped: false
         )
@@ -373,7 +381,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     ) -> MTLTexture? {
         encodeShadow(in: view, commandBuffer: commandBuffer) { encoder in
             encoder.setRenderPipelineState(pipeline)
-            var accentColor = SIMD4<Float>(Float(accent.red), Float(accent.green), Float(accent.blue), 0)
+            var accentColor = SIMD4<Float>(displayedAccent, 0)
             encoder.setFragmentBytes(&accentColor, length: MemoryLayout<SIMD4<Float>>.stride, index: 2)
             encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
             encoder.setFragmentBuffer(frame.normals, offset: 0, index: 5)
@@ -595,6 +603,29 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
+    private func updateAccent() {
+        let target = SIMD3<Float>(Float(accent.red), Float(accent.green), Float(accent.blue))
+        guard shader == .cloth else {
+            displayedAccent = target
+            accentTransitionTarget = target
+            accentTransitionStart = nil
+            return
+        }
+        let now = ProcessInfo.processInfo.systemUptime
+        if let start = accentTransitionStart {
+            let progress = Float(min(1, max(0, (now - start) / 0.6)))
+            let eased = progress * progress * (3 - 2 * progress)
+            displayedAccent = accentTransitionFrom + (accentTransitionTarget - accentTransitionFrom) * eased
+            if progress == 1 { accentTransitionStart = nil }
+        }
+        if target != accentTransitionTarget {
+            // Retarget from the current color, including during an unfinished fade.
+            accentTransitionFrom = displayedAccent
+            accentTransitionTarget = target
+            accentTransitionStart = now
+        }
+    }
+
     func draw(in view: MTKView) {
 #if DEBUG
         for (shader, reloader) in shaderReloaders {
@@ -610,6 +641,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
               let renderPassDescriptor = view.currentRenderPassDescriptor,
               let drawable = view.currentDrawable,
               let commandBuffer = commandQueue.makeCommandBuffer() else { return }
+        updateAccent()
         var rms: Float = 0
         _ = bands.withUnsafeMutableBufferPointer {
             SCSpectrumBufferRead(spectrumBuffer, $0.baseAddress, &rms, &bassLevel, &trebleLevel)
@@ -643,7 +675,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         encoder.setFragmentTexture(fallbackTexture, index: 1)
         encoder.setFragmentTexture(artworkTexture ?? fallbackTexture, index: 0)
         var accentColor = SIMD4<Float>(
-            Float(accent.red), Float(accent.green), Float(accent.blue),
+            displayedAccent,
             artworkTexture == nil ? 0 : 1
         )
         encoder.setFragmentBytes(
