@@ -199,6 +199,13 @@ test:
 		tests/HistoryTests.swift
 	/tmp/soundclaude-tests/history
 
+# Render rope glow against scene depth on a Metal GPU.
+.PHONY: test-piston-rendering
+test-piston-rendering:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -parse-as-library -o /tmp/soundclaude-tests/piston-rendering tests/PistonRenderingTests.swift
+	/tmp/soundclaude-tests/piston-rendering
+
 # Queue drag regression opens a temporary window and posts mouse events.
 test-queue-drag:
 	@mkdir -p /tmp/soundclaude-tests

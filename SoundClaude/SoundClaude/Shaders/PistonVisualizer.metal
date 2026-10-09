@@ -307,7 +307,11 @@ fragment PistonFragment pistonVisualizerFragment(
         float glowBrightness = pow(in.ropeBrightness, 1.5);
         float3 emission = in.color * halo * 0.28 * glowStrength * glowBrightness * u.finish.w;
         float alpha = max(emission.r, max(emission.g, emission.b));
-        return {float4(emission, alpha), in.position.z};
+        // The wider halo rasterizes the rope's plane again. Its interpolated
+        // depth can round behind the opaque rope, causing speckles in both
+        // the visible halo and bloom source. Bias only the glow depth slightly
+        // forward; depth writes stay disabled so scene occlusion is preserved.
+        return {float4(emission, alpha), max(0.0, in.position.z - 0.000002)};
     }
     if (u.ropes.w > 2.5) return {float4(float3(in.position.z), 1), in.position.z};
     if (u.ropes.w > 1.5) {
