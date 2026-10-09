@@ -96,6 +96,7 @@ struct SidebarView: View {
                         Text(destination.title)
                     } icon: {
                         Image(systemName: destination.systemImage)
+                            .frame(width: 24)
                     }
                         .padding(.trailing, destination == .liked ? 28 : 0)
                         .modifier(SidebarRowStyle(isSelected: selection == destination, usesPrimaryForeground: true) {
