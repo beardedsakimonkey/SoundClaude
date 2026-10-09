@@ -59,11 +59,14 @@ vertex PistonVertex pistonVisualizerVertex(
     const uint solidVertices = cylinderVertices * 3;
     const uint stringsPerPiston = uint(u.ropes.y);
     const uint ropeVertices = stringsPerPiston * 20 * 6;
-    uint piston = id / (solidVertices + ropeVertices);
-    uint local = id % (solidVertices + ropeVertices);
+    const uint bobVertices = 12 * 8 * 6;
+    const uint verticesPerPiston = solidVertices + ropeVertices + stringsPerPiston * bobVertices;
+    uint piston = id / verticesPerPiston;
+    uint local = id % verticesPerPiston;
+    bool isBob = local >= solidVertices + ropeVertices;
     bool glowPass = u.ropes.w > 3.5;
     bool lightPass = u.ropes.w > 2.5 && !glowPass;
-    if (lightPass && local >= solidVertices) {
+    if (lightPass && local >= solidVertices && !isBob) {
         // Rope ribbons viewed from the scene light.
         uint v = local - solidVertices;
         uint segment = v / 6;
@@ -90,7 +93,7 @@ vertex PistonVertex pistonVisualizerVertex(
         out.position = float4(corners[id], 0, 1);
         return out;
     }
-    // Per piston: three 32-sided cylinders, then rope ribbons.
+    // Per piston: three cylinders, rope ribbons, then spherical tip bobs.
     float height = u.heights[piston / 4][piston % 4];
     float3 center = float3((float(piston)-3.5)*1.85, 0, 0);
     float3 p, n;
@@ -130,6 +133,28 @@ vertex PistonVertex pistonVisualizerVertex(
         cylinderPosition = p;
         p += center;
         color = base ? float3(0.11, 0.13, 0.16) : float3(0.32, 0.36, 0.42);
+    } else if (isBob) {
+        uint v = local - solidVertices - ropeVertices;
+        uint string = piston * stringsPerPiston + v / bobVertices;
+        uint cell = (v % bobVertices) / 6;
+        uint corner = v % 6;
+        const uint columns[6] = {0, 1, 0, 0, 1, 1};
+        const uint rows[6] = {0, 0, 1, 1, 0, 1};
+        float longitude = float(cell % 12 + columns[corner]) * 2 * M_PI_F / 12;
+        float latitude = float(cell / 12 + rows[corner]) * M_PI_F / 8;
+        n = float3(sin(latitude) * cos(longitude), cos(latitude), sin(latitude) * sin(longitude));
+        // Keep the small bob visible at thin rope settings.
+        float radius = max(0.045, u.ropes.x * 2.5);
+        float3 tip = points[string * 21 + 20].xyz;
+        // Rest the bob on the floor while the rope tip stays inside it.
+        tip.y = max(tip.y, u.ropes.z + radius);
+        p = tip + n * radius;
+        surface.w = -1; // Preserve the sphere normal when shading the rope color.
+        uint localString = string % stringsPerPiston;
+        ropeUV = float2(0, localString % 2 == 0 ? 2.0 : 1.0);
+        color = localString % 2 == 0
+            ? 0.55 + 0.45 * cos(float(piston) * 0.47 + float3(0, 2, 4))
+            : float3(0.65);
     } else {
         uint v = local - solidVertices;
         uint segment = v/6;
@@ -166,7 +191,7 @@ vertex PistonVertex pistonVisualizerVertex(
             : float3(0.65);
     }
     float4 receiver = float4(0);
-    if (local < solidVertices) {
+    if (local < solidVertices || isBob) {
         if (lightPass) {
             // Use the same cap geometry for the scene and its cylinder shadow.
             float3 lightPosition = pistonLightPosition(p);
@@ -175,7 +200,7 @@ vertex PistonVertex pistonVisualizerVertex(
             return out;
         }
         receiver = float4(p, local < cylinderVertices * 2 ? 1.0 : 0.0);
-        if (u.ropes.w > 0.5) p = pistonGroundShadow(p, u);
+        if (u.ropes.w > 0.5 && !glowPass) p = pistonGroundShadow(p, u);
         p = pistonRotate(p-float3(0,1,0),u.camera.y,u.camera.z);
         n = pistonRotate(n,u.camera.y,u.camera.z);
     }
@@ -390,7 +415,7 @@ fragment PistonFragment pistonVisualizerFragment(
     bool isRope = in.uv.y > 0.5;
     // Keep rope lighting independent of camera distance.
     float3 lightingView = isRope ? float3(0, 0, 1) : normalize(in.eye);
-    if (isRope) {
+    if (isRope && in.surface.w >= 0) {
         // Reconstruct a round cross-section across the camera-facing ribbon.
         float3 tangent = normalize(in.ropeTangent);
         float3 side = cross(lightingView, tangent);
@@ -445,7 +470,8 @@ fragment PistonFragment pistonVisualizerFragment(
         + specular * (isRope ? 0.3 : 0.5) * visibility * jointVisibility;
     if (isRope) {
         // Emissive color and a pale core stay bright on the unlit side.
-        float core = pow(max(0.0, 1.0 - in.uv.x * in.uv.x), 3.0);
+        float core = in.surface.w < 0 ? pow(max(0.0, n.z), 8.0)
+            : pow(max(0.0, 1.0 - in.uv.x * in.uv.x), 3.0);
         float3 emissive = in.color * (0.8 + 0.2 * diffuse) + float3(0.24) * core;
         shaded = mix(shaded, emissive, in.uv.y > 1.5 ? 1.0 : saturate(u.finish.z));
         shaded *= in.ropeBrightness;

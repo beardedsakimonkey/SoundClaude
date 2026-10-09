@@ -309,7 +309,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         uniforms.append(SIMD4<Float>(progress, artworkAspect, artworkTexture == nil ? 0 : 1, hasTrack ? 1 : 0))
         uniforms.append(SIMD4<Float>(pistonSettings.groundColor, 0))
         return (buffer, uniforms, PistonSimulation.count *
-            (32 * 12 * 3 + pistonSettings.stringsPerPiston * PistonSimulation.segments * 6))
+            (32 * 12 * 3 + pistonSettings.stringsPerPiston * (PistonSimulation.segments * 6 + 12 * 8 * 6)))
     }
 
     private typealias ClothFrame = (positions: MTLBuffer, normals: MTLBuffer, uniforms: [SIMD4<Float>])
@@ -453,10 +453,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         }
         let solids = 32 * 12 * 3
         let ropes = pistonSettings.stringsPerPiston * PistonSimulation.segments * 6
+        let bobs = pistonSettings.stringsPerPiston * 12 * 8 * 6
         for piston in 0..<PistonSimulation.count {
             encoder.drawPrimitives(type: .triangle,
-                                   vertexStart: piston * (solids + ropes) + solids - 32 * 12,
-                                   vertexCount: ropes + 32 * 12)
+                                   vertexStart: piston * (solids + ropes + bobs) + solids - 32 * 12,
+                                   vertexCount: ropes + bobs + 32 * 12)
         }
         encoder.endEncoding()
         return texture
@@ -581,9 +582,10 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         }
         let solids = 32 * 12 * 3
         let ropes = pistonSettings.stringsPerPiston * PistonSimulation.segments * 6
+        let bobs = pistonSettings.stringsPerPiston * 12 * 8 * 6
         for piston in 0..<PistonSimulation.count {
             source.drawPrimitives(type: .triangle,
-                                  vertexStart: piston * (solids + ropes) + solids, vertexCount: ropes)
+                                  vertexStart: piston * (solids + ropes + bobs) + solids, vertexCount: ropes + bobs)
         }
         source.endEncoding()
         let blur = MPSImageGaussianBlur(device: device, sigma: max(2, Float(min(width, height)) * 0.006))
@@ -722,10 +724,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                     encoder.setDepthStencilState(glowDepthState)
                     let solids = 32 * 12 * 3
                     let ropes = pistonSettings.stringsPerPiston * PistonSimulation.segments * 6
+                    let bobs = pistonSettings.stringsPerPiston * 12 * 8 * 6
                     for piston in 0..<PistonSimulation.count {
                         encoder.drawPrimitives(type: .triangle,
-                                               vertexStart: piston * (solids + ropes) + solids,
-                                               vertexCount: ropes)
+                                               vertexStart: piston * (solids + ropes + bobs) + solids,
+                                               vertexCount: ropes + bobs)
                     }
                 }
             }
