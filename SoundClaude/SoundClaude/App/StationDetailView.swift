@@ -228,30 +228,33 @@ struct StationDetailView: View {
     }
 
     private var stationTitle: some View {
-        Button {
-            if let seedTrack {
-                onSelectTrack(seedTrack)
-            } else {
-                isOpeningSource = true
+        Label {
+            HStack(spacing: 4) {
+                Text("Station:")
+                Button {
+                    if let seedTrack {
+                        onSelectTrack(seedTrack)
+                    } else {
+                        isOpeningSource = true
+                    }
+                } label: {
+                    Text(title)
+                        .underline(isHoveringStationTitle)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onContentHover { isHoveringStationTitle = $0 }
+                .disabled(isOpeningSource)
+                .contentHelp(stationType == "Artist station" ? "View station artist" : "View station track")
+                .accessibilityLabel("\(stationType == "Artist station" ? "View artist" : "View track"): \(title)")
             }
-        } label: {
-            Label {
-                Text("Station: \(title)")
-                    .underline(isHoveringStationTitle)
-            } icon: {
-                Image(systemName: "dot.radiowaves.left.and.right")
-            }
-                .labelStyle(.titleAndIcon)
-                .font(.body)
-                .lineLimit(1)
-                .foregroundStyle(.secondary)
-                .contentShape(Rectangle())
+        } icon: {
+            Image(systemName: "dot.radiowaves.left.and.right")
         }
-        .buttonStyle(.plain)
-        .onContentHover { isHoveringStationTitle = $0 }
-        .disabled(isOpeningSource)
-        .contentHelp(stationType == "Artist station" ? "View station artist" : "View station track")
-        .accessibilityLabel("\(stationType == "Artist station" ? "View artist" : "View track"): \(title)")
+        .labelStyle(.titleAndIcon)
+        .font(.body)
+        .lineLimit(1)
+        .foregroundStyle(.secondary)
     }
 
     private var stationLikeButton: some View {
