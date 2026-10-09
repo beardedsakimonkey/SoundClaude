@@ -61,8 +61,12 @@ struct FeedView: View {
                                 }
                                 Text(activityLabel(for: item))
                                     .fixedSize()
-                                TimelineView(.periodic(from: .now, by: 60)) { context in
-                                    Text(relativeTime(for: item.createdAt, now: context.date))
+                                TimelineView(.periodic(from: .now, by: 60)) { _ in
+                                    RelativeTimestampView(
+                                        date: item.createdAt,
+                                        accessibilityPrefix: activityLabel(for: item),
+                                        showsSeparator: false
+                                    )
                                 }
                                 .fixedSize()
                             }
@@ -129,12 +133,5 @@ struct FeedView: View {
         case .track: item.isRepost ? "reposted a track" : "posted a track"
         case .playlist: item.isRepost ? "reposted a playlist" : "posted a playlist"
         }
-    }
-
-    private func relativeTime(for date: Date, now: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        formatter.dateTimeStyle = .numeric
-        return formatter.localizedString(for: min(date, now.addingTimeInterval(-1)), relativeTo: now)
     }
 }

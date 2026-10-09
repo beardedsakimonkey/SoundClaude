@@ -407,10 +407,14 @@ private struct TrackCommentRow: View {
                 .accessibilityLabel("Jump to \(timeLabel) in \(track.title)")
             }
             if showsRelativeAge, let createdAt = comment.createdAt {
-                Text(createdAt.formatted(.relative(presentation: .numeric, unitsStyle: .abbreviated)))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .contentHelp(createdAt.formatted(date: .abbreviated, time: .shortened))
+                RelativeTimestampView(
+                    date: createdAt,
+                    accessibilityPrefix: "Posted",
+                    showsSeparator: false,
+                    unitsStyle: .abbreviated
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }

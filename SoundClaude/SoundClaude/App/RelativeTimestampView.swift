@@ -2,17 +2,21 @@ import Foundation
 import SwiftUI
 
 struct RelativeTimestampView: View {
-    let timestamp: String?
+    var timestamp: String? = nil
+    var date: Date? = nil
     let accessibilityPrefix: String
     var prefix: String? = nil
     var showsSeparator = true
     var systemImage: String? = nil
+    var unitsStyle: Date.RelativeFormatStyle.UnitsStyle = .wide
+
+    @State private var isShowingDate = false
 
     var hasTimestamp: Bool { parsedDate != nil }
 
     var body: some View {
         if let date = parsedDate {
-            let relativeTime = date.formatted(.relative(presentation: .numeric, unitsStyle: .wide))
+            let relativeTime = date.formatted(.relative(presentation: .numeric, unitsStyle: unitsStyle))
             if showsSeparator {
                 Text("·")
                     .accessibilityHidden(true)
@@ -21,13 +25,26 @@ struct RelativeTimestampView: View {
                 Image(systemName: systemImage)
                     .accessibilityHidden(true)
             }
-            Text(prefix.map { "\($0) \(relativeTime)" } ?? relativeTime)
-                .contentHelp(date.formatted(date: .abbreviated, time: .shortened))
-                .accessibilityLabel("\(accessibilityPrefix) \(relativeTime)")
+            Button { isShowingDate = true } label: {
+                Text(prefix.map { "\($0) \(relativeTime)" } ?? relativeTime)
+                    .accessibilityLabel("\(accessibilityPrefix) \(relativeTime)")
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Show full date")
+            .onContentHover { isShowingDate = $0 }
+            .popover(isPresented: $isShowingDate, arrowEdge: .top) {
+                Text(date.formatted(date: .complete, time: .shortened))
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                    .fixedSize()
+                    .padding(12)
+            }
+            .onChange(of: date) { _, _ in isShowingDate = false }
         }
     }
 
     private var parsedDate: Date? {
+        if let date { return date }
         guard let timestamp else { return nil }
 
         let iso = ISO8601DateFormatter()
