@@ -305,8 +305,9 @@ private struct WaveformCommentMarker: View, Equatable {
     }
 
     var body: some View {
-        let textOnLeft = x > width / 2
-        let textWidth = min(380, max(0, (textOnLeft ? x : width - x) + 16))
+        let rightSpace = max(0, width - x + 16)
+        let leftSpace = max(0, x + 16)
+        let textWidth = min(380, max(leftSpace, rightSpace))
         return Button {
             guard duration > 0 else { return }
             seekRequest = seconds(for: comment) / duration
@@ -326,47 +327,71 @@ private struct WaveformCommentMarker: View, Equatable {
         .accessibilityLabel("\(comment.user?.username ?? "Unknown user"): \(comment.body)")
         .accessibilityValue(Duration.seconds(seconds(for: comment)).formatted(.time(pattern: .minuteSecond)))
         .accessibilityHint("Play from this comment")
-        .overlay(alignment: textOnLeft ? .topTrailing : .topLeading) {
-            if showsComment, textWidth > 0 {
-                HStack(spacing: 4) {
-                    if let user = comment.user {
-                        ArtistLink(artist: user, onSelect: onSelectArtist)
-                            .fontWeight(.bold)
-                            .opacity(0.65)
-                    }
-                    Text(comment.body.replacingOccurrences(of: "\n", with: " "))
-                }
-                    .font(.caption)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .frame(maxWidth: textWidth)
-                    .fixedSize(horizontal: true, vertical: true)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(.primary.opacity(0.2), lineWidth: 1)
-                    }
-                    .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
-                    .offset(y: 38)
-                    .background {
-                        GeometryReader { geometry in
-                            Color.clear.preference(
-                                key: WaveformCommentBubbleFrames.self,
-                                value: [comment.id: geometry.frame(in: .named(hoverSpace)).offsetBy(dx: 0, dy: 38)]
-                            )
+        .overlay(alignment: .topLeading) {
+            WaveformCommentBubbleLayout(rightSpace: rightSpace, leftSpace: leftSpace) {
+                if showsComment, textWidth > 0 {
+                    HStack(spacing: 4) {
+                        if let user = comment.user {
+                            ArtistLink(artist: user, onSelect: onSelectArtist)
+                                .fontWeight(.bold)
+                                .opacity(0.65)
                         }
+                        Text(comment.body.replacingOccurrences(of: "\n", with: " "))
                     }
-                    .transition(.opacity.combined(with: .scale(
-                        scale: 0.85, anchor: textOnLeft ? .topTrailing : .topLeading
-                    )))
+                        .font(.caption)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: textWidth)
+                        .fixedSize(horizontal: true, vertical: true)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(.primary.opacity(0.2), lineWidth: 1)
+                        }
+                        .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
+                        .offset(y: 38)
+                        .background {
+                            GeometryReader { geometry in
+                                Color.clear.preference(
+                                    key: WaveformCommentBubbleFrames.self,
+                                    value: [comment.id: geometry.frame(in: .named(hoverSpace)).offsetBy(dx: 0, dy: 38)]
+                                )
+                            }
+                        }
+                        .transition(.opacity.combined(with: .scale(
+                            scale: 0.85, anchor: .top
+                        )))
+                }
             }
         }
     }
 
     private func seconds(for comment: SoundCloudComment) -> Double {
         Double(comment.timestampMilliseconds ?? 0) / 1_000
+    }
+}
+
+// Measure the capped bubble before choosing a side, so short comments can
+// open right even past the midpoint. Use the wider side if neither can fit.
+private struct WaveformCommentBubbleLayout: Layout {
+    let rightSpace: CGFloat
+    let leftSpace: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        proposal.replacingUnspecifiedDimensions(by: CGSize(width: 32, height: 32))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let bubble = subviews.first else { return }
+        let size = bubble.sizeThatFits(.unspecified)
+        let opensRight = size.width <= rightSpace || rightSpace >= leftSpace
+        bubble.place(
+            at: CGPoint(x: opensRight ? bounds.minX : bounds.maxX - size.width, y: bounds.minY),
+            anchor: .topLeading,
+            proposal: ProposedViewSize(size)
+        )
     }
 }
 

@@ -23,6 +23,7 @@ final class AppModel {
         CommentPage(comments: [
             SoundCloudComment(id: "left", body: "A comment to hover", user: SoundCloudUser(username: "Left artist"), timestampMilliseconds: 25000),
             SoundCloudComment(id: "neighbor", body: "A nearby comment", user: SoundCloudUser(username: "Nearby artist"), timestampMilliseconds: 30000),
+            SoundCloudComment(id: "short", body: "Nice", user: SoundCloudUser(username: "Short artist"), timestampMilliseconds: 60000),
             SoundCloudComment(id: "right", body: "Another comment to hover", user: SoundCloudUser(username: "Right artist"), timestampMilliseconds: 75000)
         ])
     }
@@ -99,7 +100,7 @@ struct ArtistLink: View {
             precondition(app.isActive, "Test window must be active")
             await post(.mouseMoved, CGPoint(x: 300, y: 200))
             await settle()
-            for (name, x) in [("Left artist", 150.0), ("Right artist", 450.0)] {
+            for (name, x) in [("Left artist", 150.0), ("Short artist", 360.0), ("Right artist", 450.0)] {
                 await post(.mouseMoved, CGPoint(x: x, y: 56))
                 precondition(Observations.names.contains(name), "Avatar must show its comment")
                 if name == "Left artist" {
@@ -113,10 +114,15 @@ struct ArtistLink: View {
                 await post(.mouseMoved, CGPoint(x: x + 10, y: 75))
                 precondition(Observations.names.contains(name), "Comment disappeared in the gap")
                 let frame = Observations.frames[name]!
+                if name == "Right artist" {
+                    precondition(frame.minX < x - 16, "Long comment near the edge must open left")
+                } else {
+                    precondition(frame.minX >= x - 16, "Comment must open right when it fits")
+                }
                 let target = CGPoint(x: frame.midX, y: frame.midY)
                 await post(.mouseMoved, target)
                 precondition(Observations.names.contains(name), "Comment disappeared over the name")
-                await post(.mouseMoved, CGPoint(x: frame.maxX + 40, y: frame.midY))
+                await post(.mouseMoved, CGPoint(x: frame.maxX + 10, y: frame.midY))
                 precondition(Observations.names.contains(name), "Comment disappeared over the text")
                 model.playback.currentTrack = SoundCloudTrack(urn: "test")
                 model.playback.isPlaying = true
