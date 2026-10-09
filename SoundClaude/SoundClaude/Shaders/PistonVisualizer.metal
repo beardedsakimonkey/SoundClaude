@@ -143,11 +143,9 @@ vertex PistonVertex pistonVisualizerVertex(
         float longitude = float(cell % 12 + columns[corner]) * 2 * M_PI_F / 12;
         float latitude = float(cell / 12 + rows[corner]) * M_PI_F / 8;
         n = float3(sin(latitude) * cos(longitude), cos(latitude), sin(latitude) * sin(longitude));
-        // Keep the small bob visible at thin rope settings.
+        // Match the terminal collision radius in PistonSolver.c.
         float radius = max(0.045, u.ropes.x * 2.5);
         float3 tip = points[string * 21 + 20].xyz;
-        // Rest the bob on the floor while the rope tip stays inside it.
-        tip.y = max(tip.y, u.ropes.z + radius);
         p = tip + n * radius;
         surface.w = -1; // Preserve the sphere normal when shading the rope color.
         uint localString = string % stringsPerPiston;

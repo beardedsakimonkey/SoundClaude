@@ -107,10 +107,45 @@ static void collideEdge(simd_float4 *a, simd_float4 *b, PistonCollider c) {
 }
 
 
+static PistonCollider expandCollider(PistonCollider collider, float radius) {
+    collider.extent += radius;
+    collider.previousExtent += radius;
+    return collider;
+}
+
+// Sphere contacts use the actual cylinder corner, rather than the square
+// corner of an expanded cylinder, so a bob can slide around a cap rim.
+static void collideBob(simd_float4 *point, simd_float4 *previous,
+                       PistonCollider collider, float ropeRadius, float radius) {
+    collider.extent -= ropeRadius;
+    simd_float3 offset = point->xyz - collider.center;
+    float radial = hypotf(offset.x, offset.z);
+    simd_float3 closest = offset;
+    float scale = fminf(1, collider.extent.x / fmaxf(radial, 0.000001f));
+    closest.x *= scale;
+    closest.z *= scale;
+    closest.y = fminf(collider.extent.y, fmaxf(-collider.extent.y, closest.y));
+    simd_float3 separation = offset - closest;
+    float distance = simd_length(separation);
+    if (distance >= radius) return;
+    simd_float3 normal, surface;
+    if (distance > 0.000001f) {
+        normal = separation / distance;
+        surface = collider.center + closest;
+    } else {
+        colliderSurface(collider, offset / collider.extent, &normal, &surface);
+    }
+    point->xyz += normal * (simd_dot(surface - point->xyz, normal) + radius + 0.00001f);
+    float velocity = simd_dot(point->xyz - previous->xyz, normal);
+    if (velocity < 0) previous->xyz += normal * velocity;
+}
+
 void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
                   const float *heights, const float *previousHeights, float ropeRadius, uint32_t stringCount,
                   uint32_t stringsPerPiston, uint32_t segments, float segmentLength,
                   float damping, float gravityStrength, float stretchiness) {
+    // Match the sphere in PistonVisualizer.metal.
+    const float bobRadius = fmaxf(0.045f, ropeRadius * 2.5f);
     const uint32_t pistonCount = stringCount / stringsPerPiston;
     PistonCollider colliders[pistonCount * 2];
     for (uint32_t piston = 0; piston < pistonCount; ++piston) {
@@ -143,7 +178,9 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
             p[node] += (position - old[node]) * (1.0f - damping) + gravity;
             old[node] = position;
             for (uint32_t collider = 0; collider < pistonCount * 2; ++collider)
-                collideNode(&p[node], &old[node], colliders[collider], position.xyz);
+                collideNode(&p[node], &old[node], node == segments
+                    ? expandCollider(colliders[collider], bobRadius - ropeRadius)
+                    : colliders[collider], position.xyz);
         }
         // Accumulate constraint impulses within this step so extra collision
         // passes do not make elastic ropes progressively stiffer.
@@ -156,17 +193,16 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
                 const simd_float4 difference = p[node] - p[node - 1];
                 const float length = simd_length(difference);
                 if (length <= 0.000001f) continue;
-                const float weight = node == 1 ? 1.0f : 2.0f;
+                // The bob weighs four times as much as a rope node.
+                const float inverseMass = node == segments ? 0.25f : 1.0f;
+                const float previousInverseMass = node == 1 ? 0.0f : 1.0f;
+                const float weight = inverseMass + previousInverseMass;
                 const float impulse = (length - segmentLength - compliance * impulses[node])
                     / (weight + compliance);
                 impulses[node] += impulse;
                 const simd_float4 correction = difference * (impulse / length);
-                if (node == 1) {
-                    p[node] -= correction;
-                } else {
-                    p[node] -= correction;
-                    p[node - 1] += correction;
-                }
+                p[node] -= correction * inverseMass;
+                p[node - 1] += correction * previousInverseMass;
             }
             // Propagate sudden root motion through the entire rope in one sweep.
             // The symmetric constraints above converge slowly along a taut chain.
@@ -186,7 +222,21 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
                     // The pinned root touches the cap underside.
                     if (node > 1) collideEdge(&p[node - 1], &p[node], colliders[collider]);
                 }
-                p[node].y = fmaxf(-1.65f, p[node].y);
+            }
+            for (uint32_t collider = 0; collider < pistonCount * 2; ++collider) {
+                simd_float4 before = p[segments];
+                collideBob(&p[segments], &old[segments], colliders[collider], ropeRadius, bobRadius);
+                // Transfer the contact to the attachment as well, so the
+                // last segment does not stretch across the cap rim.
+                if (segments > 1) p[segments - 1] += p[segments] - before;
+            }
+            // Edge contacts can also move the preceding node below the floor.
+            for (uint32_t node = 1; node <= segments; ++node) {
+                float floor = -1.65f + (node == segments ? bobRadius : 0);
+                if (p[node].y < floor) {
+                    p[node].y = floor;
+                    old[node].y = fminf(old[node].y, floor);
+                }
             }
             // The root is on the underside, inside the radius-expanded cap.
             // Generic collision exits can put the first free node on top and
