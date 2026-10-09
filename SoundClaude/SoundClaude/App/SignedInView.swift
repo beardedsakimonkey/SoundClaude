@@ -83,7 +83,7 @@ struct SignedInView: View {
             if isShowingVisualizer {
                 VisualizerView(
                     playback: model.playback,
-                    shader: visualizerShader,
+                    shader: $visualizerShader,
                     spectrumBuffer: model.analyzer.spectrumBuffer,
                     artworkLoader: model.artworkLoader,
                     onClose: { isShowingVisualizer = false }

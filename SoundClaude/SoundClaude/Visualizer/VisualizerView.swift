@@ -2,7 +2,7 @@ import SwiftUI
 
 struct VisualizerView: View {
     let playback: PlaybackController
-    let shader: VisualizerShader
+    @Binding var shader: VisualizerShader
     let spectrumBuffer: OpaquePointer
     let artworkLoader: ArtworkLoader
     let onClose: () -> Void
@@ -94,6 +94,14 @@ struct VisualizerView: View {
         }
         .overlay(alignment: .topTrailing) {
             HStack {
+                Button {
+                    shader = shader.next
+                } label: {
+                    Label("Next visualizer", systemImage: "arrow.right")
+                        .labelStyle(.iconOnly)
+                }
+                .buttonStyle(.bordered)
+                .help("Switch to \(shader.next.title) visualizer (Enter)")
                 Button {
                     isShowingControls.toggle()
                 } label: {
