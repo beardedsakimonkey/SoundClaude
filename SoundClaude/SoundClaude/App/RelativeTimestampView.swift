@@ -8,7 +8,6 @@ struct RelativeTimestampView: View {
     var prefix: String? = nil
     var showsSeparator = true
     var systemImage: String? = nil
-    var unitsStyle: Date.RelativeFormatStyle.UnitsStyle = .wide
 
     @State private var isShowingDate = false
 
@@ -16,7 +15,7 @@ struct RelativeTimestampView: View {
 
     var body: some View {
         if let date = parsedDate {
-            let relativeTime = date.formatted(.relative(presentation: .numeric, unitsStyle: unitsStyle))
+            let relativeTime = date.formatted(.relative(presentation: .numeric, unitsStyle: .wide))
             if showsSeparator {
                 Text("·")
                     .accessibilityHidden(true)

@@ -328,15 +328,11 @@ private struct WaveformCommentMarker: View, Equatable {
         .accessibilityHint("Play from this comment")
         .overlay(alignment: textOnLeft ? .topTrailing : .topLeading) {
             if showsComment, textWidth > 0 {
-                HStack(spacing: 6) {
+                HStack(spacing: 4) {
                     if let user = comment.user {
                         ArtistLink(artist: user, onSelect: onSelectArtist)
-                            .fontWeight(.heavy)
+                            .fontWeight(.bold)
                             .opacity(0.65)
-                    } else {
-                        Text("Unknown user")
-                            .fontWeight(.heavy)
-                            .foregroundStyle(.secondary)
                     }
                     Text(comment.body.replacingOccurrences(of: "\n", with: " "))
                 }

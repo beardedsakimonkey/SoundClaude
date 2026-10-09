@@ -66,7 +66,7 @@ struct TrackListRow: View {
             .onContentHover { isHoveringArtwork = $0 }
             .contentHelp(isPlaybackActive ? "Pause" : "Play")
             .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Button {
                         onSelectTrack(track)

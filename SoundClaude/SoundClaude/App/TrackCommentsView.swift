@@ -369,13 +369,13 @@ private struct TrackCommentRow: View {
     }
 
     private func header(showsRelativeAge: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
             if let user = comment.user {
                 ArtistLink(
                     artist: user,
                     onSelect: onSelectArtist
                 )
-                .font(.headline)
+                .font(.subheadline)
                 .fontWeight(.medium)
                 .opacity(0.85)
             } else {
@@ -410,8 +410,7 @@ private struct TrackCommentRow: View {
                 RelativeTimestampView(
                     date: createdAt,
                     accessibilityPrefix: "Posted",
-                    showsSeparator: false,
-                    unitsStyle: .abbreviated
+                    showsSeparator: false
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)

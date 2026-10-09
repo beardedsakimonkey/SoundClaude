@@ -717,7 +717,7 @@ struct DetailArtworkView: View {
                         ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut)
                 ) { artwork in
                     artwork.shadow(
-                        color: .black.opacity(displayedLift > 0 ? 0.44 : 0.22),
+                        color: .black.opacity(displayedLift > 0 ? 0.32 : 0.22),
                         radius: 6 + 10 * liftProgress,
                         x: 0,
                         y: 4 + 10 * liftProgress
