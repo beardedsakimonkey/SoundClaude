@@ -164,6 +164,7 @@ struct SignedInView: View {
                 }
             }
         }
+        .environment(\.waveformCommentArtistAction, showArtist)
         .environment(\.addToPlaylist, { playlistTrack = $0 })
         .sheet(item: $playlistTrack) { track in
             AddToPlaylistView(

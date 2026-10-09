@@ -295,3 +295,15 @@ test-track-waveform-navigation:
 		SoundClaude/SoundClaude/App/ContentHover.swift \
 		tests/TrackWaveformNavigationTests.swift
 	/tmp/soundclaude-tests/track-waveform-navigation
+
+# Exercise pointer travel from waveform avatars into comment bubbles and artist links.
+.PHONY: test-waveform-comment-hover
+test-waveform-comment-hover:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/waveform-comment-hover \
+		SoundClaude/SoundClaude/App/WaveformCommentsView.swift \
+		SoundClaude/SoundClaude/App/WaveformCommentIndex.swift \
+		SoundClaude/SoundClaude/App/ContentHover.swift \
+		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
+		tests/WaveformCommentHoverTests.swift
+	/tmp/soundclaude-tests/waveform-comment-hover

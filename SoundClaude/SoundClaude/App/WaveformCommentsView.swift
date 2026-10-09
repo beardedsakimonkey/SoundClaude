@@ -1,5 +1,18 @@
 import SwiftUI
 
+private let waveformCommentHoverOverflow: CGFloat = 60
+
+private struct WaveformCommentArtistActionKey: EnvironmentKey {
+    static let defaultValue: (SoundCloudUser) -> Void = { _ in }
+}
+
+extension EnvironmentValues {
+    var waveformCommentArtistAction: (SoundCloudUser) -> Void {
+        get { self[WaveformCommentArtistActionKey.self] }
+        set { self[WaveformCommentArtistActionKey.self] = newValue }
+    }
+}
+
 struct WaveformCommentsView: View {
     let track: SoundCloudTrack
     let model: AppModel
@@ -19,6 +32,7 @@ struct WaveformCommentsView: View {
             // Retain them on pause so resuming does not reload the avatars.
             if showsComments || hasShownComments {
                 markers
+                    .padding(.bottom, -waveformCommentHoverOverflow)
             }
         }
         .onChange(of: showsComments, initial: true) { _, visible in
@@ -136,6 +150,8 @@ private struct WaveformCommentMarkersContent: View {
     @Binding var seekRequest: Double?
 
     @State private var hoveredID: String?
+    @State private var bubbleFrames: [String: CGRect] = [:]
+    @Namespace private var hoverSpace
     @FocusState private var focusedID: String?
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
     @Environment(\.contentHoverSuppression) private var hoverSuppression
@@ -143,12 +159,29 @@ private struct WaveformCommentMarkersContent: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let interactionID = (hoveredID != nil && isHoverAllowed ? hoveredID : nil) ?? focusedID
+            let interactionID = (isHoverAllowed ? hoveredID : nil) ?? focusedID
             let width = proxy.size.width
+            let markerHeight = max(0, proxy.size.height - waveformCommentHoverOverflow)
             let comments = index.visibleComments(duration: duration)
             let interactionX = comments.first { $0.id == interactionID }
                 .map { position(for: $0, width: width) }
             let commentID = interactionID ?? playbackID
+            let bubbleFrame = commentID.flatMap { bubbleFrames[$0] }
+            let commentX = comments.first { $0.id == commentID }
+                .map { position(for: $0, width: width) }
+            // Only bridge the gap directly below the 32-point avatar.
+            // The avatar row stays free to select neighboring comments.
+            let bridge = bubbleFrame.flatMap { frame in
+                commentX.map { x in
+                    CGRect(x: x - 16, y: markerHeight, width: 32,
+                           height: max(0, frame.minY - markerHeight))
+                }
+            }
+            let hoverRegion = Path { path in
+                path.addRect(CGRect(x: 0, y: 0, width: width, height: markerHeight))
+                if let bridge { path.addRect(bridge) }
+                if let bubbleFrame { path.addRect(bubbleFrame) }
+            }
             ZStack(alignment: .topLeading) {
                 ForEach(comments) { comment in
                     let distance = interactionX.map { abs(position(for: comment, width: width) - $0) }
@@ -162,7 +195,7 @@ private struct WaveformCommentMarkersContent: View {
                         isActive: comment.id == interactionID || comment.id == playbackID,
                         showsComment: comment.id == commentID,
                         proximity: proximity,
-                        focusedID: $focusedID, seekRequest: $seekRequest
+                        focusedID: $focusedID, seekRequest: $seekRequest, hoverSpace: hoverSpace
                     )
                         .equatable()
                         .modifier(FadeInOnAppear())
@@ -171,17 +204,28 @@ private struct WaveformCommentMarkersContent: View {
                             reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15),
                             value: showsComments
                         )
-                        .position(x: position(for: comment, width: width), y: proxy.size.height / 2)
+                        .position(x: position(for: comment, width: width), y: markerHeight / 2)
                         // Keep active avatars above neighbors, with interaction above playback.
                         .zIndex(comment.id == interactionID ? 2 : (comment.id == playbackID ? 1 : 0))
                 }
             }
             .frame(width: width, height: proxy.size.height, alignment: .topLeading)
-            .contentShape(Rectangle())
+            .coordinateSpace(name: hoverSpace)
+            .onPreferenceChange(WaveformCommentBubbleFrames.self) { bubbleFrames = $0 }
+            .contentShape(hoverRegion)
             .onContinuousHover { phase in
                 switch phase {
                 case .active(let location):
                     guard isHoverAllowed else { return }
+                    if let commentID,
+                       bubbleFrame?.contains(location) == true || bridge?.contains(location) == true {
+                        hoveredID = commentID
+                        return
+                    }
+                    guard location.y >= 0, location.y <= markerHeight else {
+                        hoveredID = nil
+                        return
+                    }
                     // Select by distance, independent of the avatars' overlap and
                     // the active avatar's larger size and higher drawing order.
                     let nextID = index.hoverCommentID(
@@ -205,7 +249,7 @@ private struct WaveformCommentMarkersContent: View {
                 focusedID = nil
             }
         }
-        .onChange(of: hoveredID != nil && isHoverAllowed) { _, enabled in
+        .onChange(of: isHoverAllowed) { _, enabled in
             if !enabled {
                 hoveredID = nil
             }
@@ -227,6 +271,14 @@ private struct WaveformCommentMarkersContent: View {
     }
 }
 
+private struct WaveformCommentBubbleFrames: PreferenceKey {
+    static let defaultValue: [String: CGRect] = [:]
+
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
 // Hover and playback only rebuild markers whose appearance changes. Keep the
 // immutable snapshot in equality so newly loaded comment data is never stale.
 private struct WaveformCommentMarker: View, Equatable {
@@ -241,9 +293,11 @@ private struct WaveformCommentMarker: View, Equatable {
     let proximity: CGFloat
     let focusedID: FocusState<String?>.Binding
     @Binding var seekRequest: Double?
+    let hoverSpace: Namespace.ID
+    @Environment(\.waveformCommentArtistAction) private var onSelectArtist
 
     static func == (lhs: Self, rhs: Self) -> Bool {
-        // Both bindings address stable state owned by the marker layer.
+        // The bindings address stable state owned by the marker layer.
         lhs.index === rhs.index && lhs.comment.id == rhs.comment.id
             && lhs.loader === rhs.loader && lhs.width == rhs.width && lhs.x == rhs.x
             && lhs.duration == rhs.duration && lhs.isActive == rhs.isActive
@@ -252,7 +306,7 @@ private struct WaveformCommentMarker: View, Equatable {
 
     var body: some View {
         let textOnLeft = x > width / 2
-        let textWidth = min(280, max(0, (textOnLeft ? x : width - x) + 16))
+        let textWidth = min(380, max(0, (textOnLeft ? x : width - x) + 16))
         return Button {
             guard duration > 0 else { return }
             seekRequest = seconds(for: comment) / duration
@@ -269,9 +323,23 @@ private struct WaveformCommentMarker: View, Equatable {
         }
         .buttonStyle(.plain)
         .focused(focusedID, equals: comment.id)
+        .accessibilityLabel("\(comment.user?.username ?? "Unknown user"): \(comment.body)")
+        .accessibilityValue(Duration.seconds(seconds(for: comment)).formatted(.time(pattern: .minuteSecond)))
+        .accessibilityHint("Play from this comment")
         .overlay(alignment: textOnLeft ? .topTrailing : .topLeading) {
             if showsComment, textWidth > 0 {
-                Text(comment.body.replacingOccurrences(of: "\n", with: " "))
+                HStack(spacing: 6) {
+                    if let user = comment.user {
+                        ArtistLink(artist: user, onSelect: onSelectArtist)
+                            .fontWeight(.heavy)
+                            .opacity(0.65)
+                    } else {
+                        Text("Unknown user")
+                            .fontWeight(.heavy)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(comment.body.replacingOccurrences(of: "\n", with: " "))
+                }
                     .font(.caption)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -286,16 +354,19 @@ private struct WaveformCommentMarker: View, Equatable {
                     }
                     .shadow(color: .black.opacity(0.25), radius: 6, y: 3)
                     .offset(y: 38)
+                    .background {
+                        GeometryReader { geometry in
+                            Color.clear.preference(
+                                key: WaveformCommentBubbleFrames.self,
+                                value: [comment.id: geometry.frame(in: .named(hoverSpace)).offsetBy(dx: 0, dy: 38)]
+                            )
+                        }
+                    }
                     .transition(.opacity.combined(with: .scale(
                         scale: 0.85, anchor: textOnLeft ? .topTrailing : .topLeading
                     )))
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
             }
         }
-        .accessibilityLabel("\(comment.user?.username ?? "Unknown user"): \(comment.body)")
-        .accessibilityValue(Duration.seconds(seconds(for: comment)).formatted(.time(pattern: .minuteSecond)))
-        .accessibilityHint("Play from this comment")
     }
 
     private func seconds(for comment: SoundCloudComment) -> Double {
