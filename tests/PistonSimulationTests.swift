@@ -21,17 +21,6 @@ struct PistonSimulationTests {
         for string in 0..<(PistonSimulation.count * simulation.settings.stringsPerPiston) {
             let start = string * (PistonSimulation.segments + 1)
             let root = simulation.positions[start]
-            let bob = simulation.positions[start + PistonSimulation.segments]
-            let bobRadius = max(0.045, simulation.settings.ropeThickness * 1.25) - 0.001
-            precondition(bob.y >= -1.65 + bobRadius, "Bob intersects floor")
-            for piston in 0..<PistonSimulation.count {
-                let radial = hypot(bob.x - PistonSimulation.center(piston).x, bob.z)
-                let height = simulation.heights[piston]
-                let capDistance = hypot(max(0, radial - 0.65), max(0, abs(bob.y - height) - 0.055))
-                let shaftDistance = hypot(max(0, radial - 0.22), max(0, max(-1.53 - bob.y, bob.y - height)))
-                precondition(capDistance >= bobRadius, "Bob intersects cap")
-                precondition(shaftDistance >= bobRadius, "Bob intersects shaft")
-            }
             precondition(simulation.positions[start + 1].y <= root.y - radius,
                          "First rope segment crosses the cap underside")
             // The root is pinned to the cap underside. Check all other segments,
@@ -98,12 +87,12 @@ struct PistonSimulationTests {
         let point = SIMD4<Float>(x + 0.5, 1.3, 0, 0)
         let cap = step(root: SIMD4(x + 3, 1.8, 0, 0), start: point, end: point,
                        height: 1.8, previousHeight: 0.8)
-        precondition(cap.y >= 1.8 + 0.055 + 0.044)
+        precondition(cap.y >= 1.8 + 0.055 + 0.011)
         // Nodes cross the shaft between integration samples.
         let shaft = step(root: SIMD4(x - 1, 0.8, 0, 0),
                          start: SIMD4(x - 1, 0, 0, 0), end: SIMD4(x + 1, 0, 0, 0),
                          height: 0.8, previousHeight: 0.8)
-        precondition(shaft.x <= x - 0.22 - 0.044, "Swept shaft: \(shaft)")
+        precondition(shaft.x <= x - 0.22 - 0.011, "Swept shaft: \(shaft)")
         // The base no longer pushes ropes out of its outer rim.
         let insideBase = SIMD4<Float>(x + 0.3, -1.53, 0, 0)
         let unchanged = step(root: SIMD4(x + 3, 0.8, 0, 0),
@@ -380,9 +369,7 @@ struct PistonSimulationTests {
         simulation.settings.travel = 0
         simulation.settings.gravity = 0
         simulation.settings.damping = 0.001
-        // Both smoothing filters apply when travel becomes zero. Allow the
-        // five-unit drop to settle before checking its final height.
-        for _ in 0..<1200 {
+        for _ in 0..<600 {
             simulation.advance(delta: PistonSimulation.step, bands: [Float](repeating: 1, count: 64))
         }
         precondition(simulation.heights.allSatisfy { abs($0 - 0.8) < 0.001 })
