@@ -133,6 +133,10 @@ struct DetailWaveformOverlay: ViewModifier {
                         .overlay(DetailWaveformScrollForwarder(target: source.scrollTarget))
                         .frame(width: bounds.width, height: bounds.height)
                         .position(x: bounds.midX, y: bounds.midY)
+                        // Anchor updates must place the waveform immediately,
+                        // including the first layout after navigation. Inner bar
+                        // animations still use their own transactions.
+                        .transaction { $0.animation = nil }
                     }
                 }
                 .clipped()
