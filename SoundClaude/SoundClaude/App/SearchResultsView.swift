@@ -20,6 +20,7 @@ struct SearchResultsView: View {
             Text(isTagSearch ? "Tracks tagged “\(query)”" : isGenreSearch ? "Tracks in “\(query)”" : "Results for “\(query)”")
                 .font(.title2.weight(.semibold))
                 .textSelection(.enabled)
+                .modifier(FadeInOnAppear())
             if !isGenreSearch && !isTagSearch {
                 TabPicker(
                     title: "Search type",
@@ -33,6 +34,7 @@ struct SearchResultsView: View {
                     ),
                     optionSystemImage: { $0.systemImage }
                 )
+                .modifier(FadeInOnAppear())
             }
 
             // Keep visited lists mounted to retain results and pagination.
