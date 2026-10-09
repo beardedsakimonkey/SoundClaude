@@ -24,8 +24,8 @@ struct ClothSettings: Equatable {
 
 struct ClothCamera: Equatable {
     var yaw: Float = 0
-    var pitch: Float = 0
-    var zoom: Float = 0.7
+    var pitch: Float = .pi * 65 / 180
+    var zoom: Float = 0.8
 
     static let pitchRange: ClosedRange<Float> = 0...1.85
 

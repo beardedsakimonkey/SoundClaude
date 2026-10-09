@@ -357,7 +357,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 camera,
                 SIMD4<Float>(shineIntensity, clothSettings.groundBrightness, clothSettings.showMesh ? 1 : 0, 0),
                 SIMD4<Float>(Float(view.drawableSize.width), 0.48, ClothSimulation.groundDepth, Float(view.drawableSize.height)),
-                SIMD4<Float>(trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0, hasTrack ? 1 : 0, clothSettings.groundTileSize, 0),
+                SIMD4<Float>(trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0, hasTrack ? 1 : 0, clothSettings.groundTileSize, ClothGroundControls.targetOffset),
                 SIMD4<Float>(cloth.bassOrigin.x, cloth.bassOrigin.y, clothSettings.impulseRadius,
                              bassHighlight * clothSettings.flashBrightness)
             ]
@@ -909,6 +909,9 @@ enum PistonGroundControls {
 
 // Z-up projection and floor hit targets for the cloth's playback controls.
 enum ClothGroundControls {
+    // Move the orbit target toward the camera along the cloth plane.
+    static let targetOffset: Float = 1
+
     static func camera(size: CGSize, camera: ClothCamera, artworkAspect: Float) -> SIMD4<Float> {
         let reference = ClothSettings().width
         let width = reference * min(1, artworkAspect) + 3.4
@@ -931,7 +934,8 @@ enum ClothGroundControls {
                          -sin(camera.y) * q.x + cos(camera.y) * q.y, q.z)
         }
         let scale = min(2.6, 2.6 * camera.x)
-        let origin = inverseRotate(SIMD3(0, 0, camera.w))
+        let target = SIMD3(-sin(camera.y) * targetOffset, -cos(camera.y) * targetOffset, 0)
+        let origin = target + inverseRotate(SIMD3(0, 0, camera.w))
         let ray = inverseRotate(SIMD3(ndc.x * camera.x / scale, ndc.y / scale, -1))
         guard abs(ray.z) > 0.000001 else { return nil }
         let distance = (ClothSimulation.groundDepth - origin.z) / ray.z

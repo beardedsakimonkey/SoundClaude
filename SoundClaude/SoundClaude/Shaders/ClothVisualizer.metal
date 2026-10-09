@@ -6,7 +6,7 @@ struct ClothUniforms {
     float4 camera; // aspect, yaw, pitch, distance
     float4 appearance; // shine intensity, ground brightness, mesh debug, pass (cloth, mask, ground, supports, support mask)
     float4 shadow; // viewport width, opacity, ground depth, viewport height
-    float4 track; // progress, has track, ground tile size, unused
+    float4 track; // progress, has track, ground tile size, camera target offset
     float4 bass; // impulse origin XY, radius, flash intensity
 };
 
@@ -22,6 +22,10 @@ struct ClothVertex {
 static float3 clothGroundProjection(float3 p, float groundDepth) {
     float gap = max(0.0, p.z - groundDepth);
     return float3(p.xy + float2(0.18, 0.24) * gap, groundDepth);
+}
+
+static float3 clothCameraTarget(constant ClothUniforms &u) {
+    return float3(-sin(u.camera.y) * u.track.w, -cos(u.camera.y) * u.track.w, 0);
 }
 
 static float3 clothCameraRotation(float3 v, float yaw, float pitch) {
@@ -119,7 +123,7 @@ static ClothVertex clothSupportVertex(uint id, const device float4 *positions,
         }
     }
     if (u.appearance.w > 3.5) p = clothGroundProjection(p, u.shadow.z);
-    float3 world = clothCameraRotation(p, u.camera.y, u.camera.z);
+    float3 world = clothCameraRotation(p - clothCameraTarget(u), u.camera.y, u.camera.z);
     float distance = u.camera.w - world.z;
     float scale = min(2.6, 2.6 * u.camera.x);
     ClothVertex out;
@@ -160,7 +164,7 @@ vertex ClothVertex clothVisualizerVertex(
     if (uniforms.appearance.w > 0.5) {
         p = clothGroundProjection(p, uniforms.shadow.z);
     }
-    float3 world = clothCameraRotation(p, yaw, pitch);
+    float3 world = clothCameraRotation(p - clothCameraTarget(uniforms), yaw, pitch);
     float distance = uniforms.camera.w - world.z;
     float scale = min(2.6, 2.6 * aspect);
     ClothVertex out;
@@ -427,7 +431,7 @@ fragment ClothFragment clothVisualizerFragment(
         // or far-plane cutoff can appear as the camera zooms out.
         float2 ndc = in.uv * float2(2, -2) + float2(-1, 1);
         float scale = min(2.6, 2.6 * uniforms.camera.x);
-        float3 origin = clothInverseCameraRotation(float3(0, 0, uniforms.camera.w),
+        float3 origin = clothCameraTarget(uniforms) + clothInverseCameraRotation(float3(0, 0, uniforms.camera.w),
                                                     uniforms.camera.y, uniforms.camera.z);
         float3 ray = clothInverseCameraRotation(float3(ndc.x * uniforms.camera.x / scale, ndc.y / scale, -1),
                                                  uniforms.camera.y, uniforms.camera.z);
@@ -435,7 +439,7 @@ fragment ClothFragment clothVisualizerFragment(
         float distance = (uniforms.shadow.z - origin.z) / ray.z;
         if (distance < 0.1) discard_fragment();
         in.scenePosition = origin + ray * distance;
-        in.world = clothCameraRotation(in.scenePosition, uniforms.camera.y, uniforms.camera.z);
+        in.world = clothCameraRotation(in.scenePosition - clothCameraTarget(uniforms), uniforms.camera.y, uniforms.camera.z);
         depth = min(0.9999999, (distance - 0.1) * 100.0 / (99.9 * distance));
     }
     float4 color = clothSurface(in, frontFacing, artwork, shadowMask, accentColor, uniforms, normals, positions);
