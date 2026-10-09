@@ -521,6 +521,11 @@ struct SignedInView: View {
                     path.append(.search(query))
                 }
             )
+        case .following:
+            ArtistUsersView(
+                artist: user, list: .following, model: model,
+                onSelectArtist: showArtist
+            )
         case .history:
             HistoryView(
                 model: model,

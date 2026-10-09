@@ -4,15 +4,17 @@ enum SidebarDestination: Codable, Hashable, Identifiable {
     case search
     case feed
     case liked
+    case following
     case history
 
-    static let libraryDestinations: [Self] = [.search, .feed, .liked, .history]
+    static let libraryDestinations: [Self] = [.search, .feed, .liked, .following, .history]
 
     var id: String {
         switch self {
         case .search: "search"
         case .feed: "feed"
         case .liked: "liked"
+        case .following: "following"
         case .history: "history"
         }
     }
@@ -25,6 +27,8 @@ enum SidebarDestination: Codable, Hashable, Identifiable {
             "Feed"
         case .liked:
             "Likes"
+        case .following:
+            "Following"
         case .history:
             "History"
         }
@@ -38,6 +42,8 @@ enum SidebarDestination: Codable, Hashable, Identifiable {
             "list.bullet.rectangle"
         case .liked:
             "heart"
+        case .following:
+            "person.2"
         case .history:
             "clock.arrow.circlepath"
         }
