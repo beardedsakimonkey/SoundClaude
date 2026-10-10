@@ -251,11 +251,11 @@ struct ArtworkAccent: Sendable {
         }
         if let winner { return winner }
         guard let neutral = buckets[-1] else { return nil }
-        // Push neutral artwork toward white so it stands out from unfilled bars.
-        // Retain a small amount of the artwork's tint.
-        return ArtworkAccent(red: 0.9 + 0.1 * neutral.red / neutral.count,
-                             green: 0.9 + 0.1 * neutral.green / neutral.count,
-                             blue: 0.9 + 0.1 * neutral.blue / neutral.count)
+        // Keep neutral artwork in a soft gray range while retaining its tint.
+        // Views adjust contrast against their background as needed.
+        return ArtworkAccent(red: 0.75 + 0.1 * neutral.red / neutral.count,
+                             green: 0.75 + 0.1 * neutral.green / neutral.count,
+                             blue: 0.75 + 0.1 * neutral.blue / neutral.count)
     }
 
     private var hsv: (hue: Double, saturation: Double, brightness: Double) {
