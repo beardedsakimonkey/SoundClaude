@@ -5,6 +5,7 @@ struct FluidSettings {
     var curl: Float = 30
     var force: Float = 1
     var radius: Float = 0.1
+    var hueVariation: Float = 12
     var dyeDissipation: Float = 1
     var velocityDissipation: Float = 0.2
     var brightness: Float = 1
@@ -110,7 +111,12 @@ final class FluidSimulation {
     }
 
     private func color() -> SIMD3<Float> {
-        let h = random() * 6
+        hueColor(random() * 6) * 0.15
+    }
+
+    // Hue is measured in six sectors, wrapping at red.
+    private func hueColor(_ hue: Float) -> SIMD3<Float> {
+        let h = hue - floor(hue / 6) * 6
         let f = h - floor(h)
         let rgb: SIMD3<Float>
         switch Int(h) {
@@ -121,7 +127,26 @@ final class FluidSimulation {
         case 4: rgb = SIMD3(f, 0, 1)
         default: rgb = SIMD3(1, 0, 1 - f)
         }
-        return rgb * 0.15
+        return rgb
+    }
+
+    private func variedColor(_ color: SIMD3<Float>, degrees: Float) -> SIMD3<Float> {
+        guard degrees > 0 else { return color }
+        let low = min(color.x, min(color.y, color.z))
+        let high = max(color.x, max(color.y, color.z))
+        let chroma = high - low
+        guard chroma > 0 else { return color }
+        let hue: Float
+        if high == color.x {
+            hue = (color.y - color.z) / chroma
+        } else if high == color.y {
+            hue = 2 + (color.z - color.x) / chroma
+        } else {
+            hue = 4 + (color.x - color.y) / chroma
+        }
+        // Shift hue while preserving the band's saturation and brightness.
+        return hueColor(hue + (random() * 2 - 1) * degrees / 60) * chroma
+            + SIMD3<Float>(repeating: low)
     }
     private var velocity: [MTLTexture] = []
     private var dye: [MTLTexture] = []
@@ -263,7 +288,7 @@ final class FluidSimulation {
             }
             let motion = corrected(SIMD2(cos(angle), sin(angle)))
                 * (250 + 750 * hit.strength) * settings.force
-            splat(point, motion, hit.color, 3 + 7 * hit.strength,
+            splat(point, motion, variedColor(hit.color, degrees: settings.hueVariation), 3 + 7 * hit.strength,
                   radiusScale: 0.5 + hit.strength)
         }
         if touch.sequence != lastTouch {

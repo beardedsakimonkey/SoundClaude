@@ -160,6 +160,8 @@ struct VisualizerView: View {
             tuningSlider("Swirl", value: $fluidSettings.curl, range: 0...50)
             tuningSlider("Audio force", value: $fluidSettings.force, range: 0...3)
             tuningSlider("Splat radius", value: $fluidSettings.radius, range: 0.01...1, format: "%.2f")
+            tuningSlider("Hue variation", value: $fluidSettings.hueVariation, range: 0...60, format: "±%.0f°")
+                .help("Random hue shift for each audio splat. Zero keeps the original band colors.")
             tuningSlider("Color fade", value: $fluidSettings.dyeDissipation, range: 0.1...3)
             tuningSlider("Flow damping", value: $fluidSettings.velocityDissipation, range: 0...2)
             tuningSlider("Brightness", value: $fluidSettings.brightness, range: 0.3...3)
