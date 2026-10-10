@@ -5,6 +5,7 @@ import MetalKit
 struct FluidSimulationTests {
     static func main() throws {
         testBandAttacks()
+        testSustainedBands()
         guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() else {
             fatalError("Fluid tests require Metal")
         }
@@ -15,11 +16,11 @@ struct FluidSimulationTests {
         var settings = FluidSettings()
         var size = CGSize(width: 960, height: 600)
         var touch = FluidTouch()
-        func frame(bass: Float = 0, treble: Float = 0) -> MTLTexture {
+        func frame(bass: Float = 0, treble: Float = 0, bands: [Float]? = nil) -> MTLTexture {
             now += 1.0 / 60
             let command = queue.makeCommandBuffer()!
             let texture = simulation.encode(commandBuffer: command, size: size, settings: settings,
-                bands: [Float](repeating: max(bass, treble), count: 64), touch: touch, now: now)!
+                bands: bands ?? [Float](repeating: max(bass, treble), count: 64), touch: touch, now: now)!
             command.commit()
             command.waitUntilCompleted()
             precondition(command.status == .completed, "GPU error: \(String(describing: command.error))")
@@ -52,6 +53,16 @@ struct FluidSimulationTests {
         for _ in 0..<120 { texture = frame() }
         let faded = energy(texture)
         precondition(faded < initial * 0.7, "Silent fluid must fade")
+        for _ in 0..<240 { texture = frame() }
+        let beforeRumble = energy(texture)
+        let rumble = [Float](repeating: 0.8, count: 16) + [Float](repeating: 0, count: 48)
+        for _ in 0..<240 { texture = frame(bands: rumble) }
+        let sustained = energy(texture)
+        precondition(sustained > beforeRumble, "A sustained bass rumble must keep visible dye flowing")
+        settings.steadyFlow = 0
+        for _ in 0..<120 { texture = frame(bands: rumble) }
+        precondition(energy(texture) < sustained * 0.7, "Zero steady flow must let sustained audio fade")
+        settings.steadyFlow = FluidSettings().steadyFlow
         for i in 0..<240 {
             texture = frame(bass: i % 30 < 3 ? 0.8 : 0)
         }
@@ -90,28 +101,59 @@ struct FluidSimulationTests {
         for band in 0..<8 {
             var detector = FluidBandDetector()
             var levels = [Float](repeating: 0, count: 64)
-            precondition(detector.update(bands: levels, delta: 1.0 / 60).isEmpty)
+            precondition(detector.update(bands: levels, delta: 1.0 / 60).filter { $0.isAttack }.isEmpty)
             for index in (band * 8)..<((band + 1) * 8) { levels[index] = 0.7 }
-            let hits = detector.update(bands: levels, delta: 1.0 / 60)
+            let hits = detector.update(bands: levels, delta: 1.0 / 60).filter { $0.isAttack }
             precondition(hits.count == 1 && hits[0].band == band, "Each band must detect its own attack")
             precondition(hits[0].color == FluidBandDetector.colors[band] * 0.15)
             for _ in 0..<60 {
-                precondition(detector.update(bands: levels, delta: 1.0 / 60).isEmpty, "Sustained tones must not retrigger")
+                precondition(detector.update(bands: levels, delta: 1.0 / 60).filter { $0.isAttack }.isEmpty, "Sustained tones must not retrigger")
             }
             for _ in 0..<30 { _ = detector.update(bands: [Float](repeating: 0, count: 64), delta: 1.0 / 60) }
-            precondition(detector.update(bands: levels, delta: 1.0 / 60).count == 1, "A later hit must retrigger")
+            precondition(detector.update(bands: levels, delta: 1.0 / 60).filter { $0.isAttack }.count == 1, "A later hit must retrigger")
             _ = detector.update(bands: [Float](repeating: 0, count: 64), delta: 1.0 / 60)
-            precondition(detector.update(bands: levels, delta: 1.0 / 60).isEmpty, "Cooldown must suppress duplicate attacks")
+            precondition(detector.update(bands: levels, delta: 1.0 / 60).filter { $0.isAttack }.isEmpty, "Cooldown must suppress duplicate attacks")
         }
         var detector = FluidBandDetector()
-        precondition(detector.update(bands: [Float](repeating: 0.8, count: 64), delta: 1.0 / 60).isEmpty,
+        precondition(detector.update(bands: [Float](repeating: 0.8, count: 64), delta: 1.0 / 60).filter { $0.isAttack }.isEmpty,
                      "Entry must prime the detector")
         for _ in 0..<60 {
-            precondition(detector.update(bands: [Float](repeating: .nan, count: 64), delta: 1.0 / 60).isEmpty)
+            precondition(detector.update(bands: [Float](repeating: .nan, count: 64), delta: 1.0 / 60).filter { $0.isAttack }.isEmpty)
         }
-        precondition(detector.update(bands: [Float](repeating: 0.01, count: 64), delta: 1.0 / 60).isEmpty,
+        precondition(detector.update(bands: [Float](repeating: 0.01, count: 64), delta: 1.0 / 60).filter { $0.isAttack }.isEmpty,
                      "Noise must not trigger splats")
         print("Fluid band attack tests passed")
+    }
+
+    static func testSustainedBands() {
+        for band in 0..<8 {
+            var levels = [Float](repeating: 0, count: 64)
+            for index in (band * 8)..<((band + 1) * 8) { levels[index] = 0.7 }
+            for fps in [60, 120] {
+                var detector = FluidBandDetector()
+                var total: Float = 0
+                for _ in 0..<(fps * 3) {
+                    let emissions = detector.update(bands: levels, delta: 1 / Double(fps))
+                    precondition(emissions.count == 1 && emissions[0].band == band,
+                                 "Steady audio must emit on entry and remain active in its own band")
+                    precondition(!emissions[0].isAttack, "Steady audio must not produce attack bursts")
+                    total += emissions[0].scale
+                }
+                precondition(abs(total - 3) < 0.001, "Continuous emission must scale with time")
+                for value: Float in [0, 0.01, .nan, .infinity] {
+                    precondition(detector.update(bands: [Float](repeating: value, count: 64),
+                                                 delta: 1.0 / 60).isEmpty,
+                                 "Silence, noise, and invalid samples must stop emission")
+                }
+                precondition(detector.update(bands: levels, delta: 0).filter { !$0.isAttack }.isEmpty)
+            }
+        }
+        var detector = FluidBandDetector()
+        let quiet = detector.update(bands: [Float](repeating: 0.2, count: 64), delta: 1.0 / 60)
+        let loud = detector.update(bands: [Float](repeating: 0.8, count: 64), delta: 1.0 / 60)
+            .filter { !$0.isAttack }
+        precondition(loud[0].scale > quiet[0].scale, "Louder audio must produce more continuous flow")
+        print("Fluid sustained emission tests passed")
     }
 
     static func preview(_ dye: MTLTexture, simulation: FluidSimulation, device: MTLDevice, queue: MTLCommandQueue, library: MTLLibrary) throws {

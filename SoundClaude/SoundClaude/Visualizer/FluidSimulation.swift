@@ -4,6 +4,8 @@ import simd
 struct FluidSettings {
     var curl: Float = 30
     var force: Float = 1
+    var steadyFlow: Float = 0.6
+    var emitterSlideSpeed: Float = 1
     var radius: Float = 0.1
     var hueVariation: Float = 12
     var showEmitters = false
@@ -34,7 +36,7 @@ struct FluidTouch {
     var delta = SIMD2<Float>.zero
 }
 
-/// Detect attacks in eight logarithmic frequency groups from the normalized spectrum.
+/// Drive continuous flow and detect attacks in eight logarithmic frequency groups.
 struct FluidBandDetector {
     static let colors: [SIMD3<Float>] = [
         SIMD3(1, 0.04, 0.02), SIMD3(1, 0.3, 0.02),
@@ -42,9 +44,12 @@ struct FluidBandDetector {
         SIMD3(0.02, 1, 0.7), SIMD3(0.02, 0.5, 1),
         SIMD3(0.25, 0.08, 1), SIMD3(0.8, 0.04, 1)
     ]
-    struct Hit {
+    struct Emission {
         let band: Int
         let strength: Float
+        // Attacks are impulses; continuous flow scales with elapsed time.
+        let scale: Float
+        let isAttack: Bool
         var color: SIMD3<Float> { FluidBandDetector.colors[band] * 0.15 }
     }
     private var previous = [Float](repeating: 0, count: 8)
@@ -52,11 +57,11 @@ struct FluidBandDetector {
     private var cooldown = [Double](repeating: 0, count: 8)
     private var primed = false
 
-    mutating func update(bands: [Float], delta: Double) -> [Hit] {
+    mutating func update(bands: [Float], delta: Double) -> [Emission] {
         guard bands.count >= 8 else { return [] }
         let elapsed = delta.isFinite ? max(0, delta) : 0
         let blend = Float(1 - exp(-elapsed / 0.25))
-        var hits: [Hit] = []
+        var emissions: [Emission] = []
         for band in 0..<8 {
             let lower = band * bands.count / 8
             let upper = (band + 1) * bands.count / 8
@@ -68,15 +73,24 @@ struct FluidBandDetector {
             if primed, cooldown[band] == 0, energy > 0.015,
                energy - previous[band] > 0.008,
                energy > baseline[band] * 1.5 + 0.01 {
-                hits.append(Hit(band: band, strength: min(1, (energy - baseline[band]) / 0.3)))
+                emissions.append(Emission(band: band, strength: min(1, (energy - baseline[band]) / 0.3),
+                                          scale: 1, isAttack: true))
                 cooldown[band] = 0.12
+            }
+            // Keep steady sounds visible after their attack. Gate low-level noise and
+            // cap elapsed time so an interruption cannot create a large splat.
+            if energy > 0.015, elapsed > 0 {
+                let strength = min(1, (energy - 0.015) / 0.3)
+                emissions.append(Emission(band: band, strength: strength,
+                                          scale: Float(min(elapsed, 1.0 / 60)) * strength,
+                                          isAttack: false))
             }
             baseline[band] = primed ? baseline[band] + (energy - baseline[band]) * blend : energy
             previous[band] = energy
         }
         // Do not treat an already playing track as a new attack on entry or resume.
         primed = true
-        return hits
+        return emissions
     }
 }
 
@@ -217,12 +231,12 @@ final class FluidSimulation {
         guard let curl, let divergence else { return nil }
         let elapsed = max(0, now - (lastTime ?? (now - 1.0 / 60)))
         if elapsed > 0.5 { bandDetector = FluidBandDetector() }
-        let hits = bandDetector.update(bands: bands, delta: elapsed)
+        let emissions = bandDetector.update(bands: bands, delta: elapsed)
         let dt = Float(min(1.0 / 60, elapsed))
-        // Complete a left-right-left sweep every six seconds, even between hits.
+        // At 1× speed, complete a left-right-left sweep every six seconds.
         // Freeze during long interruptions so resuming does not jump the emitters.
         if elapsed <= 0.5 {
-            splatPhase = (splatPhase + elapsed * 2 * .pi / 6)
+            splatPhase = (splatPhase + elapsed * Double(settings.emitterSlideSpeed) * 2 * .pi / 6)
                 .truncatingRemainder(dividingBy: 2 * .pi)
         }
         lastTime = now
@@ -281,26 +295,29 @@ final class FluidSimulation {
             delta * SIMD2(min(1, aspect), 1 / max(1, aspect))
         }
         let positions = emitterPositions
-        for hit in hits {
+        for emission in emissions {
+            let scale = emission.scale * (emission.isAttack ? 1 : settings.steadyFlow)
+            guard scale > 0 else { continue }
             // Rows move continuously, each one third of a cycle apart.
-            let row = hit.band < 2 ? 0 : (hit.band < 6 ? 1 : 2)
+            let row = emission.band < 2 ? 0 : (emission.band < 6 ? 1 : 2)
             let x = positions[row]
             let point = SIMD2<Float>(x, row == 0 ? 0.91 : (row == 1 ? 0.5 : 0.09))
-            let angle: Float
-            switch hit.band {
-            case 0...1:
-                // Texture coordinates increase downward: bass rises from the bottom.
-                angle = -Float.pi / 2 + (random() - 0.5) * Float.pi / 3
-            case 6...7:
-                angle = Float.pi / 2 + (random() - 0.5) * Float.pi / 3
-            default:
-                // Mids spread in all directions from the middle row.
-                angle = random() * 2 * Float.pi
+            let direction: SIMD2<Float>
+            if row == 1 {
+                // Match the middle row’s position phase: point right at the left
+                // edge and left at the right edge, rotating once per sweep.
+                let angle = Float(splatPhase + 2 * .pi / 3)
+                direction = SIMD2(cos(angle), sin(angle))
+            } else {
+                // Velocity is in grid cells, so account for the grid's aspect ratio
+                // before normalizing the vector toward the screen center.
+                let toCenter = (SIMD2<Float>(repeating: 0.5) - point)
+                    * SIMD2(Float(width), Float(height))
+                direction = simd_normalize(toCenter)
             }
-            let motion = corrected(SIMD2(cos(angle), sin(angle)))
-                * (250 + 750 * hit.strength) * settings.force
-            splat(point, motion, variedColor(hit.color, degrees: settings.hueVariation), 3 + 7 * hit.strength,
-                  radiusScale: 0.5 + hit.strength)
+            let motion = direction * (250 + 750 * emission.strength) * settings.force * scale
+            splat(point, motion, variedColor(emission.color, degrees: settings.hueVariation), (3 + 7 * emission.strength) * scale,
+                  radiusScale: 0.5 + emission.strength)
         }
         if touch.sequence != lastTouch {
             lastTouch = touch.sequence

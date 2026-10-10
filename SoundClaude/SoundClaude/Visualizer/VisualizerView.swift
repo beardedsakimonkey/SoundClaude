@@ -159,6 +159,8 @@ struct VisualizerView: View {
             }
             tuningSlider("Swirl", value: $fluidSettings.curl, range: 0...50)
             tuningSlider("Audio force", value: $fluidSettings.force, range: 0...3)
+            tuningSlider("Steady flow", value: $fluidSettings.steadyFlow, range: 0...4, format: "%.2f")
+                .help("Continuous emission from sustained audio. Zero turns it off; hit bursts stay active.")
             tuningSlider("Splat radius", value: $fluidSettings.radius, range: 0.01...1, format: "%.2f")
             tuningSlider("Hue variation", value: $fluidSettings.hueVariation, range: 0...60, format: "±%.0f°")
                 .help("Random hue shift for each audio splat. Zero keeps the original band colors.")
@@ -166,6 +168,8 @@ struct VisualizerView: View {
             tuningSlider("Flow damping", value: $fluidSettings.velocityDissipation, range: 0...2)
             tuningSlider("Brightness", value: $fluidSettings.brightness, range: 0.3...3)
             tuningSlider("Bloom", value: $fluidSettings.bloom, range: 0...2)
+            tuningSlider("Emitter slide speed", value: $fluidSettings.emitterSlideSpeed, range: 0...3, format: "%.2f×")
+                .help("One horizontal sweep takes six seconds at 1×. Zero stops movement. The middle jet rotates with the sweep.")
             Toggle("Show emitter positions", isOn: $fluidSettings.showEmitters)
                 .help("Show the moving bass, mid, and high emitters and their horizontal tracks.")
         }
