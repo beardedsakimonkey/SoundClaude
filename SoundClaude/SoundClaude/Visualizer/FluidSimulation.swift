@@ -240,8 +240,22 @@ final class FluidSimulation {
             delta * SIMD2(min(1, aspect), 1 / max(1, aspect))
         }
         for hit in hits {
-            let point = SIMD2(0.08 + random() * 0.84, 0.08 + random() * 0.84)
-            let angle = random() * 2 * Float.pi
+            let point: SIMD2<Float>
+            let angle: Float
+            switch hit.band {
+            case 0...1:
+                // Texture coordinates increase downward: bass rises from the bottom.
+                point = SIMD2(0.08 + random() * 0.84, 0.88 + random() * 0.06)
+                angle = -Float.pi / 2 + (random() - 0.5) * Float.pi / 3
+            case 6...7:
+                point = SIMD2(0.08 + random() * 0.84, 0.06 + random() * 0.06)
+                angle = Float.pi / 2 + (random() - 0.5) * Float.pi / 3
+            default:
+                // Mids spread outward from a small region around the center.
+                angle = random() * 2 * Float.pi
+                point = SIMD2<Float>(repeating: 0.5)
+                    + corrected(SIMD2(cos(angle), sin(angle))) * (0.04 + random() * 0.08)
+            }
             let motion = corrected(SIMD2(cos(angle), sin(angle)))
                 * (250 + 750 * hit.strength) * settings.force
             splat(point, motion, hit.color, 3 + 7 * hit.strength,
