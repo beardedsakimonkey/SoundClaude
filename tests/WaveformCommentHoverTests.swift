@@ -24,7 +24,9 @@ final class AppModel {
             SoundCloudComment(id: "left", body: "A comment to hover", user: SoundCloudUser(username: "Left artist"), timestampMilliseconds: 25000),
             SoundCloudComment(id: "neighbor", body: "A nearby comment", user: SoundCloudUser(username: "Nearby artist"), timestampMilliseconds: 30000),
             SoundCloudComment(id: "short", body: "Nice", user: SoundCloudUser(username: "Short artist"), timestampMilliseconds: 60000),
-            SoundCloudComment(id: "right", body: "Another comment to hover", user: SoundCloudUser(username: "Right artist"), timestampMilliseconds: 75000)
+            SoundCloudComment(id: "right", body: "Another comment to hover", user: SoundCloudUser(username: "Right artist"), timestampMilliseconds: 75000),
+            SoundCloudComment(id: "thread-a", body: "First comment", user: SoundCloudUser(username: "First artist"), timestampMilliseconds: 90000),
+            SoundCloudComment(id: "thread-b", body: "Reply comment", user: SoundCloudUser(username: "Reply artist"), timestampMilliseconds: 90000)
         ])
     }
 }
@@ -137,6 +139,25 @@ struct ArtistLink: View {
                 await post(.mouseMoved, CGPoint(x: 300, y: 200))
                 precondition(Observations.names.isEmpty, "Comment must close after leaving")
             }
+            // Both avatars remain centered at x=540. Hover each side of that
+            // same marker, then keep the selected reply while entering its bubble.
+            await post(.mouseMoved, CGPoint(x: 532, y: 56))
+            precondition(Observations.names == ["First artist"], "Left side must show the first comment")
+            await post(.mouseMoved, CGPoint(x: 548, y: 56))
+            precondition(Observations.names == ["Reply artist"], "Right side must show the reply")
+            await post(.mouseMoved, CGPoint(x: 532, y: 56))
+            precondition(Observations.names == ["First artist"], "Moving back must restore the first comment")
+            await post(.mouseMoved, CGPoint(x: 548, y: 56))
+            await post(.mouseMoved, CGPoint(x: 548, y: 75))
+            precondition(Observations.names == ["Reply artist"], "Reply must stay open in the gap")
+            let reply = Observations.frames["Reply artist"]!
+            let target = CGPoint(x: reply.midX, y: reply.midY)
+            await post(.mouseMoved, target)
+            await post(.leftMouseDown, target)
+            await post(.leftMouseUp, target)
+            precondition(Observations.selected == "Reply artist", "Reply author must be actionable")
+            await post(.mouseMoved, CGPoint(x: 300, y: 200))
+            precondition(Observations.names.isEmpty, "Reply must close after leaving")
             window.orderOut(nil)
             if let originalPointer {
                 CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: originalPointer,

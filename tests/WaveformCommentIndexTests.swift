@@ -40,7 +40,18 @@ struct WaveformCommentIndexTests {
                 }
                 for x in stride(from: -20.0, through: width + 20, by: 2.5) {
                     let nearest = visible.min { abs(position($0) - x) < abs(position($1) - x) }
-                    let expected = nearest.flatMap { abs(position($0) - x) <= 14 ? $0.id : nil }
+                    let expected = nearest.flatMap { nearest -> String? in
+                        let center = position(nearest)
+                        guard abs(center - x) <= 14 else { return nil }
+                        let group = visible.filter { position($0) == center }
+                        guard group.count > 1 else { return nearest.id }
+                        let previous = visible.last { position($0) < center }.map(position)
+                        let next = visible.first { position($0) > center }.map(position)
+                        let left = max(0, center - 14, previous.map { ($0 + center) / 2 } ?? 0)
+                        let right = min(width, center + 14, next.map { ($0 + center) / 2 } ?? width)
+                        let fraction = min(max((x - left) / (right - left), 0), 1)
+                        return group[min(Int(fraction * Double(group.count)), group.count - 1)].id
+                    }
                     precondition(index.hoverCommentID(at: x, width: width, duration: duration) == expected,
                                  "Hover mismatch at \(x), width \(width), duration \(duration)")
                 }
@@ -53,6 +64,22 @@ struct WaveformCommentIndexTests {
         precondition(sparse.playbackCommentID(at: 13) == "9")
         precondition(sparse.playbackCommentID(at: 13.001) == nil)
         precondition(sparse.playbackCommentID(at: .nan) == nil)
+        // Sweep across one stationary marker to reach each duplicate separately.
+        let shared = WaveformCommentIndex(try [comment(1, 50_000), comment(2, 50_000), comment(3, 50_000)])
+        for (x, id) in [(290.0, "1"), (300.0, "2"), (310.0, "3")] {
+            precondition(shared.hoverCommentID(at: x, width: 600, duration: 100) == id)
+        }
+        precondition(shared.hoverCommentID(at: 285, width: 600, duration: 100) == nil)
+        // Neighboring markers bound the shared hit area without losing their own targets.
+        let crowded = shared.appending(try [comment(0, 49_000), comment(4, 51_000)])
+        for (x, id) in [(294.0, "0"), (298.0, "1"), (300.0, "2"), (302.0, "3"), (306.0, "4")] {
+            precondition(crowded.hoverCommentID(at: x, width: 600, duration: 100) == id)
+        }
+        let edges = WaveformCommentIndex(try [comment(1, 0), comment(2, 0),
+                                              comment(3, 100_000), comment(4, 100_000)])
+        for (x, id) in [(5.0, "1"), (23.0, "2"), (577.0, "3"), (595.0, "4")] {
+            precondition(edges.hoverCommentID(at: x, width: 600, duration: 100) == id)
+        }
         print("Waveform comment index tests passed (5,000 comments)")
     }
 }

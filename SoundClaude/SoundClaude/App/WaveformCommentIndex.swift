@@ -61,10 +61,20 @@ final class WaveformCommentIndex {
         }
         let nearestPosition = position(nearest)
         guard abs(nearestPosition - x) <= 14 else { return nil }
-        // Multiple timestamps can clamp to the same edge. Match the first
-        // comment in display order, just as the previous linear scan did.
+        // Share the existing hover area between comments at the same position.
+        // The avatars stay at their timestamps; only hit testing is divided.
+        // Include distinct timestamps that clamp to the same waveform edge.
         let first = lowerBound(count: count) { position($0) >= nearestPosition }
-        return comments[first].id
+        let end = lowerBound(count: count) { position($0) > nearestPosition }
+        guard end - first > 1 else { return comments[first].id }
+        var left = max(0, nearestPosition - 14)
+        var right = min(width, nearestPosition + 14)
+        if first > 0 { left = max(left, (position(first - 1) + nearestPosition) / 2) }
+        if end < count { right = min(right, (nearestPosition + position(end)) / 2) }
+        guard right > left else { return comments[first].id }
+        let fraction = min(max((x - left) / (right - left), 0), 1)
+        let offset = min(Int(fraction * CGFloat(end - first)), end - first - 1)
+        return comments[first + offset].id
     }
 
     private func seconds(at index: Int) -> Double {
