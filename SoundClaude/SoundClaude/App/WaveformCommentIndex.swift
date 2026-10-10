@@ -2,6 +2,11 @@ import Foundation
 
 // Immutable snapshots make view equality cheap. Rebuild only when pages arrive;
 // duration, playback and pointer changes query the existing sorted arrays.
+struct WaveformCommentPlacement {
+    let comment: SoundCloudComment
+    var x: CGFloat
+}
+
 final class WaveformCommentIndex {
     let comments: [SoundCloudComment]
     private let sourceComments: [SoundCloudComment]
@@ -46,25 +51,41 @@ final class WaveformCommentIndex {
         return abs(entry.seconds - time) <= 3 ? entry.id : nil
     }
 
-    func hoverCommentID(at x: CGFloat, width: CGFloat, duration: Double) -> String? {
-        guard x.isFinite, width.isFinite, width > 0, duration > 0 else { return nil }
-        let count = visibleComments(duration: duration).count
-        guard count > 0 else { return nil }
-        let inset = min(14, width / 2)
-        func position(_ index: Int) -> CGFloat {
-            min(max(CGFloat(seconds(at: index) / duration) * width, inset), width - inset)
+    // Give overlapping markers separate hover targets while keeping sparse
+    // markers at their timestamps. Shift the row back inside the right edge.
+    func markerPlacements(width: CGFloat, duration: Double) -> [WaveformCommentPlacement] {
+        guard width.isFinite, width > 0, duration.isFinite, duration > 0 else { return [] }
+        let visible = visibleComments(duration: duration)
+        guard !visible.isEmpty else { return [] }
+        let inset = min(16, width / 4)
+        let spacing = min(8, (width - 2 * inset) / CGFloat(max(1, visible.count - 1)))
+        var placements: [WaveformCommentPlacement] = []
+        for comment in visible {
+            let seconds = Double(comment.timestampMilliseconds!) / 1_000
+            let desired = min(max(CGFloat(seconds / duration) * width, inset), width - inset)
+            let x = max(desired, placements.last.map { $0.x + spacing } ?? inset)
+            placements.append(WaveformCommentPlacement(comment: comment, x: x))
         }
-        let upper = lowerBound(count: count) { position($0) >= x }
-        var nearest = min(upper, count - 1)
-        if upper > 0, abs(position(upper - 1) - x) <= abs(position(nearest) - x) {
+        var limit = width - inset
+        for i in placements.indices.reversed() {
+            placements[i].x = min(placements[i].x, limit)
+            limit = placements[i].x - spacing
+        }
+        return placements
+    }
+
+    func hoverCommentID(at x: CGFloat, width: CGFloat, duration: Double) -> String? {
+        hoverCommentID(at: x, placements: markerPlacements(width: width, duration: duration))
+    }
+
+    func hoverCommentID(at x: CGFloat, placements: [WaveformCommentPlacement]) -> String? {
+        guard x.isFinite, !placements.isEmpty else { return nil }
+        let upper = lowerBound(count: placements.count) { placements[$0].x >= x }
+        var nearest = min(upper, placements.count - 1)
+        if upper > 0, abs(placements[upper - 1].x - x) <= abs(placements[nearest].x - x) {
             nearest = upper - 1
         }
-        let nearestPosition = position(nearest)
-        guard abs(nearestPosition - x) <= 14 else { return nil }
-        // Multiple timestamps can clamp to the same edge. Match the first
-        // comment in display order, just as the previous linear scan did.
-        let first = lowerBound(count: count) { position($0) >= nearestPosition }
-        return comments[first].id
+        return abs(placements[nearest].x - x) <= 14 ? placements[nearest].comment.id : nil
     }
 
     private func seconds(at index: Int) -> Double {

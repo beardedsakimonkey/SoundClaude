@@ -34,15 +34,18 @@ struct WaveformCommentIndexTests {
             } : []
             precondition(index.visibleComments(duration: duration).map(\.id) == visible.map(\.id))
             for width in [1.0, 20, 28, 100, 800] {
-                func position(_ comment: SoundCloudComment) -> Double {
-                    let inset = min(14, width / 2)
-                    return min(max(seconds(comment) / duration * width, inset), width - inset)
+                let placements = index.markerPlacements(width: width, duration: duration)
+                precondition(placements.map { $0.comment.id } == visible.map(\.id))
+                for (i, marker) in placements.enumerated() {
+                    precondition(marker.x >= 0 && marker.x <= width)
+                    if i > 0 { precondition(marker.x > placements[i - 1].x) }
+                    precondition(index.hoverCommentID(at: marker.x, placements: placements) == marker.comment.id,
+                                 "Every marker must have its own hover target")
                 }
                 for x in stride(from: -20.0, through: width + 20, by: 2.5) {
-                    let nearest = visible.min { abs(position($0) - x) < abs(position($1) - x) }
-                    let expected = nearest.flatMap { abs(position($0) - x) <= 14 ? $0.id : nil }
-                    precondition(index.hoverCommentID(at: x, width: width, duration: duration) == expected,
-                                 "Hover mismatch at \(x), width \(width), duration \(duration)")
+                    let nearest = placements.min { abs($0.x - x) < abs($1.x - x) }
+                    let expected = nearest.flatMap { abs($0.x - x) <= 14 ? $0.comment.id : nil }
+                    precondition(index.hoverCommentID(at: x, placements: placements) == expected)
                 }
             }
         }
@@ -53,6 +56,11 @@ struct WaveformCommentIndexTests {
         precondition(sparse.playbackCommentID(at: 13) == "9")
         precondition(sparse.playbackCommentID(at: 13.001) == nil)
         precondition(sparse.playbackCommentID(at: .nan) == nil)
+        let duplicates = WaveformCommentIndex(try [comment(1, 0), comment(2, 0),
+            comment(3, 50_000), comment(4, 50_000), comment(5, 100_000), comment(6, 100_000)])
+        let positions = duplicates.markerPlacements(width: 600, duration: 100)
+        precondition(positions.map(\.x) == [16, 24, 300, 308, 576, 584])
+        precondition(positions.map { $0.comment.timestampMilliseconds! } == [0, 0, 50_000, 50_000, 100_000, 100_000])
         print("Waveform comment index tests passed (5,000 comments)")
     }
 }
