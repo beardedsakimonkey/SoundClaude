@@ -94,6 +94,60 @@ struct FluidBandDetector {
     }
 }
 
+/// Detect closing filters from the high/mid balance, relative to recent audio.
+struct FluidFilterDrag {
+    private var roll: Float?
+    private var history: [Float] = []
+    private var sampleTime: Double = 0
+    private var reference: Float = 0
+    private var slowClosure: Float = 0
+    private(set) var extraDamping: Float = 0
+
+    mutating func update(bands: [Float], delta: Double) {
+        guard bands.count >= 8, delta.isFinite, delta > 0, delta <= 0.5 else {
+            self = FluidFilterDrag()
+            return
+        }
+        var mid: Float = 0, high: Float = 0, midLevel: Float = 0
+        var midCount: Float = 0, highCount: Float = 0
+        for (index, sample) in bands.enumerated() {
+            let level = sample.isFinite ? min(1, max(0, sample)) : 0
+            // SpectrumAnalyzer publishes logarithmic bands from 30 Hz to 18 kHz,
+            // with levels mapped from -72 to -12 dB. Recover approximate power.
+            let frequency = 30 * pow(600.0, (Double(index) + 0.5) / Double(bands.count))
+            let power = max(0, pow(Float(10), level * 6 - 7.2) - pow(Float(10), -7.2))
+            if frequency >= 150 && frequency < 2500 {
+                mid += power; midLevel += level; midCount += 1
+            } else if frequency >= 5000 && frequency < 12000 {
+                high += power; highCount += 1
+            }
+        }
+        guard midCount > 0, highCount > 0, midLevel / midCount > 0.12 else {
+            // Silence must not look like a filter closing, including when audio returns.
+            self = FluidFilterDrag()
+            return
+        }
+        let ratio = min(10, (high / highCount) / max(mid / midCount, 1e-10))
+        let smoothed = (roll ?? ratio) + (ratio - (roll ?? ratio)) * Float(1 - exp(-delta / 0.25))
+        roll = smoothed
+        sampleTime += delta
+        if history.isEmpty || sampleTime >= 0.1 {
+            sampleTime.formTruncatingRemainder(dividingBy: 0.1)
+            history.append(smoothed)
+            if history.count > 300 { history.removeFirst() }
+            reference = history.sorted()[Int(Double(history.count - 1) * 0.9)]
+        }
+        let closure: Float = reference > 1e-8 ? max(0, min(1, 1 - smoothed / reference)) : 0
+        slowClosure += (closure - slowClosure) * Float(1 - exp(-delta))
+        func smooth(_ low: Float, _ high: Float, _ value: Float) -> Float {
+            let t = min(1, max(0, (value - low) / (high - low)))
+            return t * t * (3 - 2 * t)
+        }
+        // Only a darkening mix adds drag. A steady dark mix returns to normal.
+        extraDamping = 2.8 * smooth(0.8, 0.97, closure) * smooth(0.03, 0.12, closure - slowClosure)
+    }
+}
+
 /// Metal port of Pavel Dobryakov's WebGL fluid solver. See Fluid-LICENSE.txt.
 /// Velocity uses grid cells/second; dye uses a separate, finer grid.
 final class FluidSimulation {
@@ -112,6 +166,7 @@ final class FluidSimulation {
     private var pointerColor = SIMD3<Float>.zero
     private var colorTimer: Float = 0
     private var bandDetector = FluidBandDetector()
+    private var filterDrag = FluidFilterDrag()
     private var splatPhase: Double = 0
 
     var emitterPositions: SIMD3<Float> {
@@ -195,6 +250,7 @@ final class FluidSimulation {
     func suspend() {
         lastTime = nil
         bandDetector = FluidBandDetector()
+        filterDrag = FluidFilterDrag()
     }
 
     private func texture(width: Int, height: Int) -> MTLTexture? {
@@ -232,11 +288,14 @@ final class FluidSimulation {
         let elapsed = max(0, now - (lastTime ?? (now - 1.0 / 60)))
         if elapsed > 0.5 { bandDetector = FluidBandDetector() }
         let emissions = bandDetector.update(bands: bands, delta: elapsed)
+        filterDrag.update(bands: bands, delta: elapsed)
         let dt = Float(min(1.0 / 60, elapsed))
-        // At 1× speed, complete a left-right-left sweep every six seconds.
+        // At 1× speed without filter drag, complete a sweep every six seconds.
+        // Slow emitter travel with the same high fade that damps the fluid.
+        let slideSpeed = settings.emitterSlideSpeed / (1 + filterDrag.extraDamping)
         // Freeze during long interruptions so resuming does not jump the emitters.
         if elapsed <= 0.5 {
-            splatPhase = (splatPhase + elapsed * Double(settings.emitterSlideSpeed) * 2 * .pi / 6)
+            splatPhase = (splatPhase + elapsed * Double(slideSpeed) * 2 * .pi / 6)
                 .truncatingRemainder(dividingBy: 2 * .pi)
         }
         lastTime = now
@@ -333,7 +392,7 @@ final class FluidSimulation {
             pass(5, pressure[0], divergence, pressure[1]); pressure.swapAt(0, 1)
         }
         pass(6, pressure[0], velocity[0], velocity[1]); velocity.swapAt(0, 1)
-        uniforms.step.y = settings.velocityDissipation
+        uniforms.step.y = settings.velocityDissipation + filterDrag.extraDamping
         pass(7, velocity[0], velocity[0], velocity[1]); velocity.swapAt(0, 1)
         uniforms.step.y = settings.dyeDissipation
         pass(7, dye[0], velocity[0], dye[1]); dye.swapAt(0, 1)

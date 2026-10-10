@@ -6,6 +6,7 @@ struct FluidSimulationTests {
     static func main() throws {
         testBandAttacks()
         testSustainedBands()
+        testFilterDrag()
         guard let device = MTLCreateSystemDefaultDevice(), let queue = device.makeCommandQueue() else {
             fatalError("Fluid tests require Metal")
         }
@@ -95,6 +96,52 @@ struct FluidSimulationTests {
         precondition(simulation.encode(commandBuffer: command, size: .zero, settings: settings,
             bands: [], touch: touch, now: now) == nil)
         print("Fluid GPU tests passed: audio, pointer, fade, stability, resize, and resume")
+    }
+
+    static func testFilterDrag() {
+        func spectrum(high: Float, mid: Float = 0.7) -> [Float] {
+            (0..<64).map { index in
+                let hz = 30 * pow(600.0, (Double(index) + 0.5) / 64)
+                return hz >= 5000 ? high : mid
+            }
+        }
+        for fps in [30, 60, 120] {
+            let dt = 1 / Double(fps)
+            var drag = FluidFilterDrag()
+            for _ in 0..<(fps * 3) { drag.update(bands: spectrum(high: 0.7), delta: dt) }
+            precondition(drag.extraDamping == 0, "Steady bright audio must not add drag")
+            var peak: Float = 0
+            for frame in 0..<(fps * 2) {
+                let high = 0.7 - 0.55 * min(1, Float(frame) / Float(fps))
+                drag.update(bands: spectrum(high: high), delta: dt)
+                peak = max(peak, drag.extraDamping)
+            }
+            precondition(peak > 2 && peak <= 2.8, "Closing filters must add bounded, visible drag")
+            for _ in 0..<(fps * 6) { drag.update(bands: spectrum(high: 0.15), delta: dt) }
+            precondition(drag.extraDamping == 0, "Steady dark audio must return to normal drag")
+            for frame in 0..<fps {
+                drag.update(bands: spectrum(high: 0.15 + 0.55 * Float(frame) / Float(fps)), delta: dt)
+                precondition(drag.extraDamping == 0, "Opening filters must not add drag")
+            }
+            drag = FluidFilterDrag()
+            for frame in 0..<(fps * 3) {
+                let level = 0.7 - 0.4 * Float(frame) / Float(fps * 3)
+                drag.update(bands: spectrum(high: level, mid: level), delta: dt)
+                precondition(drag.extraDamping == 0, "A volume fade must not look like a closing filter")
+            }
+            drag = FluidFilterDrag()
+            for _ in 0..<fps {
+                drag.update(bands: spectrum(high: 0), delta: dt)
+                precondition(drag.extraDamping == 0, "Dark audio on entry must not add drag")
+            }
+            for value: Float in [0, .nan, .infinity] {
+                drag.update(bands: [Float](repeating: value, count: 64), delta: dt)
+                precondition(drag.extraDamping == 0, "Silence and invalid input must clear drag")
+            }
+            drag.update(bands: spectrum(high: 0.7), delta: 3)
+            precondition(drag.extraDamping == 0, "An interruption must reset filter tracking")
+        }
+        print("Fluid filter drag tests passed")
     }
 
     static func testBandAttacks() {
