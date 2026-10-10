@@ -316,8 +316,10 @@ final class FluidSimulation {
                 direction = simd_normalize(toCenter)
             }
             let motion = direction * (250 + 750 * emission.strength) * settings.force * scale
+            // Broaden the outer rows and keep the middle row more focused.
+            let rowRadiusScale: Float = row == 1 ? 0.7 : 1.5
             splat(point, motion, variedColor(emission.color, degrees: settings.hueVariation), (3 + 7 * emission.strength) * scale,
-                  radiusScale: 0.5 + emission.strength)
+                  radiusScale: (0.5 + emission.strength) * rowRadiusScale)
         }
         if touch.sequence != lastTouch {
             lastTouch = touch.sequence
