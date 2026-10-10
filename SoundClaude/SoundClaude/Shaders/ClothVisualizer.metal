@@ -351,6 +351,13 @@ static float4 clothSurface(
                     float disk = 1.0 - smoothstep(0.5 - feather, 0.5 + feather, radius);
                     float2 icon = float2(button.x * (index == 0 ? -1.0 : 1.0), button.y);
                     float shape = max(-0.15 - icon.x, abs(icon.y) - (0.30 - icon.x) * 0.6);
+                    if (index != 1) {
+                        // Two smaller triangles fit inside each track button.
+                        // Center their combined area, accounting for the wider bases.
+                        float2 triangles = icon.x - 0.14 / 3.0 + float2(0.14, -0.14);
+                        float2 shapes = max(-0.14 - triangles, abs(icon.y) - (0.14 - triangles) * 0.6);
+                        shape = min(shapes.x, shapes.y);
+                    }
                     if (index == 1 && uniforms.playback.x > 0.5) {
                         shape = max(abs(abs(button.x) - 0.12) - 0.055, abs(button.y) - 0.20);
                     }
