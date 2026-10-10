@@ -24,8 +24,12 @@ struct RelativeTimestampView: View {
                 Image(systemName: systemImage)
                     .accessibilityHidden(true)
             }
+            if let prefix {
+                Text(prefix)
+                    .accessibilityHidden(true)
+            }
             Button { isShowingDate = true } label: {
-                Text(prefix.map { "\($0) \(relativeTime)" } ?? relativeTime)
+                Text(relativeTime)
                     .accessibilityLabel("\(accessibilityPrefix) \(relativeTime)")
             }
             .buttonStyle(.plain)
