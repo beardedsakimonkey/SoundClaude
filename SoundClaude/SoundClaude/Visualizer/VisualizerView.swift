@@ -7,6 +7,8 @@ struct VisualizerView: View {
     let artworkLoader: ArtworkLoader
     let onClose: () -> Void
 
+    @State private var fluidSettings = FluidSettings()
+    @State private var fluidTouch = FluidTouch()
     @State private var pistonSettings = PistonSettings()
     @State private var clothSettings = ClothSettings()
     @State private var clothCamera = ClothCamera()
@@ -33,6 +35,8 @@ struct VisualizerView: View {
             shader: shader,
             clothSettings: clothSettings,
             pistonSettings: pistonSettings,
+            fluidSettings: fluidSettings,
+            fluidTouch: fluidTouch,
             trackProgress: playback.duration > 0 ? playback.currentTime / playback.duration : 0,
             hasTrack: playback.currentTrack != nil,
             isPlaying: playback.isPlaying,
@@ -54,6 +58,10 @@ struct VisualizerView: View {
                     let delta = CGSize(width: value.translation.width - orbitTranslation.width,
                                        height: value.translation.height - orbitTranslation.height)
                     orbitTranslation = value.translation
+                    if shader == .fluid {
+                        stir(at: value.location, delta: delta)
+                        return
+                    }
                     camera.orbit(
                         delta: SIMD2(Float(delta.width), Float(delta.height)),
                         viewport: SIMD2(Float(viewportSize.width), Float(viewportSize.height)),
@@ -64,6 +72,10 @@ struct VisualizerView: View {
                 }
                 .onEnded { _ in orbitTranslation = .zero }
                 .exclusively(before: SpatialTapGesture().onEnded { value in
+                    if shader == .fluid {
+                        stir(at: value.location, delta: .zero)
+                        return
+                    }
                     guard playback.currentTrack != nil else { return }
                     let hit: PistonGroundControls.Hit?
                     if shader == .cloth {
@@ -111,7 +123,9 @@ struct VisualizerView: View {
                 }
                 .buttonStyle(.bordered)
                 .popover(isPresented: $isShowingControls, arrowEdge: .bottom) {
-                    if shader == .pistons {
+                    if shader == .fluid {
+                        fluidControls
+                    } else if shader == .pistons {
                         pistonControls
                     } else {
                         clothControls
@@ -135,6 +149,36 @@ struct VisualizerView: View {
                 Button("Next track") { playback.next() }
             }
         }
+    }
+
+    private func stir(at point: CGPoint, delta: CGSize) {
+        guard viewportSize.width > 0, viewportSize.height > 0 else { return }
+        fluidTouch.point = SIMD2(Float(point.x / viewportSize.width), Float(point.y / viewportSize.height))
+        fluidTouch.delta = SIMD2(Float(delta.width / viewportSize.width), Float(delta.height / viewportSize.height))
+        fluidTouch.sequence += 1
+    }
+
+    private var fluidControls: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Fluid").font(.headline)
+                Spacer()
+                Button("Reset") { fluidSettings = FluidSettings() }
+            }
+            Text("Drag to stir. Music adds color and motion.")
+                .font(.caption).foregroundStyle(.secondary)
+            tuningSlider("Swirl", value: $fluidSettings.curl, range: 0...50)
+            tuningSlider("Audio force", value: $fluidSettings.force, range: 0...3)
+            tuningSlider("Jet radius", value: $fluidSettings.radius, range: 0.01...1, format: "%.2f")
+            tuningSlider("Color fade", value: $fluidSettings.dyeDissipation, range: 0.1...3)
+            tuningSlider("Flow damping", value: $fluidSettings.velocityDissipation, range: 0...2)
+            tuningSlider("Brightness", value: $fluidSettings.brightness, range: 0.3...3)
+            tuningSlider("Bloom", value: $fluidSettings.bloom, range: 0...2)
+            Toggle("Shading", isOn: $fluidSettings.shading)
+            Toggle("Light rays", isOn: $fluidSettings.sunrays)
+        }
+        .padding(20)
+        .frame(width: 320)
     }
 
     private var pistonControls: some View {

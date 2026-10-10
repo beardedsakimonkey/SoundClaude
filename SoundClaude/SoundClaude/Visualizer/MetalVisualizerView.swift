@@ -19,6 +19,8 @@ struct ArtworkVisualizerView: View {
     let shader: VisualizerShader
     let clothSettings: ClothSettings
     let pistonSettings: PistonSettings
+    let fluidSettings: FluidSettings
+    let fluidTouch: FluidTouch
     let trackProgress: Double
     let hasTrack: Bool
     let isPlaying: Bool
@@ -39,6 +41,8 @@ struct ArtworkVisualizerView: View {
             shader: shader,
             clothSettings: clothSettings,
             pistonSettings: pistonSettings,
+            fluidSettings: fluidSettings,
+            fluidTouch: fluidTouch,
             trackProgress: trackProgress,
             hasTrack: hasTrack,
             isPlaying: isPlaying,
@@ -48,7 +52,9 @@ struct ArtworkVisualizerView: View {
             artworkImage: accentArtworkURL == artworkURL ? artworkImage : nil
         )
             .background {
-                if shader == .cloth {
+                if shader == .fluid {
+                    Color.black
+                } else if shader == .cloth {
                     Color(.sRGB, red: 0.035, green: 0.045, blue: 0.06)
                 } else {
                     visualizerBackdrop
@@ -114,6 +120,8 @@ struct MetalVisualizerView: NSViewRepresentable {
     let shader: VisualizerShader
     let clothSettings: ClothSettings
     let pistonSettings: PistonSettings
+    let fluidSettings: FluidSettings
+    let fluidTouch: FluidTouch
     let trackProgress: Double
     let hasTrack: Bool
     let isPlaying: Bool
@@ -159,6 +167,8 @@ struct MetalVisualizerView: NSViewRepresentable {
         renderer?.shader = shader
         renderer?.clothSettings = clothSettings
         renderer?.pistonSettings = pistonSettings
+        renderer?.fluidSettings = fluidSettings
+        renderer?.fluidTouch = fluidTouch
         renderer?.trackProgress = trackProgress
         renderer?.hasTrack = hasTrack
         renderer?.isPlaying = isPlaying
@@ -174,6 +184,8 @@ struct MetalVisualizerView: NSViewRepresentable {
         context.coordinator.renderer?.shader = shader
         context.coordinator.renderer?.clothSettings = clothSettings
         context.coordinator.renderer?.pistonSettings = pistonSettings
+        context.coordinator.renderer?.fluidSettings = fluidSettings
+        context.coordinator.renderer?.fluidTouch = fluidTouch
         context.coordinator.renderer?.trackProgress = trackProgress
         context.coordinator.renderer?.hasTrack = hasTrack
         context.coordinator.renderer?.isPlaying = isPlaying
@@ -183,6 +195,7 @@ struct MetalVisualizerView: NSViewRepresentable {
     }
 
     private var zoomHandler: ((Float) -> Void)? {
+        guard shader != .fluid else { return nil }
         return { amount in
             clothCamera.zoom = min(2, max(0.2, clothCamera.zoom * exp(-amount)))
         }

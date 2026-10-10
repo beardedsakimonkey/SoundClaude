@@ -6,6 +6,7 @@ import simd
 enum VisualizerShader: String, CaseIterable {
     case cloth
     case pistons
+    case fluid
 
     // Pistons add a 0.25-radian tilt and orbit a point above the floor.
     var cameraPitchRange: ClosedRange<Float> {
@@ -22,6 +23,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .cloth: "Cloth"
         case .pistons: "Pistons"
+        case .fluid: "Fluid"
         }
     }
 
@@ -29,6 +31,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .cloth: "ClothVisualizer.metal"
         case .pistons: "PistonVisualizer.metal"
+        case .fluid: "FluidVisualizer.metal"
         }
     }
 
@@ -36,6 +39,7 @@ enum VisualizerShader: String, CaseIterable {
         switch self {
         case .cloth: "clothVisualizer"
         case .pistons: "pistonVisualizer"
+        case .fluid: "fluidVisualizer"
         }
     }
 
@@ -53,6 +57,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var clothSettings = ClothSettings()
     // Match the pole, foot, rope and rounded cap geometry in clothSupportVertex.
     private let clothSupportVertexCount = 4 * (12 * 9 + 2 * 12 * 12 + 12 * 4 * 6)
+    var fluidSettings = FluidSettings()
+    var fluidTouch = FluidTouch()
+    private var fluid: FluidSimulation?
     var pistonSettings = PistonSettings()
     var trackProgress: Double = 0
     var hasTrack = false
@@ -109,10 +116,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         sceneSampleCount = device.supportsTextureSampleCount(4) ? 4
             : (device.supportsTextureSampleCount(2) ? 2 : 1)
         do {
+            fluid = try FluidSimulation(device: device, library: library)
             for shader in VisualizerShader.allCases {
                 pipelines[shader] = try Self.makePipelines(
                     device: device, library: library, pixelFormat: view.colorPixelFormat,
-                    shader: shader, sampleCount: sceneSampleCount
+                    shader: shader, sampleCount: shader == .fluid ? 1 : sceneSampleCount
                 )
             }
             pistonGlowPipeline = try Self.makePipeline(
@@ -168,7 +176,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         for shader in VisualizerShader.allCases {
             shaderReloaders[shader] = VisualizerShaderReloader(
                 device: device, pixelFormat: view.colorPixelFormat, shader: shader,
-                sampleCount: sceneSampleCount
+                sampleCount: shader == .fluid ? 1 : sceneSampleCount
             )
         }
 #endif
@@ -631,7 +639,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 #endif
         // MTKView creates matching multisample color/depth attachments and resolves
         // the scene into the drawable before the single-sample bloom composite.
-        if view.sampleCount != sceneSampleCount { view.sampleCount = sceneSampleCount }
+        // Fluid is a fullscreen image and needs no multisample geometry attachments.
+        let sampleCount = shader == .fluid ? 1 : sceneSampleCount
+        if view.sampleCount != sampleCount { view.sampleCount = sampleCount }
         guard let pipelines = pipelines[shader],
               let renderPassDescriptor = view.currentRenderPassDescriptor,
               let drawable = view.currentDrawable,
@@ -641,6 +651,31 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         _ = bands.withUnsafeMutableBufferPointer {
             SCSpectrumBufferRead(spectrumBuffer, $0.baseAddress, &rms, &bassLevel, &trebleLevel)
         }
+        if shader == .fluid {
+            lastClothTime = nil
+            lastPistonTime = nil
+            bassDetector = ClothBassDetector()
+            trebleDetector = .treble
+            if let texture = fluid?.encode(commandBuffer: commandBuffer, size: view.drawableSize,
+                    settings: fluidSettings, bands: bands,
+                    touch: fluidTouch),
+               let effects = fluid?.encodeEffects(commandBuffer: commandBuffer, dye: texture,
+                    size: view.drawableSize, settings: fluidSettings),
+               let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) {
+                encoder.setRenderPipelineState(pipelines.scene)
+                encoder.setFragmentTexture(texture, index: 0)
+                encoder.setFragmentTexture(effects.bloom, index: 1)
+                encoder.setFragmentTexture(effects.rays, index: 2)
+                var display = FluidDisplayUniforms(size: view.drawableSize, settings: fluidSettings)
+                encoder.setFragmentBytes(&display, length: MemoryLayout<FluidDisplayUniforms>.stride, index: 0)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+                encoder.endEncoding()
+            }
+            commandBuffer.present(drawable)
+            commandBuffer.commit()
+            return
+        }
+        fluid?.suspend()
         let clothFrame = shader == .cloth
             ? prepareCloth(in: view) : nil
         let pistonFrame = shader == .pistons ? preparePistons(in: view) : nil
