@@ -108,14 +108,6 @@ struct VisualizerView: View {
         .overlay(alignment: .topTrailing) {
             HStack {
                 Button {
-                    shader = shader.next
-                } label: {
-                    Label("Next visualizer", systemImage: "arrow.right")
-                        .labelStyle(.iconOnly)
-                }
-                .buttonStyle(.bordered)
-                .help("Switch to \(shader.next.title) visualizer (Enter)")
-                Button {
                     isShowingControls.toggle()
                 } label: {
                     Label("\(shader.title) controls", systemImage: "slider.horizontal.3")
@@ -172,8 +164,6 @@ struct VisualizerView: View {
             tuningSlider("Flow damping", value: $fluidSettings.velocityDissipation, range: 0...2)
             tuningSlider("Brightness", value: $fluidSettings.brightness, range: 0.3...3)
             tuningSlider("Bloom", value: $fluidSettings.bloom, range: 0...2)
-            Toggle("Shading", isOn: $fluidSettings.shading)
-            Toggle("Light rays", isOn: $fluidSettings.sunrays)
         }
         .padding(20)
         .frame(width: 320)

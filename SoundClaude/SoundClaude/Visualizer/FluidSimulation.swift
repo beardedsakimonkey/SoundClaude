@@ -94,6 +94,7 @@ final class FluidSimulation {
     private var pointerColor = SIMD3<Float>.zero
     private var colorTimer: Float = 0
     private var bandDetector = FluidBandDetector()
+    private var splatRowPhases = [Int](repeating: 0, count: 3)
 
     // Match getResolution in the reference, with a cap for unusually wide windows.
     private func resolution(_ base: Int, aspect: Float, limit: Int) -> (Int, Int) {
@@ -240,21 +241,25 @@ final class FluidSimulation {
             delta * SIMD2(min(1, aspect), 1 / max(1, aspect))
         }
         for hit in hits {
-            let point: SIMD2<Float>
+            // Each row visits eight fixed positions, reversing without repeating an endpoint.
+            let row = hit.band < 2 ? 0 : (hit.band < 6 ? 1 : 2)
+            let positionCount = 8
+            let period = 2 * (positionCount - 1)
+            let phase = splatRowPhases[row]
+            let position = min(phase, period - phase)
+            splatRowPhases[row] = (phase + 1) % period
+            let x = 0.08 + Float(position) / Float(positionCount - 1) * 0.84
+            let point = SIMD2<Float>(x, row == 0 ? 0.91 : (row == 1 ? 0.5 : 0.09))
             let angle: Float
             switch hit.band {
             case 0...1:
                 // Texture coordinates increase downward: bass rises from the bottom.
-                point = SIMD2(0.08 + random() * 0.84, 0.88 + random() * 0.06)
                 angle = -Float.pi / 2 + (random() - 0.5) * Float.pi / 3
             case 6...7:
-                point = SIMD2(0.08 + random() * 0.84, 0.06 + random() * 0.06)
                 angle = Float.pi / 2 + (random() - 0.5) * Float.pi / 3
             default:
-                // Mids spread outward from a small region around the center.
+                // Mids spread in all directions from the middle row.
                 angle = random() * 2 * Float.pi
-                point = SIMD2<Float>(repeating: 0.5)
-                    + corrected(SIMD2(cos(angle), sin(angle))) * (0.04 + random() * 0.08)
             }
             let motion = corrected(SIMD2(cos(angle), sin(angle)))
                 * (250 + 750 * hit.strength) * settings.force
