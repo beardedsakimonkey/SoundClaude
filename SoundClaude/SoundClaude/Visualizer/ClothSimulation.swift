@@ -17,7 +17,7 @@ struct ClothSettings: Equatable {
     var iterations = 1
     var shineIntensity: Float = 0.25
     var flashBrightness: Float = 0.5
-    var groundBrightness: Float = 0.35
+    var groundBrightness: Float = 0.6
     var groundTileSize: Float = 1.5
     var showMesh = false
 }

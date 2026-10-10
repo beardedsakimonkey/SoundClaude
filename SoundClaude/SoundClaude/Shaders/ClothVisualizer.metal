@@ -231,9 +231,9 @@ static float clothTileGroutExtra(float2 cell) {
 }
 
 static float3 clothTiledFloor(float2 p, float3 accentColor, float tileSize) {
-    // Soften the tile tint while preserving the accent's luminance.
+    // Keep the accent tint at a fixed luminance so dark tracks do not dim the floor.
     float luminance = dot(accentColor, float3(0.2126, 0.7152, 0.0722));
-    accentColor = mix(float3(luminance), accentColor, 0.4);
+    accentColor = float3(0.5) + (accentColor - float3(luminance)) * 0.4;
     float2 grid = p / tileSize;
     float2 cell = floor(grid);
     float2 nearestCell = cell;
