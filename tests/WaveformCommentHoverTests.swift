@@ -24,9 +24,7 @@ final class AppModel {
             SoundCloudComment(id: "left", body: "A comment to hover", user: SoundCloudUser(username: "Left artist"), timestampMilliseconds: 25000),
             SoundCloudComment(id: "neighbor", body: "A nearby comment", user: SoundCloudUser(username: "Nearby artist"), timestampMilliseconds: 30000),
             SoundCloudComment(id: "short", body: "Nice", user: SoundCloudUser(username: "Short artist"), timestampMilliseconds: 60000),
-            SoundCloudComment(id: "right", body: "Another comment to hover", user: SoundCloudUser(username: "Right artist"), timestampMilliseconds: 75000),
-            SoundCloudComment(id: "thread-a", body: "First comment", user: SoundCloudUser(username: "First artist"), timestampMilliseconds: 90000),
-            SoundCloudComment(id: "thread-b", body: "Reply comment", user: SoundCloudUser(username: "Reply artist"), timestampMilliseconds: 90000)
+            SoundCloudComment(id: "right", body: "Another comment to hover", user: SoundCloudUser(username: "Right artist"), timestampMilliseconds: 75000)
         ])
     }
 }
@@ -139,19 +137,6 @@ struct ArtistLink: View {
                 await post(.mouseMoved, CGPoint(x: 300, y: 200))
                 precondition(Observations.names.isEmpty, "Comment must close after leaving")
             }
-            await post(.mouseMoved, CGPoint(x: 540, y: 56))
-            precondition(Observations.names == ["First artist"], "First marker must show its own comment")
-            await post(.mouseMoved, CGPoint(x: 548, y: 56))
-            precondition(Observations.names == ["Reply artist"], "Reply must be separately selectable by hover")
-            await post(.mouseMoved, CGPoint(x: 548, y: 75))
-            let reply = Observations.frames["Reply artist"]!
-            let replyTarget = CGPoint(x: reply.midX, y: reply.midY)
-            await post(.mouseMoved, replyTarget)
-            await post(.leftMouseDown, replyTarget)
-            await post(.leftMouseUp, replyTarget)
-            precondition(Observations.selected == "Reply artist", "Reply author must be actionable")
-            await post(.mouseMoved, CGPoint(x: 300, y: 200))
-            precondition(Observations.names.isEmpty, "Group must close after leaving")
             window.orderOut(nil)
             if let originalPointer {
                 CGEvent(mouseEventSource: nil, mouseType: .mouseMoved, mouseCursorPosition: originalPointer,

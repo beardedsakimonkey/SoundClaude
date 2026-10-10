@@ -162,11 +162,13 @@ private struct WaveformCommentMarkersContent: View {
             let interactionID = (isHoverAllowed ? hoveredID : nil) ?? focusedID
             let width = proxy.size.width
             let markerHeight = max(0, proxy.size.height - waveformCommentHoverOverflow)
-            let placements = index.markerPlacements(width: width, duration: duration)
-            let interactionX = placements.first { $0.comment.id == interactionID }?.x
+            let comments = index.visibleComments(duration: duration)
+            let interactionX = comments.first { $0.id == interactionID }
+                .map { position(for: $0, width: width) }
             let commentID = interactionID ?? playbackID
             let bubbleFrame = commentID.flatMap { bubbleFrames[$0] }
-            let commentX = placements.first { $0.comment.id == commentID }?.x
+            let commentX = comments.first { $0.id == commentID }
+                .map { position(for: $0, width: width) }
             // Only bridge the gap directly below the 32-point avatar.
             // The avatar row stays free to select neighboring comments.
             let bridge = bubbleFrame.flatMap { frame in
@@ -181,16 +183,15 @@ private struct WaveformCommentMarkersContent: View {
                 if let bubbleFrame { path.addRect(bubbleFrame) }
             }
             ZStack(alignment: .topLeading) {
-                ForEach(placements, id: \.comment.id) { placement in
-                    let comment = placement.comment
-                    let distance = interactionX.map { abs(placement.x - $0) }
+                ForEach(comments) { comment in
+                    let distance = interactionX.map { abs(position(for: comment, width: width) - $0) }
                     let proximity = distance.map {
                         let strength = max(0, 1 - $0 / 72)
                         return strength * strength * strength
                     } ?? 0
                     WaveformCommentMarker(
                         index: index, comment: comment, loader: model.artworkLoader,
-                        width: width, x: placement.x, duration: duration,
+                        width: width, x: position(for: comment, width: width), duration: duration,
                         isActive: comment.id == interactionID || comment.id == playbackID,
                         showsComment: comment.id == commentID,
                         proximity: proximity,
@@ -203,7 +204,7 @@ private struct WaveformCommentMarkersContent: View {
                             reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15),
                             value: showsComments
                         )
-                        .position(x: placement.x, y: markerHeight / 2)
+                        .position(x: position(for: comment, width: width), y: markerHeight / 2)
                         // Keep active avatars above neighbors, with interaction above playback.
                         .zIndex(comment.id == interactionID ? 2 : (comment.id == playbackID ? 1 : 0))
                 }
@@ -228,7 +229,7 @@ private struct WaveformCommentMarkersContent: View {
                     // Select by distance, independent of the avatars' overlap and
                     // the active avatar's larger size and higher drawing order.
                     let nextID = index.hoverCommentID(
-                        at: location.x, placements: placements
+                        at: location.x, width: width, duration: duration
                     )
                     if hoveredID != nextID { hoveredID = nextID }
                 case .ended:
@@ -260,6 +261,13 @@ private struct WaveformCommentMarkersContent: View {
 
     private var isHoverAllowed: Bool {
         contentHoverEnabled && hoverSuppression?.isSuppressed != true
+    }
+
+    private func position(for comment: SoundCloudComment, width: CGFloat) -> CGFloat {
+        guard duration > 0 else { return 0 }
+        let seconds = Double(comment.timestampMilliseconds ?? 0) / 1_000
+        let inset = min(16, width / 2)
+        return min(max(CGFloat(seconds / duration) * width, inset), width - inset)
     }
 }
 
