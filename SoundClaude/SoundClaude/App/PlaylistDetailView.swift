@@ -249,7 +249,6 @@ struct PlaylistDetailView: View {
                     track: displayedTrack,
                     model: model,
                     invertsBarsOnTrackChange: true,
-                    collapsesBarsWhenPaused: true,
                     keepsBarsVisible: true,
                     onPlayTrack: playTrack
                 )

@@ -61,7 +61,7 @@ struct TrackWaveformView: View {
         height: CGFloat? = nil,
         animatesBarTransitions: Bool = true,
         invertsBarsOnTrackChange: Bool = false,
-        collapsesBarsWhenPaused: Bool? = nil,
+        collapsesBarsWhenPaused: Bool = false,
         keepsBarsVisible: Bool = false,
         onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
     ) {
@@ -71,7 +71,7 @@ struct TrackWaveformView: View {
         self.height = height ?? layout.height
         self.animatesBarTransitions = animatesBarTransitions
         self.invertsBarsOnTrackChange = invertsBarsOnTrackChange
-        self.collapsesBarsWhenPaused = collapsesBarsWhenPaused ?? (layout == .detail)
+        self.collapsesBarsWhenPaused = collapsesBarsWhenPaused
         self.keepsBarsVisible = keepsBarsVisible
         self.onPlayTrack = onPlayTrack
         playback = model.playback
@@ -132,7 +132,7 @@ struct TrackWaveformView: View {
             loadingIndicatorTrackURN = urn
         }
         .onChange(of: commentsAppearance) { _, _ in
-            // Clear readiness during the update, before a quick resume can reuse it.
+            // Clear readiness when the track or waveform appearance changes.
             commentsReadyAppearance = nil
         }
         .onChange(of: playback.currentTrack?.urn) { _, urn in
@@ -148,12 +148,12 @@ struct TrackWaveformView: View {
             commentsReadyAppearance = nil
             guard appearance.trackURN != nil,
                   appearance.hasWaveform,
-                  appearance.isPlaybackActive,
+                  appearance.isCurrentTrack,
                   !appearance.barsAreCollapsed else { return }
             // Start the delay when this track's bars can expand, including on first load.
             if !appearance.reduceMotion {
                 do {
-                    // A loaded track can resume quickly; a new track waits
+                    // A previously shown track returns quickly; a new track waits
                     // until the staggered spring nears its end before creating markers.
                     let delay: Duration = commentsPresentedTrackURN == appearance.trackURN
                         ? .milliseconds(100) : commentsAppearanceDelay
@@ -370,7 +370,7 @@ struct TrackWaveformView: View {
                             track: track,
                             model: model,
                             duration: displayedDuration,
-                            showsComments: commentsAppearance.isPlaybackActive
+                            showsComments: commentsAppearance.isCurrentTrack
                                 && (commentsReadyAppearance == commentsAppearance || reduceMotion),
                             onSeek: { seek(to: $0) }
                         )
@@ -575,7 +575,7 @@ struct TrackWaveformView: View {
         let trackURN: String?
         let hasWaveform: Bool
         let barsAreCollapsed: Bool
-        let isPlaybackActive: Bool
+        let isCurrentTrack: Bool
         let reduceMotion: Bool
     }
 
@@ -584,16 +584,16 @@ struct TrackWaveformView: View {
             trackURN: track?.urn,
             hasWaveform: waveform != nil && waveformTrackURN == track?.urn,
             barsAreCollapsed: barsAreCollapsed,
-            isPlaybackActive: isCurrentTrack && playback.isPlaybackActive,
+            isCurrentTrack: isCurrentTrack,
             reduceMotion: reduceMotion
         )
     }
 
     private var barsAreCollapsed: Bool {
+        // Detail waveforms always show their full shape, regardless of playback.
+        guard layout == .compact else { return false }
         return track == nil || (keepsBarsVisible && waveform == nil)
-            // Expand on the play request, including while audio is loading.
-            || (collapsesBarsWhenPaused
-                && (!isCurrentTrack || !playback.isPlaybackActive))
+            || (collapsesBarsWhenPaused && (!isCurrentTrack || !playback.isPlaybackActive))
     }
 
     private var showsHoverPreview: Bool {
@@ -606,15 +606,15 @@ struct TrackWaveformView: View {
     ) -> WaveformAmplitudes {
         // Keep the same bars for every track, including the loading state.
         let barCount = max(Int(width / 4), 1)
-        let pausedHeight = 4.0
+        let collapsedHeight = 4.0
         let availableHeight = layout.availableBarHeight(for: height)
-        let pausedAmplitude = pausedHeight / Double(availableHeight)
+        let collapsedAmplitude = collapsedHeight / Double(availableHeight)
         if barsAreCollapsed && !showsHoverPreview {
-            return WaveformAmplitudes(values: Array(repeating: pausedAmplitude, count: barCount))
+            return WaveformAmplitudes(values: Array(repeating: collapsedAmplitude, count: barCount))
         }
         guard let waveform, !waveform.samples.isEmpty, waveform.height > 0 else {
             return WaveformAmplitudes(values: Array(
-                repeating: barsAreCollapsed ? pausedAmplitude : 0,
+                repeating: barsAreCollapsed ? collapsedAmplitude : 0,
                 count: barCount
             ))
         }
@@ -645,7 +645,7 @@ struct TrackWaveformView: View {
                 let reveal = (exp(exponent * proximity) - 1) / (exp(exponent) - 1)
                 // Interpolate visible heights, independent of animation direction.
                 let fullAmplitude = max(amplitude, 2 / Double(availableHeight))
-                return pausedAmplitude + (fullAmplitude - pausedAmplitude) * reveal
+                return collapsedAmplitude + (fullAmplitude - collapsedAmplitude) * reveal
             }
             return amplitude * barDirection
         })
