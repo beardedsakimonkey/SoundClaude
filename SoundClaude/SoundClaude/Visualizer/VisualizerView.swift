@@ -165,11 +165,9 @@ struct VisualizerView: View {
                 Spacer()
                 Button("Reset") { fluidSettings = FluidSettings() }
             }
-            Text("Drag to stir. Music adds color and motion.")
-                .font(.caption).foregroundStyle(.secondary)
             tuningSlider("Swirl", value: $fluidSettings.curl, range: 0...50)
             tuningSlider("Audio force", value: $fluidSettings.force, range: 0...3)
-            tuningSlider("Jet radius", value: $fluidSettings.radius, range: 0.01...1, format: "%.2f")
+            tuningSlider("Splat radius", value: $fluidSettings.radius, range: 0.01...1, format: "%.2f")
             tuningSlider("Color fade", value: $fluidSettings.dyeDissipation, range: 0.1...3)
             tuningSlider("Flow damping", value: $fluidSettings.velocityDissipation, range: 0...2)
             tuningSlider("Brightness", value: $fluidSettings.brightness, range: 0.3...3)

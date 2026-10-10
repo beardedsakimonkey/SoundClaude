@@ -4,7 +4,7 @@ import simd
 struct FluidSettings {
     var curl: Float = 30
     var force: Float = 1
-    var radius: Float = 0.25
+    var radius: Float = 0.1
     var dyeDissipation: Float = 1
     var velocityDissipation: Float = 0.2
     var brightness: Float = 1
@@ -209,8 +209,11 @@ final class FluidSimulation {
                      target === velocity[0] ? velocity[1] : velocity[0], target)
             }
         }
-        func splat(_ point: SIMD2<Float>, _ motion: SIMD2<Float>, _ color: SIMD3<Float>, _ amount: Float) {
-            uniforms.splat = SIMD4(point.x, point.y, settings.radius / 100 * max(1, aspect), 1)
+        func splat(_ point: SIMD2<Float>, _ motion: SIMD2<Float>, _ color: SIMD3<Float>,
+                   _ amount: Float, radiusScale: Float = 1) {
+            // The shader uses radius squared, so square the scale for a linear size change.
+            let radiusSquared = settings.radius / 100 * max(1, aspect) * radiusScale * radiusScale
+            uniforms.splat = SIMD4(point.x, point.y, radiusSquared, 1)
             uniforms.value = SIMD4(motion.x, motion.y, 0, 0)
             pass(1, velocity[0], velocity[0], velocity[1]); velocity.swapAt(0, 1)
             uniforms.value = SIMD4(color * amount, 0)
@@ -241,7 +244,8 @@ final class FluidSimulation {
             let angle = random() * 2 * Float.pi
             let motion = corrected(SIMD2(cos(angle), sin(angle)))
                 * (250 + 750 * hit.strength) * settings.force
-            splat(point, motion, hit.color, 3 + 7 * hit.strength)
+            splat(point, motion, hit.color, 3 + 7 * hit.strength,
+                  radiusScale: 0.5 + hit.strength)
         }
         if touch.sequence != lastTouch {
             lastTouch = touch.sequence
