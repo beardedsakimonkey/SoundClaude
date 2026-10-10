@@ -143,5 +143,22 @@ fragment float4 fluidVisualizerFragment(FluidVertex in [[stage_in]],
         c += bloom;
     }
     // The reference writes directly to an SDR canvas; preserve its luminous clipping.
-    return float4(c * display[0].z, 1);
+    c *= display[0].z;
+    if (display[2].w > 0) {
+        for (int row = 0; row < 3; ++row) {
+            float y = row == 0 ? 0.91 : (row == 1 ? 0.5 : 0.09);
+            float3 tint = row == 0 ? float3(1, 0.3, 0.15)
+                : (row == 1 ? float3(0.2, 1, 0.6) : float3(0.5, 0.6, 1));
+            float trackDistance = abs(in.uv.y - y) / texel.y;
+            if (in.uv.x >= 0.08 && in.uv.x <= 0.92) {
+                c = mix(c, float3(0), (1 - smoothstep(2.0, 3.0, trackDistance)) * 0.7);
+                c = mix(c, tint, (1 - smoothstep(0.5, 1.5, trackDistance)) * 0.8);
+            }
+            float distance = length((in.uv - float2(display[2][row], y)) / texel);
+            c = mix(c, float3(0), 1 - smoothstep(9.0, 10.0, distance));
+            c = mix(c, tint, 1 - smoothstep(6.0, 7.0, distance));
+            c = mix(c, float3(1), 1 - smoothstep(2.0, 3.0, distance));
+        }
+    }
+    return float4(c, 1);
 }

@@ -666,7 +666,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 encoder.setFragmentTexture(texture, index: 0)
                 encoder.setFragmentTexture(effects.bloom, index: 1)
                 encoder.setFragmentTexture(effects.rays, index: 2)
-                var display = FluidDisplayUniforms(size: view.drawableSize, settings: fluidSettings)
+                var display = FluidDisplayUniforms(size: view.drawableSize, settings: fluidSettings,
+                                                  emitterPositions: fluid?.emitterPositions ?? .zero)
                 encoder.setFragmentBytes(&display, length: MemoryLayout<FluidDisplayUniforms>.stride, index: 0)
                 encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
                 encoder.endEncoding()

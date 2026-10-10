@@ -166,6 +166,8 @@ struct VisualizerView: View {
             tuningSlider("Flow damping", value: $fluidSettings.velocityDissipation, range: 0...2)
             tuningSlider("Brightness", value: $fluidSettings.brightness, range: 0.3...3)
             tuningSlider("Bloom", value: $fluidSettings.bloom, range: 0...2)
+            Toggle("Show emitter positions", isOn: $fluidSettings.showEmitters)
+                .help("Show the moving bass, mid, and high emitters and their horizontal tracks.")
         }
         .padding(20)
         .frame(width: 320)

@@ -6,6 +6,7 @@ struct FluidSettings {
     var force: Float = 1
     var radius: Float = 0.1
     var hueVariation: Float = 12
+    var showEmitters = false
     var dyeDissipation: Float = 1
     var velocityDissipation: Float = 0.2
     var brightness: Float = 1
@@ -17,11 +18,13 @@ struct FluidSettings {
 struct FluidDisplayUniforms {
     var texelAndStyle: SIMD4<Float>
     var effects: SIMD4<Float>
+    var emitters: SIMD4<Float>
 
-    init(size: CGSize, settings: FluidSettings) {
+    init(size: CGSize, settings: FluidSettings, emitterPositions: SIMD3<Float> = .zero) {
         texelAndStyle = SIMD4(1 / Float(size.width), 1 / Float(size.height),
                              settings.brightness, settings.shading ? 1 : 0)
         effects = SIMD4(settings.sunrays ? 1 : 0, settings.bloom, 0, 0)
+        emitters = SIMD4(emitterPositions, settings.showEmitters ? 1 : 0)
     }
 }
 
@@ -95,7 +98,13 @@ final class FluidSimulation {
     private var pointerColor = SIMD3<Float>.zero
     private var colorTimer: Float = 0
     private var bandDetector = FluidBandDetector()
-    private var splatRowPhases = [Int](repeating: 0, count: 3)
+    private var splatPhase: Double = 0
+
+    var emitterPositions: SIMD3<Float> {
+        SIMD3((0..<3).map { row in
+            Float(0.5 - 0.42 * cos(splatPhase + Double(row) * 2 * .pi / 3))
+        })
+    }
 
     // Match getResolution in the reference, with a cap for unusually wide windows.
     private func resolution(_ base: Int, aspect: Float, limit: Int) -> (Int, Int) {
@@ -210,6 +219,12 @@ final class FluidSimulation {
         if elapsed > 0.5 { bandDetector = FluidBandDetector() }
         let hits = bandDetector.update(bands: bands, delta: elapsed)
         let dt = Float(min(1.0 / 60, elapsed))
+        // Complete a left-right-left sweep every six seconds, even between hits.
+        // Freeze during long interruptions so resuming does not jump the emitters.
+        if elapsed <= 0.5 {
+            splatPhase = (splatPhase + elapsed * 2 * .pi / 6)
+                .truncatingRemainder(dividingBy: 2 * .pi)
+        }
         lastTime = now
         var uniforms = Uniforms()
         uniforms.step = SIMD4(dt, 0, settings.curl, aspect)
@@ -265,15 +280,11 @@ final class FluidSimulation {
         func corrected(_ delta: SIMD2<Float>) -> SIMD2<Float> {
             delta * SIMD2(min(1, aspect), 1 / max(1, aspect))
         }
+        let positions = emitterPositions
         for hit in hits {
-            // Each row visits eight fixed positions, reversing without repeating an endpoint.
+            // Rows move continuously, each one third of a cycle apart.
             let row = hit.band < 2 ? 0 : (hit.band < 6 ? 1 : 2)
-            let positionCount = 8
-            let period = 2 * (positionCount - 1)
-            let phase = splatRowPhases[row]
-            let position = min(phase, period - phase)
-            splatRowPhases[row] = (phase + 1) % period
-            let x = 0.08 + Float(position) / Float(positionCount - 1) * 0.84
+            let x = positions[row]
             let point = SIMD2<Float>(x, row == 0 ? 0.91 : (row == 1 ? 0.5 : 0.09))
             let angle: Float
             switch hit.band {
