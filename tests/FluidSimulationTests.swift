@@ -50,10 +50,10 @@ struct FluidSimulationTests {
         }
         var texture = frame()
         let initial = energy(texture)
-        precondition(initial > 0, "Initial fluid must be visible without music")
+        precondition(initial == 0, "Initial fluid must stay clear without music or pointer input")
         for _ in 0..<120 { texture = frame() }
         let faded = energy(texture)
-        precondition(faded < initial * 0.7, "Silent fluid must fade")
+        precondition(faded == 0, "Silent fluid must stay clear")
         for _ in 0..<240 { texture = frame() }
         let beforeRumble = energy(texture)
         let rumble = [Float](repeating: 0.8, count: 16) + [Float](repeating: 0, count: 48)
@@ -90,7 +90,7 @@ struct FluidSimulationTests {
             size = dimensions
             texture = frame()
             precondition(texture.width <= 2048 && texture.height <= 2048, "Grid must stay bounded")
-            precondition(energy(texture) > 0, "Resize must initialize new textures")
+            precondition(energy(texture) == 0, "Resize must clear new textures without adding startup splats")
         }
         let command = queue.makeCommandBuffer()!
         precondition(simulation.encode(commandBuffer: command, size: .zero, settings: settings,

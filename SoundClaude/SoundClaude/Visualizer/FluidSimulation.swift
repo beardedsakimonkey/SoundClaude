@@ -7,6 +7,9 @@ struct FluidSettings {
     var steadyFlow: Float = 0.6
     var emitterSlideSpeed: Float = 1
     var radius: Float = 0.1
+    var topEmitterSize: Float = 1.5
+    var middleEmitterSize: Float = 0.7
+    var bottomEmitterSize: Float = 1.5
     var hueVariation: Float = 12
     var showEmitters = false
     var dyeDissipation: Float = 1
@@ -334,14 +337,7 @@ final class FluidSimulation {
             pass(1, dye[0], dye[0], dye[1]); dye.swapAt(0, 1)
         }
         if !initialized {
-            // The reference starts with 5–24 rainbow splats at up to 500 cells/second.
-            let count = 5 + Int(random() * 20)
-            for _ in 0..<count {
-                let tint = color()
-                let point = SIMD2(random(), random())
-                let motion = SIMD2(random() - 0.5, random() - 0.5) * 1000
-                splat(point, motion, tint, 10)
-            }
+            // Start clear; only audio and pointer input add dye.
             pointerColor = color()
             initialized = true
         }
@@ -375,8 +371,9 @@ final class FluidSimulation {
                 direction = simd_normalize(toCenter)
             }
             let motion = direction * (250 + 750 * emission.strength) * settings.force * scale
-            // Broaden the outer rows and keep the middle row more focused.
-            let rowRadiusScale: Float = row == 1 ? 0.7 : 1.5
+            // Scale each row relative to the shared splat radius.
+            let rowRadiusScale = row == 0 ? settings.bottomEmitterSize
+                : (row == 1 ? settings.middleEmitterSize : settings.topEmitterSize)
             splat(point, motion, variedColor(emission.color, degrees: settings.hueVariation), (3 + 7 * emission.strength) * scale,
                   radiusScale: (0.5 + emission.strength) * rowRadiusScale)
         }
