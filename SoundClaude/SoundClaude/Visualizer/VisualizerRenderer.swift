@@ -79,6 +79,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private var pistonGlowPipeline: MTLRenderPipelineState?
     private var pistonRopeShadowPipeline: MTLRenderPipelineState?
     private var pistons = PistonSimulation()
+    private static let particlesPerPiston = 48
+    // xyz is the rope position at emission; w is age in seconds.
+    private var pistonParticles: [SIMD4<Float>] = []
     private var lastPistonTime: Double?
     private var cloth = ClothSimulation()
     private var bassLevel: Float = 0
@@ -280,21 +283,42 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private func preparePistons(in view: MTKView) -> PistonFrame? {
         let now = ProcessInfo.processInfo.systemUptime
         pistons.settings = pistonSettings
-        pistons.advance(delta: lastPistonTime.map { now - $0 } ?? PistonSimulation.step, bands: bands)
+        let delta = lastPistonTime.map { now - $0 } ?? PistonSimulation.step
+        pistons.advance(delta: delta, bands: bands)
         lastPistonTime = now
+        let initializeParticles = pistonParticles.isEmpty
+        if initializeParticles {
+            pistonParticles = Array(repeating: .zero,
+                                    count: PistonSimulation.count * Self.particlesPerPiston)
+        }
+        for index in pistonParticles.indices {
+            pistonParticles[index].w += Float(min(max(delta, 0), 0.1))
+            if initializeParticles || pistonParticles[index].w >= 28 {
+                let piston = index / Self.particlesPerPiston
+                let string = piston * pistonSettings.stringsPerPiston
+                    + Int.random(in: 0..<pistonSettings.stringsPerPiston)
+                let node = Int.random(in: 1..<PistonSimulation.segments)
+                let start = string * (PistonSimulation.segments + 1) + node
+                let origin = simd_mix(pistons.positions[start], pistons.positions[start + 1],
+                                      SIMD4<Float>(repeating: Float.random(in: 0...1)))
+                pistonParticles[index] = SIMD4(origin.x, origin.y, origin.z,
+                                               initializeParticles ? Float.random(in: 0..<28) : 0)
+            }
+        }
         var uniforms = [PistonGroundControls.camera(
             size: view.drawableSize, yaw: clothCamera.yaw,
             pitch: clothCamera.pitch, zoom: clothCamera.zoom)]
         uniforms.append(SIMD4(pistons.heights[0], pistons.heights[1], pistons.heights[2], pistons.heights[3]))
         uniforms.append(SIMD4(pistons.heights[4], pistons.heights[5], pistons.heights[6], pistons.heights[7]))
         uniforms.append(SIMD4<Float>(pistonSettings.ropeThickness * 0.5, Float(pistonSettings.stringsPerPiston), 0, 0))
-        let buffer = pistons.positions.withUnsafeBytes { bytes in
+        let buffer = (pistons.positions + pistonParticles).withUnsafeBytes { bytes in
             view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
         }
         guard let buffer else { return nil }
         // Match the floor used by the rope solver.
         uniforms[3].z = -1.65
-        uniforms.append(SIMD4<Float>(Float(view.drawableSize.width), Float(view.drawableSize.height), 0, 0))
+        uniforms.append(SIMD4<Float>(Float(view.drawableSize.width), Float(view.drawableSize.height),
+                                     pistonSettings.particleBrightness, pistonSettings.particleSize))
         uniforms.append(SIMD4<Float>(pistonSettings.stripeThickness, pistonSettings.stripeFrequency,
                                      pistonSettings.headTwist * .pi / 180, pistonSettings.travel))
         uniforms.append(SIMD4<Float>(pistonSettings.stripeColor, 0))
@@ -765,6 +789,18 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                                                vertexStart: piston * (solids + ropes + bobs) + solids,
                                                vertexCount: ropes + bobs)
                     }
+                }
+                if pistonSettings.particleBrightness > 0,
+                   let glowPipeline = pistonGlowPipeline {
+                    uniforms[3].w = 6
+                    uniforms.withUnsafeBytes { bytes in
+                        encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                        encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+                    }
+                    encoder.setRenderPipelineState(glowPipeline)
+                    encoder.setDepthStencilState(glowDepthState)
+                    encoder.drawPrimitives(type: .triangle, vertexStart: 0,
+                                           vertexCount: PistonSimulation.count * Self.particlesPerPiston * 6)
                 }
             }
         } else if shader == .cloth {

@@ -4,8 +4,8 @@ using namespace metal;
 struct PistonUniforms {
     float4 camera; // aspect, yaw, pitch, distance
     float4 heights[2];
-    float4 ropes; // half thickness, strings per piston, ground height, pass (scene, mask, floor, light, glow, sky)
-    float4 viewport; // drawable width and height, unused
+    float4 ropes; // half thickness, strings per piston, ground height, pass (scene, mask, floor, light, glow, sky, particles)
+    float4 viewport; // drawable width and height, particle brightness, particle size
     float4 stripes; // thickness, frequency, full-rise head twist (radians), travel
     float4 stripeColor; // linear RGB, unused
     float4 metalColor; // linear RGB, unused
@@ -124,6 +124,54 @@ vertex PistonVertex pistonVisualizerVertex(
     uint id [[vertex_id]], const device float4 *points [[buffer(0)]],
     constant PistonUniforms &u [[buffer(1)]]
 ) {
+    if (u.ropes.w > 5.5) {
+        // The renderer appends 48 emission positions per piston after the ropes.
+        uint particle = id / 6;
+        uint piston = particle / 48;
+        float4 source = points[8 * uint(u.ropes.y) * 21 + particle];
+        float age = source.w;
+        float seed = fract(sin(float(particle + 1) * 127.1) * 43758.5453);
+        float3 motion = fract(sin(float(particle + 1) * float3(311.7, 74.7, 269.5)) * 43758.5453);
+        float phase = motion.z * 6.2831853;
+        float flutterRate = mix(0.25, 0.65, motion.y);
+        // Integrate a gently varying, always-positive velocity. Independent
+        // seeds keep rise speed, spiral speed, and appearance from moving together.
+        float riseSpeed = mix(0.07, 0.40, pow(motion.x, 1.3));
+        float rise = riseSpeed * (age + 0.35 / flutterRate
+            * (sin(age * flutterRate + phase) - sin(phase)));
+        float axis = (float(piston) - 3.5) * 1.85;
+        float angle = age * mix(0.07, 0.38, motion.y)
+            + 0.15 * (sin(age * 0.4 + phase) - sin(phase));
+        float2 offset = source.xz - float2(axis, 0);
+        float2 orbit = float2(cos(angle) * offset.x - sin(angle) * offset.y,
+                              sin(angle) * offset.x + cos(angle) * offset.y);
+        orbit *= exp(-age * 0.035);
+        orbit += mix(0.025, 0.09, motion.z)
+            * sin(age * mix(float2(0.3, 0.23), float2(0.85, 0.67), motion.xy) + phase)
+            * smoothstep(0.0, 4.0, age);
+        float3 world = float3(axis + orbit.x, source.y + rise, orbit.y);
+        float elevation = saturate((world.y - 0.855) / (9.0 - 0.855));
+        float width = mix(0.46, 0.16, elevation) * max(u.material.w, 0.1);
+        float illumination = exp(-dot(orbit, orbit) / (width * width));
+        float3 lighting = float3(0.56, 0.76, 1.0) * illumination * u.material.z;
+        float fade = smoothstep(0.0, 2.0, age) * (1 - smoothstep(20.0, 28.0, age));
+        fade *= (1 - smoothstep(6.5, 9.0, world.y)) * smoothstep(u.ropes.z, 0.855, world.y);
+        const float2 corners[6] = {float2(-1,-1), float2(1,-1), float2(-1,1),
+                                   float2(-1,1), float2(1,-1), float2(1,1)};
+        float2 uv = corners[id % 6];
+        float3 p = pistonRotate(world - float3(0,1,0), u.camera.y, u.camera.z);
+        float depth = u.camera.w - p.z;
+        // Small dust motes with a minimum screen size for wide views.
+        float radius = max(mix(0.018, 0.035, seed), depth * 1.8 / max(u.viewport.y, 1.0));
+        radius *= u.viewport.w;
+        p.xy += uv * radius;
+        PistonVertex out = {};
+        out.position = float4(p.x * 2.1 / u.camera.x, p.y * 2.1,
+                              depth * 100 / 99.9 - 10 / 99.9, depth);
+        out.uv = uv;
+        out.color = lighting * fade * u.viewport.z * mix(0.18, 0.36, seed);
+        return out;
+    }
     if (u.ropes.w > 4.5) {
         const float2 corners[3] = {float2(-1, -1), float2(3, -1), float2(-1, 3)};
         PistonVertex out = {};
@@ -373,6 +421,14 @@ fragment PistonFragment pistonVisualizerFragment(
     texture2d<float> shadowMask [[texture(1)]],
     texture2d<float> ropeShadow [[texture(2)]]
 ) {
+    if (u.ropes.w > 5.5) {
+        float r2 = dot(in.uv, in.uv);
+        float glow = (exp(-r2 * 7) * 0.08 + exp(-r2 * 24) * 0.92)
+            * (1 - smoothstep(0.6, 1.0, r2));
+        // Roll off bright centers smoothly instead of clipping to white.
+        float3 emission = 1 - exp(-in.color * glow);
+        return {float4(emission, max(emission.r, max(emission.g, emission.b))), in.position.z};
+    }
     if (u.ropes.w > 4.5) return {pistonAtmosphere(in.position.xy, 1, u), 1};
     if (u.ropes.w > 3.5) {
         if (in.uv.y < 0.5) discard_fragment();
