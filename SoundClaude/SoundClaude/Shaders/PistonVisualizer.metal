@@ -34,6 +34,12 @@ static float pistonRopeBrightness(uint piston, constant PistonUniforms &u) {
     float level = u.stripes.w > 0 ? saturate((height - 0.8) / u.stripes.w) : 0;
     return mix(0.3, 1.0, pow(level, 0.75));
 }
+static float pistonSpotlightBrightness(uint piston, constant PistonUniforms &u) {
+    float height = u.heights[piston / 4][piston % 4];
+    float level = u.stripes.w > 0 ? saturate((height - 0.8) / u.stripes.w) : 0;
+    // Keep a faint beam at rest and brighten early as the piston rises.
+    return u.material.z * mix(0.15, 1.0, pow(level, 0.75));
+}
 static float3 pistonLightPosition(float3 p) {
     float3 light = normalize(float3(-0.4, 0.8, 1));
     float3 right = normalize(cross(float3(0, 1, 0), light));
@@ -103,9 +109,9 @@ static float4 pistonAtmosphere(float2 pixel, float depth, constant PistonUniform
         }
         float skyFade = 1 - smoothstep(0.72, 1.0, elevation);
         float floorFade = smoothstep(bottom, 0.855, sampleHeight);
-        density += max(0.0, integral) * skyFade * floorFade;
+        density += max(0.0, integral) * skyFade * floorFade * pistonSpotlightBrightness(piston, u);
     }
-    float3 emission = float3(0.52, 0.72, 1.0) * (1 - exp(-density * 0.26 * u.material.z));
+    float3 emission = float3(0.52, 0.72, 1.0) * (1 - exp(-density * 0.26));
     return float4(emission, max(emission.r, max(emission.g, emission.b)));
 }
 static float4 pistonWithAtmosphere(float4 surface, float2 pixel, float depth,
@@ -153,7 +159,7 @@ vertex PistonVertex pistonVisualizerVertex(
         float elevation = saturate((world.y - 0.855) / (9.0 - 0.855));
         float width = mix(0.46, 0.16, elevation) * max(u.material.w, 0.1);
         float illumination = exp(-dot(orbit, orbit) / (width * width));
-        float3 lighting = float3(0.56, 0.76, 1.0) * illumination * u.material.z;
+        float3 lighting = float3(0.56, 0.76, 1.0) * illumination * pistonSpotlightBrightness(piston, u);
         float fade = smoothstep(0.0, 2.0, age) * (1 - smoothstep(20.0, 28.0, age));
         fade *= (1 - smoothstep(6.5, 9.0, world.y)) * smoothstep(u.ropes.z, 0.855, world.y);
         const float2 corners[6] = {float2(-1,-1), float2(1,-1), float2(-1,1),
@@ -645,9 +651,9 @@ fragment PistonFragment pistonVisualizerFragment(
         float3 fresnel = f0 + (max(float3(1 - roughness), f0) - f0) * pow(1 - nv, 5.0);
         float3 environment = pistonStudio(worldReflection, roughness) * fresnel
             * (1 - 0.4 * roughness) * u.finish.x;
+        float centerX = in.receiver.x - in.cylinderPosition.x;
+        uint piston = uint(clamp(round(centerX / 1.85 + 3.5), 0.0, 7.0));
         if (u.finish.x > 0) {
-            float centerX = in.receiver.x - in.cylinderPosition.x;
-            uint piston = uint(clamp(round(centerX / 1.85 + 3.5), 0.0, 7.0));
             environment += pistonRopeReflection(in.receiver.xyz, worldReflection, roughness,
                                                  piston, u, points) * fresnel * u.finish.x;
         }
@@ -656,7 +662,7 @@ fragment PistonFragment pistonVisualizerFragment(
         float3 skyLight = normalize(pistonRotate(float3(0, 1, 0), u.camera.y, u.camera.z));
         float headLight = smoothstep(0.25, 0.8, dot(n, cylinderAxis));
         direct += pistonMetal(n, view, skyLight, tint, roughness, metallic)
-            * float3(3.0, 4.0, 5.5) * u.material.z * headLight;
+            * float3(3.0, 4.0, 5.5) * pistonSpotlightBrightness(piston, u) * headLight;
         shaded = (environment + tint * (1 - metallic) * 0.18 + direct) * jointVisibility;
         // Soft highlight rolloff keeps bright reflections from clipping.
         shaded = shaded / (1 + shaded);

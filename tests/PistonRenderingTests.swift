@@ -112,18 +112,22 @@ import Metal
             missing == 0, "Glow failed its own rope depth test at \(missing) of \(covered) pixels")
         // Exercise the sky pass at normal, horizontal, and nearly vertical views.
         // Zero strength and a nearer opaque depth must both hide the shafts.
-        var fixedSkyPixels: [Float]?
-        for (pitch, strength, blocked, height) in [(Float(0.5), Float(1), false, Float(0.8)),
-                                            (0.5, 1, false, 5.8),
-                                            (0, 1, false, 0.8), (1.56, 1, false, 0.8),
-                                            (0.5, 0, false, 0.8), (0.5, 1, true, 0.8)] {
+        var responseEnergy: [Float] = []
+        let cases: [(Float, Float, Bool, Float, Float)] = [
+            (0.5, 1, false, 0.8, 2.7), (0.5, 1, false, 2.15, 2.7),
+            (0.5, 1, false, 3.5, 2.7), (0.5, 1, false, 5.8, 2.7),
+            (0.5, 1, false, 0.8, 0),
+            (0, 1, false, 3.5, 2.7), (1.56, 1, false, 0.8, 2.7),
+            (0.5, 0, false, 0.8, 2.7), (0.5, 1, true, 0.8, 2.7)
+        ]
+        for (pitch, strength, blocked, height, travel) in cases {
             var uniforms = [SIMD4<Float>](repeating: .zero, count: 13)
             uniforms[0] = SIMD4(1, 0.3, pitch, 20)
             uniforms[1] = SIMD4(repeating: height)
             uniforms[2] = SIMD4(repeating: height)
             uniforms[3] = SIMD4(0.02, 24, -1.65, 5)
             uniforms[4] = SIMD4(256, 256, 0, 0)
-            uniforms[5].w = 2.7
+            uniforms[5].w = travel
             uniforms[9].z = strength
             uniforms[9].w = 1
             let pass = MTLRenderPassDescriptor()
@@ -158,12 +162,7 @@ import Metal
                            from: MTLRegionMake2D(0, 0, 256, 256), mipmapLevel: 0)
             precondition(pixels.allSatisfy { $0.isFinite && $0 >= 0 && $0 <= 1 })
             if pitch == 0.5 && strength == 1 && !blocked {
-                if let fixedSkyPixels {
-                    precondition(pixels == fixedSkyPixels,
-                                 "Piston height must not change sky beam positions or brightness")
-                } else {
-                    fixedSkyPixels = pixels
-                }
+                responseEnergy.append(pixels.reduce(0, +))
             }
             if pitch == 0 && strength == 1 && !blocked {
                 // Project a point on the fifth shaft below the former cap-height
@@ -178,13 +177,19 @@ import Metal
             if strength == 0 || blocked {
                 precondition(pixels.allSatisfy { $0 == 0 }, "Disabled or occluded shafts must disappear")
             } else {
-                precondition(pixels.max()! > 0.05, "Sky shafts must be visible")
+                precondition(pixels.max()! > 0, "Sky shafts must be visible")
                 for pixel in 0..<256 * 256 {
                     let rgba = Array(pixels[(pixel * 4)..<(pixel * 4 + 4)])
                     precondition(rgba.prefix(3).allSatisfy { $0 <= rgba[3] }, "Haze must be premultiplied")
                 }
             }
         }
+        precondition(responseEnergy[0] < responseEnergy[1] && responseEnergy[1] < responseEnergy[2],
+                     "Spotlights must brighten as pistons rise")
+        precondition(responseEnergy[3] == responseEnergy[2],
+                     "Spotlight brightness must stop increasing at full travel")
+        precondition(responseEnergy[4] == responseEnergy[0],
+                     "Zero travel must keep spotlights at idle brightness")
         print("Piston rendering tests passed (\(covered) rope pixels, plus foreground occlusion and sky spotlights)")
     }
 }

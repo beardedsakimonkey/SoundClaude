@@ -218,6 +218,7 @@ struct VisualizerView: View {
                     tuningSlider("Neutral rope glow", value: $pistonSettings.neutralRopeGlow, range: 0...1)
                     tuningSlider("Bloom strength", value: $pistonSettings.bloomStrength, range: 0...3)
                     tuningSlider("Sky spotlights", value: $pistonSettings.spotlightStrength, range: 0...3)
+                        .help("Peak spotlight brightness when a piston is fully raised.")
                     tuningSlider("Spotlight size", value: $pistonSettings.spotlightSize, range: 0.1...3, format: "%.2f×")
                     tuningSlider("Particle brightness", value: $pistonSettings.particleBrightness, range: 0...12, format: "%.1f×")
                         .help("Brightness of the particles rising from the ropes in the spotlights. 0 hides them.")
