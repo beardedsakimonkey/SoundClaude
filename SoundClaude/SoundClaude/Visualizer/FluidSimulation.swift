@@ -7,9 +7,9 @@ struct FluidSettings {
     var steadyFlow: Float = 0.6
     var emitterSlideSpeed: Float = 1
     var radius: Float = 0.1
-    var topEmitterSize: Float = 1.5
+    var topEmitterSize: Float = 1.2
     var middleEmitterSize: Float = 0.7
-    var bottomEmitterSize: Float = 1.5
+    var bottomEmitterSize: Float = 1.4
     var hueVariation: Float = 12
     var showEmitters = false
     var dyeDissipation: Float = 1

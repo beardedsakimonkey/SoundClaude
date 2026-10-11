@@ -205,6 +205,8 @@ struct VisualizerView: View {
                     tuningSlider("Rope thickness", value: $pistonSettings.ropeThickness, range: 0.004...0.08, format: "%.3f")
                     tuningSlider("Neutral rope glow", value: $pistonSettings.neutralRopeGlow, range: 0...1)
                     tuningSlider("Bloom strength", value: $pistonSettings.bloomStrength, range: 0...3)
+                    tuningSlider("Sky spotlights", value: $pistonSettings.spotlightStrength, range: 0...3)
+                    tuningSlider("Spotlight size", value: $pistonSettings.spotlightSize, range: 0.1...3, format: "%.2f×")
                     tuningSlider("Damping", value: $pistonSettings.damping, range: 0.001...0.08, format: "%.3f")
                     tuningSlider("Gravity", value: $pistonSettings.gravity, range: 0...20)
                     Divider()

@@ -301,7 +301,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         uniforms.append(SIMD4<Float>(pistonSettings.metalColor, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.baseColor, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.roughness, pistonSettings.metallic,
-                                     0, 0))
+                                     pistonSettings.spotlightStrength, pistonSettings.spotlightSize))
         uniforms.append(SIMD4<Float>(pistonSettings.reflectionStrength, pistonSettings.edgeSoftness,
                                      pistonSettings.neutralRopeGlow, pistonSettings.bloomStrength))
         let progress = trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0
@@ -723,6 +723,15 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                 encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
                 encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
                 var uniforms = frame.uniforms
+                // Fill the sky first. Surface passes integrate the same shafts only
+                // up to their own depth, preserving floor and piston occlusion.
+                uniforms[3].w = 5
+                uniforms.withUnsafeBytes { bytes in
+                    encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                    encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+                }
+                encoder.setDepthStencilState(glowDepthState)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
                 encoder.setDepthStencilState(depthState)
                 if let shadow = frameShadow {
                     uniforms[3].w = 2

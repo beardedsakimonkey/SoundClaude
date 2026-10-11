@@ -4,13 +4,13 @@ using namespace metal;
 struct PistonUniforms {
     float4 camera; // aspect, yaw, pitch, distance
     float4 heights[2];
-    float4 ropes; // half thickness, strings per piston, ground height, pass (scene, mask, floor, light, glow)
+    float4 ropes; // half thickness, strings per piston, ground height, pass (scene, mask, floor, light, glow, sky)
     float4 viewport; // drawable width and height, unused
     float4 stripes; // thickness, frequency, full-rise head twist (radians), travel
     float4 stripeColor; // linear RGB, unused
     float4 metalColor; // linear RGB, unused
     float4 baseColor; // linear RGB, unused
-    float4 material; // roughness, metallic, unused, unused
+    float4 material; // roughness, metallic, spotlight strength, spotlight size
     float4 finish; // reflection strength, edge softness, neutral rope glow, bloom strength
     float4 track; // progress, artwork aspect, has artwork, has track
     float4 groundColor; // linear RGB, unused
@@ -44,6 +44,75 @@ static float3 pistonRotate(float3 p, float yaw, float pitch) {
     p = float3(cos(yaw)*p.x + sin(yaw)*p.z, p.y, -sin(yaw)*p.x + cos(yaw)*p.z);
     return float3(p.x, cos(pitch)*p.y - sin(pitch)*p.z, sin(pitch)*p.y + cos(pitch)*p.z);
 }
+// Integrate a soft Gaussian light shaft along the view ray. Clipping the
+// integral at the visible surface keeps the haze in front of geometry only.
+static float pistonErf(float x) {
+    float t = 1 / (1 + 0.3275911 * abs(x));
+    float polynomial = (((((1.061405429 * t - 1.453152027) * t)
+        + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t;
+    return sign(x) * (1 - polynomial * exp(-x * x));
+}
+static float3 pistonWorldDirection(float3 p, constant PistonUniforms &u) {
+    return float3(dot(p, pistonRotate(float3(1, 0, 0), u.camera.y, u.camera.z)),
+                  dot(p, pistonRotate(float3(0, 1, 0), u.camera.y, u.camera.z)),
+                  dot(p, pistonRotate(float3(0, 0, 1), u.camera.y, u.camera.z)));
+}
+static float4 pistonAtmosphere(float2 pixel, float depth, constant PistonUniforms &u) {
+    if (u.material.z <= 0) return float4(0);
+    float2 ndc = pixel / u.viewport.xy * float2(2, -2) + float2(-1, 1);
+    float3 cameraRay = float3(ndc.x * u.camera.x / 2.1, ndc.y / 2.1, -1);
+    float rayLength = length(cameraRay);
+    float3 ray = pistonWorldDirection(cameraRay / rayLength, u);
+    float3 origin = pistonWorldDirection(float3(0, 0, u.camera.w), u) + float3(0, 1, 0);
+    float limit = min(100.0, 10.0 / max(100.0 - depth * 99.9, 0.1)) * rayLength;
+    float density = 0;
+    for (uint piston = 0; piston < 8; ++piston) {
+        // Continue down to the floor; a soft fade replaces the shared cutoff
+        // at resting cap height. Both endpoints remain independent of animation.
+        float bottom = u.ropes.z;
+        float top = 9.0;
+        float near = 0, far = limit;
+        if (abs(ray.y) < 0.00001) {
+            if (origin.y <= bottom || origin.y >= top) continue;
+        } else {
+            float a = (bottom - origin.y) / ray.y;
+            float b = (top - origin.y) / ray.y;
+            near = max(near, min(a, b));
+            far = min(far, max(a, b));
+        }
+        if (far <= near) continue;
+        // Vertical cones stay centered over each piston's fixed axis.
+        float2 offset = origin.xz - float2((float(piston) - 3.5) * 1.85, 0);
+        float2 direction = ray.xz;
+        float a = dot(direction, direction);
+        float closest = clamp(-dot(offset, direction) / max(a, 0.000001), near, far);
+        float sampleHeight = origin.y + ray.y * closest;
+        // Preserve the upper cone's shape while extending its lower tail.
+        float elevation = saturate((sampleHeight - 0.855) / (top - 0.855));
+        float width = mix(0.46, 0.16, elevation) * max(u.material.w, 0.1);
+        float integral;
+        if (a < 0.00001) {
+            float2 q = offset + direction * ((near + far) * 0.5);
+            integral = (far - near) * exp(-dot(q, q) / (width * width));
+        } else {
+            float center = -dot(offset, direction) / a;
+            float2 q = offset + direction * center;
+            float scale = sqrt(a) / width;
+            integral = exp(-dot(q, q) / (width * width)) * 0.8862269 / scale
+                * (pistonErf((far - center) * scale) - pistonErf((near - center) * scale));
+        }
+        float skyFade = 1 - smoothstep(0.72, 1.0, elevation);
+        float floorFade = smoothstep(bottom, 0.855, sampleHeight);
+        density += max(0.0, integral) * skyFade * floorFade;
+    }
+    float3 emission = float3(0.52, 0.72, 1.0) * (1 - exp(-density * 0.26 * u.material.z));
+    return float4(emission, max(emission.r, max(emission.g, emission.b)));
+}
+static float4 pistonWithAtmosphere(float4 surface, float2 pixel, float depth,
+                                    constant PistonUniforms &u) {
+    float4 haze = pistonAtmosphere(pixel, depth, u);
+    return haze + surface * (1 - haze.a);
+}
 static float3 pistonGroundShadow(float3 p, constant PistonUniforms &u) {
     // Cast along the world-space light onto the simulation floor.
     float gap = max(0.0, p.y - u.ropes.z);
@@ -55,6 +124,12 @@ vertex PistonVertex pistonVisualizerVertex(
     uint id [[vertex_id]], const device float4 *points [[buffer(0)]],
     constant PistonUniforms &u [[buffer(1)]]
 ) {
+    if (u.ropes.w > 4.5) {
+        const float2 corners[3] = {float2(-1, -1), float2(3, -1), float2(-1, 3)};
+        PistonVertex out = {};
+        out.position = float4(corners[id], 1, 1);
+        return out;
+    }
     const uint cylinderVertices = 32 * 12;
     const uint solidVertices = cylinderVertices * 3;
     const uint stringsPerPiston = uint(u.ropes.y);
@@ -298,6 +373,7 @@ fragment PistonFragment pistonVisualizerFragment(
     texture2d<float> shadowMask [[texture(1)]],
     texture2d<float> ropeShadow [[texture(2)]]
 ) {
+    if (u.ropes.w > 4.5) return {pistonAtmosphere(in.position.xy, 1, u), 1};
     if (u.ropes.w > 3.5) {
         if (in.uv.y < 0.5) discard_fragment();
         float glowStrength = in.uv.y > 1.5 ? 1.0 : saturate(u.finish.z);
@@ -411,7 +487,7 @@ fragment PistonFragment pistonVisualizerFragment(
         float horizonFade = smoothstep(0.015, 0.24, abs(dot(n, view)));
         float distanceFade = exp(-dot(floorPosition, floorPosition) / 900.0);
         float floorAlpha = 0.88 * horizonFade * distanceFade;
-        return {float4(floorColor * floorAlpha, floorAlpha), depth};
+        return {pistonWithAtmosphere(float4(floorColor * floorAlpha, floorAlpha), in.position.xy, depth, u), depth};
     }
     if (u.ropes.w > 0.5) return {float4(1), in.position.z};
 
@@ -521,11 +597,15 @@ fragment PistonFragment pistonVisualizerFragment(
         }
         float3 direct = pistonMetal(n, view, light, tint, roughness, metallic)
             * float3(2.4, 2.5, 2.7) * visibility;
+        float3 skyLight = normalize(pistonRotate(float3(0, 1, 0), u.camera.y, u.camera.z));
+        float headLight = smoothstep(0.25, 0.8, dot(n, cylinderAxis));
+        direct += pistonMetal(n, view, skyLight, tint, roughness, metallic)
+            * float3(3.0, 4.0, 5.5) * u.material.z * headLight;
         shaded = (environment + tint * (1 - metallic) * 0.18 + direct) * jointVisibility;
         // Soft highlight rolloff keeps bright reflections from clipping.
         shaded = shaded / (1 + shaded);
     }
-    return {float4(shaded, 1), in.position.z};
+    return {pistonWithAtmosphere(float4(shaded, 1), in.position.xy, in.position.z, u), in.position.z};
 }
 
 struct PistonBloomVertex {
