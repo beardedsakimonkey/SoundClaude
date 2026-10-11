@@ -211,8 +211,6 @@ struct SignedInView: View {
                 .keyboardShortcut(.return, modifiers: [])
             Button("Close visualizer") { isShowingVisualizer = false }
                 .keyboardShortcut("v", modifiers: [])
-            Button("Close visualizer") { isShowingVisualizer = false }
-                .keyboardShortcut(.cancelAction)
             Button("Play or Pause", action: model.playback.togglePlayPause)
                 .keyboardShortcut(.space, modifiers: [])
             Button("Focus current track") {

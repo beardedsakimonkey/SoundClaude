@@ -134,6 +134,18 @@ struct VisualizerView: View {
         }
         .accessibilityLabel("Audio visualizer")
         .accessibilityValue(shader.title)
+        .background {
+            Button("Dismiss visualizer controls or close visualizer") {
+                if isShowingControls {
+                    isShowingControls = false
+                } else {
+                    onClose()
+                }
+            }
+            .keyboardShortcut(.cancelAction)
+            .hidden()
+            .accessibilityHidden(true)
+        }
         .accessibilityActions {
             if playback.currentTrack != nil {
                 Button(playback.isPlaying ? "Pause" : "Play") { playback.togglePlayPause() }
