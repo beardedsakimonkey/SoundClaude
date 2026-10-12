@@ -89,13 +89,11 @@ struct PlayerFooterView: View {
                             onSelectStation(stationURN, stationTitle)
                         }
                         .id(stationURN)
-                        .transition(reduceMotion ? .identity : .opacity)
                     } else if let playlist = currentPlaylist {
                         sourceButton(title: playlist.title, icon: "music.note.list", kind: "playlist") {
                             onSelectPlaylist(playlist)
                         }
                         .id(playlist.urn)
-                        .transition(reduceMotion ? .identity : .opacity)
                     }
                     if showsPreviewBadge {
                         TrackPreviewBadge(font: .caption2)
@@ -133,8 +131,6 @@ struct PlayerFooterView: View {
             .opacity(0.85)
             .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: stationURN)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: currentPlaylist?.urn)
             likeButton
         }
     }
