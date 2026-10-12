@@ -171,10 +171,16 @@ struct VisualizerView: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    tuningSlider("Swirl", value: $fluidSettings.curl, range: 0...50)
+                    tuningSlider("Vorticity", value: $fluidSettings.curl, range: 0...50)
                     tuningSlider("Audio force", value: $fluidSettings.force, range: 0...3)
-                    tuningSlider("Steady flow", value: $fluidSettings.steadyFlow, range: 0...4, format: "%.2f")
+                    tuningSlider("Overall flow", value: $fluidSettings.steadyFlow, range: 0...4, format: "%.2f")
                         .help("Continuous emission from sustained audio. Zero turns it off; hit bursts stay active.")
+                    tuningSlider("Top flow", value: $fluidSettings.topEmitterSpray, range: 0...3, format: "%.2f×")
+                        .help("High emitter continuous flow relative to Overall flow. Zero stops its continuous flow; hit bursts stay active.")
+                    tuningSlider("Middle flow", value: $fluidSettings.middleEmitterSpray, range: 0...3, format: "%.2f×")
+                        .help("Mid emitter continuous flow relative to Overall flow. Zero stops its continuous flow; hit bursts stay active.")
+                    tuningSlider("Bottom flow", value: $fluidSettings.bottomEmitterSpray, range: 0...3, format: "%.2f×")
+                        .help("Bass emitter continuous flow relative to Overall flow. Zero stops its continuous flow; hit bursts stay active.")
                     tuningSlider("Splat radius", value: $fluidSettings.radius, range: 0.01...1, format: "%.2f")
                     tuningSlider("Top splat size", value: $fluidSettings.topEmitterSize, range: 0.1...3, format: "%.2f×")
                         .help("High emitter size relative to the shared splat radius.")

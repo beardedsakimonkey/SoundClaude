@@ -146,10 +146,15 @@ fragment float4 fluidVisualizerFragment(FluidVertex in [[stage_in]],
     c *= display[0].z;
     if (display[2].w > 0) {
         for (int row = 0; row < 3; ++row) {
-            float y = row == 0 ? 0.91 : (row == 1 ? 0.5 : 0.09);
+            float y = row == 0 ? 0.91 : (row == 1 ? display[1].z : 0.09);
             float3 tint = row == 0 ? float3(1, 0.3, 0.15)
                 : (row == 1 ? float3(0.2, 1, 0.6) : float3(0.5, 0.6, 1));
             float trackDistance = abs(in.uv.y - y) / texel.y;
+            if (row == 1) {
+                float x = clamp((in.uv.x - 0.5) / 0.42, -1.0, 1.0);
+                float offset = 0.12 * abs(x) * sqrt(max(0.0, 1 - x * x));
+                trackDistance = abs(abs(in.uv.y - 0.5) - offset) / texel.y;
+            }
             if (in.uv.x >= 0.08 && in.uv.x <= 0.92) {
                 c = mix(c, float3(0), (1 - smoothstep(2.0, 3.0, trackDistance)) * 0.7);
                 c = mix(c, tint, (1 - smoothstep(0.5, 1.5, trackDistance)) * 0.8);

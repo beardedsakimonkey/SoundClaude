@@ -5,6 +5,9 @@ struct FluidSettings {
     var curl: Float = 30
     var force: Float = 1
     var steadyFlow: Float = 0.6
+    var topEmitterSpray: Float = 1
+    var middleEmitterSpray: Float = 1
+    var bottomEmitterSpray: Float = 1
     var emitterSlideSpeed: Float = 1
     var radius: Float = 0.1
     var topEmitterSize: Float = 1.2
@@ -25,10 +28,11 @@ struct FluidDisplayUniforms {
     var effects: SIMD4<Float>
     var emitters: SIMD4<Float>
 
-    init(size: CGSize, settings: FluidSettings, emitterPositions: SIMD3<Float> = .zero) {
+    init(size: CGSize, settings: FluidSettings, emitterPositions: SIMD3<Float> = .zero,
+         middleEmitterY: Float = 0.5) {
         texelAndStyle = SIMD4(1 / Float(size.width), 1 / Float(size.height),
                              settings.brightness, settings.shading ? 1 : 0)
-        effects = SIMD4(settings.sunrays ? 1 : 0, settings.bloom, 0, 0)
+        effects = SIMD4(settings.sunrays ? 1 : 0, settings.bloom, middleEmitterY, 0)
         emitters = SIMD4(emitterPositions, settings.showEmitters ? 1 : 0)
     }
 }
@@ -176,6 +180,11 @@ final class FluidSimulation {
         SIMD3((0..<3).map { row in
             Float(0.5 - 0.42 * cos(splatPhase + Double(row) * 2 * .pi / 3))
         })
+    }
+
+    var middleEmitterY: Float {
+        // Two vertical cycles per horizontal cycle trace a shallow figure-eight.
+        0.5 + 0.06 * Float(sin(2 * (splatPhase + 2 * .pi / 3)))
     }
 
     // Match getResolution in the reference, with a cap for unusually wide windows.
@@ -351,12 +360,14 @@ final class FluidSimulation {
         }
         let positions = emitterPositions
         for emission in emissions {
-            let scale = emission.scale * (emission.isAttack ? 1 : settings.steadyFlow)
-            guard scale > 0 else { continue }
             // Rows move continuously, each one third of a cycle apart.
             let row = emission.band < 2 ? 0 : (emission.band < 6 ? 1 : 2)
+            let spray = row == 0 ? settings.bottomEmitterSpray
+                : (row == 1 ? settings.middleEmitterSpray : settings.topEmitterSpray)
+            let scale = emission.scale * (emission.isAttack ? 1 : settings.steadyFlow * spray)
+            guard scale > 0 else { continue }
             let x = positions[row]
-            let point = SIMD2<Float>(x, row == 0 ? 0.91 : (row == 1 ? 0.5 : 0.09))
+            let point = SIMD2<Float>(x, row == 0 ? 0.91 : (row == 1 ? middleEmitterY : 0.09))
             let direction: SIMD2<Float>
             if row == 1 {
                 // Match the middle row’s position phase: point right at the left
