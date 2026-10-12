@@ -42,7 +42,6 @@ struct CommentSortMenu: View {
 struct TrackCommentsView: View {
     let track: SoundCloudTrack
     @ObservedObject var model: AppModel
-    @Binding var isLoading: Bool
     let onSelectArtist: (SoundCloudUser) -> Void
 
     let onCommentAdded: () -> Void
@@ -60,6 +59,7 @@ struct TrackCommentsView: View {
     @State private var nextPageURL: URL?
     @State private var loadedPageURLs: Set<URL> = []
     @State private var hasLoaded = false
+    @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var artworkAccent: ArtworkAccent?
     @State private var accentArtworkURL: URL?
@@ -73,16 +73,6 @@ struct TrackCommentsView: View {
             commentComposer
                 .modifier(FadeInOnAppear())
 
-
-            if !isLoading, let errorMessage {
-                VStack(spacing: 8) {
-                    Text(errorMessage).foregroundStyle(.secondary)
-                    Button("Try Again") { Task { await loadComments() } }
-                }
-                .frame(maxWidth: .infinity)
-                .modifier(FadeInOnAppear())
-            }
-
             ForEach(sortedComments) { comment in
                 TrackCommentRow(
                     comment: comment,
@@ -94,12 +84,29 @@ struct TrackCommentsView: View {
                 .modifier(FadeInOnAppear())
             }
 
+            if isLoading {
+                LoadingSpinner()
+                    .accessibilityLabel("Loading comments")
+                    .frame(maxWidth: .infinity)
+                    .modifier(FadeInOnAppear())
+            } else if let errorMessage {
+                VStack(spacing: 8) {
+                    Text(errorMessage).foregroundStyle(.secondary)
+                    Button("Try Again") { Task { await loadPage() } }
+                }
+                .frame(maxWidth: .infinity)
+                .modifier(FadeInOnAppear())
+            } else if nextPageURL != nil {
+                Button("Load More") { Task { await loadPage() } }
+                    .frame(maxWidth: .infinity)
+                    .modifier(FadeInOnAppear())
+            }
         }
         .onChange(of: sortOrder) { _, _ in
             updateSortedComments()
         }
         .task {
-            await loadComments()
+            if !hasLoaded { await loadPage() }
         }
         .task(id: track.displayArtworkURL) {
             artworkAccent = nil
@@ -277,33 +284,28 @@ struct TrackCommentsView: View {
         sortedComments = comments.sorted(by: sortOrder.precedes)
     }
 
-    private func loadComments() async {
+    private func loadPage() async {
         guard !isLoading, !hasLoaded || nextPageURL != nil else { return }
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
         do {
-            // The API has no sort parameter. Load every page so each sort order
-            // includes comments beyond the first page, including early track times.
-            repeat {
-                try Task.checkCancellation()
-                let pageURL = nextPageURL
-                let page = try await model.trackComments(for: track, pageURL: pageURL)
-                try Task.checkCancellation()
-                if let nextURL = page.nextURL,
-                   nextURL == pageURL || loadedPageURLs.contains(nextURL) {
-                    throw SoundCloudError.invalidData
-                }
-                var knownURNs = Set(comments.map(\.urn))
-                let newComments = page.comments.filter { knownURNs.insert($0.urn).inserted }
-                if !newComments.isEmpty {
-                    comments.append(contentsOf: newComments)
-                    updateSortedComments()
-                }
-                if let pageURL { loadedPageURLs.insert(pageURL) }
-                nextPageURL = page.nextURL
-                hasLoaded = true
-            } while nextPageURL != nil
+            let pageURL = nextPageURL
+            let page = try await model.trackComments(for: track, pageURL: pageURL)
+            try Task.checkCancellation()
+            if let nextURL = page.nextURL,
+               nextURL == pageURL || loadedPageURLs.contains(nextURL) {
+                throw SoundCloudError.invalidData
+            }
+            var knownURNs = Set(comments.map(\.urn))
+            let newComments = page.comments.filter { knownURNs.insert($0.urn).inserted }
+            if !newComments.isEmpty {
+                comments.append(contentsOf: newComments)
+                updateSortedComments()
+            }
+            if let pageURL { loadedPageURLs.insert(pageURL) }
+            nextPageURL = page.nextURL
+            hasLoaded = true
         } catch {
             guard !Task.isCancelled else { return }
             errorMessage = error.localizedDescription

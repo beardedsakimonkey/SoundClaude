@@ -16,7 +16,6 @@ struct TrackDetailView: View {
 
     @State private var details: SoundCloudTrackDetails?
     @State private var isLoading = true
-    @State private var isLoadingComments = false
     @State private var errorMessage: String?
     @State private var repostErrorMessage: String?
     @State private var isShowingArtwork = false
@@ -189,14 +188,6 @@ struct TrackDetailView: View {
                                     title: "Comments",
                                     count: details.commentCount
                                 )
-                                ZStack {
-                                    if isLoadingComments {
-                                        LoadingSpinner()
-                                            .controlSize(.small)
-                                            .accessibilityLabel("Loading comments")
-                                    }
-                                }
-                                .frame(width: 16, height: 16)
                                 Spacer()
                                 CommentSortMenu()
                             }
@@ -205,7 +196,6 @@ struct TrackDetailView: View {
                             TrackCommentsView(
                                 track: details.track,
                                 model: model,
-                                isLoading: $isLoadingComments,
                                 onSelectArtist: onSelectArtist,
                                 onCommentAdded: {
                                     if let count = self.details?.commentCount {
