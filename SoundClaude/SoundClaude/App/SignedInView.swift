@@ -287,7 +287,7 @@ struct SignedInView: View {
                 .navigationSplitViewColumnWidth(
                     min: 180,
                     ideal: 220,
-                    max: 280
+                    max: 480
                 )
         } detail: {
             selectedView
