@@ -898,12 +898,13 @@ actor SoundCloudClient {
         urn: String,
         secretToken: String? = nil,
         accessToken: String,
-        pageURL: URL? = nil
+        pageURL: URL? = nil,
+        limit: Int = 50
     ) async throws -> SoundCloudCommentPage {
         let url = pageURL ?? configuration.apiBaseURL.appending(path: "tracks")
             .appending(path: urn).appending(path: "comments")
             .appending(queryItems: [
-                URLQueryItem(name: "limit", value: "50"),
+                URLQueryItem(name: "limit", value: String(limit)),
                 URLQueryItem(name: "linked_partitioning", value: "true"),
                 URLQueryItem(name: "secret_token", value: secretToken),
             ].filter { $0.value != nil })

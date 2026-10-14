@@ -19,7 +19,7 @@ final class ArtworkLoader {}
 final class AppModel {
     let artworkLoader = ArtworkLoader()
     let playback = PlaybackController()
-    func trackComments(for track: SoundCloudTrack, pageURL: URL?) async throws -> CommentPage {
+    func trackComments(for track: SoundCloudTrack, limit: Int) async throws -> CommentPage {
         CommentPage(comments: [
             SoundCloudComment(id: "left", body: "A comment to hover", user: SoundCloudUser(username: "Left artist"), timestampMilliseconds: 25000),
             SoundCloudComment(id: "neighbor", body: "A nearby comment", user: SoundCloudUser(username: "Nearby artist"), timestampMilliseconds: 30000),

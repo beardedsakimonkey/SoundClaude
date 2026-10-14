@@ -68,24 +68,17 @@ struct WaveformCommentsView: View {
     }
 
     private func loadComments() async {
-        var nextURL: URL?
-        var visitedURLs = Set<URL>()
+        let limit = 100
         var knownIDs = Set<String>()
         do {
-            repeat {
-                let page = try await model.trackComments(for: track, pageURL: nextURL)
-                try Task.checkCancellation()
-                let additions = page.comments.filter {
-                    $0.timestampMilliseconds != nil && knownIDs.insert($0.id).inserted
-                }
-                if !additions.isEmpty {
-                    index = index.appending(additions)
-                }
-                nextURL = page.nextURL
-                if let nextURL, !visitedURLs.insert(nextURL).inserted { break }
-            } while nextURL != nil
+            // Bound both the request and marker count to the first page.
+            let page = try await model.trackComments(for: track, limit: limit)
+            try Task.checkCancellation()
+            index = WaveformCommentIndex(page.comments.prefix(limit).filter {
+                $0.timestampMilliseconds != nil && knownIDs.insert($0.id).inserted
+            })
         } catch {
-            // Comments are optional; keep any pages already loaded.
+            // Comments are optional; keep any markers already loaded.
         }
     }
 }
