@@ -183,7 +183,7 @@ private struct WaveformCommentMarkersContent: View {
                 if let bubbleFrame { path.addRect(bubbleFrame) }
             }
             ZStack(alignment: .topLeading) {
-                ForEach(comments) { comment in
+                ForEach(comments.reversed()) { comment in
                     let distance = interactionX.map { abs(position(for: comment, width: width) - $0) }
                     let proximity = distance.map {
                         let strength = max(0, 1 - $0 / 72)
