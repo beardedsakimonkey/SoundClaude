@@ -36,7 +36,7 @@ struct TrackCollectionBackdrop: View {
 struct TrackCollectionTracks: View {
     let tracks: [SoundCloudTrack]
     let trackLayout: TrackLayout
-    @ObservedObject var model: AppModel
+    let model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void

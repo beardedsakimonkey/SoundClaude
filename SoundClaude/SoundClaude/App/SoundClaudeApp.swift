@@ -2,16 +2,14 @@ import SwiftUI
 
 @main
 struct SoundClaudeApp: App {
-    @StateObject private var model: AppModel
+    @State private var model: AppModel
     @ObservedObject private var auth: AuthController
-    @ObservedObject private var likes: LikesController
     @State private var isShowingKeyboardShortcuts = false
 
     init() {
         let model = AppModel()
-        _model = StateObject(wrappedValue: model)
+        _model = State(initialValue: model)
         _auth = ObservedObject(wrappedValue: model.auth)
-        _likes = ObservedObject(wrappedValue: model.likes)
     }
 
     var body: some Scene {
@@ -32,7 +30,13 @@ struct SoundClaudeApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
-            appCommands()
+            PlaybackCommands(model: model, likes: model.likes)
+            CommandGroup(after: .help) {
+                Button("Keyboard Shortcuts") {
+                    isShowingKeyboardShortcuts.toggle()
+                }
+                .keyboardShortcut("?", modifiers: [])
+            }
             #if DEBUG
             ViewUpdateDebugCommands()
             #endif
@@ -64,9 +68,14 @@ struct SoundClaudeApp: App {
             .accessibilityLabel(label)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
 
-    @CommandsBuilder
-    private func appCommands() -> some Commands {
+// Menu state must not invalidate the window content.
+private struct PlaybackCommands: Commands {
+    let model: AppModel
+    @ObservedObject var likes: LikesController
+
+    var body: some Commands {
         CommandMenu("Playback") {
             Button("Play or Pause") {
                 model.playback.togglePlayPause()
@@ -138,13 +147,6 @@ struct SoundClaudeApp: App {
                 model.playback.next()
             }
             .keyboardShortcut(.rightArrow, modifiers: [.shift])
-        }
-
-        CommandGroup(after: .help) {
-            Button("Keyboard Shortcuts") {
-                isShowingKeyboardShortcuts.toggle()
-            }
-            .keyboardShortcut("?", modifiers: [])
         }
     }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct FeedView: View {
-    @ObservedObject var model: AppModel
+    let model: AppModel
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void

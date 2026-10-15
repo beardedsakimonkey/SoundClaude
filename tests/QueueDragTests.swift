@@ -25,8 +25,9 @@ struct SoundCloudTrackPage { var tracks: [SoundCloudTrack]; var nextURL: URL? }
 enum SoundCloudError: Error { case invalidData }
 final class LikesController: ObservableObject { @Published var tracks: [SoundCloudTrack] = [] }
 final class Playback: ObservableObject { var currentTrack: SoundCloudTrack? }
-final class AppModel: ObservableObject {
-    @Published var queue = TrackQueue(source: .single, tracks: (1...5).map { SoundCloudTrack(urn: "track:\($0)", title: "Track \($0)") })
+@Observable
+final class AppModel {
+    var queue = TrackQueue(source: .single, tracks: (1...5).map { SoundCloudTrack(urn: "track:\($0)", title: "Track \($0)") })
     let likes = LikesController()
     let playback = Playback()
     let analyzer = 0

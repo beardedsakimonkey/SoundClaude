@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct HistoryView: View {
-    @ObservedObject var model: AppModel
+    let model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 

@@ -3,7 +3,7 @@ import SwiftUI
 struct SignedInView: View {
     let user: SoundCloudUser
 
-    @ObservedObject private var model: AppModel
+    private let model: AppModel
     @State private var selectedDestination: SidebarDestination?
     private let selectionStore = SidebarSelectionStore()
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
@@ -24,7 +24,7 @@ struct SignedInView: View {
 
     init(user: SoundCloudUser, model: AppModel) {
         self.user = user
-        _model = ObservedObject(wrappedValue: model)
+        self.model = model
         _selectedDestination = State(initialValue: SidebarSelectionStore().restore(for: user))
     }
 
@@ -160,11 +160,11 @@ struct SignedInView: View {
         .environment(\.searchGenre, showGenreSearch)
         .environment(\.searchTag, showTagSearch)
         .background {
-            Button("Open Active Station or Current Track Station", action: showCurrentStation)
-                .keyboardShortcut("s", modifiers: [])
-                .disabled(model.playback.currentTrack == nil || isOpeningCurrentTrackStation)
-                .hidden()
-                .accessibilityHidden(true)
+            CurrentStationShortcut(
+                playback: model.playback,
+                isOpeningStation: isOpeningCurrentTrackStation,
+                action: showCurrentStation
+            )
         }
         .task(id: isOpeningCurrentTrackStation) {
             guard isOpeningCurrentTrackStation else { return }
@@ -772,4 +772,19 @@ private enum Route: Hashable {
 // Hidden pages retain their state without running continuous animation timelines.
 extension EnvironmentValues {
     @Entry var contentAnimationsPaused = false
+}
+
+// Observe track availability here, outside the navigation view's body.
+private struct CurrentStationShortcut: View {
+    let playback: PlaybackController
+    let isOpeningStation: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button("Open Active Station or Current Track Station", action: action)
+            .keyboardShortcut("s", modifiers: [])
+            .disabled(playback.currentTrack == nil || isOpeningStation)
+            .hidden()
+            .accessibilityHidden(true)
+    }
 }

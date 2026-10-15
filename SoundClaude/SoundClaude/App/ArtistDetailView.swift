@@ -69,7 +69,7 @@ struct ArtistDetailView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let artist: SoundCloudUser
-    @ObservedObject var model: AppModel
+    let model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectUsers: (SoundCloudUser, ArtistUserList) -> Void

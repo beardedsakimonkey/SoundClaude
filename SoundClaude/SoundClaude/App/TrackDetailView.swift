@@ -381,7 +381,7 @@ private struct TrackDetailPlayButton: View {
 // Pagination changes only this column, keeping the header and comments out of its updates.
 private struct TrackDetailRelatedTracks: View {
     let track: SoundCloudTrack
-    @ObservedObject var model: AppModel
+    let model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 

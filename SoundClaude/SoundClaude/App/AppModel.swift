@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Observation
 
 struct CachedArtistHeader {
     let artistURL: URL
@@ -8,7 +9,8 @@ struct CachedArtistHeader {
 }
 
 @MainActor
-final class AppModel: ObservableObject {
+@Observable
+final class AppModel {
     let analyzer: SpectrumAnalyzer
     let audioTap: AudioTapController
     let playback: PlaybackController
@@ -19,30 +21,30 @@ final class AppModel: ObservableObject {
     let feed: FeedController
     let artworkLoader: ArtworkLoader
 
-    @Published private(set) var errorMessage: String?
-    @Published var likeErrorMessage: String?
+    private(set) var errorMessage: String?
+    var likeErrorMessage: String?
 
     // Do not broadcast deferred history writes to every AppModel observer.
     private let history = HistoryState()
     var historyTracks: [SoundCloudTrack] { history.tracks }
     private let historyStore = HistoryStore()
-    private var historyAccountObservation: AnyCancellable?
+    @ObservationIgnored private var historyAccountObservation: AnyCancellable?
 
     private let client: SoundCloudClient
     private let configurationError: Error?
-    private var playbackTask: Task<Void, Never>?
-    private var playbackRequestID: UUID?
-    private var trackSelectionTask: Task<Void, Never>?
-    private var queuePrefetchTask: Task<Void, Never>?
-    private var shuffleQueueTask: Task<Void, Never>?
-    private var prefetchedTrack: SoundCloudTrack?
-    private var likesObservation: AnyCancellable?
-    private var playlistsObservation: AnyCancellable?
-    private var followingTask: Task<Set<String>, Error>?
-    private var followingRequestID: UUID?
-    private var followingOverrides: [String: Bool] = [:]
-    private var hasStarted = false
-    @Published private(set) var queue = TrackQueue(source: .single, tracks: [])
+    @ObservationIgnored private var playbackTask: Task<Void, Never>?
+    @ObservationIgnored private var playbackRequestID: UUID?
+    @ObservationIgnored private var trackSelectionTask: Task<Void, Never>?
+    @ObservationIgnored private var queuePrefetchTask: Task<Void, Never>?
+    @ObservationIgnored private var shuffleQueueTask: Task<Void, Never>?
+    @ObservationIgnored private var prefetchedTrack: SoundCloudTrack?
+    @ObservationIgnored private var likesObservation: AnyCancellable?
+    @ObservationIgnored private var playlistsObservation: AnyCancellable?
+    @ObservationIgnored private var followingTask: Task<Set<String>, Error>?
+    @ObservationIgnored private var followingRequestID: UUID?
+    @ObservationIgnored private var followingOverrides: [String: Bool] = [:]
+    @ObservationIgnored private var hasStarted = false
+    private(set) var queue = TrackQueue(source: .single, tracks: [])
     private let queueStore = TrackQueueStore()
     // These limits bound cache growth as liked-track pages load.
     private let trackDetailsCache = MemoryCache<
@@ -53,13 +55,13 @@ final class AppModel: ObservableObject {
         NSURL,
         SoundCloudWaveform
     >(countLimit: 50, totalCostLimit: 8 * 1_024 * 1_024)
-    private var waveformRequests: [URL: (id: UUID, task: Task<SoundCloudWaveform, Error>)] = [:]
+    @ObservationIgnored private var waveformRequests: [URL: (id: UUID, task: Task<SoundCloudWaveform, Error>)] = [:]
     private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(countLimit: 100)
     private let artistWebProfilesCache = MemoryCache<NSURL, [SoundCloudWebProfile]>(countLimit: 100)
-    private var artistWebProfilesCacheGeneration = UUID()
+    @ObservationIgnored private var artistWebProfilesCacheGeneration = UUID()
     private let artistHeaderCache = MemoryCache<NSURL, CachedArtistHeader>(countLimit: 10)
     private let stationCache = MemoryCache<NSString, SoundCloudStation>(countLimit: 10)
-    private var stationCacheGeneration = UUID()
+    @ObservationIgnored private var stationCacheGeneration = UUID()
 
     init() {
         let configuration: SoundCloudConfiguration

@@ -5,7 +5,7 @@ struct SearchResultsView: View {
     var isGenreSearch = false
     var isTagSearch = false
     var contentPadding: CGFloat = 20
-    @ObservedObject var model: AppModel
+    let model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void

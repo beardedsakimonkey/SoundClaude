@@ -41,7 +41,7 @@ struct CommentSortMenu: View {
 
 struct TrackCommentsView: View {
     let track: SoundCloudTrack
-    @ObservedObject var model: AppModel
+    let model: AppModel
     let onSelectArtist: (SoundCloudUser) -> Void
 
     let onCommentAdded: () -> Void

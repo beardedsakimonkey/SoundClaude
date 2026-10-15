@@ -4,7 +4,7 @@ struct PlaylistDetailView: View {
     private let artworkSize: CGFloat = 250
 
     let playlist: SoundCloudPlaylist
-    @ObservedObject var model: AppModel
+    let model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onDeletePlaylist: (SoundCloudPlaylist) -> Void

@@ -9,7 +9,7 @@ struct PlayerFooterView: View {
         RoundedRectangle(cornerRadius: cornerRadius - contentInset, style: .continuous)
     }
 
-    @ObservedObject var model: AppModel
+    let model: AppModel
     let artworkLoader: ArtworkLoader
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void

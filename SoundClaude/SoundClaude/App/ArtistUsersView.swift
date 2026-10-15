@@ -3,7 +3,7 @@ import SwiftUI
 struct ArtistUsersView: View {
     let artist: SoundCloudUser
     let list: ArtistUserList
-    @ObservedObject var model: AppModel
+    let model: AppModel
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @State private var users: [SoundCloudUser] = []
