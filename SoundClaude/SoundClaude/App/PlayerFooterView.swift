@@ -2,7 +2,6 @@ import SwiftUI
 
 struct PlayerFooterView: View {
     private let artworkThumbnailSize: CGFloat = 72
-    private let waveformHeight: CGFloat = 50
     private let cornerRadius: CGFloat = 18
     private let contentInset: CGFloat = 6
 
@@ -20,12 +19,7 @@ struct PlayerFooterView: View {
     @Binding var isShowingVisualizer: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isHoveringSource = false
-    @State private var isHoveringTitle = false
-    @State private var isHoveringArtwork = false
-    @State private var isHoveringWaveform = false
     @State private var footerWidth: CGFloat = 0
-    @State private var waveformHorizontalInset: CGFloat = 0
 
     @Bindable private var playback: PlaybackController
     @ObservedObject private var likes: LikesController
@@ -88,12 +82,12 @@ struct PlayerFooterView: View {
             VStack(alignment: .leading, spacing: 6) {
                 if let track = playback.currentTrack {
                     if let stationURN {
-                        sourceButton(title: stationTitle, icon: "dot.radiowaves.left.and.right", kind: "station") {
+                        PlayerFooterSourceButton(title: stationTitle, icon: "dot.radiowaves.left.and.right", kind: "station") {
                             onSelectStation(stationURN, stationTitle)
                         }
                         .id(stationURN)
                     } else if let playlist = currentPlaylist {
-                        sourceButton(title: playlist.title, icon: "music.note.list", kind: "playlist") {
+                        PlayerFooterSourceButton(title: playlist.title, icon: "music.note.list", kind: "playlist") {
                             Task {
                                 if let details = await model.playlistDetails(urn: playlist.urn, title: playlist.title) {
                                     onSelectPlaylist(details)
@@ -105,20 +99,12 @@ struct PlayerFooterView: View {
                     if showsPreviewBadge {
                         TrackPreviewBadge(font: .caption2)
                     }
-                    Button {
+                    PlayerFooterTrackTitleButton(
+                        title: track.title,
+                        lineLimit: stationURN != nil || currentPlaylist != nil || showsPreviewBadge ? 1 : 2
+                    ) {
                         onSelectTrack(track)
-                    } label: {
-                        Text(track.title)
-                            .lineLimit(stationURN != nil || currentPlaylist != nil || showsPreviewBadge ? 1 : 2)
-                            .multilineTextAlignment(.leading)
-                            .underline(isHoveringTitle)
-                            .foregroundStyle(.primary)
-                            .opacity(0.9)
                     }
-                    .buttonStyle(.plain)
-                    .keyboardShortcut("f", modifiers: [])
-                    .onContentHover { isHoveringTitle = $0 }
-                    .contentHelp("Focus current track (F)")
                 } else {
                     Text("Select a track")
                 }
@@ -140,24 +126,6 @@ struct PlayerFooterView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             likeButton
         }
-    }
-
-    private func sourceButton(title: String, icon: String, kind: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                Text(title)
-                    .underline(isHoveringSource)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-        .onContentHover { isHoveringSource = $0 }
-        .contentHelp("View \(kind): \(title)")
-        .accessibilityLabel("View \(kind): \(title)")
     }
 
     private var showsPreviewBadge: Bool {
@@ -232,97 +200,19 @@ struct PlayerFooterView: View {
     }
 
     private var artworkThumbnail: some View {
-        thumbnail(for: playback.currentTrack?.displayArtworkURL)
-        .id(playback.currentTrack?.displayArtworkURL)
-        .animation(
-            reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
-            value: isHoveringArtwork
+        PlayerFooterArtworkThumbnail(
+            artworkURL: playback.currentTrack?.displayArtworkURL,
+            artworkLoader: artworkLoader,
+            artworkThumbnailSize: artworkThumbnailSize,
+            cornerRadius: cornerRadius - contentInset
         )
-        .frame(width: artworkThumbnailSize, height: artworkThumbnailSize)
-        .contentShape(artworkShape)
-        .onContentHover { isHoveringArtwork = $0 }
-    }
-
-    private func thumbnail(for url: URL?) -> some View {
-        TrackArtworkView(
-            artworkURL: url,
-            loader: artworkLoader,
-            size: artworkThumbnailSize,
-            rendition: .square500,
-            shape: artworkShape,
-            showsBorder: false
-        )
-        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.15 : 1)
-        .clipShape(artworkShape)
-        .modifier(PlayerArtworkGlass(
-            cornerRadius: cornerRadius - contentInset,
-            isHovering: isHoveringArtwork && !reduceMotion
-        ))
     }
 
     private var playbackControls: some View {
-        let raisesTimestamps = playback.currentTrack != nil
-            && !playback.isPlaybackActive && !isHoveringWaveform
-
-        return VStack(spacing: 10) {
+        VStack(spacing: 10) {
             HStack(spacing: 8) {
                 transportControls
-                VStack(spacing: 4) {
-                    if let track = playback.currentTrack {
-                        TrackWaveformView(
-                            track: track,
-                            model: model,
-                            layout: .compact,
-                            height: waveformHeight,
-                            invertsBarsOnTrackChange: true,
-                            collapsesBarsWhenPaused: true
-                        )
-                        .onContentHover { isHoveringWaveform = $0 }
-                    } else {
-                        Color.clear
-                            .frame(height: waveformHeight)
-                            .accessibilityHidden(true)
-                    }
-
-                    PlayerFooterTimestamps(playback: playback)
-                    .padding(.horizontal, playback.currentTrack == nil ? 0 : waveformHorizontalInset)
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.tertiary)
-                    // Follow the lower edge as centered bars collapse to 4 points.
-                    .offset(y: -4 - (raisesTimestamps
-                        ? (TrackWaveformView.Layout.compact.availableBarHeight(for: waveformHeight) - 4) / 2 - 1
-                        : 0))
-                    .animation(
-                        reduceMotion ? nil : .spring(
-                            duration: 0.35,
-                            bounce: raisesTimestamps ? 0.05 : 0.3
-                        ),
-                        value: raisesTimestamps
-                    )
-                }
-                .frame(maxWidth: .infinity)
-                .overlay(alignment: .top) {
-                    if let playbackError = playback.errorMessage {
-                        Text(playbackError)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: waveformHeight)
-                            .contentHelp(playbackError)
-                    }
-                }
-                .onGeometryChange(for: CGFloat.self) { geometry in
-                    TrackWaveformView.Layout.compact.horizontalBarInset(for: geometry.size.width)
-                } action: { inset in
-                    waveformHorizontalInset = inset
-                }
-                // Compensate for the timestamps below the waveform.
-                .offset(y: 8)
+                PlayerFooterWaveform(model: model, playback: playback)
 
                 Button {
                     isShowingQueue.toggle()
@@ -428,6 +318,175 @@ struct PlayerFooterView: View {
         }
     }
 
+}
+
+// Each title owns its hover state so underlining does not update the footer.
+private struct PlayerFooterTrackTitleButton: View {
+    let title: String
+    let lineLimit: Int
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .lineLimit(lineLimit)
+                .multilineTextAlignment(.leading)
+                .underline(isHovering)
+                .foregroundStyle(.primary)
+                .opacity(0.9)
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut("f", modifiers: [])
+        .onContentHover { isHovering = $0 }
+        .contentHelp("Focus current track (F)")
+    }
+}
+
+private struct PlayerFooterSourceButton: View {
+    let title: String
+    let icon: String
+    let kind: String
+    let action: () -> Void
+
+    @State private var isHoveringSource = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                Text(title)
+                    .underline(isHoveringSource)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .onContentHover { isHoveringSource = $0 }
+        .contentHelp("View \(kind): \(title)")
+        .accessibilityLabel("View \(kind): \(title)")
+    }
+}
+
+// Keep artwork hover animation updates out of the footer body.
+private struct PlayerFooterArtworkThumbnail: View {
+    let artworkURL: URL?
+    let artworkLoader: ArtworkLoader
+    let artworkThumbnailSize: CGFloat
+    let cornerRadius: CGFloat
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHoveringArtwork = false
+
+    private var artworkShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    }
+
+    var body: some View {
+        thumbnail(for: artworkURL)
+        .id(artworkURL)
+        .animation(
+            reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
+            value: isHoveringArtwork
+        )
+        .frame(width: artworkThumbnailSize, height: artworkThumbnailSize)
+        .contentShape(artworkShape)
+        .onContentHover { isHoveringArtwork = $0 }
+    }
+
+    private func thumbnail(for url: URL?) -> some View {
+        TrackArtworkView(
+            artworkURL: url,
+            loader: artworkLoader,
+            size: artworkThumbnailSize,
+            rendition: .square500,
+            shape: artworkShape,
+            showsBorder: false
+        )
+        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.15 : 1)
+        .clipShape(artworkShape)
+        .modifier(PlayerArtworkGlass(
+            cornerRadius: cornerRadius,
+            isHovering: isHoveringArtwork && !reduceMotion
+        ))
+    }
+
+}
+
+// Keep waveform hover and layout updates local to the waveform and timestamps.
+private struct PlayerFooterWaveform: View {
+    let model: AppModel
+    let playback: PlaybackController
+
+    private let waveformHeight: CGFloat = 50
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHoveringWaveform = false
+    @State private var waveformHorizontalInset: CGFloat = 0
+
+    var body: some View {
+        let raisesTimestamps = playback.currentTrack != nil
+            && !playback.isPlaybackActive && !isHoveringWaveform
+
+        VStack(spacing: 4) {
+            if let track = playback.currentTrack {
+                TrackWaveformView(
+                    track: track,
+                    model: model,
+                    layout: .compact,
+                    height: waveformHeight,
+                    invertsBarsOnTrackChange: true,
+                    collapsesBarsWhenPaused: true
+                )
+                .onContentHover { isHoveringWaveform = $0 }
+            } else {
+                Color.clear
+                    .frame(height: waveformHeight)
+                    .accessibilityHidden(true)
+            }
+
+            PlayerFooterTimestamps(playback: playback)
+            .padding(.horizontal, playback.currentTrack == nil ? 0 : waveformHorizontalInset)
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.tertiary)
+            // Follow the lower edge as centered bars collapse to 4 points.
+            .offset(y: -4 - (raisesTimestamps
+                ? (TrackWaveformView.Layout.compact.availableBarHeight(for: waveformHeight) - 4) / 2 - 1
+                : 0))
+            .animation(
+                reduceMotion ? nil : .spring(
+                    duration: 0.35,
+                    bounce: raisesTimestamps ? 0.05 : 0.3
+                ),
+                value: raisesTimestamps
+            )
+        }
+        .frame(maxWidth: .infinity)
+        .overlay(alignment: .top) {
+            if let playbackError = playback.errorMessage {
+                Text(playbackError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: waveformHeight)
+                    .contentHelp(playbackError)
+            }
+        }
+        .onGeometryChange(for: CGFloat.self) { geometry in
+            TrackWaveformView.Layout.compact.horizontalBarInset(for: geometry.size.width)
+        } action: { inset in
+            waveformHorizontalInset = inset
+        }
+        // Compensate for the timestamps below the waveform.
+        .offset(y: 8)
+    }
 }
 
 // Read the playback clock in its own body to keep time updates out of the footer.
