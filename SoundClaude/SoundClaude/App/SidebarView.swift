@@ -22,8 +22,6 @@ struct SidebarView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isSidebarFocused: Bool
     @State private var isShowingCreatePlaylist = false
-    @State private var isProfileHovered = false
-    @State private var isSignOutHovered = false
     @State private var dropTargetURN: String?
     @State private var addingToPlaylistURNs: Set<String> = []
     @State private var playlistDropError: String?
@@ -41,7 +39,12 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            accountHeader
+            SidebarAccountHeader(
+                user: user,
+                artworkLoader: artworkLoader,
+                onSelectProfile: onSelectProfile,
+                onSignOut: onSignOut
+            )
             sidebarList
         }
         .navigationTitle("SoundClaude")
@@ -494,8 +497,18 @@ struct SidebarView: View {
             selection = destination
         }
     }
+}
 
-    private var accountHeader: some View {
+private struct SidebarAccountHeader: View {
+    let user: SoundCloudUser
+    let artworkLoader: ArtworkLoader
+    let onSelectProfile: (SoundCloudUser) -> Void
+    let onSignOut: () async -> Void
+
+    @State private var isProfileHovered = false
+    @State private var isSignOutHovered = false
+
+    var body: some View {
         HStack(spacing: 8) {
             Button {
                 onSelectProfile(user)
