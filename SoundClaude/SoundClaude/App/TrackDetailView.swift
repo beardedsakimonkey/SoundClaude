@@ -3,9 +3,6 @@ import Foundation
 import SwiftUI
 
 struct TrackDetailView: View {
-    private let artworkSize: CGFloat = 250
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     let track: SoundCloudTrack
     let model: AppModel
     @ObservedObject private var likes: LikesController
@@ -18,11 +15,6 @@ struct TrackDetailView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var repostErrorMessage: String?
-    @State private var isShowingArtwork = false
-    @State private var isHoveringArtwork = false
-    @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
-
-    private var isArtworkHoverActive: Bool { isHoveringArtwork || isShowingArtwork }
 
     init(
         track: SoundCloudTrack,
@@ -81,14 +73,6 @@ struct TrackDetailView: View {
         } message: {
             Text(repostErrorMessage ?? "Please try again.")
         }
-        .sheet(isPresented: $isShowingArtwork) {
-            FullSizeArtworkView(
-                title: details?.track.title ?? track.title,
-                artworkURL: details?.track.displayArtworkURL ?? track.displayArtworkURL,
-                loader: model.artworkLoader,
-                cachedArtwork: $cachedFullSizeArtwork
-            )
-        }
         #if DEBUG
         .debugViewUpdates("TrackDetailView")
         #endif
@@ -99,39 +83,7 @@ struct TrackDetailView: View {
     // Keep the header mounted while the request fills in the rest of the page.
     private var header: some View {
         HStack(alignment: .top, spacing: 24) {
-            DetailArtworkView(
-                artworkURL: displayedTrack.displayArtworkURL,
-                title: displayedTrack.title,
-                loader: model.artworkLoader,
-                size: artworkSize,
-                animatesChanges: true,
-                showsPlaceholderIcon: false,
-                cornerRadius: 12,
-                artworkLift: isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverLift : 0,
-                hoverStyle: .lift,
-                isShowingArtwork: isShowingArtwork,
-                onImageHover: { isHoveringArtwork = $0 },
-                track: displayedTrack,
-                likes: model.likes,
-                onAddToQueue: model.addToQueue,
-                onShowArtwork: { isShowingArtwork = true }
-            )
-            .modifier(DetailArtworkRotation(
-                isRotated: false,
-                isShowingArtwork: isShowingArtwork,
-                imageHover: isHoveringArtwork
-            ))
-            .animation(
-                reduceMotion ? nil : (isArtworkHoverActive
-                    ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut),
-                value: isArtworkHoverActive
-            )
-            .animation(
-                reduceMotion ? nil : (isArtworkHoverActive
-                    ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut)
-            ) { content in
-                content.scaleEffect(isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverScale : 1)
-            }
+            TrackDetailArtwork(track: displayedTrack, model: model)
 
             VStack(alignment: .leading, spacing: 10) {
                 if displayedTrack.access == .preview {
@@ -351,6 +303,65 @@ struct TrackDetailView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+}
+
+// Keep hover and sheet state local so artwork interactions do not rebuild the page.
+private struct TrackDetailArtwork: View {
+    private let artworkSize: CGFloat = 250
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let track: SoundCloudTrack
+    let model: AppModel
+
+    @State private var isShowingArtwork = false
+    @State private var isHoveringArtwork = false
+    @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
+
+    private var isArtworkHoverActive: Bool { isHoveringArtwork || isShowingArtwork }
+
+    var body: some View {
+        DetailArtworkView(
+            artworkURL: track.displayArtworkURL,
+            title: track.title,
+            loader: model.artworkLoader,
+            size: artworkSize,
+            animatesChanges: true,
+            showsPlaceholderIcon: false,
+            cornerRadius: 12,
+            artworkLift: isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverLift : 0,
+            hoverStyle: .lift,
+            isShowingArtwork: isShowingArtwork,
+            onImageHover: { isHoveringArtwork = $0 },
+            track: track,
+            likes: model.likes,
+            onAddToQueue: model.addToQueue,
+            onShowArtwork: { isShowingArtwork = true }
+        )
+        .modifier(DetailArtworkRotation(
+            isRotated: false,
+            isShowingArtwork: isShowingArtwork,
+            imageHover: isHoveringArtwork
+        ))
+        .animation(
+            reduceMotion ? nil : (isArtworkHoverActive
+                ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut),
+            value: isArtworkHoverActive
+        )
+        .animation(
+            reduceMotion ? nil : (isArtworkHoverActive
+                ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut)
+        ) { content in
+            content.scaleEffect(isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverScale : 1)
+        }
+        .sheet(isPresented: $isShowingArtwork) {
+            FullSizeArtworkView(
+                title: track.title,
+                artworkURL: track.displayArtworkURL,
+                loader: model.artworkLoader,
+                cachedArtwork: $cachedFullSizeArtwork
+            )
+        }
     }
 }
 
