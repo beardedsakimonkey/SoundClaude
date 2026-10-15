@@ -59,6 +59,8 @@ final class AppModel {
     // The detail list and waveform markers both read the first comment page.
     private let firstCommentPageCache = MemoryCache<TrackCacheKey, SoundCloudCommentPage>(countLimit: 20)
     @ObservationIgnored private var firstCommentPageRequests: [TrackCacheKey: (id: UUID, task: Task<SoundCloudCommentPage, Error>)] = [:]
+    private let firstRelatedTrackPageCache = MemoryCache<NSString, SoundCloudTrackPage>(countLimit: 20)
+    @ObservationIgnored private var firstRelatedTrackPageCacheGeneration = UUID()
     private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(countLimit: 100)
     private let artistWebProfilesCache = MemoryCache<NSURL, [SoundCloudWebProfile]>(countLimit: 100)
     @ObservationIgnored private var artistWebProfilesCacheGeneration = UUID()
@@ -228,6 +230,8 @@ final class AppModel {
         for request in firstCommentPageRequests.values { request.task.cancel() }
         firstCommentPageRequests.removeAll()
         firstCommentPageCache.removeAll()
+        firstRelatedTrackPageCache.removeAll()
+        firstRelatedTrackPageCacheGeneration = UUID()
         artistHeaderCache.removeAll()
         stationCache.removeAll()
         stationCacheGeneration = UUID()
@@ -757,12 +761,22 @@ final class AppModel {
 
     func relatedTracks(for track: SoundCloudTrack, pageURL: URL? = nil) async throws
         -> SoundCloudTrackPage {
+        let cacheKey = track.urn as NSString
+        if pageURL == nil, let cachedPage = firstRelatedTrackPageCache.value(forKey: cacheKey) {
+            return cachedPage
+        }
+        let generation = firstRelatedTrackPageCacheGeneration
         let accessToken = try await auth.validAccessToken()
-        return try await client.relatedTracks(
+        let page = try await client.relatedTracks(
             urn: track.urn,
             accessToken: accessToken,
             pageURL: pageURL
         )
+        // A response from a previous session must not repopulate the cache.
+        if pageURL == nil, generation == firstRelatedTrackPageCacheGeneration {
+            firstRelatedTrackPageCache.insert(page, forKey: cacheKey)
+        }
+        return page
     }
 
     func waveform(for track: SoundCloudTrack) async throws
