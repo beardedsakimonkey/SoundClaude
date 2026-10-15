@@ -81,7 +81,6 @@ struct ArtistDetailView: View {
     @State private var isShufflingTracks = false
     @State private var followErrorMessage: String?
     @State private var followerCountAdjustment = 0
-    @State private var hoveredStatistic: String?
     @State private var headerImage: NSImage?
     @State private var headerImageURL: URL?
     @State private var isHeaderImageMissing = false
@@ -89,14 +88,11 @@ struct ArtistDetailView: View {
     @State private var details: SoundCloudArtistDetails?
     @State private var webProfiles: [SoundCloudWebProfile] = []
     @State private var webProfilesErrorMessage: String?
-    @State private var hoveredWebProfileURL: URL?
     @State private var relatedArtists: [SoundCloudUser] = []
     @State private var relatedArtistsPage = 0
     private let relatedArtistsPageSize = 3
     @State private var isLoadingRelatedArtists = false
     @State private var relatedArtistsErrorMessage: String?
-    @State private var hoveredRelatedArtistURL: URL?
-    @State private var isHoveringRelatedRefresh = false
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var tracks: [SoundCloudTrack] = []
@@ -137,7 +133,6 @@ struct ArtistDetailView: View {
     @State private var isLoadingPlaylists = false
     @State private var playlistsErrorMessage: String?
     @State private var isShowingArtwork = false
-    @State private var isHoveringArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
     init(
@@ -439,19 +434,12 @@ struct ArtistDetailView: View {
                                     .font(.body.weight(.semibold))
                                     .lineLimit(1)
                             }
-                            .foregroundStyle(hoveredWebProfileURL == profile.url ? .primary : .secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 6)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .onContentHover { isHovering in
-                            if isHovering {
-                                hoveredWebProfileURL = profile.url
-                            } else if hoveredWebProfileURL == profile.url {
-                                hoveredWebProfileURL = nil
-                            }
-                        }
+                        .modifier(HoverForeground())
                         .contentHelp(profile.url.absoluteString)
                     }
                 }
@@ -478,8 +466,7 @@ struct ArtistDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .font(.callout)
-                .foregroundStyle(isHoveringRelatedRefresh ? .primary : .secondary)
-                .onContentHover { isHoveringRelatedRefresh = $0 }
+                .modifier(HoverForeground())
                 .disabled(isLoadingRelatedArtists || relatedArtists.count <= relatedArtistsPageSize)
                 .contentHelp("Show the next page of related artists")
             }
@@ -516,21 +503,10 @@ struct ArtistDetailView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .padding(8)
-                        .background {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.primary.opacity(hoveredRelatedArtistURL == user.permalinkURL ? 0.08 : 0))
-                                .animation(.easeInOut(duration: 0.15), value: hoveredRelatedArtistURL == user.permalinkURL)
-                        }
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .onContentHover { isHovering in
-                        if isHovering {
-                            hoveredRelatedArtistURL = user.permalinkURL
-                        } else if hoveredRelatedArtistURL == user.permalinkURL {
-                            hoveredRelatedArtistURL = nil
-                        }
-                    }
+                    .modifier(RelatedArtistHover())
                     .contentHelp("View artist: \(user.username)")
                 }
             }
@@ -581,13 +557,11 @@ struct ArtistDetailView: View {
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
             relatedArtistsPage = nextPage * relatedArtistsPageSize < relatedArtists.count ? nextPage : 0
         }
-        hoveredRelatedArtistURL = nil
     }
 
     private func loadRelatedArtists() async {
         relatedArtists = []
         relatedArtistsPage = 0
-        hoveredRelatedArtistURL = nil
         relatedArtistsErrorMessage = nil
         guard let user = details?.user, user.urn != nil else { return }
         isLoadingRelatedArtists = true
@@ -766,43 +740,59 @@ struct ArtistDetailView: View {
         }
     }
 
-    @ViewBuilder
     private func artistPicture(for user: SoundCloudUser) -> some View {
-        let avatarURL = user.avatarURL ?? artist.avatarURL
-        let pictureSize: CGFloat = 180
-        let thumbnail = TrackArtworkView(
-            artworkURL: avatarURL,
-            loader: model.artworkLoader,
-            size: pictureSize,
-            rendition: .square500,
-            showsPlaceholderIcon: false
+        ArtistPicture(
+            user: user,
+            avatarURL: user.avatarURL ?? artist.avatarURL,
+            model: model,
+            isShowingArtwork: $isShowingArtwork
         )
-        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.12 : 1)
-        .clipShape(Circle())
-        .modifier(PlayerArtworkGlass(
-            cornerRadius: pictureSize / 2,
-            isHovering: isHoveringArtwork && !reduceMotion
-        ))
-        .animation(
-            reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
-            value: isHoveringArtwork
-        )
+    }
 
-        if avatarURL != nil {
-            Button {
-                isShowingArtwork = true
-            } label: {
+    private struct ArtistPicture: View {
+        let user: SoundCloudUser
+        let avatarURL: URL?
+        let model: AppModel
+        @Binding var isShowingArtwork: Bool
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        @State private var isHoveringArtwork = false
+
+        var body: some View {
+            let pictureSize: CGFloat = 180
+            let thumbnail = TrackArtworkView(
+                artworkURL: avatarURL,
+                loader: model.artworkLoader,
+                size: pictureSize,
+                rendition: .square500,
+                showsPlaceholderIcon: false
+            )
+            .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.12 : 1)
+            .clipShape(Circle())
+            .modifier(PlayerArtworkGlass(
+                cornerRadius: pictureSize / 2,
+                isHovering: isHoveringArtwork && !reduceMotion
+            ))
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
+                value: isHoveringArtwork
+            )
+
+            if avatarURL != nil {
+                Button {
+                    isShowingArtwork = true
+                } label: {
+                    thumbnail
+                }
+                .buttonStyle(ArtistPictureButtonStyle())
+                .contentShape(Circle())
+                .onContentHover(in: Circle().path(in: CGRect(
+                    x: 0, y: 0, width: pictureSize, height: pictureSize
+                ))) { isHoveringArtwork = $0 }
+                .contentHelp("View full-size artist picture")
+                .accessibilityLabel("View full-size picture of \(user.username)")
+            } else {
                 thumbnail
             }
-            .buttonStyle(ArtistPictureButtonStyle())
-            .contentShape(Circle())
-            .onContentHover(in: Circle().path(in: CGRect(
-                x: 0, y: 0, width: pictureSize, height: pictureSize
-            ))) { isHoveringArtwork = $0 }
-            .contentHelp("View full-size artist picture")
-            .accessibilityLabel("View full-size picture of \(user.username)")
-        } else {
-            thumbnail
         }
     }
 
@@ -1075,28 +1065,58 @@ struct ArtistDetailView: View {
     @ViewBuilder
     private func statistic(_ count: Int?, label: String, allowsScaling: Bool) -> some View {
         if let count {
+            ArtistStatistic(count: count, label: label, allowsScaling: allowsScaling)
+        }
+    }
+
+    // Keep pointer state at the leaf so hovering does not invalidate the detail page.
+    private struct ArtistStatistic: View {
+        let count: Int
+        let label: String
+        let allowsScaling: Bool
+        @State private var isHovering = false
+
+        var body: some View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(label)
                     .font(.callout.weight(.semibold))
-                    .foregroundStyle(hoveredStatistic == label ? .primary : .secondary)
+                    .foregroundStyle(isHovering ? .primary : .secondary)
                 Text(count.formatted(.number.notation(.compactName).precision(.fractionLength(0))).uppercased())
                     .font(.system(size: 28, weight: .semibold))
-                    .opacity(hoveredStatistic == label ? 1 : 0.9)
+                    .opacity(isHovering ? 1 : 0.9)
             }
             .lineLimit(1)
             .minimumScaleFactor(allowsScaling ? 0.6 : 1)
             .fixedSize(horizontal: !allowsScaling, vertical: false)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
-            .onContentHover { isHovering in
-                if isHovering {
-                    hoveredStatistic = label
-                } else if hoveredStatistic == label {
-                    hoveredStatistic = nil
-                }
-            }
+            .onContentHover { isHovering = $0 }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("\(label): \(count.formatted())")
+        }
+    }
+
+    private struct HoverForeground: ViewModifier {
+        @State private var isHovering = false
+
+        func body(content: Content) -> some View {
+            content
+                .foregroundStyle(isHovering ? .primary : .secondary)
+                .onContentHover { isHovering = $0 }
+        }
+    }
+
+    private struct RelatedArtistHover: ViewModifier {
+        @State private var isHovering = false
+
+        func body(content: Content) -> some View {
+            content
+                .background {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
+                        .animation(.easeInOut(duration: 0.15), value: isHovering)
+                }
+                .onContentHover { isHovering = $0 }
         }
     }
 
