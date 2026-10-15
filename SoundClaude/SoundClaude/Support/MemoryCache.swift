@@ -24,6 +24,10 @@ final class MemoryCache<Key: NSObject, Value> {
         cache.setObject(Entry(value), forKey: key, cost: cost)
     }
 
+    func removeValue(forKey key: Key) {
+        cache.removeObject(forKey: key)
+    }
+
     func removeAll() {
         cache.removeAllObjects()
     }

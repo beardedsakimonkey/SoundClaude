@@ -56,6 +56,9 @@ final class AppModel {
         SoundCloudWaveform
     >(countLimit: 50, totalCostLimit: 8 * 1_024 * 1_024)
     @ObservationIgnored private var waveformRequests: [URL: (id: UUID, task: Task<SoundCloudWaveform, Error>)] = [:]
+    // The detail list and waveform markers both read the first comment page.
+    private let firstCommentPageCache = MemoryCache<TrackCacheKey, SoundCloudCommentPage>(countLimit: 20)
+    @ObservationIgnored private var firstCommentPageRequests: [TrackCacheKey: (id: UUID, task: Task<SoundCloudCommentPage, Error>)] = [:]
     private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(countLimit: 100)
     private let artistWebProfilesCache = MemoryCache<NSURL, [SoundCloudWebProfile]>(countLimit: 100)
     @ObservationIgnored private var artistWebProfilesCacheGeneration = UUID()
@@ -222,6 +225,9 @@ final class AppModel {
         for request in waveformRequests.values { request.task.cancel() }
         waveformRequests.removeAll()
         waveformCache.removeAll()
+        for request in firstCommentPageRequests.values { request.task.cancel() }
+        firstCommentPageRequests.removeAll()
+        firstCommentPageCache.removeAll()
         artistHeaderCache.removeAll()
         stationCache.removeAll()
         stationCacheGeneration = UUID()
@@ -434,6 +440,8 @@ final class AppModel {
             timestampMilliseconds: timestampMilliseconds, accessToken: accessToken
         )
         let cacheKey = TrackCacheKey(track: track)
+        firstCommentPageCache.removeValue(forKey: cacheKey)
+        firstCommentPageRequests[cacheKey] = nil
         if var details = trackDetailsCache.value(forKey: cacheKey), let count = details.commentCount {
             details.commentCount = count + 1
             trackDetailsCache.insert(details, forKey: cacheKey)
@@ -441,16 +449,45 @@ final class AppModel {
         return comment
     }
 
-    func trackComments(for track: SoundCloudTrack, pageURL: URL? = nil, limit: Int = 50) async throws
+    func trackComments(for track: SoundCloudTrack, pageURL: URL? = nil) async throws
         -> SoundCloudCommentPage {
-        let accessToken = try await auth.validAccessToken()
-        return try await client.trackComments(
-            urn: track.urn,
-            secretToken: track.secretToken,
-            accessToken: accessToken,
-            pageURL: pageURL,
-            limit: limit
-        )
+        if let pageURL {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.trackComments(
+                urn: track.urn, secretToken: track.secretToken,
+                accessToken: accessToken, pageURL: pageURL
+            )
+        }
+
+        let cacheKey = TrackCacheKey(track: track)
+        if let cachedPage = firstCommentPageCache.value(forKey: cacheKey) {
+            return cachedPage
+        }
+        let request: (id: UUID, task: Task<SoundCloudCommentPage, Error>)
+        if let existing = firstCommentPageRequests[cacheKey] {
+            request = existing
+        } else {
+            request = (UUID(), Task { [auth, client] in
+                let accessToken = try await auth.validAccessToken()
+                return try await client.trackComments(
+                    urn: track.urn, secretToken: track.secretToken, accessToken: accessToken
+                )
+            })
+            firstCommentPageRequests[cacheKey] = request
+        }
+        defer {
+            if firstCommentPageRequests[cacheKey]?.id == request.id {
+                firstCommentPageRequests[cacheKey] = nil
+            }
+        }
+        // Not cancelled with the caller: the other comments view may share this request.
+        let page = try await request.task.value
+        // Sign-out or a new comment removes the request so a stale page is not cached.
+        if firstCommentPageRequests[cacheKey]?.id == request.id {
+            firstCommentPageCache.insert(page, forKey: cacheKey)
+        }
+        try Task.checkCancellation()
+        return page
     }
 
     func cachedTrackDetails(for track: SoundCloudTrack)

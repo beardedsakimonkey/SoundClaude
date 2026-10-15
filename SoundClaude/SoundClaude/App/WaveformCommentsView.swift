@@ -68,13 +68,12 @@ struct WaveformCommentsView: View {
     }
 
     private func loadComments() async {
-        let limit = 100
         var knownIDs = Set<String>()
         do {
-            // Bound both the request and marker count to the first page.
-            let page = try await model.trackComments(for: track, limit: limit)
+            // Markers use only the first page, shared with the detail comment list.
+            let page = try await model.trackComments(for: track)
             try Task.checkCancellation()
-            index = WaveformCommentIndex(page.comments.prefix(limit).filter {
+            index = WaveformCommentIndex(page.comments.filter {
                 $0.timestampMilliseconds != nil && knownIDs.insert($0.id).inserted
             })
         } catch {
