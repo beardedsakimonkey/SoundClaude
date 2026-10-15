@@ -119,6 +119,9 @@ struct PlaylistCardView: View {
             hasRequestedTracks = true
             await playlists.loadPlaylist(playlist)
         }
+        #if DEBUG
+        .debugViewUpdates("PlaylistCardView")
+        #endif
     }
 
     @ViewBuilder

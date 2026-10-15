@@ -199,6 +199,9 @@ struct TrackListRow: View {
         .accessibilityAction(named: isPlaybackActive ? "Pause" : "Play") {
             playOrPauseTrack()
         }
+        #if DEBUG
+        .debugViewUpdates("TrackListRow")
+        #endif
     }
 
     private var trackMenuItems: some View {

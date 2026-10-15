@@ -185,6 +185,9 @@ struct SignedInView: View {
                 onForward: navigateForward
             )
         }
+        #if DEBUG
+        .debugViewUpdates("SignedInView")
+        #endif
     }
 
     // The footer owns these shortcuts in normal mode. Keep them available when it is absent.

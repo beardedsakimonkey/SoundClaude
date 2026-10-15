@@ -153,6 +153,9 @@ struct VisualizerView: View {
                 Button("Next track") { playback.next() }
             }
         }
+        #if DEBUG
+        .debugViewUpdates("VisualizerView")
+        #endif
     }
 
     private func stir(at point: CGPoint, delta: CGSize) {

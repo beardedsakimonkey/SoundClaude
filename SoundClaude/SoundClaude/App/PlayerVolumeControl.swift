@@ -81,6 +81,9 @@ struct PlayerVolumeControl: View {
         .onChange(of: usesCompactVolume) { _, _ in
             isShowingVolume = false
         }
+        #if DEBUG
+        .debugViewUpdates("PlayerVolumeControl")
+        #endif
     }
 
     private var volumeSymbol: some View {

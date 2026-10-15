@@ -77,5 +77,8 @@ struct NowPlayingTrackRow: View {
         .onChange(of: track?.urn) { _, _ in
             isHoveringTrackTitle = false
         }
+        #if DEBUG
+        .debugViewUpdates("NowPlayingTrackRow")
+        #endif
     }
 }

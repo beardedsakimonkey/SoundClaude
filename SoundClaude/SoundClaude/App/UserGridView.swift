@@ -81,6 +81,9 @@ struct UserGridView: View {
                 .modifier(UserFadeIn())
             }
         }
+        #if DEBUG
+        .debugViewUpdates("UserGridView")
+        #endif
     }
 }
 

@@ -163,6 +163,9 @@ struct StationDetailView: View {
                 loader: model.artworkLoader, cachedArtwork: $cachedFullSizeArtwork
             )
         }
+        #if DEBUG
+        .debugViewUpdates("StationDetailView")
+        #endif
     }
 
     private var header: some View {

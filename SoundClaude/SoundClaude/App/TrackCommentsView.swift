@@ -117,6 +117,9 @@ struct TrackCommentsView: View {
             artworkAccent = accent
             accentArtworkURL = url
         }
+        #if DEBUG
+        .debugViewUpdates("TrackCommentsView")
+        #endif
     }
 
     private var showsComposerControls: Bool {
