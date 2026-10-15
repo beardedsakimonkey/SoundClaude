@@ -167,6 +167,11 @@ struct PlaybackTests {
         legacy["wasPlaying"] = true
         defaults.set(try JSONSerialization.data(withJSONObject: legacy), forKey: "playback.session")
         let relaunched = PlaybackController(defaults: defaults)
+        precondition(relaunched.currentTrack == track(1),
+                     "Saved title, artist, and artwork must be available before startup awaits")
+        precondition(relaunched.currentTime == 0.75 && relaunched.duration == 2)
+        precondition(relaunched.player.currentItem == nil && !relaunched.isPlaybackActive)
+        precondition(relaunched.sessionToRestore?.track == track(1))
         relaunched.onTrackStarted = { _ in
             fatalError("Paused session restore must not record a play")
         }
@@ -174,6 +179,7 @@ struct PlaybackTests {
         let resume = relaunched.beginLoading(
             track: session.track, position: session.position, autoplay: false
         )
+        precondition(relaunched.sessionToRestore == nil)
         relaunched.load(source: source, requestID: resume)
         try await until {
             !relaunched.isLoading && abs(relaunched.player.currentTime().seconds - 0.75) < 0.05

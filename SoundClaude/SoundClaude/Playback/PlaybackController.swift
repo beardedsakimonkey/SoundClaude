@@ -47,6 +47,7 @@ final class PlaybackController {
 
     private(set) var trackChangeDirection: TrackChangeDirection = .forward
     private(set) var currentTrack: SoundCloudTrack?
+    private(set) var sessionToRestore: SavedPlayback?
     private(set) var isPlaying = false
     private(set) var isLoading = false
     private var isWaitingForPlayback = false
@@ -141,6 +142,13 @@ final class PlaybackController {
         player.volume = volume
         player.isMuted = isMuted
         player.preventsDisplaySleepDuringVideoPlayback = false
+        // Publish saved metadata before the first view, without starting audio.
+        if let session = savedSession {
+            sessionToRestore = session
+            currentTrack = session.track
+            duration = Double(session.track.durationMilliseconds) / 1_000
+            currentTime = duration > 0 ? min(session.position, duration) : session.position
+        }
         observePlayer()
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
@@ -276,6 +284,7 @@ final class PlaybackController {
         canStartImmediately = false
         player.replaceCurrentItem(with: nil)
         currentTrack = nil
+        sessionToRestore = nil
         currentTime = 0
         duration = 0
         seekTarget = nil
@@ -297,6 +306,7 @@ final class PlaybackController {
         autoplay: Bool = true,
         direction: TrackChangeDirection = .forward
     ) -> UUID {
+        sessionToRestore = nil
         pause()
         canStartImmediately = false
         itemStatusObservation?.invalidate()

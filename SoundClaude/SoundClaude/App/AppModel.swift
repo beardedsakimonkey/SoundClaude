@@ -307,8 +307,9 @@ final class AppModel: ObservableObject {
     }
 
     private func restorePlayback() async {
-        guard playback.currentTrack == nil, playbackTask == nil else { return }
-        let session = playback.savedSession
+        guard playback.currentTrack == nil || playback.sessionToRestore != nil,
+              playbackTask == nil else { return }
+        let session = playback.sessionToRestore ?? playback.savedSession
         queue = queueStore.restore(
             likes: likes.tracks,
             currentTrack: session?.track,
