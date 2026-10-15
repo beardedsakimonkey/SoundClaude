@@ -122,6 +122,32 @@ struct PlaylistsCacheTests {
         precondition(disk?.contents["playlist:1"]?.tracks == baseline.contents["playlist:1"]?.tracks)
         precondition(disk?.contents["playlist:1"]?.isComplete == true)
 
+        // Saving only the sidebar must retain unopened playlist contents.
+        try await store.save(PlaylistsCache(playlists: baseline.playlists, hasLoadedList: true), accountID: "user:1")
+        let retained = try await store.loadContents(urn: "playlist:1", accountID: "user:1")
+        precondition(retained?.tracks == baseline.contents["playlist:1"]?.tracks)
+
+        // Old combined caches remain readable, one requested playlist at a time.
+        let legacyDirectory = directory.appending(path: "legacy")
+        try FileManager.default.createDirectory(at: legacyDirectory, withIntermediateDirectories: true)
+        let sidebar = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .first { $0.lastPathComponent.hasSuffix("-sidebar.json") }!
+        let legacyURL = legacyDirectory.appending(path: sidebar.lastPathComponent.replacingOccurrences(of: "-sidebar", with: ""))
+        var legacyCache = baseline
+        legacyCache.contents["playlist:2"] = PlaylistContents(playlist: makePlaylist(2), tracks: [track(9)], hasLoadedPage: true)
+        try JSONEncoder().encode(legacyCache).write(to: legacyURL)
+        let legacyStore = PlaylistsCacheStore(directory: legacyDirectory)
+        let legacyList = try legacyStore.loadForLaunch(accountID: "user:1")
+        precondition(legacyList?.contents.isEmpty == true)
+        let legacyContents = try await legacyStore.loadContents(urn: "playlist:1", accountID: "user:1")
+        precondition(legacyContents == baseline.contents["playlist:1"])
+        try await legacyStore.save(PlaylistsCache(playlists: baseline.playlists, hasLoadedList: true), accountID: "user:1")
+        let unopened = try await legacyStore.loadContents(urn: "playlist:2", accountID: "user:1")
+        precondition(unopened?.tracks == [track(9)])
+        try await legacyStore.removeContents(urn: "playlist:1", accountID: "user:1")
+        let deletedLegacy = try await legacyStore.loadContents(urn: "playlist:1", accountID: "user:1")
+        precondition(deletedLegacy == nil)
+
         let auth = AuthController()
         let client = SoundCloudClient()
         let controller = PlaylistsController(client: client, auth: auth, store: store)
@@ -131,6 +157,8 @@ struct PlaylistsCacheTests {
                      "Startup must not decode cached track details")
         await controller.restoreCache()
         precondition(controller.playlists == baseline.playlists && client.listRequests.isEmpty)
+        precondition(controller.cache.contents.isEmpty, "Background restore must load only the list")
+        await controller.restoreContents(urn: "playlist:1")
         precondition(controller.cache.contents["playlist:1"]?.tracks == [track(1), track(2), track(3)])
 
         // Loading a newly visible card must not invalidate cards for other URNs.
@@ -278,6 +306,8 @@ struct PlaylistsCacheTests {
         precondition(controller.playlists.isEmpty && controller.cache.contents.isEmpty)
         await controller.restoreCache()
         precondition(controller.playlists == [makePlaylist(3), makePlaylist(1)])
+        precondition(controller.cache.contents.isEmpty)
+        await controller.restoreContents(urn: "playlist:1")
         precondition(controller.cache.contents["playlist:1"]?.tracks == [track(3), track(1)])
 
         // Empty remote lists remove cached entries.
@@ -316,6 +346,7 @@ struct PlaylistsCacheTests {
         controller.clear()
         await controller.restoreCache()
         precondition(controller.playlists == [makePlaylist(1)] && !controller.cache.hasLoadedList)
+        await controller.restoreContents(urn: "playlist:1")
         precondition(controller.cache.contents["playlist:1"]?.nextPageURL == next)
 
         // Repeated pagination is rejected without an endless request loop.
@@ -346,7 +377,7 @@ struct PlaylistsCacheTests {
 
         // A damaged cache is rebuilt on the next successful load.
         let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-        for file in files { try Data("broken".utf8).write(to: file) }
+        for file in files where file.pathExtension == "json" { try Data("broken".utf8).write(to: file) }
         auth.state = .signedIn(user)
         await controller.restoreCache()
         precondition(controller.playlists.isEmpty)

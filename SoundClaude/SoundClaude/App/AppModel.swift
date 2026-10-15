@@ -685,7 +685,7 @@ final class AppModel {
     }
 
     func playlistDetails(urn: String, title: String) async -> SoundCloudPlaylist? {
-        await playlists.restoreCache()
+        await playlists.restoreContents(urn: urn)
         if let cached = playlists.cache.contents[urn]?.playlist
             ?? playlists.playlists.first(where: { $0.urn == urn }) { return cached }
         if urn.hasPrefix("soundcloud:system-playlists:") {

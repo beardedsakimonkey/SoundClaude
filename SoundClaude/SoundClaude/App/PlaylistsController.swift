@@ -54,7 +54,7 @@ final class PlaylistsController: ObservableObject {
     private let auth: AuthController
     private let store: PlaylistsCacheStore
     private var accountID: String?
-    private var hasRestoredContents = false
+    private var hasRestoredList = false
     private var sessionID = UUID()
     private var restoreTask: Task<Void, Never>?
     private var syncTask: Task<Void, Never>?
@@ -82,22 +82,31 @@ final class PlaylistsController: ObservableObject {
         }
         guard case let .signedIn(user) = auth.state else { return }
         let id = user.urn ?? user.permalinkURL.absoluteString
-        guard accountID != id || !hasRestoredContents else { return }
+        guard accountID != id || !hasRestoredList else { return }
         if accountID != id { clear() }
         accountID = id
         let session = sessionID
         let task = Task { @MainActor in
             // A missing or damaged file is rebuilt from the API.
-            let saved = try? await store.load(accountID: id)
+            let saved = try? store.loadForLaunch(accountID: id)
             guard sessionID == session else { return }
             LaunchMetrics.measure("Playlist cache publish") {
                 if let saved { cache = saved }
-                hasRestoredContents = true
+                hasRestoredList = true
             }
             restoreTask = nil
         }
         restoreTask = task
         await task.value
+    }
+
+    func restoreContents(urn: String) async {
+        await restoreCache()
+        guard cache.contents[urn] == nil, let accountID else { return }
+        let session = sessionID
+        let saved = try? await store.loadContents(urn: urn, accountID: accountID)
+        guard sessionID == session, cache.contents[urn] == nil else { return }
+        if let saved { cache.contents[urn] = saved }
     }
 
     func load() async {
@@ -181,7 +190,7 @@ final class PlaylistsController: ObservableObject {
     func updatePlaylist(
         _ playlist: SoundCloudPlaylist, title: String, description: String, isPrivate: Bool
     ) async throws -> SoundCloudPlaylist {
-        await restoreCache()
+        await restoreContents(urn: playlist.urn)
         let session = sessionID
         guard let accountID else { throw CancellationError() }
         guard case let .signedIn(user) = auth.state,
@@ -268,6 +277,8 @@ final class PlaylistsController: ObservableObject {
         try checkSession(session)
         cache.playlists.removeAll { $0.urn == playlist.urn }
         cache.contents.removeValue(forKey: playlist.urn)
+        try? await store.removeContents(urn: playlist.urn, accountID: accountID)
+        try checkSession(session)
         playlistErrors.removeValue(forKey: playlist.urn)
         likedPlaylists.removeAll { $0.urn == playlist.urn }
         // Deletion succeeded remotely; a disk failure must not invite another DELETE.
@@ -295,6 +306,8 @@ final class PlaylistsController: ObservableObject {
                 }
             }
             do {
+                await restoreContents(urn: urn)
+                try checkSession(session)
                 let hadCompleteContents = cache.contents[urn]?.isComplete == true
                 let token = try await accessToken(session: session)
                 if playlist.isSystemPlaylist {
@@ -443,7 +456,7 @@ final class PlaylistsController: ObservableObject {
         playlistTasks = [:]
         sessionID = UUID()
         accountID = nil
-        hasRestoredContents = false
+        hasRestoredList = false
         cache = PlaylistsCache()
         isLoading = false
         errorMessage = nil

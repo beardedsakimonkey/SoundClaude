@@ -148,3 +148,12 @@ network waits and task suspension; nested and concurrent intervals overlap and
 must not be added together. Use CPU stacks to locate main-thread work, and the
 intervals to identify slow cache or network operations. Keep view update
 highlighting off when profiling Debug builds.
+
+### Deferred startup work
+
+Playlist startup restoration reads only the sidebar list. Track contents load
+when a playlist is opened and are saved in separate files. Old combined caches
+remain available; the first request for each playlist reads its entry and writes
+a separate file. List refreshes preserve unopened contents. Removed playlists
+get a deletion marker so their old cached tracks cannot return.
+
