@@ -458,10 +458,13 @@ private struct TrackDetailRelatedTracks: View {
                     .accessibilityLabel("Loading related tracks")
                     .frame(maxWidth: .infinity)
                     .modifier(FadeInOnAppear())
-                    .task(id: nextPageURL) {
+                    .task {
                         guard nextPageURL != nil, relatedTracksErrorMessage == nil else { return }
                         startLoadingRelatedTracks()
                     }
+                    // A new spinner per page. Reusing the first-load spinner would
+                    // request the next page while it is still built but off screen.
+                    .id(nextPageURL)
             } else if hasLoadedRelatedTracks, relatedTracks.isEmpty,
                       relatedTracksErrorMessage == nil {
                 EmptyStateView("No related tracks")

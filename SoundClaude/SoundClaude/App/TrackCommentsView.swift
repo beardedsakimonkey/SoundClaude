@@ -97,10 +97,13 @@ struct TrackCommentsView: View {
                     .accessibilityLabel("Loading comments")
                     .frame(maxWidth: .infinity)
                     .modifier(FadeInOnAppear())
-                    .task(id: nextPageURL) {
+                    .task {
                         guard nextPageURL != nil else { return }
                         startLoadingPage()
                     }
+                    // A new spinner per page. Reusing the first-load spinner would
+                    // request the next page while it is still built but off screen.
+                    .id(nextPageURL)
             }
         }
         .onChange(of: sortOrder) { _, _ in
