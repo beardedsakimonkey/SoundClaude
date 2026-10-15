@@ -27,7 +27,7 @@ extension PlayerArtworkGlassParameters {
         var parameters = Self()
         parameters.sweepStrength = 0.05
         parameters.sweepWidth = 0.2
-        parameters.sweepPosition = -0.31
+        parameters.sweepPosition = -0.50
         parameters.hoverSweepBoost = 1.15
         parameters.faceShading = 0.2
         parameters.slabDarkness = 0.23

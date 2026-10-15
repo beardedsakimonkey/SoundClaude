@@ -415,14 +415,11 @@ enum DetailArtworkMotion {
     static let hoverLift: CGFloat = 1
     static let hoverScale: CGFloat = 1.04
 
-    static let hoverIn: Animation = .spring(response: 0.4, dampingFraction: 0.85)
-    static let hoverOut: Animation = .spring(response: 0.6, dampingFraction: 0.95)
+    static let hoverIn: Animation = .spring(response: 0.4, dampingFraction: 0.65)
+    static let hoverOut: Animation = .spring(response: 0.6, dampingFraction: 0.75)
 
-    static let sheenIn: Animation = .spring(response: 0.5, dampingFraction: 0.7)
-    static let sheenOut: Animation = .spring(response: 0.8, dampingFraction: 0.95)
-
-    static let rotationIn: Animation = .spring(response: 0.45, dampingFraction: 0.95)
-    static let rotationOut: Animation = .spring(response: 0.8, dampingFraction: 0.85)
+    static let rotationIn: Animation = .spring(response: 0.45, dampingFraction: 0.7)
+    static let rotationOut: Animation = .spring(response: 0.8, dampingFraction: 0.7)
 }
 
 struct DetailArtworkTransform {
@@ -524,7 +521,7 @@ struct DetailArtworkView: View {
     enum HoverStyle {
         case lift, rotation
 
-        var shineTravel: Double { self == .lift ? 0.35 : 1.4 }
+        var shineTravel: Double { self == .lift ? 0.35 : 1.5 }
     }
 
     let artworkURL: URL?
@@ -540,8 +537,12 @@ struct DetailArtworkView: View {
     var artworkLift: CGFloat = 0
     var hoverStyle: HoverStyle = .rotation
     var isShowingArtwork = false
-    var hoverAnimation: Animation = DetailArtworkMotion.sheenIn
-    var hoverOutAnimation: Animation = DetailArtworkMotion.sheenOut
+    private var hoverAnimation: Animation {
+        hoverStyle == .rotation ? DetailArtworkMotion.rotationIn : DetailArtworkMotion.hoverIn
+    }
+    private var hoverOutAnimation: Animation {
+        hoverStyle == .rotation ? DetailArtworkMotion.rotationOut : DetailArtworkMotion.hoverOut
+    }
     var onImageHover: ((Bool) -> Void)? = nil
     var track: SoundCloudTrack? = nil
     @ObservedObject var likes: LikesController
@@ -601,8 +602,10 @@ struct DetailArtworkView: View {
         PlayerArtworkGlassParameters.detail.sweepWidth
     @AppStorage("debug.shine.position") private var debugShinePosition =
         PlayerArtworkGlassParameters.detail.sweepPosition
-    @AppStorage("debug.shine.rotationTravel") private var debugRotationShineTravel = 1.4
-    @AppStorage("debug.shine.trackTravel") private var debugTrackShineTravel = 0.35
+    @AppStorage("debug.shine.rotationTravel") private var debugRotationShineTravel =
+        HoverStyle.rotation.shineTravel
+    @AppStorage("debug.shine.trackTravel") private var debugTrackShineTravel =
+        HoverStyle.lift.shineTravel
     @AppStorage("debug.shine.hoverBoost") private var debugShineHoverBoost =
         PlayerArtworkGlassParameters.detail.hoverSweepBoost
     @State private var isShowingSlabControls = false
