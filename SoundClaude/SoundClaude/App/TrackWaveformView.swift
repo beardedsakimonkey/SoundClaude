@@ -384,25 +384,16 @@ struct TrackWaveformView: View {
                 }
                 .overlay(alignment: .topLeading) {
                     if layout == .detail {
-                        let showsTimestamps = !barsAreCollapsed || showsHoverPreview
                         HStack(spacing: 0) {
                             timestamp(timestampCurrentTime, color: accentColor(isDark: true))
-                                .scaleEffect(showsTimestamps ? 1 : 0.5, anchor: .bottom)
                                 .frame(width: 0)
                             Spacer(minLength: 0)
                             timestamp(displayedDuration, color: Color(white: 0.65))
-                                .scaleEffect(showsTimestamps ? 1 : 0.5, anchor: .bottom)
                                 .frame(width: 0)
                         }
-                        .opacity(showsTimestamps ? 0.8 : 0)
                         .frame(height: height - layout.reflectionHeight, alignment: .bottom)
                         .offset(y: -2)
                         .allowsHitTesting(false)
-                        .accessibilityHidden(!showsTimestamps)
-                        .animation(
-                            reduceMotion ? nil : .easeInOut(duration: 0.2),
-                            value: showsTimestamps
-                        )
                     }
                 }
             }
