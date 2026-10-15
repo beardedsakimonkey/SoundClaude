@@ -52,7 +52,9 @@ final class LikesController: ObservableObject {
         guard case let .signedIn(user) = auth.state else { return }
         let id = user.urn ?? user.permalinkURL.absoluteString
         guard accountID != id else { return }
-        clear()
+        // A fresh controller is already empty. Publishing another empty list here
+        // would erase the queue's saved shuffle order before its cache arrives.
+        if accountID != nil { clear() }
         accountID = id
         let session = sessionID
         let task = Task { @MainActor in

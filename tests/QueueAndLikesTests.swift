@@ -57,6 +57,20 @@ struct QueueAndLikesTests {
         defer { defaults.removePersistentDomain(forName: suite) }
         let queueStore = TrackQueueStore(defaults: defaults)
 
+        let playlist = SoundCloudPlaylist.systemPlaylist(urn: "playlist:1", title: "Saved playlist")
+        queueStore.save(TrackQueue(source: .playlist(playlist.urn), tracks: [track(1)], playlistTitle: playlist.title))
+        let restoredPlaylist = queueStore.restore(likes: [], currentTrack: track(1), shuffleEnabled: false)
+        precondition(restoredPlaylist.playlistTitle == playlist.title)
+        var legacyPlaylist = try JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(restoredPlaylist)
+        ) as! [String: Any]
+        legacyPlaylist.removeValue(forKey: "playlistTitle")
+        let restoredLegacyPlaylist = try JSONDecoder().decode(
+            TrackQueue.self, from: JSONSerialization.data(withJSONObject: legacyPlaylist)
+        )
+        precondition(restoredLegacyPlaylist.playlistTitle == nil)
+        precondition(restoredLegacyPlaylist.source == .playlist(playlist.urn))
+
         // Reopening preserves edits even when playback's current track was removed.
         for source: TrackQueue.Source in [.feed, .likes, .station("track:1")] {
             for shuffled in [false, true] {
@@ -456,7 +470,17 @@ struct QueueAndLikesTests {
         let auth = AuthController()
         let client = SoundCloudClient()
         let likes = LikesController(client: client, auth: auth, store: store)
+        var savedLikesQueue = TrackQueue(source: .likes, tracks: baseline.tracks)
+        savedLikesQueue.setShuffle(true, currentURN: "track:2")
+        queueStore.save(savedLikesQueue)
+        var startupQueue = queueStore.restore(currentTrack: track(2), shuffleEnabled: true)
+        let startupObservation = likes.$tracks.dropFirst().sink { tracks in
+            startupQueue.replaceLikes(tracks, currentURN: "track:2")
+        }
         await likes.restoreCache()
+        precondition(startupQueue.playbackTracks == savedLikesQueue.playbackTracks,
+                     "Loading the likes cache must preserve the saved queue's shuffle order")
+        startupObservation.cancel()
         precondition(likes.tracks == baseline.tracks && client.requestedURLs.isEmpty)
         precondition(baseline.tracks.allSatisfy { likes.isLiked($0) })
         precondition(!likes.isLiked(track(99)))

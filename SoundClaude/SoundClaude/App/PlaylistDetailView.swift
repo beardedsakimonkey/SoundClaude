@@ -359,7 +359,7 @@ struct PlaylistDetailView: View {
             } else if let track = startingTrack {
                 Task {
                     await model.play(track, queue: TrackQueue(
-                        source: .playlist(playlist.urn), tracks: tracks, nextPageURL: nextPageURL
+                        source: .playlist(playlist.urn), tracks: tracks, nextPageURL: nextPageURL, playlistTitle: displayedPlaylist.title
                     ))
                 }
             }
@@ -404,7 +404,7 @@ struct PlaylistDetailView: View {
             }
         } else if let track = startingTrack {
             model.navigateTrack(from: track, offset: backward ? -1 : 1, queue: TrackQueue(
-                source: .playlist(playlist.urn), tracks: tracks, nextPageURL: nextPageURL
+                source: .playlist(playlist.urn), tracks: tracks, nextPageURL: nextPageURL, playlistTitle: displayedPlaylist.title
             ))
         }
     }
@@ -486,7 +486,7 @@ struct PlaylistDetailView: View {
         await model.play(track, queue: TrackQueue(
             source: .playlist(playlist.urn),
             tracks: tracks,
-            nextPageURL: nextPageURL
+            nextPageURL: nextPageURL, playlistTitle: displayedPlaylist.title
         ))
     }
 

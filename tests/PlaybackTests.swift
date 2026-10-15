@@ -156,7 +156,7 @@ struct PlaybackTests {
 
         // Sessions save the track and position without playback state.
         let encoded = try JSONEncoder().encode(
-            SavedPlayback(track: track(1), position: 0.75)
+            SavedPlayback(track: track(1), position: 0.75, isLiked: true)
         )
         var legacy = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
         precondition(legacy["wasPlaying"] == nil)
@@ -167,6 +167,10 @@ struct PlaybackTests {
         legacy["wasPlaying"] = true
         defaults.set(try JSONSerialization.data(withJSONObject: legacy), forKey: "playback.session")
         let relaunched = PlaybackController(defaults: defaults)
+        precondition(relaunched.sessionToRestore?.isLiked == true)
+        relaunched.saveSession()
+        precondition(relaunched.savedSession?.isLiked == true)
+        relaunched.isTrackLiked = { _ in false }
         precondition(relaunched.currentTrack == track(1),
                      "Saved title, artist, and artwork must be available before startup awaits")
         precondition(relaunched.currentTime == 0.75 && relaunched.duration == 2)
@@ -180,6 +184,7 @@ struct PlaybackTests {
             track: session.track, position: session.position, autoplay: false
         )
         precondition(relaunched.sessionToRestore == nil)
+        precondition(relaunched.savedSession?.isLiked == false)
         relaunched.load(source: source, requestID: resume)
         try await until {
             !relaunched.isLoading && abs(relaunched.player.currentTime().seconds - 0.75) < 0.05

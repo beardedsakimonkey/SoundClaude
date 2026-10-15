@@ -91,7 +91,11 @@ struct PlayerFooterView: View {
                         .id(stationURN)
                     } else if let playlist = currentPlaylist {
                         sourceButton(title: playlist.title, icon: "music.note.list", kind: "playlist") {
-                            onSelectPlaylist(playlist)
+                            Task {
+                                if let details = await model.playlistDetails(urn: playlist.urn, title: playlist.title) {
+                                    onSelectPlaylist(details)
+                                }
+                            }
                         }
                         .id(playlist.urn)
                     }
@@ -162,10 +166,12 @@ struct PlayerFooterView: View {
         }
     }
 
-    private var currentPlaylist: SoundCloudPlaylist? {
+    private var currentPlaylist: (urn: String, title: String)? {
         guard case let .playlist(urn) = model.queue.source else { return nil }
-        return playlists.cache.contents[urn]?.playlist
-            ?? playlists.playlists.first { $0.urn == urn }
+        guard let title = playlists.cache.contents[urn]?.playlist.title
+            ?? playlists.playlists.first(where: { $0.urn == urn })?.title
+            ?? model.queue.playlistTitle else { return nil }
+        return (urn, title)
     }
 
     private var stationURN: String? {
@@ -177,7 +183,7 @@ struct PlayerFooterView: View {
 
     private var likeButton: some View {
         let track = playback.currentTrack
-        let isLiked = track.map { likes.isLiked($0) } ?? false
+        let isLiked = playback.sessionToRestore?.isLiked ?? track.map { likes.isLiked($0) } ?? false
         let isUpdating = track.map {
             likes.updatingTrackURNs.contains($0.urn)
         } ?? false

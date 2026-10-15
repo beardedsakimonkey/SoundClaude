@@ -203,7 +203,7 @@ struct PlaylistCardView: View {
         await model.play(track, queue: TrackQueue(
             source: .playlist(playlist.urn),
             tracks: tracks,
-            nextPageURL: contents?.nextPageURL
+            nextPageURL: contents?.nextPageURL, playlistTitle: displayedPlaylist.title
         ))
     }
 }

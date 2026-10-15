@@ -245,7 +245,8 @@ struct SignedInView: View {
                     await model.play(track, queue: TrackQueue(
                         source: station.isStation ? .station(station.urn) : .playlist(station.urn),
                         tracks: contents.tracks,
-                        stationTitle: contents.title ?? station.displayTitle
+                        stationTitle: contents.title ?? station.displayTitle,
+                        playlistTitle: station.isStation ? nil : contents.title ?? station.displayTitle
                     ))
                 },
                 onSelectPlaylist: showPlaylist,
@@ -255,7 +256,7 @@ struct SignedInView: View {
                     await model.play(track, queue: TrackQueue(
                         source: .playlist(playlist.urn),
                         tracks: contents.tracks,
-                        nextPageURL: contents.nextPageURL
+                        nextPageURL: contents.nextPageURL, playlistTitle: contents.playlist.title
                     ))
                 },
                 onDeletePlaylist: removeDeletedPlaylist,

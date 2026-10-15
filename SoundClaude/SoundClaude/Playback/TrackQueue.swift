@@ -9,12 +9,13 @@ struct TrackQueueStore {
         defaults.set(data, forKey: key)
     }
 
-    func restore(likes: [SoundCloudTrack], currentTrack: SoundCloudTrack?, shuffleEnabled: Bool) -> TrackQueue {
+    func restore(likes: [SoundCloudTrack]? = nil, currentTrack: SoundCloudTrack?, shuffleEnabled: Bool) -> TrackQueue {
         let saved = defaults.data(forKey: key).flatMap { try? JSONDecoder().decode(TrackQueue.self, from: $0) }
         // The current track may have been removed, or the queue deliberately cleared.
         // Use playback as a fallback only when no valid queue was saved.
         var queue = saved ?? TrackQueue(source: .single, tracks: currentTrack.map { [$0] } ?? [])
-        queue.replaceLikes(likes, currentURN: currentTrack?.urn)
+        // Before the library loads, retain its saved ordering as well as its source.
+        if let likes { queue.replaceLikes(likes, currentURN: currentTrack?.urn) }
         queue.setShuffle(shuffleEnabled, currentURN: currentTrack?.urn)
         return queue
     }
@@ -43,6 +44,7 @@ struct TrackQueue: Codable {
 
     let source: Source
     let stationTitle: String?
+    var playlistTitle: String?
     private(set) var tracks: [SoundCloudTrack]
     private(set) var nextPageURL: URL?
     private var loadedPageURLs: Set<URL> = []
@@ -65,9 +67,10 @@ struct TrackQueue: Codable {
         var followingURNs: [String]
     }
 
-    init(source: Source, tracks: [SoundCloudTrack], nextPageURL: URL? = nil, stationTitle: String? = nil) {
+    init(source: Source, tracks: [SoundCloudTrack], nextPageURL: URL? = nil, stationTitle: String? = nil, playlistTitle: String? = nil) {
         self.source = source
         self.stationTitle = stationTitle
+        self.playlistTitle = playlistTitle
         var known = Set<String>()
         self.tracks = tracks.filter { known.insert($0.urn).inserted }
         self.nextPageURL = nextPageURL

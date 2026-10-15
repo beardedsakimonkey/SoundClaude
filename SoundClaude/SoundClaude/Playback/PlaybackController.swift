@@ -11,6 +11,7 @@ private struct RemoteCommandTarget: @unchecked Sendable {
 struct SavedPlayback: Codable {
     let track: SoundCloudTrack
     let position: Double
+    var isLiked: Bool? = nil
 }
 
 @MainActor
@@ -90,6 +91,7 @@ final class PlaybackController {
     @ObservationIgnored private(set) var player: AVPlayer
     @ObservationIgnored var onReadyToPlay: (() -> Void)?
     @ObservationIgnored var onTrackStarted: ((SoundCloudTrack) -> Void)?
+    @ObservationIgnored var isTrackLiked: ((SoundCloudTrack) -> Bool)?
     @ObservationIgnored private var hasNotifiedTrackStarted = false
     @ObservationIgnored var onTrackEnded: (() -> Void)?
     @ObservationIgnored var onNext: (() -> Void)?
@@ -267,7 +269,10 @@ final class PlaybackController {
         // Pending seeks retain their exact requested position.
         let seconds = seekTarget ?? currentTime
         let position = seconds.isFinite ? max(seconds, 0) : currentTime
-        let session = SavedPlayback(track: track, position: position)
+        let session = SavedPlayback(
+            track: track, position: position,
+            isLiked: sessionToRestore?.isLiked ?? isTrackLiked?(track)
+        )
         guard let data = try? JSONEncoder().encode(session) else { return }
         defaults.set(data, forKey: SettingsKey.session)
         lastSaveTime = Date()

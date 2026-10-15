@@ -35,6 +35,7 @@ final class AppModel: ObservableObject {
     private var shuffleQueueTask: Task<Void, Never>?
     private var prefetchedTrack: SoundCloudTrack?
     private var likesObservation: AnyCancellable?
+    private var playlistsObservation: AnyCancellable?
     private var followingTask: Task<Set<String>, Error>?
     private var followingRequestID: UUID?
     private var followingOverrides: [String: Bool] = [:]
@@ -86,10 +87,17 @@ final class AppModel: ObservableObject {
         self.playback = playback
         self.auth = auth
         self.likes = likes
+        playback.isTrackLiked = { [weak likes] track in
+            likes?.tracks.contains(where: { $0.urn == track.urn }) ?? false
+        }
         reposts = RepostsController(client: client, auth: auth)
         playlists = PlaylistsController(client: client, auth: auth)
         feed = FeedController(client: client, auth: auth)
         artworkLoader = ArtworkLoader(client: client)
+        queue = queueStore.restore(
+            currentTrack: playback.currentTrack,
+            shuffleEnabled: playback.isShuffleEnabled
+        )
 
         playback.onReadyToPlay = { [weak audioTap] in
             Task { @MainActor in
@@ -129,6 +137,14 @@ final class AppModel: ObservableObject {
             queue.replaceLikes(tracks, currentURN: playback.currentTrack?.urn)
             saveQueue()
             prefetchNextTrack(likedTracks: tracks)
+        }
+        playlistsObservation = playlists.$cache.dropFirst().sink { [weak self] cache in
+            guard let self, case let .playlist(urn) = queue.source,
+                  let playlist = cache.contents[urn]?.playlist
+                    ?? cache.playlists.first(where: { $0.urn == urn }),
+                  queue.playlistTitle != playlist.title else { return }
+            queue.playlistTitle = playlist.title
+            saveQueue()
         }
     }
 
@@ -309,14 +325,7 @@ final class AppModel: ObservableObject {
     private func restorePlayback() async {
         guard playback.currentTrack == nil || playback.sessionToRestore != nil,
               playbackTask == nil else { return }
-        let session = playback.sessionToRestore ?? playback.savedSession
-        queue = queueStore.restore(
-            likes: likes.tracks,
-            currentTrack: session?.track,
-            shuffleEnabled: playback.isShuffleEnabled
-        )
-        saveQueue()
-        guard let session else { return }
+        guard let session = playback.sessionToRestore ?? playback.savedSession else { return }
         await loadPlayback(session.track, position: session.position, autoplay: false)
     }
 
@@ -659,9 +668,20 @@ final class AppModel: ObservableObject {
         return station
     }
 
-    func playlistDetails(for playlist: SoundCloudPlaylist) async throws -> SoundCloudPlaylist {
-        let accessToken = try await auth.validAccessToken()
-        return try await client.playlist(urn: playlist.urn, accessToken: accessToken)
+    func playlistDetails(urn: String, title: String) async -> SoundCloudPlaylist? {
+        await playlists.restoreCache()
+        if let cached = playlists.cache.contents[urn]?.playlist
+            ?? playlists.playlists.first(where: { $0.urn == urn }) { return cached }
+        if urn.hasPrefix("soundcloud:system-playlists:") {
+            return .systemPlaylist(urn: urn, title: title)
+        }
+        do {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.playlist(urn: urn, accessToken: accessToken)
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
     }
 
     func playlistTracks(for playlist: SoundCloudPlaylist, pageURL: URL? = nil) async throws
