@@ -21,7 +21,7 @@ struct SearchView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var recentSearches: [String] = []
     @State private var isHoveringClearHistory = false
-    @FocusState private var isSearchFocused: Bool
+    @State private var dismissFocusRequest = UUID()
     private let store = RecentSearchStore()
 
     var body: some View {
@@ -35,15 +35,7 @@ struct SearchView: View {
         .navigationTitle("Search")
         .task(id: focusRequest) {
             recentSearches = store.restore(for: user)
-            // Wait until the navigation stack has mounted the text field.
-            await Task.yield()
-            guard !Task.isCancelled, isActive else { return }
-            isSearchFocused = true
         }
-        .onChange(of: isActive) { _, active in
-            if !active { isSearchFocused = false }
-        }
-        .onDisappear { isSearchFocused = false }
         #if DEBUG
         .debugViewUpdates("SearchView")
         #endif
@@ -54,13 +46,12 @@ struct SearchView: View {
             Text("Search")
                 .font(.largeTitle.weight(.semibold))
 
-            SearchTextField(
-                placeholder: "Search tracks, users, and playlists",
+            SearchInputView(
                 text: $searchText,
-                isFocused: $isSearchFocused,
-                accessibilityLabel: "Search SoundCloud",
-                onSubmit: { search(searchText) },
-                onClear: { isSearchFocused = true }
+                focusRequest: focusRequest,
+                dismissFocusRequest: dismissFocusRequest,
+                isActive: isActive,
+                onSubmit: { search(searchText) }
             )
             .frame(maxWidth: 400)
             .frame(maxWidth: .infinity, alignment: .center)
@@ -105,8 +96,43 @@ struct SearchView: View {
         guard !query.isEmpty else { return }
         searchText = query
         recentSearches = store.record(query, for: user)
-        isSearchFocused = false
+        dismissFocusRequest = UUID()
         onSearch(query)
+    }
+}
+
+// Keep focus changes local so they do not update the recent searches or backdrop.
+private struct SearchInputView: View {
+    @Binding var text: String
+    let focusRequest: UUID
+    let dismissFocusRequest: UUID
+    let isActive: Bool
+    let onSubmit: () -> Void
+
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        SearchTextField(
+            placeholder: "Search tracks, users, and playlists",
+            text: $text,
+            isFocused: $isFocused,
+            accessibilityLabel: "Search SoundCloud",
+            onSubmit: onSubmit,
+            onClear: { isFocused = true }
+        )
+        .task(id: focusRequest) {
+            // Wait until the navigation stack has mounted the text field.
+            await Task.yield()
+            guard !Task.isCancelled, isActive else { return }
+            isFocused = true
+        }
+        .onChange(of: dismissFocusRequest) { _, _ in
+            isFocused = false
+        }
+        .onChange(of: isActive) { _, active in
+            if !active { isFocused = false }
+        }
+        .onDisappear { isFocused = false }
     }
 }
 
