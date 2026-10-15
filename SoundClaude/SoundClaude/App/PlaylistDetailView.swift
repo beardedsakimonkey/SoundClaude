@@ -190,7 +190,7 @@ struct PlaylistDetailView: View {
         HStack(alignment: .top, spacing: 24) {
             playlistArtwork
             VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
+                HStack(spacing: displayedPlaylist.isPrivate ? 4 : 8) {
                     Label("Playlist: \(displayedPlaylist.title)", systemImage: "music.note.list")
                         .labelStyle(.titleAndIcon)
                         .font(.body)
@@ -200,7 +200,7 @@ struct PlaylistDetailView: View {
                         .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
                     if displayedPlaylist.isPrivate {
                         Image(systemName: "lock.fill")
-                            .font(.body)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                             .accessibilityLabel("Private playlist")
                     }
