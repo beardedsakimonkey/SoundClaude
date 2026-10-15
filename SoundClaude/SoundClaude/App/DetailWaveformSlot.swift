@@ -147,7 +147,10 @@ private struct DetailWaveformPlacement: ViewModifier {
                 .position(x: rect.midX, y: rect.midY)
                 .transaction { $0.animation = nil }
         }
-        .clipped()
+        .mask {
+            // Match the scroll view: content can pass behind the toolbar.
+            Rectangle().ignoresSafeArea(edges: .top)
+        }
     }
 }
 

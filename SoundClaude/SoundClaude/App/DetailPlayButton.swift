@@ -120,7 +120,10 @@ struct DetailPlayButtonOverlay: ViewModifier {
                         ))
                 }
             }
-            .clipped()
+            .mask {
+                // Match the scroll view: content can pass behind the toolbar.
+                Rectangle().ignoresSafeArea(edges: .top)
+            }
         }
     }
 }
