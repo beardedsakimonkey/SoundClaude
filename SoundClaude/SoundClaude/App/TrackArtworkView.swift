@@ -411,22 +411,6 @@ struct TrackArtworkBackdropView: View {
     }
 }
 
-/// Hands its content an overscan that interpolates frame by frame, keeping the artwork's size,
-/// the glass's slab room and the reflection mask in step while it animates.
-private struct AnimatedOverscan<Content: View>: View, Animatable {
-    var overscan: CGFloat
-    @ViewBuilder let content: (CGFloat) -> Content
-
-    var animatableData: CGFloat {
-        get { overscan }
-        set { overscan = newValue }
-    }
-
-    var body: some View {
-        content(overscan)
-    }
-}
-
 enum DetailArtworkMotion {
     static let hoverLift: CGFloat = 1
     static let hoverScale: CGFloat = 1.04
@@ -493,8 +477,9 @@ struct DetailArtworkRotation: ViewModifier {
             // Share one hover state with the image and its reflection.
             .environment(\.detailArtworkHoverActive, activeHover || isShowingArtwork)
             .environment(\.detailArtworkYRotation, targetRotation)
-            // Follow the displayed pose so the overscan grows with the turn instead of ahead of it.
-            .environment(\.detailArtworkTurn, displayedRotation ? turn : 0)
+            // Reserve the full crop at both poses so rotation does not animate
+            // image sizing, slab padding, or the reflection mask.
+            .environment(\.detailArtworkTurn, turn)
             .animation(
                 reduceMotion ? nil : (isRotationFlat
                     ? DetailArtworkMotion.rotationIn : DetailArtworkMotion.rotationOut)
@@ -667,15 +652,8 @@ struct DetailArtworkView: View {
     }
 
     var body: some View {
-        // Interpolate the overscan so the zoomed crop eases in with the turn.
-        AnimatedOverscan(overscan: displayedOverscan) { overscan in
-            artworkStack(overscan: overscan)
-        }
-        .animation(
-            reduceMotion ? nil : (turn == 0
-                ? DetailArtworkMotion.rotationIn : DetailArtworkMotion.rotationOut),
-            value: turn
-        )
+        // Keep overscan fixed while the cover and glass slab rotate.
+        artworkStack(overscan: displayedOverscan)
         #if DEBUG
         .popover(isPresented: $isShowingSlabControls, arrowEdge: .trailing) {
             slabControls
