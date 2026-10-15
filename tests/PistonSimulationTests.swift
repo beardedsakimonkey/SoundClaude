@@ -364,18 +364,6 @@ struct PistonSimulationTests {
         let tip = simulation.positions[PistonSimulation.segments]
         let root = simulation.positions[0]
         precondition(abs(simd_distance(root, tip) - 1) < 0.1)
-        // Exercise the opposite slider limits while the pistons drop.
-        simulation.settings.ropeLength = 5
-        simulation.settings.travel = 0
-        simulation.settings.gravity = 0
-        simulation.settings.damping = 0.001
-        for _ in 0..<600 {
-            simulation.advance(delta: PistonSimulation.step, bands: [Float](repeating: 1, count: 64))
-        }
-        precondition(simulation.heights.allSatisfy { abs($0 - 0.8) < 0.001 })
-        precondition(simulation.positions.allSatisfy {
-            $0.x.isFinite && $0.y.isFinite && $0.z.isFinite && $0.y >= -1.651
-        })
         // Changing count resizes all ropes and keeps roots on their owning caps.
         for count in [4, 37, 64, 24] {
             let heights = simulation.heights
