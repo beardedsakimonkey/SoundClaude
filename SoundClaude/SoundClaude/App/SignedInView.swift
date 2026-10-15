@@ -15,12 +15,12 @@ struct SignedInView: View {
     @State private var isShowingVisualizer = false
     @AppStorage("visualizerShader") private var visualizerShader: VisualizerShader = .pistons
     @State private var isShowingQueue = false
+    @State private var queuePanelLayout = QueuePanelLayout()
     @State private var isOpeningCurrentTrackStation = false
     @State private var stationErrorMessage: String?
     @State private var queueHoverSuppression = ContentHoverSuppression()
     @State private var footerHeight: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.colorScheme) private var colorScheme
 
     init(user: SoundCloudUser, model: AppModel) {
         self.user = user
@@ -95,47 +95,6 @@ struct SignedInView: View {
                 .background { visualizerShortcuts }
             }
         }
-        .overlay {
-            GeometryReader { geometry in
-                let availableHeight = max(0, geometry.size.height - footerHeight)
-
-                ZStack(alignment: .bottomTrailing) {
-                    if isShowingQueue && !isShowingVisualizer {
-                        TrackQueueView(
-                            model: model,
-                            onSelectTrack: showTrack,
-                            onSelectArtist: showArtist,
-                            onDismiss: { isShowingQueue = false }
-                        )
-                        .frame(
-                            width: max(0, min(560, geometry.size.width - 28)),
-                            height: max(0, min(520, availableHeight - 28))
-                        )
-                        .background {
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color(white: colorScheme == .dark ? 0.20 : 0.94))
-                                .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
-                        }
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 16)
-                                .strokeBorder(.primary.opacity(0.12), lineWidth: 1)
-                                .allowsHitTesting(false)
-                        }
-                        .contentShape(RoundedRectangle(cornerRadius: 16))
-                        .onHover { queueHoverSuppression.isSuppressed = $0 }
-                        .onDisappear { queueHoverSuppression.isSuppressed = false }
-                        .padding(14)
-                        .transition(
-                            .move(edge: .bottom)
-                                .combined(with: .opacity)
-                        )
-                    }
-                }
-                .frame(width: geometry.size.width, height: availableHeight, alignment: .bottomTrailing)
-                .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: isShowingQueue)
-            }
-            .clipped()
-        }
         .overlay(alignment: .bottom) {
             if !isShowingVisualizer {
                 PlayerFooterView(
@@ -163,6 +122,30 @@ struct SignedInView: View {
                     footerHeight = height
                 }
             }
+        }
+        .overlay {
+            GeometryReader { geometry in
+                let bounds = CGSize(
+                    width: geometry.size.width,
+                    height: max(0, geometry.size.height - footerHeight)
+                )
+                QueuePanel(
+                    layout: queuePanelLayout,
+                    bounds: bounds,
+                    isVisible: isShowingQueue && !isShowingVisualizer,
+                    hoverSuppression: queueHoverSuppression,
+                    content: TrackQueueView(
+                        model: model,
+                        onSelectTrack: showTrack,
+                        onSelectArtist: showArtist,
+                        onDismiss: { isShowingQueue = false },
+                        onMove: { queuePanelLayout.move($0, in: bounds) },
+                        onMoveEnd: { queuePanelLayout.endGesture() }
+                    )
+                )
+                .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: isShowingQueue)
+            }
+            .clipped()
         }
         .environment(\.waveformCommentArtistAction, showArtist)
         .environment(\.addToPlaylist, { playlistTrack = $0 })

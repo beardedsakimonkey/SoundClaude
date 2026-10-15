@@ -5,6 +5,8 @@ struct TrackQueueView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onDismiss: () -> Void
+    let onMove: (CGSize) -> Void
+    let onMoveEnd: () -> Void
 
     @ObservedObject private var likes: LikesController
 
@@ -12,12 +14,16 @@ struct TrackQueueView: View {
         model: AppModel,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
-        onDismiss: @escaping () -> Void
+        onDismiss: @escaping () -> Void,
+        onMove: @escaping (CGSize) -> Void,
+        onMoveEnd: @escaping () -> Void
     ) {
         self.model = model
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
         self.onDismiss = onDismiss
+        self.onMove = onMove
+        self.onMoveEnd = onMoveEnd
         _likes = ObservedObject(wrappedValue: model.likes)
     }
 
@@ -26,7 +32,7 @@ struct TrackQueueView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text("Track Queue")
@@ -35,47 +41,63 @@ struct TrackQueueView: View {
                         .fontWeight(.regular)
                 }
                 .font(.title2.weight(.semibold))
-
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .allowsHitTesting(false)
 
                 if !tracks.isEmpty {
                     QueueClearButton(action: model.clearQueue)
+                        .anchorPreference(key: QueueHeaderButtonBounds.self, value: .bounds) { [$0] }
                 }
 
                 QueueCloseButton(action: onDismiss)
+                    .anchorPreference(key: QueueHeaderButtonBounds.self, value: .bounds) { [$0] }
             }
-
-            if tracks.isEmpty {
-                EmptyStateView("The queue is empty")
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                TrackQueueList(
-                    tracks: tracks,
-                    currentTrackURN: model.playback.currentTrack?.urn,
-                    onMove: model.moveQueueTracks,
-                    onDismiss: onDismiss
-                ) { track in
-                    TrackListRow(
-                        track: track,
-                        playback: model.playback,
-                        analyzer: model.analyzer,
-                        artworkLoader: model.artworkLoader,
-                        likes: model.likes,
-                        onRemoveFromQueue: model.removeFromQueue,
-                        onSelectTrack: { selected in
-                            onDismiss()
-                            onSelectTrack(selected)
-                        },
-                        onSelectArtist: { artist in
-                            onDismiss()
-                            onSelectArtist(artist)
-                        },
-                        onPlayTrack: { await model.play($0) }
+            .padding(16)
+            .backgroundPreferenceValue(QueueHeaderButtonBounds.self) { anchors in
+                GeometryReader { geometry in
+                    QueueHeaderDragArea(
+                        onMove: onMove,
+                        onMoveEnd: onMoveEnd,
+                        buttonRects: anchors.map { geometry[$0] }
                     )
                 }
             }
+            .clipShape(UnevenRoundedRectangle(topLeadingRadius: 16, topTrailingRadius: 16))
+
+            Group {
+                if tracks.isEmpty {
+                    EmptyStateView("The queue is empty")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    TrackQueueList(
+                        tracks: tracks,
+                        currentTrackURN: model.playback.currentTrack?.urn,
+                        onMove: model.moveQueueTracks,
+                        onDismiss: onDismiss
+                    ) { track in
+                        TrackListRow(
+                            track: track,
+                            playback: model.playback,
+                            analyzer: model.analyzer,
+                            artworkLoader: model.artworkLoader,
+                            likes: model.likes,
+                            onRemoveFromQueue: model.removeFromQueue,
+                            onSelectTrack: { selected in
+                                onDismiss()
+                                onSelectTrack(selected)
+                            },
+                            onSelectArtist: { artist in
+                                onDismiss()
+                                onSelectArtist(artist)
+                            },
+                            onPlayTrack: { await model.play($0) }
+                        )
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
         }
-        .padding(16)
         .onExitCommand(perform: onDismiss)
     }
 }
