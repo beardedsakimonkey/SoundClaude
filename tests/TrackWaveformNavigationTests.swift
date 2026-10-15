@@ -17,6 +17,7 @@ struct SoundCloudWaveform: Equatable {
     }
 }
 @Observable final class PlaybackController {
+    subscript(isCurrentTrack urn: String) -> Bool { currentTrack?.urn == urn }
     enum Direction { case forward, backward }
     var currentTrack: SoundCloudTrack? = SoundCloudTrack(urn: "same")
     var isPlaybackActive = true

@@ -47,7 +47,33 @@ final class PlaybackController {
     }
 
     private(set) var trackChangeDirection: TrackChangeDirection = .forward
-    private(set) var currentTrack: SoundCloudTrack?
+    private(set) var currentTrack: SoundCloudTrack? {
+        didSet { updateCurrentTrackSelection() }
+    }
+
+    // A separate key path per URN prevents a selection change from invalidating
+    // every track view. Keep the backing value outside automatic observation.
+    @ObservationIgnored private let selectionObservation = ObservationRegistrar()
+    @ObservationIgnored private var selectedTrackURN: String?
+
+    subscript(isCurrentTrack urn: String) -> Bool {
+        selectionObservation.access(self, keyPath: \.[isCurrentTrack: urn])
+        return selectedTrackURN == urn
+    }
+
+    private func updateCurrentTrackSelection() {
+        let urn = currentTrack?.urn
+        guard selectedTrackURN != urn else { return }
+        let changedURNs = [selectedTrackURN, urn].compactMap { $0 }
+        for changedURN in changedURNs {
+            selectionObservation.willSet(self, keyPath: \.[isCurrentTrack: changedURN])
+        }
+        selectedTrackURN = urn
+        for changedURN in changedURNs {
+            selectionObservation.didSet(self, keyPath: \.[isCurrentTrack: changedURN])
+        }
+    }
+
     private(set) var sessionToRestore: SavedPlayback?
     private(set) var isPlaying = false
     private(set) var isLoading = false
@@ -151,6 +177,7 @@ final class PlaybackController {
             duration = Double(session.track.durationMilliseconds) / 1_000
             currentTime = duration > 0 ? min(session.position, duration) : session.position
         }
+        updateCurrentTrackSelection()
         observePlayer()
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,

@@ -75,7 +75,7 @@ test-focus:
 	/tmp/soundclaude-tests/search-focus
 
 # Standalone regression suites; no credentials or Keychain access required.
-test: test-fluid
+test: test-fluid test-playback-selection
 	@mkdir -p /tmp/soundclaude-tests
 	clang -O2 -c SoundClaude/SoundClaude/Visualizer/PistonSolver.c -o /tmp/soundclaude-tests/piston-solver.o
 	swiftc -Onone -import-objc-header SoundClaude/SoundClaude/Visualizer/PistonSolver.h \
@@ -321,3 +321,12 @@ test-fluid:
 		SoundClaude/SoundClaude/Visualizer/FluidSimulation.swift \
 		tests/FluidSimulationTests.swift
 	MTL_DEBUG_LAYER=1 /tmp/soundclaude-tests/fluid
+
+.PHONY: test-playback-selection
+test-playback-selection:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/playback-selection \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/Playback/PlaybackController.swift \
+		tests/PlaybackSelectionTests.swift
+	/tmp/soundclaude-tests/playback-selection

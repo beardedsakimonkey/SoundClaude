@@ -182,7 +182,7 @@ struct TrackCardView: View {
     }
 
     private var isCurrentTrack: Bool {
-        model.playback.currentTrack?.urn == track.urn
+        model.playback[isCurrentTrack: track.urn]
     }
 
     private var playButton: some View {

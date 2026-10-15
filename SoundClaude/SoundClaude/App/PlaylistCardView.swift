@@ -19,16 +19,8 @@ struct PlaylistCardView: View {
     private var tracks: [SoundCloudTrack] { contents?.tracks ?? [] }
     private var isLoading: Bool { playlists.loadingPlaylistURNs.contains(playlist.urn) }
     private var errorMessage: String? { playlists.playlistErrors[playlist.urn] }
-    private var artworkURL: URL? {
-        if let track = model.playback.currentTrack,
-           model.queue.source == .playlist(playlist.urn)
-            || tracks.contains(where: { $0.urn == track.urn }) {
-            return track.displayArtworkURL
-        }
-        return displayedPlaylist.artworkURL ?? tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
-    }
     private var waveformTrack: SoundCloudTrack? {
-        tracks.first(where: { $0.urn == model.playback.currentTrack?.urn })
+        tracks.first(where: { model.playback[isCurrentTrack: $0.urn] })
             ?? tracks.first(where: { $0.urn == selectedTrackURN })
             ?? tracks.first
     }
@@ -39,13 +31,11 @@ struct PlaylistCardView: View {
             Button {
                 onSelectPlaylist(displayedPlaylist)
             } label: {
-                TrackArtworkView(
-                    artworkURL: artworkURL,
-                    loader: model.artworkLoader,
-                    size: 140,
-                    rendition: .square500,
-                    shape: RoundedRectangle(cornerRadius: 8, style: .continuous),
-                    animatesChanges: true
+                PlaylistCardArtwork(
+                    playlistURN: playlist.urn,
+                    displayedPlaylist: displayedPlaylist,
+                    tracks: tracks,
+                    model: model
                 )
             }
             .buttonStyle(.plain)
@@ -180,7 +170,7 @@ struct PlaylistCardView: View {
     }
 
     private func playButton(for track: SoundCloudTrack) -> some View {
-        let isCurrentTrack = model.playback.currentTrack?.urn == track.urn
+        let isCurrentTrack = model.playback[isCurrentTrack: track.urn]
         let isPlaying = isCurrentTrack && model.playback.isPlaybackActive
 
         return Button {
@@ -208,5 +198,34 @@ struct PlaylistCardView: View {
             tracks: tracks,
             nextPageURL: contents?.nextPageURL, playlistTitle: displayedPlaylist.title
         ))
+    }
+}
+
+// Queue source and current-track metadata affect artwork independently of the
+// card's track list. Keep those broader subscriptions in this small subtree.
+private struct PlaylistCardArtwork: View {
+    let playlistURN: String
+    let displayedPlaylist: SoundCloudPlaylist
+    let tracks: [SoundCloudTrack]
+    let model: AppModel
+
+    private var artworkURL: URL? {
+        if let track = model.playback.currentTrack,
+           model.queue.source == .playlist(playlistURN)
+            || tracks.contains(where: { $0.urn == track.urn }) {
+            return track.displayArtworkURL
+        }
+        return displayedPlaylist.artworkURL ?? tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
+    }
+
+    var body: some View {
+        TrackArtworkView(
+            artworkURL: artworkURL,
+            loader: model.artworkLoader,
+            size: 140,
+            rendition: .square500,
+            shape: RoundedRectangle(cornerRadius: 8, style: .continuous),
+            animatesChanges: true
+        )
     }
 }

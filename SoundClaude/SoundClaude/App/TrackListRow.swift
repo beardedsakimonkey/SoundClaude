@@ -27,7 +27,7 @@ struct TrackListRow: View {
     @GestureState private var isPressed = false
 
     var body: some View {
-        let isCurrentTrack = playback.currentTrack?.urn == track.urn
+        let isCurrentTrack = playback[isCurrentTrack: track.urn]
         let isPlaybackActive = isCurrentTrack
             ? playback.isPlaybackActive : isStartingPlayback
         let showsPlaybackIndicator = isCurrentTrack && playback.isPlaybackActive
@@ -185,7 +185,7 @@ struct TrackListRow: View {
                 .fill(rowBackground)
         }
         .onContentHover { isHovering = $0 }
-        .onChange(of: playback.currentTrack?.urn) { _, _ in
+        .onChange(of: isCurrentTrack) { _, _ in
             isStartingPlayback = false
         }
         .alert("Could not update like", isPresented: Binding(
@@ -217,7 +217,7 @@ struct TrackListRow: View {
     }
 
     private func playOrPauseTrack() {
-        if playback.currentTrack?.urn == track.urn {
+        if playback[isCurrentTrack: track.urn] {
             playback.togglePlayPause()
         } else {
             guard !isStartingPlayback else { return }

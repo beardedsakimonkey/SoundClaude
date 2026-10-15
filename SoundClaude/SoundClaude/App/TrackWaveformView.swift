@@ -136,8 +136,8 @@ struct TrackWaveformView: View {
             // Clear readiness when the track or waveform appearance changes.
             commentsReadyAppearance = nil
         }
-        .onChange(of: playback.currentTrack?.urn) { _, urn in
-            if let pendingSeek, pendingSeek.trackURN != urn {
+        .onChange(of: isCurrentTrack) { _, isCurrent in
+            if !isCurrent {
                 self.pendingSeek = nil
             }
         }
@@ -539,7 +539,7 @@ struct TrackWaveformView: View {
 
     private var isCurrentTrack: Bool {
         guard let track else { return false }
-        return playback.currentTrack?.urn == track.urn
+        return playback[isCurrentTrack: track.urn]
     }
 
     private var loadingTrackURN: String? {
@@ -706,7 +706,7 @@ struct TrackWaveformView: View {
                 await model.play(track)
             }
             guard pendingSeek?.id == requestID,
-                  playback.currentTrack?.urn == track.urn else { return }
+                  playback[isCurrentTrack: track.urn] else { return }
             playback.seek(toFraction: fraction)
         }
     }
