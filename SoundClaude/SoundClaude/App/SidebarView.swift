@@ -168,7 +168,7 @@ struct SidebarView: View {
                                     Button("Try Again") { Task { await playlists.load() } }
                                         .modifier(SidebarHoverBackground())
                                 }
-                            } else if !playlists.isLoading && playlists.playlists.isEmpty {
+                            } else if !playlists.isLoading && playlists.cache.hasLoadedList && playlists.playlists.isEmpty {
                                 Text("No playlists")
                                     .foregroundStyle(.secondary)
                             }
@@ -205,8 +205,8 @@ struct SidebarView: View {
                 likedStationsSection
             }
             .padding(8)
+            // Cache restoration should show rows immediately. Animate only section toggles.
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: isLikedStationsExpanded)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: likes.likedStations.map(\.urn))
             .animation(
                 reduceMotion ? nil : .easeInOut(duration: 0.25),
                 value: isPlaylistsExpanded
@@ -214,14 +214,6 @@ struct SidebarView: View {
             .animation(
                 reduceMotion ? nil : .easeInOut(duration: 0.25),
                 value: isLikedPlaylistsExpanded
-            )
-            .animation(
-                reduceMotion ? nil : .easeInOut(duration: 0.25),
-                value: playlists.playlists.map(\.urn)
-            )
-            .animation(
-                reduceMotion ? nil : .easeInOut(duration: 0.25),
-                value: playlists.likedPlaylists.map(\.urn)
             )
         }
         .focusable()

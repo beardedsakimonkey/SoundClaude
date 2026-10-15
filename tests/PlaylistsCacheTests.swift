@@ -125,6 +125,10 @@ struct PlaylistsCacheTests {
         let auth = AuthController()
         let client = SoundCloudClient()
         let controller = PlaylistsController(client: client, auth: auth, store: store)
+        precondition(controller.playlists == baseline.playlists,
+                     "Cached playlists must be available before the first view or async task")
+        precondition(controller.cache.contents.isEmpty,
+                     "Startup must not decode cached track details")
         await controller.restoreCache()
         precondition(controller.playlists == baseline.playlists && client.listRequests.isEmpty)
         precondition(controller.cache.contents["playlist:1"]?.tracks == [track(1), track(2), track(3)])

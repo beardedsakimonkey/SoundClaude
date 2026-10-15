@@ -42,6 +42,11 @@ final class LikesController: ObservableObject {
         self.client = client
         self.auth = auth
         self.store = store
+        if case let .signedIn(user) = auth.state {
+            let id = user.urn ?? user.permalinkURL.absoluteString
+            likedStations = (try? store.loadStationsForLaunch(accountID: id)) ?? []
+            likedStationURNs = Set(likedStations.map(\.urn))
+        }
     }
 
     func restoreCache() async {

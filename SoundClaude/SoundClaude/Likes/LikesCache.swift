@@ -50,6 +50,11 @@ actor LikesCacheStore {
     }
 
     func loadStations(accountID: String) throws -> [SoundCloudStationLikePage.Station]? {
+        try loadStationsForLaunch(accountID: accountID)
+    }
+
+    // Only sidebar metadata needs a synchronous read before the first frame.
+    nonisolated func loadStationsForLaunch(accountID: String) throws -> [SoundCloudStationLikePage.Station]? {
         let url = fileURL(accountID: accountID, suffix: "-stations")
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return try JSONDecoder().decode([SoundCloudStationLikePage.Station].self, from: Data(contentsOf: url))
@@ -62,7 +67,7 @@ actor LikesCacheStore {
         )
     }
 
-    private func fileURL(accountID: String, suffix: String = "") -> URL {
+    nonisolated private func fileURL(accountID: String, suffix: String = "") -> URL {
         let key = SHA256.hash(data: Data(accountID.utf8)).map { String(format: "%02x", $0) }.joined()
         return directory.appending(path: key + suffix + ".json")
     }

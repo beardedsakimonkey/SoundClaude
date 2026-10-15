@@ -25,6 +25,11 @@ struct PlaylistContents: Codable, Equatable {
 }
 
 actor PlaylistsCacheStore {
+    private struct SidebarCache: Codable {
+        var playlists: [SoundCloudPlaylist]
+        var hasLoadedList: Bool
+    }
+
     private let directory: URL
 
     init(directory: URL = URL.applicationSupportDirectory
@@ -35,16 +40,37 @@ actor PlaylistsCacheStore {
     func load(accountID: String) throws -> PlaylistsCache? {
         let url = fileURL(accountID: accountID)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return try JSONDecoder().decode(PlaylistsCache.self, from: Data(contentsOf: url))
+        let cache = try JSONDecoder().decode(PlaylistsCache.self, from: Data(contentsOf: url))
+        try? saveSidebar(cache, accountID: accountID)
+        return cache
+    }
+
+    // Only decode the list before the first frame, never cached track details.
+    nonisolated func loadForLaunch(accountID: String) throws -> PlaylistsCache? {
+        let sidebarURL = fileURL(accountID: accountID, suffix: "-sidebar")
+        // Older installations acquire the small snapshot during background restoration.
+        let url = FileManager.default.fileExists(atPath: sidebarURL.path)
+            ? sidebarURL : fileURL(accountID: accountID)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let sidebar = try JSONDecoder().decode(SidebarCache.self, from: Data(contentsOf: url))
+        return PlaylistsCache(playlists: sidebar.playlists, hasLoadedList: sidebar.hasLoadedList)
     }
 
     func save(_ cache: PlaylistsCache, accountID: String) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try JSONEncoder().encode(cache).write(to: fileURL(accountID: accountID), options: .atomic)
+        try saveSidebar(cache, accountID: accountID)
     }
 
-    private func fileURL(accountID: String) -> URL {
+    private func saveSidebar(_ cache: PlaylistsCache, accountID: String) throws {
+        let sidebar = SidebarCache(playlists: cache.playlists, hasLoadedList: cache.hasLoadedList)
+        try JSONEncoder().encode(sidebar).write(
+            to: fileURL(accountID: accountID, suffix: "-sidebar"), options: .atomic
+        )
+    }
+
+    nonisolated private func fileURL(accountID: String, suffix: String = "") -> URL {
         let key = SHA256.hash(data: Data(accountID.utf8)).map { String(format: "%02x", $0) }.joined()
-        return directory.appending(path: key + ".json")
+        return directory.appending(path: key + suffix + ".json")
     }
 }

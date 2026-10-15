@@ -513,6 +513,9 @@ struct QueueAndLikesTests {
         // pagination must preserve both the visible list and the complete cache.
         let reopenedClient = SoundCloudClient()
         let reopened = LikesController(client: reopenedClient, auth: auth, store: store)
+        precondition(reopened.likedStations.first?.title == "Test station",
+                     "Cached stations must be available before the first view or async task")
+        precondition(reopened.likedStationURNs == [stationURN])
         await reopened.restoreCache()
         precondition(reopened.likedStationURNs == [stationURN])
         precondition(!reopened.hasLoadedStationLikes)

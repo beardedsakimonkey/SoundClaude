@@ -54,6 +54,7 @@ final class PlaylistsController: ObservableObject {
     private let auth: AuthController
     private let store: PlaylistsCacheStore
     private var accountID: String?
+    private var hasRestoredContents = false
     private var sessionID = UUID()
     private var restoreTask: Task<Void, Never>?
     private var syncTask: Task<Void, Never>?
@@ -65,6 +66,11 @@ final class PlaylistsController: ObservableObject {
         self.client = client
         self.auth = auth
         self.store = store
+        if case let .signedIn(user) = auth.state {
+            let id = user.urn ?? user.permalinkURL.absoluteString
+            cache = (try? store.loadForLaunch(accountID: id)) ?? PlaylistsCache()
+            accountID = id
+        }
     }
 
     func restoreCache() async {
@@ -74,15 +80,16 @@ final class PlaylistsController: ObservableObject {
         }
         guard case let .signedIn(user) = auth.state else { return }
         let id = user.urn ?? user.permalinkURL.absoluteString
-        guard accountID != id else { return }
-        clear()
+        guard accountID != id || !hasRestoredContents else { return }
+        if accountID != id { clear() }
         accountID = id
         let session = sessionID
         let task = Task { @MainActor in
             // A missing or damaged file is rebuilt from the API.
             let saved = try? await store.load(accountID: id)
             guard sessionID == session else { return }
-            cache = saved ?? PlaylistsCache()
+            if let saved { cache = saved }
+            hasRestoredContents = true
             restoreTask = nil
         }
         restoreTask = task
@@ -428,6 +435,7 @@ final class PlaylistsController: ObservableObject {
         playlistTasks = [:]
         sessionID = UUID()
         accountID = nil
+        hasRestoredContents = false
         cache = PlaylistsCache()
         isLoading = false
         errorMessage = nil
