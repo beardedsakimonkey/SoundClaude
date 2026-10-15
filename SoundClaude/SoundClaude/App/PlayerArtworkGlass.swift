@@ -25,11 +25,11 @@ extension PlayerArtworkGlassParameters {
     // Detail artwork defaults captured from the Tune Glass controls.
     static var detail: Self {
         var parameters = Self()
-        parameters.sweepStrength = 0.04
+        parameters.sweepStrength = 0.05
         parameters.sweepWidth = 0.2
         parameters.sweepPosition = -0.31
-        parameters.hoverSweepBoost = 0.25
-        parameters.faceShading = 1.0
+        parameters.hoverSweepBoost = 1.15
+        parameters.faceShading = 0.2
         parameters.slabDarkness = 0.23
         parameters.slabDepthShading = 0.36
         parameters.lipPosition = 1.0
