@@ -43,6 +43,7 @@ struct TrackCollectionTracks: View {
     var fadesInTracks = false
     var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
     var isUpdatingPlaylist = false
+    var removingTrackURN: String? = nil
 
     var body: some View {
         if trackLayout == .grid {
@@ -65,6 +66,11 @@ struct TrackCollectionTracks: View {
                         onSelectArtist: onSelectArtist,
                         onPlayTrack: onPlayTrack
                     )
+                    .opacity(removingTrackURN == track.urn ? 0.4 : 1)
+                    .animation(
+                        .easeInOut(duration: 0.2),
+                        value: removingTrackURN == track.urn
+                    )
                     .modifier(FadeInOnAppear(isEnabled: fadesInTracks))
                 }
             }
@@ -83,6 +89,11 @@ struct TrackCollectionTracks: View {
                     onSelectTrack: onSelectTrack,
                     onSelectArtist: onSelectArtist,
                     onPlayTrack: onPlayTrack
+                )
+                .opacity(removingTrackURN == track.urn ? 0.4 : 1)
+                .animation(
+                    .easeInOut(duration: 0.2),
+                    value: removingTrackURN == track.urn
                 )
                 .modifier(FadeInOnAppear(isEnabled: fadesInTracks))
             }

@@ -27,6 +27,7 @@ struct PlaylistDetailView: View {
     @State private var editingPlaylist: SoundCloudPlaylist?
     @State private var playlistDeletion = PlaylistDeletionState()
     @State private var removeTrackErrorMessage: String?
+    @State private var removingTrackURN: String?
 
     private var isOwnedByCurrentUser: Bool {
         guard !playlist.isSystemPlaylist, case let .signedIn(user) = model.auth.state,
@@ -447,7 +448,8 @@ struct PlaylistDetailView: View {
                 onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
                 onPlayTrack: playTrack,
                 onRemoveFromPlaylist: isOwnedByCurrentUser ? removeTrack : nil,
-                isUpdatingPlaylist: playlists.updatingPlaylistURNs.contains(playlist.urn)
+                isUpdatingPlaylist: removingTrackURN != nil || playlists.updatingPlaylistURNs.contains(playlist.urn),
+                removingTrackURN: removingTrackURN
             )
             if let errorMessage {
                 Text(errorMessage).foregroundStyle(.secondary)
@@ -465,9 +467,14 @@ struct PlaylistDetailView: View {
     }
 
     private func removeTrack(_ track: SoundCloudTrack) {
+        guard removingTrackURN == nil,
+              !playlists.updatingPlaylistURNs.contains(playlist.urn) else { return }
+        removingTrackURN = track.urn
+        let targetPlaylist = displayedPlaylist
         Task {
+            defer { removingTrackURN = nil }
             do {
-                try await playlists.removeTrack(track, from: displayedPlaylist)
+                try await playlists.removeTrack(track, from: targetPlaylist)
             } catch is CancellationError {
             } catch {
                 removeTrackErrorMessage = error.localizedDescription
