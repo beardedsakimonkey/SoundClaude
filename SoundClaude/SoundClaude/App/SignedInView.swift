@@ -66,6 +66,9 @@ struct SignedInView: View {
     }
 
     var body: some View {
+        #if DEBUG
+        let _ = Self._printChanges()
+        #endif
         // Keep overlays anchored to the window when a pushed page changes the split view's layout.
         GeometryReader { geometry in
             navigationView
@@ -220,7 +223,8 @@ struct SignedInView: View {
     private var navigationView: some View {
         NavigationSplitView {
             SidebarView(
-                selection: sidebarSelection,
+                selection: selectedDestination,
+                onSelect: selectDestination,
                 currentPlaylistURN: currentPlaylistURN,
                 currentStationURN: currentStationURN,
                 playlists: model.playlists,
@@ -304,11 +308,11 @@ struct SignedInView: View {
         if selectedDestination == destination {
             navigationHistories[destination.id] = NavigationHistory()
         }
-        sidebarSelection.wrappedValue = destination
+        selectDestination(destination)
     }
 
     private func openSearch() {
-        sidebarSelection.wrappedValue = .search
+        selectDestination(.search)
     }
 
     // Keep browser history as data. Rendering a native stack of all visited pages
@@ -708,20 +712,16 @@ struct SignedInView: View {
         return true
     }
 
-    private var sidebarSelection: Binding<SidebarDestination?> {
-        Binding(
-            get: { selectedDestination },
-            set: { destination in
-                guard let destination else { return }
-                if destination == .search {
-                    navigationHistories[destination.id] = NavigationHistory()
-                    searchFocusRequest = UUID()
-                }
-                initialDetailArtworkRotation = nil
-                selectedDestination = destination
-                selectionStore.save(destination, for: user)
-            }
-        )
+    // Pass the selection as a value. SwiftUI cannot compare a computed Binding,
+    // so it would invalidate the sidebar on unrelated graph updates such as scrolling.
+    private func selectDestination(_ destination: SidebarDestination) {
+        if destination == .search {
+            navigationHistories[destination.id] = NavigationHistory()
+            searchFocusRequest = UUID()
+        }
+        initialDetailArtworkRotation = nil
+        selectedDestination = destination
+        selectionStore.save(destination, for: user)
     }
 
 }

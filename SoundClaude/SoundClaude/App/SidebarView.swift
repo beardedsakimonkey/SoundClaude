@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct SidebarView: View {
-    @Binding var selection: SidebarDestination?
+    let selection: SidebarDestination?
+    let onSelect: (SidebarDestination) -> Void
     let currentPlaylistURN: String?
     let currentStationURN: String?
     @ObservedObject var playlists: PlaylistsController
@@ -38,6 +39,9 @@ struct SidebarView: View {
     @AppStorage("sidebarLikedStationsExpanded") private var isLikedStationsExpanded = true
 
     var body: some View {
+        #if DEBUG
+        let _ = Self._printChanges()
+        #endif
         VStack(spacing: 0) {
             SidebarAccountHeader(
                 user: user,
@@ -223,8 +227,8 @@ struct SidebarView: View {
             let destinations = SidebarDestination.libraryDestinations
             let index = selection.flatMap { destinations.firstIndex(of: $0) } ?? 0
             switch direction {
-            case .up: selection = destinations[max(0, index - 1)]
-            case .down: selection = destinations[min(destinations.count - 1, index + 1)]
+            case .up: onSelect(destinations[max(0, index - 1)])
+            case .down: onSelect(destinations[min(destinations.count - 1, index + 1)])
             default: break
             }
         }
@@ -485,7 +489,7 @@ struct SidebarView: View {
         if selection == destination {
             onReselect()
         } else {
-            selection = destination
+            onSelect(destination)
         }
     }
 }

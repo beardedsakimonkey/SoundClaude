@@ -7,6 +7,9 @@ struct SoundClaudeApp: App {
     @State private var isShowingKeyboardShortcuts = false
 
     init() {
+        #if DEBUG
+        setvbuf(stdout, nil, _IOLBF, 0)
+        #endif
         let launch = LaunchMetrics.begin("App initialization")
         defer { LaunchMetrics.end(launch) }
         let model = AppModel()
