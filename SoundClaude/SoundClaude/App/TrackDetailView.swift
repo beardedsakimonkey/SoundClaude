@@ -401,6 +401,8 @@ private struct TrackDetailRelatedTracks: View {
     @State private var loadedPageURLs: Set<URL> = []
     @State private var hasLoadedRelatedTracks = false
     @State private var isLoadingRelatedTracks = false
+    // Owned by the list, not the spinner, so scrolling the spinner away does not cancel it.
+    @State private var pageTask: Task<Void, Never>?
     @State private var relatedTracksErrorMessage: String?
 
     var body: some View {
@@ -419,6 +421,7 @@ private struct TrackDetailRelatedTracks: View {
         .task(id: track.urn) {
             if !hasLoadedRelatedTracks { await loadRelatedTracks() }
         }
+        .onDisappear { pageTask?.cancel() }
     }
 
     private var relatedTrackList: some View {
@@ -457,13 +460,21 @@ private struct TrackDetailRelatedTracks: View {
                     .modifier(FadeInOnAppear())
                     .task(id: nextPageURL) {
                         guard nextPageURL != nil, relatedTracksErrorMessage == nil else { return }
-                        await loadRelatedTracks()
+                        startLoadingRelatedTracks()
                     }
             } else if hasLoadedRelatedTracks, relatedTracks.isEmpty,
                       relatedTracksErrorMessage == nil {
                 EmptyStateView("No related tracks")
                     .modifier(FadeInOnAppear())
             }
+        }
+    }
+
+    private func startLoadingRelatedTracks() {
+        guard pageTask == nil else { return }
+        pageTask = Task {
+            await loadRelatedTracks()
+            pageTask = nil
         }
     }
 

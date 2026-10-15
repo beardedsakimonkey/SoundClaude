@@ -54,6 +54,8 @@ struct TrackCommentsView: View {
     @State private var loadedPageURLs: Set<URL> = []
     @State private var hasLoaded = false
     @State private var isLoading = false
+    // Owned by the list, not the spinner, so scrolling the spinner away does not cancel it.
+    @State private var pageTask: Task<Void, Never>?
     @State private var errorMessage: String?
     @State private var artworkAccent: ArtworkAccent?
     @State private var accentArtworkURL: URL?
@@ -97,13 +99,14 @@ struct TrackCommentsView: View {
                     .modifier(FadeInOnAppear())
                     .task(id: nextPageURL) {
                         guard nextPageURL != nil else { return }
-                        await loadPage()
+                        startLoadingPage()
                     }
             }
         }
         .onChange(of: sortOrder) { _, _ in
             updateSortedComments()
         }
+        .onDisappear { pageTask?.cancel() }
         .task {
             if !hasLoaded { await loadPage() }
         }
@@ -140,6 +143,14 @@ struct TrackCommentsView: View {
 
     private func updateSortedComments() {
         sortedComments = comments.sorted(by: sortOrder.precedes)
+    }
+
+    private func startLoadingPage() {
+        guard pageTask == nil else { return }
+        pageTask = Task {
+            await loadPage()
+            pageTask = nil
+        }
     }
 
     private func loadPage() async {
