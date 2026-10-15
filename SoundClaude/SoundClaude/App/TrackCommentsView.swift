@@ -47,12 +47,6 @@ struct TrackCommentsView: View {
     let onCommentAdded: () -> Void
 
     @AppStorage("commentSortOrder") private var sortOrder = CommentSortOrder.newest
-    @State private var draft = ""
-    @FocusState private var isCommentFocused: Bool
-    @State private var isCommentHovered = false
-    @State private var commentTimestampMilliseconds: Int?
-    @State private var isPosting = false
-    @State private var postingErrorMessage: String?
     // Keep loaded order for stable sorting when dates or track times are equal.
     @State private var comments: [SoundCloudComment] = []
     @State private var sortedComments: [SoundCloudComment] = []
@@ -70,8 +64,13 @@ struct TrackCommentsView: View {
         let rowTimestampColor = timestampColor
 
         LazyVStack(alignment: .leading, spacing: 24) {
-            commentComposer
-                .modifier(FadeInOnAppear())
+            TrackCommentComposer(track: track, model: model) { comment in
+                comments.removeAll { $0.urn == comment.urn }
+                comments.insert(comment, at: 0)
+                updateSortedComments()
+                onCommentAdded()
+            }
+            .modifier(FadeInOnAppear())
 
             ForEach(sortedComments) { comment in
                 TrackCommentRow(
@@ -122,11 +121,74 @@ struct TrackCommentsView: View {
         #endif
     }
 
+    private var timestampColor: Color {
+        let blue = NSColor.systemBlue.usingColorSpace(.sRGB)!
+        let fallback = ArtworkAccent(
+            red: blue.redComponent, green: blue.greenComponent, blue: blue.blueComponent
+        )
+        let accent = accentArtworkURL == track.displayArtworkURL
+            ? artworkAccent ?? fallback : fallback
+        let contrastedAccent = accent.contrasted(
+            isDark: colorScheme == .dark,
+            increasedContrast: colorSchemeContrast == .increased
+        )
+        return Color(
+            .sRGB, red: contrastedAccent.red,
+            green: contrastedAccent.green, blue: contrastedAccent.blue
+        )
+    }
+
+    private func updateSortedComments() {
+        sortedComments = comments.sorted(by: sortOrder.precedes)
+    }
+
+    private func loadPage() async {
+        guard !isLoading, !hasLoaded || nextPageURL != nil else { return }
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        do {
+            let pageURL = nextPageURL
+            let page = try await model.trackComments(for: track, pageURL: pageURL)
+            try Task.checkCancellation()
+            if let nextURL = page.nextURL,
+               nextURL == pageURL || loadedPageURLs.contains(nextURL) {
+                throw SoundCloudError.invalidData
+            }
+            var knownURNs = Set(comments.map(\.urn))
+            let newComments = page.comments.filter { knownURNs.insert($0.urn).inserted }
+            if !newComments.isEmpty {
+                comments.append(contentsOf: newComments)
+                updateSortedComments()
+            }
+            if let pageURL { loadedPageURLs.insert(pageURL) }
+            nextPageURL = page.nextURL
+            hasLoaded = true
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+// Keep composer interaction state local so hover, focus, and typing do not update the list.
+private struct TrackCommentComposer: View {
+    let track: SoundCloudTrack
+    let model: AppModel
+    let onCommentAdded: (SoundCloudComment) -> Void
+
+    @State private var draft = ""
+    @FocusState private var isCommentFocused: Bool
+    @State private var isCommentHovered = false
+    @State private var commentTimestampMilliseconds: Int?
+    @State private var isPosting = false
+    @State private var postingErrorMessage: String?
+
     private var showsComposerControls: Bool {
         isCommentHovered || isCommentFocused || isPosting
     }
 
-    private var commentComposer: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 if case let .signedIn(user) = model.auth.state {
@@ -234,6 +296,9 @@ struct TrackCommentsView: View {
             }
         }
         .frame(maxWidth: 280, alignment: .leading)
+        #if DEBUG
+        .debugViewUpdates("TrackCommentComposer")
+        #endif
     }
 
     private var commentPlaceholder: String {
@@ -254,64 +319,12 @@ struct TrackCommentsView: View {
             let comment = try await model.addTrackComment(
                 for: track, body: draft, timestampMilliseconds: commentTimestampMilliseconds
             )
-            comments.removeAll { $0.urn == comment.urn }
-            comments.insert(comment, at: 0)
-            updateSortedComments()
             draft = ""
             isCommentFocused = false
             commentTimestampMilliseconds = nil
-            onCommentAdded()
+            onCommentAdded(comment)
         } catch {
             postingErrorMessage = error.localizedDescription
-        }
-    }
-
-    private var timestampColor: Color {
-        let blue = NSColor.systemBlue.usingColorSpace(.sRGB)!
-        let fallback = ArtworkAccent(
-            red: blue.redComponent, green: blue.greenComponent, blue: blue.blueComponent
-        )
-        let accent = accentArtworkURL == track.displayArtworkURL
-            ? artworkAccent ?? fallback : fallback
-        let contrastedAccent = accent.contrasted(
-            isDark: colorScheme == .dark,
-            increasedContrast: colorSchemeContrast == .increased
-        )
-        return Color(
-            .sRGB, red: contrastedAccent.red,
-            green: contrastedAccent.green, blue: contrastedAccent.blue
-        )
-    }
-
-    private func updateSortedComments() {
-        sortedComments = comments.sorted(by: sortOrder.precedes)
-    }
-
-    private func loadPage() async {
-        guard !isLoading, !hasLoaded || nextPageURL != nil else { return }
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false }
-        do {
-            let pageURL = nextPageURL
-            let page = try await model.trackComments(for: track, pageURL: pageURL)
-            try Task.checkCancellation()
-            if let nextURL = page.nextURL,
-               nextURL == pageURL || loadedPageURLs.contains(nextURL) {
-                throw SoundCloudError.invalidData
-            }
-            var knownURNs = Set(comments.map(\.urn))
-            let newComments = page.comments.filter { knownURNs.insert($0.urn).inserted }
-            if !newComments.isEmpty {
-                comments.append(contentsOf: newComments)
-                updateSortedComments()
-            }
-            if let pageURL { loadedPageURLs.insert(pageURL) }
-            nextPageURL = page.nextURL
-            hasLoaded = true
-        } catch {
-            guard !Task.isCancelled else { return }
-            errorMessage = error.localizedDescription
         }
     }
 }
