@@ -275,15 +275,7 @@ struct PlayerFooterView: View {
             .contentHelp("Previous track")
             .accessibilityLabel("Previous track")
 
-            Button(action: playback.togglePlayPause) {
-                AnimatedPlayPauseIcon(isPlaybackActive: playback.isPlaybackActive, size: 28)
-                    .frame(width: 44, height: 44)
-                    .modifier(PlayerFooterButtonBackground())
-            }
-            .keyboardShortcut(.space, modifiers: [])
-            .disabled(playback.currentTrack == nil)
-            .contentHelp(playback.isPlaybackActive ? "Pause" : "Play")
-            .accessibilityLabel(playback.isPlaybackActive ? "Pause" : "Play")
+            PlayerFooterPlayPauseButton(playback: playback)
 
             Button(action: playback.next) {
                 Image(systemName: "forward.fill")
@@ -320,6 +312,23 @@ struct PlayerFooterView: View {
         }
     }
 
+}
+
+// Read playback state in its own body so toggling does not update the footer.
+private struct PlayerFooterPlayPauseButton: View {
+    let playback: PlaybackController
+
+    var body: some View {
+        Button(action: playback.togglePlayPause) {
+            AnimatedPlayPauseIcon(isPlaybackActive: playback.isPlaybackActive, size: 28)
+                .frame(width: 44, height: 44)
+                .modifier(PlayerFooterButtonBackground())
+        }
+        .keyboardShortcut(.space, modifiers: [])
+        .disabled(playback.currentTrack == nil)
+        .contentHelp(playback.isPlaybackActive ? "Pause" : "Play")
+        .accessibilityLabel(playback.isPlaybackActive ? "Pause" : "Play")
+    }
 }
 
 // Each title owns its hover state so underlining does not update the footer.
