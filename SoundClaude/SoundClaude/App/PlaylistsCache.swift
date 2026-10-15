@@ -6,6 +6,7 @@ struct PlaylistsCache: Codable {
     var playlists: [SoundCloudPlaylist] = []
     var hasLoadedList = false
     var contents: [String: PlaylistContents] = [:]
+    var artworkURLs: [String: URL]?
 }
 
 struct PlaylistContents: Codable, Equatable {
@@ -28,6 +29,7 @@ actor PlaylistsCacheStore {
     private struct SidebarCache: Codable {
         var playlists: [SoundCloudPlaylist]
         var hasLoadedList: Bool
+        var artworkURLs: [String: URL]?
     }
 
     private let directory: URL
@@ -103,7 +105,7 @@ actor PlaylistsCacheStore {
             ? sidebarURL : fileURL(accountID: accountID)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         let sidebar = try JSONDecoder().decode(SidebarCache.self, from: Data(contentsOf: url))
-        return PlaylistsCache(playlists: sidebar.playlists, hasLoadedList: sidebar.hasLoadedList)
+        return PlaylistsCache(playlists: sidebar.playlists, hasLoadedList: sidebar.hasLoadedList, artworkURLs: sidebar.artworkURLs)
     }
 
     func save(_ cache: PlaylistsCache, accountID: String) throws {
@@ -119,6 +121,34 @@ actor PlaylistsCacheStore {
             try saveContents(contents, urn: urn, accountID: accountID)
         }
         try saveSidebar(cache, accountID: accountID)
+        try prune(accountID: accountID)
+    }
+
+    /// Preserve library contents and only the 20 most recently written external playlists.
+    /// Migrate library entries before removing the unbounded legacy snapshot.
+    func prune(accountID: String) throws {
+        guard let sidebar = try loadForLaunch(accountID: accountID) else { return }
+        let legacy = fileURL(accountID: accountID)
+        if FileManager.default.fileExists(atPath: legacy.path) {
+            for playlist in sidebar.playlists {
+                _ = try loadContents(urn: playlist.urn, accountID: accountID)
+            }
+            try saveSidebar(sidebar, accountID: accountID)
+            try FileManager.default.removeItem(at: legacy)
+        }
+        let protected = Set(sidebar.playlists.map { contentsURL(urn: $0.urn, accountID: accountID).lastPathComponent })
+        let folder = contentsDirectory(accountID: accountID)
+        guard FileManager.default.fileExists(atPath: folder.path) else { return }
+        let files = try FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: [.contentModificationDateKey]
+        ).filter { $0.pathExtension == "json" && !protected.contains($0.lastPathComponent) }
+        var dated: [(URL, Date)] = []
+        for url in files {
+            let values = try url.resourceValues(forKeys: [.contentModificationDateKey])
+            dated.append((url, values.contentModificationDate ?? Date.distantPast))
+        }
+        dated.sort { $0.1 == $1.1 ? $0.0.path < $1.0.path : $0.1 > $1.1 }
+        for (url, _) in dated.dropFirst(20) { try FileManager.default.removeItem(at: url) }
     }
 
     func removeContents(urn: String, accountID: String) throws {
@@ -128,8 +158,12 @@ actor PlaylistsCacheStore {
 
     private func saveContents(_ contents: PlaylistContents?, urn: String, accountID: String) throws {
         try FileManager.default.createDirectory(at: contentsDirectory(accountID: accountID), withIntermediateDirectories: true)
+        let url = contentsURL(urn: urn, accountID: accountID)
+        if let data = try? Data(contentsOf: url),
+           let existing = try? JSONDecoder().decode(ContentFile.self, from: data),
+           existing.contents == contents { return }
         try JSONEncoder().encode(ContentFile(urn: urn, contents: contents))
-            .write(to: contentsURL(urn: urn, accountID: accountID), options: .atomic)
+            .write(to: url, options: .atomic)
     }
 
     private func contentsDirectory(accountID: String) -> URL {
@@ -142,7 +176,18 @@ actor PlaylistsCacheStore {
     }
 
     private func saveSidebar(_ cache: PlaylistsCache, accountID: String) throws {
-        let sidebar = SidebarCache(playlists: cache.playlists, hasLoadedList: cache.hasLoadedList)
+        var artworkURLs = cache.artworkURLs ?? [:]
+        for playlist in cache.playlists {
+            if let contents = cache.contents[playlist.urn] {
+                artworkURLs[playlist.urn] = contents.playlist.artworkURL
+                    ?? contents.tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
+            }
+        }
+        let libraryURNs = Set(cache.playlists.map(\.urn))
+        let sidebar = SidebarCache(
+            playlists: cache.playlists, hasLoadedList: cache.hasLoadedList,
+            artworkURLs: artworkURLs.filter { libraryURNs.contains($0.key) }
+        )
         try JSONEncoder().encode(sidebar).write(
             to: fileURL(accountID: accountID, suffix: "-sidebar"), options: .atomic
         )

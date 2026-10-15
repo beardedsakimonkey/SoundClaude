@@ -308,9 +308,7 @@ struct SidebarView: View {
         let isOwned = (playlist.owner.urn == user.urn && user.urn != nil)
             || playlist.owner.permalinkURL == user.permalinkURL
         let contents = playlists.cache.contents[playlist.urn]
-        let artworkURL = contents?.playlist.artworkURL
-            ?? playlist.artworkURL
-            ?? contents?.tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
+        let artworkURL = playlists.artworkURL(for: playlist)
 
         let row = Label {
             Text(playlist.title)
@@ -325,6 +323,7 @@ struct SidebarView: View {
             .lineLimit(1)
             .padding(.trailing, startingPlaylistURN == playlist.urn || addingToPlaylistURNs.contains(playlist.urn) ? 28 : 0)
             .contentHelp(playlist.title)
+            .task(id: playlist.urn) { await playlists.loadArtwork(for: playlist) }
             .modifier(SidebarRowStyle(isSelected: false, usesPrimaryForeground: currentPlaylistURN == playlist.urn) {
                 onSelectPlaylist(playlist)
             })

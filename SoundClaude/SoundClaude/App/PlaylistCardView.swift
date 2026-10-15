@@ -8,7 +8,6 @@ struct PlaylistCardView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
-    @State private var hasRequestedTracks = false
     @State private var isExpanded = false
     @State private var isHoveringTitle = false
     @State private var isHoveringTrackToggle = false
@@ -106,9 +105,7 @@ struct PlaylistCardView: View {
                 .allowsHitTesting(false)
         }
         .task(id: playlist.urn) {
-            guard !hasRequestedTracks else { return }
-            hasRequestedTracks = true
-            await playlists.loadPlaylist(playlist)
+            await playlists.loadPreview(playlist)
         }
         #if DEBUG
         .debugViewUpdates("PlaylistCardView")
@@ -126,9 +123,10 @@ struct PlaylistCardView: View {
         .frame(height: CGFloat(min(tracks.count, isExpanded ? 8 : 5)) * 40)
         .scrollDisabled(!isExpanded)
 
-        if !tracks.isEmpty && (isExpanded || trackCount > 5) {
+        if isExpanded || trackCount > 5 || contents?.nextPageURL != nil {
             Button(isExpanded ? "View fewer tracks" : "View \(trackCount) tracks") {
                 isExpanded.toggle()
+                if isExpanded { Task { await playlists.loadPlaylist(playlist) } }
             }
             .buttonStyle(.plain)
             .foregroundStyle(isHoveringTrackToggle ? Color.primary : Color.secondary)
@@ -142,8 +140,13 @@ struct PlaylistCardView: View {
             Text(errorMessage)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Button("Try Again") { Task { await playlists.loadPlaylist(playlist) } }
-                .disabled(isLoading)
+            Button("Try Again") {
+                Task {
+                    if isExpanded { await playlists.loadPlaylist(playlist) }
+                    else { await playlists.loadPreview(playlist) }
+                }
+            }
+            .disabled(isLoading)
         }
         if !isLoading, contents?.hasLoadedPage == true, tracks.isEmpty, errorMessage == nil {
             Text(displayedPlaylist.trackCount == 0 ? "Empty playlist" : "No playable tracks")
@@ -194,10 +197,14 @@ struct PlaylistCardView: View {
 
     private func play(_ track: SoundCloudTrack) async {
         selectedTrackURN = track.urn
+        if playlists.cache.contents[playlist.urn]?.isComplete != true {
+            await playlists.loadPlaylist(playlist)
+        }
+        guard let loaded = playlists.cache.contents[playlist.urn] else { return }
         await model.play(track, queue: TrackQueue(
             source: .playlist(playlist.urn),
-            tracks: tracks,
-            nextPageURL: contents?.nextPageURL, playlistTitle: displayedPlaylist.title
+            tracks: loaded.tracks,
+            nextPageURL: loaded.nextPageURL, playlistTitle: loaded.playlist.title
         ))
     }
 }

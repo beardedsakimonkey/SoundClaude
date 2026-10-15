@@ -42,12 +42,97 @@ final class PlaylistsController: ObservableObject {
     }
 
     private func updateCardState(_ state: PlaylistCardState, urn: String) {
-        let contents = cache.contents[urn]
+        let contents = cache.contents[urn] ?? previews[urn]
         let isLoading = loadingPlaylistURNs.contains(urn)
         let errorMessage = playlistErrors[urn]
         if state.contents != contents { state.contents = contents }
         if state.isLoading != isLoading { state.isLoading = isLoading }
         if state.errorMessage != errorMessage { state.errorMessage = errorMessage }
+    }
+
+    func artworkURL(for playlist: SoundCloudPlaylist) -> URL? {
+        let contents = cache.contents[playlist.urn]
+        return contents?.playlist.artworkURL ?? playlist.artworkURL
+            ?? contents?.tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
+            ?? cache.artworkURLs?[playlist.urn]
+    }
+
+    /// Resolve track-based covers without retaining full track lists.
+    func loadArtwork(for playlist: SoundCloudPlaylist) async {
+        await restoreCache()
+        guard artworkURL(for: playlist) == nil, let accountID else { return }
+        let session = sessionID
+        let saved = try? await store.loadContents(urn: playlist.urn, accountID: accountID)
+        guard sessionID == session, !Task.isCancelled else { return }
+        var url = saved?.playlist.artworkURL
+            ?? saved?.tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
+        if url == nil {
+            await loadPreview(playlist)
+            guard sessionID == session, !Task.isCancelled else { return }
+            url = previews[playlist.urn]?.tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
+        }
+        guard let url else { return }
+        if cache.artworkURLs == nil { cache.artworkURLs = [:] }
+        cache.artworkURLs?[playlist.urn] = url
+        try? await save(accountID: accountID, session: session)
+    }
+
+    // Feed previews never enter the persistent playlist cache.
+    private var previews: [String: PlaylistContents] = [:]
+    private var previewOrder: [String] = []
+    private var previewTasks: [String: Task<Void, Never>] = [:]
+
+    func loadPreview(_ playlist: SoundCloudPlaylist) async {
+        await restoreCache()
+        let urn = playlist.urn
+        if let task = playlistTasks[urn] { await task.value }
+        if cache.contents[urn] != nil { return }
+        if previews[urn] != nil {
+            previewOrder.removeAll { $0 == urn }
+            previewOrder.append(urn)
+            return
+        }
+        if let task = previewTasks[urn] { await task.value; return }
+        guard accountID != nil else { return }
+        let session = sessionID
+        loadingPlaylistURNs.insert(urn)
+        playlistErrors.removeValue(forKey: urn)
+        let task = Task { @MainActor in
+            defer {
+                if sessionID == session {
+                    previewTasks.removeValue(forKey: urn)
+                    loadingPlaylistURNs.remove(urn)
+                }
+            }
+            do {
+                let token = try await accessToken(session: session)
+                var preview = PlaylistContents(playlist: playlist)
+                if playlist.isSystemPlaylist {
+                    let station = try await client.station(urn: urn, accessToken: token)
+                    preview.tracks = Array(station.tracks.prefix(5))
+                    preview.hasLoadedPage = true
+                } else {
+                    let page = try await client.playlistTracks(
+                        urn: urn, accessToken: token, pageURL: nil
+                    )
+                    preview.append(page)
+                    preview.tracks = Array(preview.tracks.prefix(5))
+                }
+                try checkSession(session)
+                previews[urn] = preview
+                previewOrder.append(urn)
+                while previewOrder.count > 40 {
+                    previews.removeValue(forKey: previewOrder.removeFirst())
+                }
+                updateCardStates()
+            } catch {
+                if sessionID == session, !(error is CancellationError) {
+                    playlistErrors[urn] = error.localizedDescription
+                }
+            }
+        }
+        previewTasks[urn] = task
+        await task.value
     }
 
     private let client: SoundCloudClient
@@ -88,6 +173,7 @@ final class PlaylistsController: ObservableObject {
         let session = sessionID
         let task = Task { @MainActor in
             // A missing or damaged file is rebuilt from the API.
+            try? await store.prune(accountID: id)
             let saved = try? store.loadForLaunch(accountID: id)
             guard sessionID == session else { return }
             LaunchMetrics.measure("Playlist cache publish") {
@@ -290,6 +376,7 @@ final class PlaylistsController: ObservableObject {
     func loadPlaylist(_ playlist: SoundCloudPlaylist) async {
         await restoreCache()
         let urn = playlist.urn
+        if let preview = previewTasks[urn] { await preview.value }
         if let task = playlistTasks[urn] {
             await task.value
             return
@@ -441,6 +528,10 @@ final class PlaylistsController: ObservableObject {
     }
 
     func clear() {
+        for task in previewTasks.values { task.cancel() }
+        previewTasks = [:]
+        previews = [:]
+        previewOrder = []
         likesTask?.cancel()
         likesTask = nil
         likedPlaylists = []

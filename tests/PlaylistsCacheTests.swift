@@ -135,6 +135,7 @@ struct PlaylistsCacheTests {
         let legacyURL = legacyDirectory.appending(path: sidebar.lastPathComponent.replacingOccurrences(of: "-sidebar", with: ""))
         var legacyCache = baseline
         legacyCache.contents["playlist:2"] = PlaylistContents(playlist: makePlaylist(2), tracks: [track(9)], hasLoadedPage: true)
+        legacyCache.contents["playlist:9"] = PlaylistContents(playlist: makePlaylist(9), tracks: [track(9)], hasLoadedPage: true)
         try JSONEncoder().encode(legacyCache).write(to: legacyURL)
         let legacyStore = PlaylistsCacheStore(directory: legacyDirectory)
         let legacyList = try legacyStore.loadForLaunch(accountID: "user:1")
@@ -144,6 +145,8 @@ struct PlaylistsCacheTests {
         try await legacyStore.save(PlaylistsCache(playlists: baseline.playlists, hasLoadedList: true), accountID: "user:1")
         let unopened = try await legacyStore.loadContents(urn: "playlist:2", accountID: "user:1")
         precondition(unopened?.tracks == [track(9)])
+        let legacyFeedContents = try await legacyStore.loadContents(urn: "playlist:9", accountID: "user:1")
+        precondition(legacyFeedContents == nil, "Migration must discard legacy feed-only contents")
         try await legacyStore.removeContents(urn: "playlist:1", accountID: "user:1")
         let deletedLegacy = try await legacyStore.loadContents(urn: "playlist:1", accountID: "user:1")
         precondition(deletedLegacy == nil)
@@ -477,6 +480,82 @@ struct PlaylistsCacheTests {
         let afterDeletion = try await store.load(accountID: "user:1")
         precondition(afterDeletion?.playlists == controller.playlists)
         precondition(afterDeletion?.contents[created.urn] == nil)
+        // Scrolling loads one page, keeps five tracks, and never persists previews.
+        let previewStore = PlaylistsCacheStore(directory: directory.appending(path: "previews"))
+        let previewClient = SoundCloudClient()
+        previewClient.fetchTracks = { _ in
+            SoundCloudTrackPage(tracks: (1...10).map(track), nextURL: next)
+        }
+        let previewController = PlaylistsController(client: previewClient, auth: AuthController(), store: previewStore)
+        let previewState = previewController.cardState(for: "playlist:100")
+        await previewController.loadPreview(makePlaylist(100))
+        precondition(previewClient.trackRequests.count == 1 && previewClient.playlistRequests.isEmpty)
+        precondition(previewState.contents?.tracks.count == 5)
+        precondition(previewController.cache.contents.isEmpty)
+        let previewDisk = try await previewStore.load(accountID: "user:1")
+        precondition(previewDisk == nil)
+        await previewController.loadPreview(makePlaylist(100))
+        precondition(previewClient.trackRequests.count == 1)
+        for id in 101...140 { await previewController.loadPreview(makePlaylist(id)) }
+        precondition(previewState.contents == nil, "Old previews must release their tracks")
+        await previewController.loadPreview(makePlaylist(100))
+        precondition(previewClient.trackRequests.count == 42)
+        previewClient.fetchTracks = { url in
+            SoundCloudTrackPage(tracks: url == nil ? [track(1)] : [track(2)], nextURL: url == nil ? next : nil)
+        }
+        await previewController.loadPlaylist(makePlaylist(100))
+        precondition(previewController.cache.contents["playlist:100"]?.tracks == [track(1), track(2)])
+
+        // Disk retention protects sidebar playlists and bounds external contents.
+        var bounded = baseline
+        for id in 100...130 {
+            bounded.contents["playlist:\(id)"] = PlaylistContents(playlist: makePlaylist(id), tracks: [track(id)], hasLoadedPage: true)
+        }
+        let boundedStore = PlaylistsCacheStore(directory: directory.appending(path: "bounded"))
+        try await boundedStore.save(bounded, accountID: "user:1")
+        let boundedDisk = try await boundedStore.load(accountID: "user:1")
+        precondition(boundedDisk?.contents.count == 21)
+        precondition(boundedDisk?.contents["playlist:1"] == baseline.contents["playlist:1"])
+        precondition(!FileManager.default.fileExists(atPath: legacyURL.path))
+
+        // Sidebar covers resolve without opening a playlist and survive relaunch.
+        let coverURL = URL(string: "https://example.com/cover.jpg")!
+        let coverTrack = SoundCloudTrack(
+            urn: "track:cover", title: "Cover", artist: user, artworkURL: coverURL,
+            waveformURL: nil, permalinkURL: user.permalinkURL,
+            durationMilliseconds: 1000, access: .playable, secretToken: nil
+        )
+        let coverDirectory = directory.appending(path: "covers")
+        let coverStore = PlaylistsCacheStore(directory: coverDirectory)
+        try await coverStore.save(PlaylistsCache(playlists: [makePlaylist(1)], hasLoadedList: true), accountID: "user:1")
+        let coverClient = SoundCloudClient()
+        coverClient.fetchTracks = { _ in SoundCloudTrackPage(tracks: [coverTrack], nextURL: next) }
+        let coverController = PlaylistsController(client: coverClient, auth: AuthController(), store: coverStore)
+        await coverController.loadArtwork(for: makePlaylist(1))
+        precondition(coverController.artworkURL(for: makePlaylist(1)) == coverURL)
+        precondition(coverController.cache.contents.isEmpty)
+        precondition(coverClient.trackRequests.count == 1 && coverClient.playlistRequests.isEmpty)
+        let coverRelaunch = PlaylistsController(client: coverClient, auth: AuthController(), store: coverStore)
+        precondition(coverRelaunch.artworkURL(for: makePlaylist(1)) == coverURL)
+        precondition(coverRelaunch.cache.contents.isEmpty)
+        await coverRelaunch.loadArtwork(for: makePlaylist(1))
+        precondition(coverClient.trackRequests.count == 1, "A saved cover must not fetch tracks again")
+
+        // Old caches can resolve the cover from disk without publishing track contents.
+        try await coverStore.save(PlaylistsCache(
+            playlists: [makePlaylist(1)], hasLoadedList: true,
+            contents: ["playlist:1": PlaylistContents(playlist: makePlaylist(1), tracks: [coverTrack], hasLoadedPage: true)]
+        ), accountID: "user:1")
+        let coverSidebar = try FileManager.default.contentsOfDirectory(at: coverDirectory, includingPropertiesForKeys: nil)
+            .first { $0.lastPathComponent.hasSuffix("-sidebar.json") }!
+        var oldSidebar = try JSONSerialization.jsonObject(with: Data(contentsOf: coverSidebar)) as! [String: Any]
+        oldSidebar.removeValue(forKey: "artworkURLs")
+        try JSONSerialization.data(withJSONObject: oldSidebar).write(to: coverSidebar)
+        let oldCoverController = PlaylistsController(client: coverClient, auth: AuthController(), store: coverStore)
+        await oldCoverController.loadArtwork(for: makePlaylist(1))
+        precondition(oldCoverController.artworkURL(for: makePlaylist(1)) == coverURL)
+        precondition(oldCoverController.cache.contents.isEmpty && coverClient.trackRequests.count == 1)
+
         print("Playlist cache and sync checks passed")
     }
 }
