@@ -277,6 +277,7 @@ struct PlayerFooterView: View {
 
                     HStack {
                         Text(format(seconds: playback.currentTime))
+                            .foregroundStyle(.secondary)
                         Spacer()
                         Text(format(seconds: playback.duration))
                     }
