@@ -44,7 +44,7 @@ private struct UserGridCard: View {
                     showsPlaceholderIcon: false
                 )
                 .scaleEffect(
-                    isHovering && !reduceMotion ? 1.08 : 1
+                    isHovering && !reduceMotion ? 1.06 : 1
                 )
                 .animation(
                     reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8),
@@ -56,7 +56,7 @@ private struct UserGridCard: View {
                     isHovering: isHovering && !reduceMotion
                 ))
                 .scaleEffect(
-                    isHovering && !reduceMotion ? 1.08 : 1
+                    isHovering && !reduceMotion ? 1.06 : 1
                 )
                 .animation(
                     reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.6),
