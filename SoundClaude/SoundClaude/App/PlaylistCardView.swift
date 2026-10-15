@@ -3,7 +3,7 @@ import SwiftUI
 struct PlaylistCardView: View {
     let playlist: SoundCloudPlaylist
     let model: AppModel
-    @ObservedObject var playlists: PlaylistsController
+    let playlists: PlaylistsController
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
@@ -14,11 +14,12 @@ struct PlaylistCardView: View {
     @State private var isHoveringTrackToggle = false
     @State private var selectedTrackURN: String?
 
-    private var contents: PlaylistContents? { playlists.cache.contents[playlist.urn] }
+    private var cardState: PlaylistCardState { playlists.cardState(for: playlist.urn) }
+    private var contents: PlaylistContents? { cardState.contents }
     private var displayedPlaylist: SoundCloudPlaylist { contents?.playlist ?? playlist }
     private var tracks: [SoundCloudTrack] { contents?.tracks ?? [] }
-    private var isLoading: Bool { playlists.loadingPlaylistURNs.contains(playlist.urn) }
-    private var errorMessage: String? { playlists.playlistErrors[playlist.urn] }
+    private var isLoading: Bool { cardState.isLoading }
+    private var errorMessage: String? { cardState.errorMessage }
     private var waveformTrack: SoundCloudTrack? {
         tracks.first(where: { model.playback[isCurrentTrack: $0.urn] })
             ?? tracks.first(where: { $0.urn == selectedTrackURN })

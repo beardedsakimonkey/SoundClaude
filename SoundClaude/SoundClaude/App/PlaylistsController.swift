@@ -1,13 +1,20 @@
 import Combine
 import Foundation
+import Observation
 
 @MainActor
 final class PlaylistsController: ObservableObject {
-    @Published private(set) var cache = PlaylistsCache()
+    @Published private(set) var cache = PlaylistsCache() {
+        didSet { updateCardStates() }
+    }
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
-    @Published private(set) var loadingPlaylistURNs: Set<String> = []
-    @Published private(set) var playlistErrors: [String: String] = [:]
+    @Published private(set) var loadingPlaylistURNs: Set<String> = [] {
+        didSet { updateCardStates() }
+    }
+    @Published private(set) var playlistErrors: [String: String] = [:] {
+        didSet { updateCardStates() }
+    }
     @Published private(set) var likedPlaylists: [SoundCloudPlaylist] = []
     @Published private(set) var isLoadingLikes = false
     @Published private(set) var hasLoadedLikes = false
@@ -18,6 +25,30 @@ final class PlaylistsController: ObservableObject {
 
     var playlists: [SoundCloudPlaylist] { cache.playlists }
     var likedPlaylistURNs: Set<String> { Set(likedPlaylists.map(\.urn)) }
+
+    // Cards must not subscribe to changes from other playlists in a lazy list.
+    private var cardStates: [String: PlaylistCardState] = [:]
+
+    func cardState(for urn: String) -> PlaylistCardState {
+        if let state = cardStates[urn] { return state }
+        let state = PlaylistCardState()
+        updateCardState(state, urn: urn)
+        cardStates[urn] = state
+        return state
+    }
+
+    private func updateCardStates() {
+        for (urn, state) in cardStates { updateCardState(state, urn: urn) }
+    }
+
+    private func updateCardState(_ state: PlaylistCardState, urn: String) {
+        let contents = cache.contents[urn]
+        let isLoading = loadingPlaylistURNs.contains(urn)
+        let errorMessage = playlistErrors[urn]
+        if state.contents != contents { state.contents = contents }
+        if state.isLoading != isLoading { state.isLoading = isLoading }
+        if state.errorMessage != errorMessage { state.errorMessage = errorMessage }
+    }
 
     private let client: SoundCloudClient
     private let auth: AuthController
@@ -404,4 +435,12 @@ final class PlaylistsController: ObservableObject {
         playlistErrors = [:]
         updatingPlaylistURNs = []
     }
+}
+
+@MainActor
+@Observable
+final class PlaylistCardState {
+    fileprivate(set) var contents: PlaylistContents?
+    fileprivate(set) var isLoading = false
+    fileprivate(set) var errorMessage: String?
 }

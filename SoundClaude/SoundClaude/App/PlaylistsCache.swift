@@ -8,7 +8,7 @@ struct PlaylistsCache: Codable {
     var contents: [String: PlaylistContents] = [:]
 }
 
-struct PlaylistContents: Codable {
+struct PlaylistContents: Codable, Equatable {
     var playlist: SoundCloudPlaylist
     var tracks: [SoundCloudTrack] = []
     var nextPageURL: URL?

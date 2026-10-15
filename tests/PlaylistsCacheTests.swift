@@ -1,4 +1,6 @@
 import Foundation
+import Observation
+import os
 
 @MainActor
 final class AuthController {
@@ -126,6 +128,61 @@ struct PlaylistsCacheTests {
         await controller.restoreCache()
         precondition(controller.playlists == baseline.playlists && client.listRequests.isEmpty)
         precondition(controller.cache.contents["playlist:1"]?.tracks == [track(1), track(2), track(3)])
+
+        // Loading a newly visible card must not invalidate cards for other URNs.
+        do {
+            let cardClient = SoundCloudClient()
+            let cardDirectory = directory.appending(path: "cards")
+            defer { try? FileManager.default.removeItem(at: cardDirectory) }
+            let cardStore = PlaylistsCacheStore(directory: cardDirectory)
+            let cards = PlaylistsController(client: cardClient, auth: auth, store: cardStore)
+            await cards.restoreCache()
+            let first = cards.cardState(for: "playlist:1")
+            let second = cards.cardState(for: "playlist:2")
+            precondition(cards.cardState(for: "playlist:1") === first)
+            let firstChanges = OSAllocatedUnfairLock(initialState: 0)
+            let secondChanges = OSAllocatedUnfairLock(initialState: 0)
+            withObservationTracking {
+                _ = first.contents
+                _ = first.isLoading
+                _ = first.errorMessage
+            } onChange: {
+                firstChanges.withLock { $0 += 1 }
+            }
+            withObservationTracking {
+                _ = second.contents
+                _ = second.isLoading
+                _ = second.errorMessage
+            } onChange: {
+                secondChanges.withLock { $0 += 1 }
+            }
+            cardClient.fetchTracks = { _ in
+                precondition(first.isLoading)
+                return SoundCloudTrackPage(tracks: [track(1)], nextURL: nil)
+            }
+            await cards.loadPlaylist(makePlaylist(1))
+            precondition(firstChanges.withLock { $0 } == 1)
+            precondition(secondChanges.withLock { $0 } == 0)
+            precondition(first.contents?.tracks == [track(1)] && !first.isLoading)
+
+            // An unchanged refresh does not republish card contents.
+            let contentChanges = OSAllocatedUnfairLock(initialState: 0)
+            withObservationTracking {
+                _ = first.contents
+            } onChange: {
+                contentChanges.withLock { $0 += 1 }
+            }
+            await cards.loadPlaylist(makePlaylist(1))
+            precondition(contentChanges.withLock { $0 } == 0)
+            cardClient.fetchTracks = { _ in throw SoundCloudError.invalidData }
+            await cards.loadPlaylist(makePlaylist(1))
+            precondition(first.errorMessage != nil && !first.isLoading)
+            precondition(secondChanges.withLock { $0 } == 0)
+            cards.clear()
+            precondition(first.contents == nil && first.errorMessage == nil)
+            precondition(contentChanges.withLock { $0 } == 1)
+            precondition(secondChanges.withLock { $0 } == 0)
+        }
 
         // System playlists use their own endpoint and arrive with all tracks.
         let mixDirectory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
