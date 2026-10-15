@@ -284,14 +284,7 @@ struct PlayerFooterView: View {
                             .accessibilityHidden(true)
                     }
 
-                    HStack {
-                        Text(format(seconds: playback.currentTime))
-                            .foregroundStyle(.secondary)
-                            .offset(x: -6)
-                        Spacer()
-                        Text(format(seconds: playback.duration))
-                            .offset(x: 6)
-                    }
+                    PlayerFooterTimestamps(playback: playback)
                     .padding(.horizontal, playback.currentTrack == nil ? 0 : waveformHorizontalInset)
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.tertiary)
@@ -432,6 +425,23 @@ struct PlayerFooterView: View {
             .contentHelp("\(playback.repeatMode.nextAction) (R)")
             .accessibilityLabel("Repeat")
             .accessibilityValue(playback.repeatMode.label)
+        }
+    }
+
+}
+
+// Read the playback clock in its own body to keep time updates out of the footer.
+private struct PlayerFooterTimestamps: View {
+    let playback: PlaybackController
+
+    var body: some View {
+        HStack {
+            Text(format(seconds: playback.currentTime))
+                .foregroundStyle(.secondary)
+                .offset(x: -6)
+            Spacer()
+            Text(format(seconds: playback.duration))
+                .offset(x: 6)
         }
     }
 
