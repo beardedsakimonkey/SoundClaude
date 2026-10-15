@@ -127,6 +127,7 @@ test: test-fluid test-playback-selection
 		tests/PlaybackTests.swift
 	/tmp/soundclaude-tests/playback
 	swiftc -o /tmp/soundclaude-tests/auth-restore \
+		SoundClaude/SoundClaude/App/LaunchMetrics.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Auth/AuthController.swift \
 		SoundClaude/SoundClaude/Auth/OAuthCallbackServer.swift \
@@ -149,6 +150,7 @@ test: test-fluid test-playback-selection
 		tests/SidebarSelectionTests.swift
 	/tmp/soundclaude-tests/sidebar-selection
 	swiftc -o /tmp/soundclaude-tests/queue-likes \
+		SoundClaude/SoundClaude/App/LaunchMetrics.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
 		SoundClaude/SoundClaude/Likes/LikesCache.swift \
@@ -166,6 +168,7 @@ test: test-fluid test-playback-selection
 		tests/FeedTests.swift
 	/tmp/soundclaude-tests/feed
 	swiftc -o /tmp/soundclaude-tests/feed-cache \
+		SoundClaude/SoundClaude/App/LaunchMetrics.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/App/FeedCache.swift \
 		SoundClaude/SoundClaude/App/FeedController.swift \
@@ -177,6 +180,7 @@ test: test-fluid test-playback-selection
 		tests/PlaylistTests.swift
 	/tmp/soundclaude-tests/playlists
 	swiftc -o /tmp/soundclaude-tests/playlists-cache \
+		SoundClaude/SoundClaude/App/LaunchMetrics.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/App/PlaylistsCache.swift \
 		SoundClaude/SoundClaude/App/PlaylistsController.swift \

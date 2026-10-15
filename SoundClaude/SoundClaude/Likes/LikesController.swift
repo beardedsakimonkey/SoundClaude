@@ -50,6 +50,8 @@ final class LikesController: ObservableObject {
     }
 
     func restoreCache() async {
+        let interval = LaunchMetrics.begin("Likes cache restore")
+        defer { LaunchMetrics.end(interval) }
         if let restoreTask {
             await restoreTask.value
             return
@@ -67,10 +69,12 @@ final class LikesController: ObservableObject {
             let saved = try? await store.load(accountID: id)
             let savedStations = try? await store.loadStations(accountID: id)
             guard sessionID == session else { return }
-            cache = saved ?? LikesCache()
-            tracks = cache.tracks
-            // Keep the session load flag false so cached stations refresh on entry.
-            likedStations = savedStations ?? []
+            LaunchMetrics.measure("Likes cache publish") {
+                cache = saved ?? LikesCache()
+                tracks = cache.tracks
+                // Keep the session load flag false so cached stations refresh on entry.
+                likedStations = savedStations ?? []
+            }
             restoreTask = nil
         }
         restoreTask = task
@@ -82,6 +86,8 @@ final class LikesController: ObservableObject {
     }
 
     func loadStationLikes() async throws {
+        let interval = LaunchMetrics.begin("Station likes sync")
+        defer { LaunchMetrics.end(interval) }
         await restoreCache()
         if let stationLikesTask {
             try await stationLikesTask.value
@@ -193,6 +199,8 @@ final class LikesController: ObservableObject {
 
     /// Sync on entry to Likes. Cached tracks remain playable during all requests.
     func loadLikedTracks() async {
+        let interval = LaunchMetrics.begin("Likes sync")
+        defer { LaunchMetrics.end(interval) }
         await restoreCache()
         if let syncTask {
             await syncTask.value

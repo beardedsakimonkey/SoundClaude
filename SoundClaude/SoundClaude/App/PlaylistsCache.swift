@@ -40,7 +40,10 @@ actor PlaylistsCacheStore {
     func load(accountID: String) throws -> PlaylistsCache? {
         let url = fileURL(accountID: accountID)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        let cache = try JSONDecoder().decode(PlaylistsCache.self, from: Data(contentsOf: url))
+        let data = try LaunchMetrics.measure("Playlist cache disk read") { try Data(contentsOf: url) }
+        let cache = try LaunchMetrics.measure("Playlist cache decode") {
+            try JSONDecoder().decode(PlaylistsCache.self, from: data)
+        }
         try? saveSidebar(cache, accountID: accountID)
         return cache
     }

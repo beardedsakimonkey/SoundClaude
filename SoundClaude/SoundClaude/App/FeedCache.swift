@@ -45,7 +45,10 @@ actor FeedCacheStore {
     func load(accountID: String) throws -> FeedCache? {
         let url = fileURL(accountID: accountID)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return try JSONDecoder().decode(FeedCache.self, from: Data(contentsOf: url))
+        let data = try LaunchMetrics.measure("Feed cache disk read") { try Data(contentsOf: url) }
+        return try LaunchMetrics.measure("Feed cache decode") {
+            try JSONDecoder().decode(FeedCache.self, from: data)
+        }
     }
 
     func save(_ cache: FeedCache, accountID: String) throws {

@@ -99,3 +99,52 @@ To instrument another view, add this to the root view expression inside its
 .debugViewUpdates("MyView")
 #endif
 ```
+
+## Measure app launch
+
+Build with `make build CONFIGURATION=Release`. Quit the running app, then run:
+
+```sh
+SOUNDCLAUDE_LAUNCH_TIMINGS=1 SoundClaude/DerivedData/Build/Products/Release/SoundClaude.app/Contents/MacOS/SoundClaude
+```
+
+The terminal reports elapsed milliseconds from the start of app initialization
+and the duration of each measured step. It covers model setup, Keychain access,
+player setup, queue and history restoration, library cache reads and sync,
+session validation, and playback restoration. Cache intervals separate disk reads,
+decoding, and publishing; playback intervals separate stream resolution from
+player item attachment. Publishing measures synchronous updates and observers,
+not the later SwiftUI layout work they trigger. Repeated library operations also
+produce intervals, so use the initial entries when comparing launches.
+No account data or credentials are logged. Console output is off by default.
+
+For CPU stacks and a timeline, open the project in Xcode, select **Product →
+Profile**, and choose **App Launch** or **Time Profiler**. Add the **os_signpost**
+instrument to inspect the `SoundClaude` subsystem's `Launch` intervals alongside
+CPU work. Signposts are available in both Debug and Release builds.
+
+If Instruments launches a different installed build, quit it and start a recording
+of all processes first:
+
+```sh
+xcrun xctrace record --template 'Time Profiler' --instrument os_signpost \
+  --all-processes --time-limit 15s --output /tmp/SoundClaude-launch.trace
+```
+
+While recording, launch the Release executable from another terminal with the
+command above. Filter the trace to that process and verify its executable path.
+Use a new output filename for each recording. Compare console timings from
+separate runs without Instruments to avoid including profiling overhead.
+
+“Root view appeared” and “Signed-in view appeared” are SwiftUI appearance
+callbacks, not proof that a frame reached the display. “Startup task finished”
+means `AppModel.start()` returned; session validation and view tasks can still
+be running. Use App Launch to measure process startup and rendering before or
+beyond these application markers.
+
+Compare several Release launches with the same account, selected page, and
+cache state. Record cold and warm cache results separately. Durations include
+network waits and task suspension; nested and concurrent intervals overlap and
+must not be added together. Use CPU stacks to locate main-thread work, and the
+intervals to identify slow cache or network operations. Keep view update
+highlighting off when profiling Debug builds.

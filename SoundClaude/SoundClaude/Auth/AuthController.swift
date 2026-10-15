@@ -56,6 +56,8 @@ final class AuthController: ObservableObject {
     }
 
     private func validateRestoredSession() async {
+        let interval = LaunchMetrics.begin("Session validation")
+        defer { LaunchMetrics.end(interval) }
         do {
             try Task.checkCancellation()
             let accessToken = try await validAccessToken()

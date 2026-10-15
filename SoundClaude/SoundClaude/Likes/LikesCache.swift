@@ -41,7 +41,10 @@ actor LikesCacheStore {
     func load(accountID: String) throws -> LikesCache? {
         let url = fileURL(accountID: accountID)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return try JSONDecoder().decode(LikesCache.self, from: Data(contentsOf: url))
+        let data = try LaunchMetrics.measure("Likes cache disk read") { try Data(contentsOf: url) }
+        return try LaunchMetrics.measure("Likes cache decode") {
+            try JSONDecoder().decode(LikesCache.self, from: data)
+        }
     }
 
     func save(_ cache: LikesCache, accountID: String) throws {

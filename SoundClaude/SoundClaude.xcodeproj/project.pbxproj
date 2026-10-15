@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F18C43A92B0549E7AD013801 /* LaunchMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18C43A92B0549E7AD013802 /* LaunchMetrics.swift */; };
 		C91010000000000000000003 /* Fluid-LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = C91000000000000000000003; };
 		C91010000000000000000002 /* FluidVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = C91000000000000000000002; };
 		C91010000000000000000001 /* FluidSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91000000000000000000001; };
@@ -128,6 +129,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F18C43A92B0549E7AD013802 /* LaunchMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchMetrics.swift; sourceTree = "<group>"; };
 		C91000000000000000000003 /* Fluid-LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Fluid-LICENSE.txt"; sourceTree = "<group>"; };
 		C91000000000000000000002 /* FluidVisualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = "FluidVisualizer.metal"; sourceTree = "<group>"; };
 		C91000000000000000000001 /* FluidSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FluidSimulation.swift"; sourceTree = "<group>"; };
@@ -315,6 +317,7 @@
 				A20000000000000000000001 /* SoundClaudeApp.swift */,
 				A2000000000000000000002B /* KeyboardShortcutsView.swift */,
 				A20000000000000000000002 /* AppModel.swift */,
+				F18C43A92B0549E7AD013802 /* LaunchMetrics.swift */,
 				A2000000000000000000003D /* PlaylistsController.swift */,
 				A20000000000000000000041 /* PlaylistsCache.swift */,
 				A20000000000000000000075 /* FeedController.swift */,
@@ -614,6 +617,7 @@
 				A10000000000000000000001 /* SoundClaudeApp.swift in Sources */,
 				A10000000000000000000013 /* KeyboardShortcutsView.swift in Sources */,
 				A10000000000000000000002 /* AppModel.swift in Sources */,
+				F18C43A92B0549E7AD013801 /* LaunchMetrics.swift in Sources */,
 				A1000000000000000000003D /* PlaylistsController.swift in Sources */,
 				A10000000000000000000041 /* PlaylistsCache.swift in Sources */,
 				A10000000000000000000075 /* FeedController.swift in Sources */,

@@ -7,6 +7,8 @@ struct SoundClaudeApp: App {
     @State private var isShowingKeyboardShortcuts = false
 
     init() {
+        let launch = LaunchMetrics.begin("App initialization")
+        defer { LaunchMetrics.end(launch) }
         let model = AppModel()
         _model = State(initialValue: model)
         _auth = ObservedObject(wrappedValue: model.auth)
@@ -16,6 +18,7 @@ struct SoundClaudeApp: App {
         WindowGroup {
             mainView
                 .frame(minWidth: 760, minHeight: 620)
+                .onAppear { LaunchMetrics.markOnce("Root view appeared") }
                 .task {
                     await model.start()
                 }
@@ -60,6 +63,7 @@ struct SoundClaudeApp: App {
             progressView(label: "Waiting for SoundCloud sign-in")
         case let .signedIn(user):
             SignedInView(user: user, model: model)
+                .onAppear { LaunchMetrics.markOnce("Signed-in view appeared") }
         }
     }
 

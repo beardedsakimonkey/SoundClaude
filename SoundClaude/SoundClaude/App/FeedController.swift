@@ -23,6 +23,8 @@ final class FeedController: ObservableObject {
     }
 
     func restoreCache() async {
+        let interval = LaunchMetrics.begin("Feed cache restore")
+        defer { LaunchMetrics.end(interval) }
         guard case let .signedIn(user) = auth.state else { return }
         let id = user.urn ?? user.permalinkURL.absoluteString
         if accountID == id {
@@ -36,7 +38,9 @@ final class FeedController: ObservableObject {
             // Missing or damaged files are rebuilt from the API.
             let saved = try? await store.load(accountID: id)
             guard sessionID == session else { return }
-            cache = saved ?? FeedCache()
+            LaunchMetrics.measure("Feed cache publish") {
+                cache = saved ?? FeedCache()
+            }
             restoreTask = nil
         }
         restoreTask = task
@@ -48,6 +52,8 @@ final class FeedController: ObservableObject {
     func retry() async { await load(refresh: retryRefresh) }
 
     private func load(refresh: Bool) async {
+        let interval = LaunchMetrics.begin("Feed load")
+        defer { LaunchMetrics.end(interval) }
         await restoreCache()
         if let loadTask {
             await loadTask.value

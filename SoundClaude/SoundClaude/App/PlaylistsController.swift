@@ -74,6 +74,8 @@ final class PlaylistsController: ObservableObject {
     }
 
     func restoreCache() async {
+        let interval = LaunchMetrics.begin("Playlist cache restore")
+        defer { LaunchMetrics.end(interval) }
         if let restoreTask {
             await restoreTask.value
             return
@@ -88,8 +90,10 @@ final class PlaylistsController: ObservableObject {
             // A missing or damaged file is rebuilt from the API.
             let saved = try? await store.load(accountID: id)
             guard sessionID == session else { return }
-            if let saved { cache = saved }
-            hasRestoredContents = true
+            LaunchMetrics.measure("Playlist cache publish") {
+                if let saved { cache = saved }
+                hasRestoredContents = true
+            }
             restoreTask = nil
         }
         restoreTask = task
@@ -97,6 +101,8 @@ final class PlaylistsController: ObservableObject {
     }
 
     func load() async {
+        let interval = LaunchMetrics.begin("Playlist sync")
+        defer { LaunchMetrics.end(interval) }
         await restoreCache()
         if let syncTask {
             await syncTask.value
@@ -336,6 +342,8 @@ final class PlaylistsController: ObservableObject {
     }
 
     func loadLikes() async {
+        let interval = LaunchMetrics.begin("Playlist likes sync")
+        defer { LaunchMetrics.end(interval) }
         await restoreCache()
         if let likesTask {
             await likesTask.value

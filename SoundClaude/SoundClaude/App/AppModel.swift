@@ -64,6 +64,8 @@ final class AppModel {
     @ObservationIgnored private var stationCacheGeneration = UUID()
 
     init() {
+        let initialization = LaunchMetrics.begin("Model initialization")
+        defer { LaunchMetrics.end(initialization) }
         let configuration: SoundCloudConfiguration
         do {
             configuration = try .bundled()
@@ -76,14 +78,14 @@ final class AppModel {
             configurationError = error
         }
 
-        guard let analyzer = SpectrumAnalyzer() else {
+        guard let analyzer = LaunchMetrics.measure("Spectrum analyzer setup", { SpectrumAnalyzer() }) else {
             fatalError("The fixed audio buffers could not be created.")
         }
         let client = SoundCloudClient(configuration: configuration)
         let audioTap = AudioTapController(analyzer: analyzer)
-        let playback = PlaybackController()
-        let auth = AuthController(client: client)
-        let likes = LikesController(client: client, auth: auth)
+        let playback = LaunchMetrics.measure("Player setup and saved session") { PlaybackController() }
+        let auth = LaunchMetrics.measure("Auth setup and Keychain read") { AuthController(client: client) }
+        let likes = LaunchMetrics.measure("Likes setup and station cache") { LikesController(client: client, auth: auth) }
 
         self.analyzer = analyzer
         self.client = client
@@ -95,13 +97,15 @@ final class AppModel {
             likes?.tracks.contains(where: { $0.urn == track.urn }) ?? false
         }
         reposts = RepostsController(client: client, auth: auth)
-        playlists = PlaylistsController(client: client, auth: auth)
+        playlists = LaunchMetrics.measure("Playlists setup and launch cache") { PlaylistsController(client: client, auth: auth) }
         feed = FeedController(client: client, auth: auth)
         artworkLoader = ArtworkLoader(client: client)
-        queue = queueStore.restore(
-            currentTrack: playback.currentTrack,
-            shuffleEnabled: playback.isShuffleEnabled
-        )
+        queue = LaunchMetrics.measure("Queue restore") {
+            queueStore.restore(
+                currentTrack: playback.currentTrack,
+                shuffleEnabled: playback.isShuffleEnabled
+            )
+        }
 
         playback.onReadyToPlay = { [weak audioTap] in
             Task { @MainActor in
@@ -122,7 +126,7 @@ final class AppModel {
         historyAccountObservation = auth.$state.sink { [weak self] state in
             guard let self else { return }
             if case let .signedIn(user) = state {
-                history.tracks = historyStore.restore(for: user)
+                history.tracks = LaunchMetrics.measure("History restore") { self.historyStore.restore(for: user) }
             } else {
                 history.tracks = []
             }
@@ -155,6 +159,11 @@ final class AppModel {
     func start() async {
         guard !hasStarted else { return }
         hasStarted = true
+        let startup = LaunchMetrics.begin("Startup task")
+        defer {
+            LaunchMetrics.end(startup)
+            LaunchMetrics.markOnce("Startup task finished")
+        }
         if let configurationError {
             errorMessage = configurationError.localizedDescription
             return
@@ -327,6 +336,8 @@ final class AppModel {
     }
 
     private func restorePlayback() async {
+        let interval = LaunchMetrics.begin("Playback restoration")
+        defer { LaunchMetrics.end(interval) }
         guard playback.currentTrack == nil || playback.sessionToRestore != nil,
               playbackTask == nil else { return }
         guard let session = playback.sessionToRestore ?? playback.savedSession else { return }
@@ -369,13 +380,14 @@ final class AppModel {
                 try Task.checkCancellation()
                 let accessToken = try await auth.validAccessToken()
                 try Task.checkCancellation()
-                let source = try await client.resolvePlayback(
-                    track: track,
-                    accessToken: accessToken
-                )
+                let source = try await LaunchMetrics.measureAsync("Current track stream resolution") {
+                    try await client.resolvePlayback(track: track, accessToken: accessToken)
+                }
                 guard !Task.isCancelled,
                       playbackRequestID == requestID else { return }
-                playback.load(source: source, requestID: requestID)
+                LaunchMetrics.measure("Player item attachment") {
+                    playback.load(source: source, requestID: requestID)
+                }
             } catch is CancellationError {
                 return
             } catch {
@@ -794,7 +806,9 @@ final class AppModel {
             guard let next else { throw CancellationError() }
             let accessToken = try await auth.validAccessToken()
             try Task.checkCancellation()
-            return try await client.resolvePlayback(track: next, accessToken: accessToken)
+            return try await LaunchMetrics.measureAsync("Next track stream resolution") {
+                try await client.resolvePlayback(track: next, accessToken: accessToken)
+            }
         }
         guard next != prefetchedTrack else { return }
         queuePrefetchTask?.cancel()
