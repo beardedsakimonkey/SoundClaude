@@ -369,7 +369,6 @@ final class AppModel {
     private func resolvePlayback(_ track: SoundCloudTrack, requestID: UUID) async {
         playbackRequestID = requestID
         errorMessage = nil
-        prefetchNextTrack()
 
         let task = Task { @MainActor in
             defer {
@@ -383,7 +382,14 @@ final class AppModel {
             }
             do {
                 try Task.checkCancellation()
-                if await playback.loadPrefetched(requestID: requestID) { return }
+                if await playback.loadPrefetched(requestID: requestID) {
+                    // Resolve the next track only after the current one, so it
+                    // never competes with the stream the listener is waiting on.
+                    if !Task.isCancelled, playbackRequestID == requestID {
+                        prefetchNextTrack()
+                    }
+                    return
+                }
                 try Task.checkCancellation()
                 let accessToken = try await auth.validAccessToken()
                 try Task.checkCancellation()
@@ -395,6 +401,7 @@ final class AppModel {
                 LaunchMetrics.measure("Player item attachment") {
                     playback.load(source: source, requestID: requestID)
                 }
+                prefetchNextTrack()
             } catch is CancellationError {
                 return
             } catch {
