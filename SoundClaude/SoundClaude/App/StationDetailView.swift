@@ -16,8 +16,6 @@ struct StationDetailView: View {
     @State private var errorMessage: String?
     @State private var loadAttempt = 0
     @State private var isShowingArtwork = false
-    @State private var isHoveringStationTitle = false
-    @State private var isHoveringStationRow = false
     @State private var isOpeningSource = false
     @State private var sourceErrorMessage: String?
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
@@ -188,17 +186,29 @@ struct StationDetailView: View {
                 flattensOnHover: true
             ))
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    stationTitle
-                    stationLikeButton
-                        .opacity(isHoveringStationRow ? 1 : 0)
-                        .animation(
-                            .easeInOut(duration: 0.2),
-                            value: isHoveringStationRow
-                        )
-                }
-                .contentShape(Rectangle())
-                .onContentHover { isHoveringStationRow = $0 }
+                StationTitleRow(
+                    title: title,
+                    stationType: stationType,
+                    isOpeningSource: isOpeningSource,
+                    isLiked: likes.likedStationURNs.contains(urn),
+                    isUpdating: likes.isLoadingStationLikes || likes.updatingStationURNs.contains(urn),
+                    onOpenSource: {
+                        if let seedTrack {
+                            onSelectTrack(seedTrack)
+                        } else {
+                            isOpeningSource = true
+                        }
+                    },
+                    onToggleLike: {
+                        Task {
+                            do {
+                                try await likes.toggleStationLike(urn: urn, title: title)
+                            } catch {
+                                model.likeErrorMessage = error.localizedDescription
+                            }
+                        }
+                    }
+                )
                 .modifier(FadeInOnAppear())
                 Group {
                     if let displayedTrack {
@@ -225,61 +235,6 @@ struct StationDetailView: View {
                 onPlayTrack: playTrack
             ))
         }
-    }
-
-    private var stationTitle: some View {
-        Label {
-            HStack(spacing: 4) {
-                Text("Station:")
-                Button {
-                    if let seedTrack {
-                        onSelectTrack(seedTrack)
-                    } else {
-                        isOpeningSource = true
-                    }
-                } label: {
-                    Text(title)
-                        .underline(isHoveringStationTitle)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .onContentHover { isHoveringStationTitle = $0 }
-                .disabled(isOpeningSource)
-                .contentHelp(stationType == "Artist station" ? "View station artist" : "View station track")
-                .accessibilityLabel("\(stationType == "Artist station" ? "View artist" : "View track"): \(title)")
-            }
-        } icon: {
-            Image(systemName: "dot.radiowaves.left.and.right")
-        }
-        .labelStyle(.titleAndIcon)
-        .font(.body)
-        .lineLimit(1)
-        .foregroundStyle(.secondary)
-    }
-
-    private var stationLikeButton: some View {
-        let isLiked = likes.likedStationURNs.contains(urn)
-        let isUpdating = likes.isLoadingStationLikes || likes.updatingStationURNs.contains(urn)
-        let actionLabel = "\(isLiked ? "Unlike" : "Like") station: \(title)"
-        return Button {
-            Task {
-                do {
-                    try await likes.toggleStationLike(urn: urn, title: title)
-                } catch {
-                    model.likeErrorMessage = error.localizedDescription
-                }
-            }
-        } label: {
-            Image(systemName: isLiked ? "heart.fill" : "heart")
-                .foregroundStyle(.secondary)
-                .padding(4)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(isUpdating)
-        .contentHelp(actionLabel)
-        .accessibilityLabel(actionLabel)
-        .accessibilityValue(isUpdating ? "Updating" : (isLiked ? "Liked" : "Not liked"))
     }
 
     private var playbackControls: some View {
@@ -392,4 +347,72 @@ struct StationDetailView: View {
             errorMessage = error.localizedDescription
         }
     }
+}
+
+// Keep hover state local so pointer movement does not invalidate the detail header.
+private struct StationTitleRow: View {
+    let title: String
+    let stationType: String
+    let isOpeningSource: Bool
+    let isLiked: Bool
+    let isUpdating: Bool
+    let onOpenSource: () -> Void
+    let onToggleLike: () -> Void
+
+    @State private var isHoveringStationTitle = false
+    @State private var isHoveringStationRow = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            stationTitle
+            stationLikeButton
+                .opacity(isHoveringStationRow ? 1 : 0)
+                .animation(
+                    .easeInOut(duration: 0.2),
+                    value: isHoveringStationRow
+                )
+        }
+        .contentShape(Rectangle())
+        .onContentHover { isHoveringStationRow = $0 }
+    }
+
+    private var stationTitle: some View {
+        Label {
+            HStack(spacing: 4) {
+                Text("Station:")
+                Button(action: onOpenSource) {
+                    Text(title)
+                        .underline(isHoveringStationTitle)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onContentHover { isHoveringStationTitle = $0 }
+                .disabled(isOpeningSource)
+                .contentHelp(stationType == "Artist station" ? "View station artist" : "View station track")
+                .accessibilityLabel("\(stationType == "Artist station" ? "View artist" : "View track"): \(title)")
+            }
+        } icon: {
+            Image(systemName: "dot.radiowaves.left.and.right")
+        }
+        .labelStyle(.titleAndIcon)
+        .font(.body)
+        .lineLimit(1)
+        .foregroundStyle(.secondary)
+    }
+
+    private var stationLikeButton: some View {
+        let actionLabel = "\(isLiked ? "Unlike" : "Like") station: \(title)"
+        return Button(action: onToggleLike) {
+            Image(systemName: isLiked ? "heart.fill" : "heart")
+                .foregroundStyle(.secondary)
+                .padding(4)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isUpdating)
+        .contentHelp(actionLabel)
+        .accessibilityLabel(actionLabel)
+        .accessibilityValue(isUpdating ? "Updating" : (isLiked ? "Liked" : "Not liked"))
+    }
+
 }
