@@ -109,14 +109,15 @@ final class PlaylistsController: ObservableObject {
                 var preview = PlaylistContents(playlist: playlist)
                 if playlist.isSystemPlaylist {
                     let station = try await client.station(urn: urn, accessToken: token)
-                    preview.tracks = Array(station.tracks.prefix(5))
+                    preview.tracks = station.tracks
                     preview.hasLoadedPage = true
                 } else {
                     let page = try await client.playlistTracks(
                         urn: urn, accessToken: token, pageURL: nil
                     )
                     preview.append(page)
-                    preview.tracks = Array(preview.tracks.prefix(5))
+                    // Keep the whole page so a playback queue can resume at
+                    // nextPageURL without skipping tracks hidden by the card.
                 }
                 try checkSession(session)
                 previews[urn] = preview

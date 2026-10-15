@@ -480,7 +480,7 @@ struct PlaylistsCacheTests {
         let afterDeletion = try await store.load(accountID: "user:1")
         precondition(afterDeletion?.playlists == controller.playlists)
         precondition(afterDeletion?.contents[created.urn] == nil)
-        // Scrolling loads one page, keeps five tracks, and never persists previews.
+        // Scrolling retains one complete page for playback, without persisting previews.
         let previewStore = PlaylistsCacheStore(directory: directory.appending(path: "previews"))
         let previewClient = SoundCloudClient()
         previewClient.fetchTracks = { _ in
@@ -490,7 +490,10 @@ struct PlaylistsCacheTests {
         let previewState = previewController.cardState(for: "playlist:100")
         await previewController.loadPreview(makePlaylist(100))
         precondition(previewClient.trackRequests.count == 1 && previewClient.playlistRequests.isEmpty)
-        precondition(previewState.contents?.tracks.count == 5)
+        precondition(previewState.contents?.tracks.count == 10,
+                     "Playback must retain tracks beyond the five visible rows")
+        precondition(previewState.contents?.nextPageURL == next)
+        precondition(previewState.contents?.isComplete == false)
         precondition(previewController.cache.contents.isEmpty)
         let previewDisk = try await previewStore.load(accountID: "user:1")
         precondition(previewDisk == nil)
@@ -505,6 +508,15 @@ struct PlaylistsCacheTests {
         }
         await previewController.loadPlaylist(makePlaylist(100))
         precondition(previewController.cache.contents["playlist:100"]?.tracks == [track(1), track(2)])
+
+        // A final page must also retain hidden tracks: there is no cursor to recover them.
+        previewClient.fetchTracks = { _ in
+            SoundCloudTrackPage(tracks: (1...10).map(track), nextURL: nil)
+        }
+        await previewController.loadPreview(makePlaylist(141))
+        let completePreview = previewController.cardState(for: "playlist:141").contents
+        precondition(completePreview?.tracks == (1...10).map(track))
+        precondition(completePreview?.isComplete == true)
 
         // Disk retention protects sidebar playlists and bounds external contents.
         var bounded = baseline

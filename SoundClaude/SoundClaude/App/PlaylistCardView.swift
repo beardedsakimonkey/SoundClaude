@@ -197,15 +197,14 @@ struct PlaylistCardView: View {
 
     private func play(_ track: SoundCloudTrack) async {
         selectedTrackURN = track.urn
-        if playlists.cache.contents[playlist.urn]?.isComplete != true {
-            await playlists.loadPlaylist(playlist)
-        }
-        guard let loaded = playlists.cache.contents[playlist.urn] else { return }
+        // The preview already contains the selected track. Start its stream
+        // without waiting for playlist details, remaining pages, or disk writes.
+        guard let loaded = contents else { return }
         await model.play(track, queue: TrackQueue(
             source: .playlist(playlist.urn),
             tracks: loaded.tracks,
             nextPageURL: loaded.nextPageURL, playlistTitle: loaded.playlist.title
-        ))
+        ), loadRemainingTracks: true)
     }
 }
 
