@@ -757,6 +757,12 @@ struct ArtistDetailView: View {
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
         @State private var isHoveringArtwork = false
 
+        private var glassParameters: PlayerArtworkGlassParameters {
+            var parameters = PlayerArtworkGlassParameters()
+            parameters.sweepStrength = 0
+            return parameters
+        }
+
         var body: some View {
             let pictureSize: CGFloat = 180
             let thumbnail = TrackArtworkView(
@@ -772,6 +778,7 @@ struct ArtistDetailView: View {
                 cornerRadius: pictureSize / 2,
                 isHovering: isHoveringArtwork && !reduceMotion
             ))
+            .environment(\.playerArtworkGlassParameters, glassParameters)
             .animation(
                 reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
                 value: isHoveringArtwork
