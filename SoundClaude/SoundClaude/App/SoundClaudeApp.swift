@@ -52,7 +52,6 @@ struct SoundClaudeApp: App {
             NetworkActivityView()
         }
         .defaultSize(width: 1100, height: 650)
-        .commands { ViewUpdateDebugCommands() }
         #endif
     }
 

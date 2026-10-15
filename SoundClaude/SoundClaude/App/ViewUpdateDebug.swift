@@ -10,7 +10,6 @@ struct ViewUpdateDebugCommands: Commands {
         CommandMenu("Debug") {
             Button("Network Activity") { openWindow(id: "network-activity") }
                 .keyboardShortcut("n", modifiers: [.command, .option, .shift])
-            Divider()
             Toggle("Highlight View Updates", isOn: $isEnabled)
                 .keyboardShortcut("u", modifiers: [.command, .option, .shift])
         }
