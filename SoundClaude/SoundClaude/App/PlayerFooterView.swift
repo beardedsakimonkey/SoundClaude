@@ -23,7 +23,6 @@ struct PlayerFooterView: View {
 
     @Bindable private var playback: PlaybackController
     @ObservedObject private var likes: LikesController
-    @ObservedObject private var playlists: PlaylistsController
 
     init(
         model: AppModel,
@@ -44,7 +43,6 @@ struct PlayerFooterView: View {
         self.onSelectArtist = onSelectArtist
         self.playback = model.playback
         _likes = ObservedObject(wrappedValue: model.likes)
-        _playlists = ObservedObject(wrappedValue: model.playlists)
     }
 
     var body: some View {
@@ -139,6 +137,9 @@ struct PlayerFooterView: View {
 
     private var currentPlaylist: (urn: String, title: String)? {
         guard case let .playlist(urn) = model.queue.source else { return nil }
+        // AppModel updates the queue when this playlist title changes. Reading
+        // the cache here does not subscribe the footer to every playlist load.
+        let playlists = model.playlists
         guard let title = playlists.cache.contents[urn]?.playlist.title
             ?? playlists.playlists.first(where: { $0.urn == urn })?.title
             ?? model.queue.playlistTitle else { return nil }
