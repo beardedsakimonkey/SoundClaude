@@ -350,13 +350,13 @@ struct PlaylistDetailView: View {
 
     private func playButton(iconOnly: Bool) -> some View {
         let isStarting = currentPlaylistTrack == nil
-        let isPlaying = !isStarting && model.playback.isPlaybackActive
-        return DetailPlayButtonSlot(configuration: DetailPlayButtonConfiguration(
-            trackURN: displayedTrack?.urn, isCollection: true,
-            isStarting: isStarting, isPlaying: isPlaying,
+        return CollectionPlayButtonSlot(
+            playback: model.playback,
+            trackURN: displayedTrack?.urn,
+            isStarting: isStarting,
             isEnabled: currentPlaylistTrack != nil || !tracks.isEmpty,
             iconOnly: iconOnly, subject: "playlist"
-        )) {
+        ) {
             if currentPlaylistTrack != nil {
                 model.playback.togglePlayPause()
             } else if let track = startingTrack {
@@ -446,14 +446,15 @@ struct PlaylistDetailView: View {
 
     private var trackList: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
-            TrackCollectionTracks(
-                tracks: tracks, trackLayout: trackLayout, model: model,
+            PlaylistTrackList(
+                playlist: displayedPlaylist, tracks: tracks, nextPageURL: nextPageURL,
+                trackLayout: trackLayout, model: model,
                 onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
-                onPlayTrack: playTrack,
                 onRemoveFromPlaylist: isOwnedByCurrentUser ? removeTrack : nil,
                 isUpdatingPlaylist: removingTrackURN != nil || playlists.updatingPlaylistURNs.contains(playlist.urn),
                 removingTrackURN: removingTrackURN
             )
+            .equatable()
             if let errorMessage {
                 Text(errorMessage).foregroundStyle(.secondary)
                 Button("Try Again") { Task { await load() } }
@@ -495,5 +496,47 @@ struct PlaylistDetailView: View {
 
     private func load() async {
         await playlists.loadPlaylist(playlist)
+    }
+}
+
+// Starting playback invalidates the page header. Compare only the inputs the row
+// closures capture so the rows are not re-rendered with fresh closures.
+private struct PlaylistTrackList: View, Equatable {
+    let playlist: SoundCloudPlaylist
+    let tracks: [SoundCloudTrack]
+    let nextPageURL: URL?
+    let trackLayout: TrackLayout
+    let model: AppModel
+    let onSelectTrack: (SoundCloudTrack) -> Void
+    let onSelectArtist: (SoundCloudUser) -> Void
+    let onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)?
+    let isUpdatingPlaylist: Bool
+    let removingTrackURN: String?
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.playlist == rhs.playlist && lhs.tracks == rhs.tracks
+            && lhs.nextPageURL == rhs.nextPageURL && lhs.trackLayout == rhs.trackLayout
+            && (lhs.onRemoveFromPlaylist == nil) == (rhs.onRemoveFromPlaylist == nil)
+            && lhs.isUpdatingPlaylist == rhs.isUpdatingPlaylist
+            && lhs.removingTrackURN == rhs.removingTrackURN
+    }
+
+    var body: some View {
+        TrackCollectionTracks(
+            tracks: tracks, trackLayout: trackLayout, model: model,
+            onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
+            onPlayTrack: playTrack,
+            onRemoveFromPlaylist: onRemoveFromPlaylist,
+            isUpdatingPlaylist: isUpdatingPlaylist,
+            removingTrackURN: removingTrackURN
+        )
+    }
+
+    private func playTrack(_ track: SoundCloudTrack) async {
+        await model.play(track, queue: TrackQueue(
+            source: .playlist(playlist.urn),
+            tracks: tracks,
+            nextPageURL: nextPageURL, playlistTitle: playlist.title
+        ))
     }
 }

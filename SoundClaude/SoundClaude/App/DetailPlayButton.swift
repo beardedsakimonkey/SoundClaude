@@ -84,6 +84,25 @@ struct DetailPlayButtonSlot: View {
     }
 }
 
+// Reads playback state in its own body so play/pause does not invalidate the collection page.
+struct CollectionPlayButtonSlot: View {
+    let playback: PlaybackController
+    let trackURN: String?
+    let isStarting: Bool
+    let isEnabled: Bool
+    let iconOnly: Bool
+    let subject: String
+    let action: () -> Void
+
+    var body: some View {
+        DetailPlayButtonSlot(configuration: DetailPlayButtonConfiguration(
+            trackURN: trackURN, isCollection: true,
+            isStarting: isStarting, isPlaying: !isStarting && playback.isPlaybackActive,
+            isEnabled: isEnabled, iconOnly: iconOnly, subject: subject
+        ), action: action)
+    }
+}
+
 struct DetailPlayButtonSource {
     let bounds: Anchor<CGRect>
     let configuration: DetailPlayButtonConfiguration

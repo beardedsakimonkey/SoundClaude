@@ -85,12 +85,11 @@ struct StationDetailView: View {
                             .foregroundStyle(Color.accentColor)
                     }
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        TrackCollectionTracks(
-                            tracks: tracks, trackLayout: trackLayout, model: model,
-                            onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
-                            onPlayTrack: playTrack,
-                            fadesInTracks: true
+                        StationTrackList(
+                            urn: urn, title: title, tracks: tracks, trackLayout: trackLayout, model: model,
+                            onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist
                         )
+                        .equatable()
                         if let errorMessage {
                             Text(errorMessage).foregroundStyle(.secondary)
                             Button("Try Again") { loadAttempt += 1 }
@@ -254,14 +253,14 @@ struct StationDetailView: View {
 
     private func playbackControls(iconOnly: Bool) -> some View {
         let isStarting = currentStationTrack == nil
-        let isPlaying = !isStarting && model.playback.isPlaybackActive
         return HStack(spacing: 12) {
-            DetailPlayButtonSlot(configuration: DetailPlayButtonConfiguration(
-                trackURN: displayedTrack?.urn, isCollection: true,
-                isStarting: isStarting, isPlaying: isPlaying,
+            CollectionPlayButtonSlot(
+                playback: model.playback,
+                trackURN: displayedTrack?.urn,
+                isStarting: isStarting,
                 isEnabled: currentStationTrack != nil || !tracks.isEmpty,
                 iconOnly: iconOnly, subject: "station"
-            )) {
+            ) {
                 if currentStationTrack != nil {
                     model.playback.togglePlayPause()
                 } else if let seedTrackURN, model.playback.currentTrack?.urn == seedTrackURN {
@@ -351,6 +350,36 @@ struct StationDetailView: View {
             guard !Task.isCancelled else { return }
             errorMessage = error.localizedDescription
         }
+    }
+}
+
+// Starting playback invalidates the page header. Compare only the inputs the row
+// closures capture so the rows are not re-rendered with fresh closures.
+private struct StationTrackList: View, Equatable {
+    let urn: String
+    let title: String
+    let tracks: [SoundCloudTrack]
+    let trackLayout: TrackLayout
+    let model: AppModel
+    let onSelectTrack: (SoundCloudTrack) -> Void
+    let onSelectArtist: (SoundCloudUser) -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.urn == rhs.urn && lhs.title == rhs.title
+            && lhs.tracks == rhs.tracks && lhs.trackLayout == rhs.trackLayout
+    }
+
+    var body: some View {
+        TrackCollectionTracks(
+            tracks: tracks, trackLayout: trackLayout, model: model,
+            onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
+            onPlayTrack: playTrack,
+            fadesInTracks: true
+        )
+    }
+
+    private func playTrack(_ track: SoundCloudTrack) async {
+        await model.play(track, queue: TrackQueue(source: .station(urn), tracks: tracks, stationTitle: title))
     }
 }
 
