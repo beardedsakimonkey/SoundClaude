@@ -84,22 +84,22 @@ struct TrackCommentsView: View {
                 .modifier(FadeInOnAppear())
             }
 
-            if isLoading {
-                LoadingSpinner()
-                    .accessibilityLabel("Loading comments")
-                    .frame(maxWidth: .infinity)
-                    .modifier(FadeInOnAppear())
-            } else if let errorMessage {
+            if let errorMessage {
                 VStack(spacing: 8) {
                     Text(errorMessage).foregroundStyle(.secondary)
                     Button("Try Again") { Task { await loadPage() } }
                 }
                 .frame(maxWidth: .infinity)
                 .modifier(FadeInOnAppear())
-            } else if nextPageURL != nil {
-                Button("Load More") { Task { await loadPage() } }
+            } else if isLoading || nextPageURL != nil {
+                LoadingSpinner()
+                    .accessibilityLabel("Loading comments")
                     .frame(maxWidth: .infinity)
                     .modifier(FadeInOnAppear())
+                    .task(id: nextPageURL) {
+                        guard nextPageURL != nil else { return }
+                        await loadPage()
+                    }
             }
         }
         .onChange(of: sortOrder) { _, _ in
