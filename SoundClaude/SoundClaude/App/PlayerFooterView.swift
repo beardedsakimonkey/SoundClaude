@@ -164,6 +164,7 @@ struct PlayerFooterView: View {
             model.toggleCurrentTrackLike()
         } label: {
             Image(systemName: isLiked ? "heart.fill" : "heart")
+                .contentTransition(.symbolEffect(.replace))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(isLiked ? Color.accentColor : Color.primary)
                 .frame(width: 32, height: 32)
