@@ -770,6 +770,7 @@ struct ArtistDetailView: View {
                 loader: model.artworkLoader,
                 size: pictureSize,
                 rendition: .square500,
+                showsBorder: false,
                 showsPlaceholderIcon: false
             )
             .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.12 : 1)
