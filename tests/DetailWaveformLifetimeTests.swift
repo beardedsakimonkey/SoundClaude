@@ -39,6 +39,7 @@ struct TrackWaveformView: View {
         let _ = lifetime
         let _ = captureInputs()
         Color.orange
+            .animation(.linear(duration: 1), value: track?.urn)
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("viewport")) } action: {
                 Measurements.frame = $0
             }
@@ -52,7 +53,17 @@ struct TrackWaveformView: View {
 }
 
 @main struct DetailWaveformLifetimeTests {
-    @MainActor static func main() async {
+    @MainActor static func main() {
+        let app = WaveformTestApplication.shared
+        app.setActivationPolicy(.accessory)
+        Task { @MainActor in
+            await runTests()
+            exit(0)
+        }
+        app.run()
+    }
+
+    @MainActor static func runTests() async {
         let app = WaveformTestApplication.shared as! WaveformTestApplication
         let model = AppModel()
         var playedURN: String?
@@ -105,6 +116,33 @@ struct TrackWaveformView: View {
         host.rootView = page(station: false)
         await layout()
         precondition(WaveformLifetime.creations == 2, "Leaving detail pages must release the waveform")
+
+        // A child animation must not interpolate the slot's global position.
+        let animationWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+            styleMask: [.borderless], backing: .buffered, defer: false
+        )
+        animationWindow.contentView = host
+        animationWindow.orderFront(nil)
+        defer { animationWindow.orderOut(nil) }
+        host.rootView = page(station: false, track: "before", y: 0)
+        await layout()
+        try? await Task.sleep(for: .milliseconds(1100))
+        host.rootView = page(station: true, track: "after", y: 250)
+        await layout()
+        for _ in 0..<5 {
+            let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+            host.cacheDisplay(in: host.bounds, to: bitmap)
+            let x = bitmap.pixelsWide / 2
+            let orangeRows = (0..<bitmap.pixelsHigh).filter { y in
+                guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { return false }
+                return color.redComponent > 0.8 && color.greenComponent > 0.2
+                    && color.greenComponent < 0.8 && color.blueComponent < 0.4
+            }
+            let top = CGFloat(orangeRows.first ?? -1000) * host.bounds.height / CGFloat(bitmap.pixelsHigh)
+            precondition(abs(top - 250) < 2, "Child animation moved the waveform from its slot: \(top)")
+            try? await Task.sleep(for: .milliseconds(30))
+        }
 
         // Different metadata heights must not move the waveform between headers.
         func header(metadataHeight: CGFloat, station: Bool) -> some View {

@@ -131,6 +131,9 @@ struct DetailWaveformOverlay: ViewModifier {
                             onPlayTrack: source.onPlayTrack
                         )
                         .overlay(DetailWaveformScrollForwarder(target: source.scrollTarget))
+                        // Resolve slot geometry before inner bar animations can
+                        // apply it to their drawing views.
+                        .geometryGroup()
                         .frame(width: bounds.width, height: bounds.height)
                         .position(x: bounds.midX, y: bounds.midY)
                         // Anchor updates must place the waveform immediately,
