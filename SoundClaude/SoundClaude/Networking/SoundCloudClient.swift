@@ -399,7 +399,7 @@ actor SoundCloudClient {
         else { throw SoundCloudError.unexpectedURL }
         // Public HTML only: do not attach the API access token.
         let request = URLRequest(url: url, timeoutInterval: 8)
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await perform(request, using: session)
         guard let response = response as? HTTPURLResponse,
               response.statusCode == 200,
               let html = String(data: data, encoding: .utf8) else { throw SoundCloudError.invalidData }
@@ -1142,13 +1142,41 @@ actor SoundCloudClient {
         return redirectURL
     }
 
+    private func perform(
+        _ request: URLRequest, using session: URLSession, attempt: Int = 1
+    ) async throws -> (Data, URLResponse) {
+        #if DEBUG
+        let id = await NetworkActivityStore.shared.begin(request, attempt: attempt)
+        let start = ProcessInfo.processInfo.systemUptime
+        do {
+            let (data, response) = try await session.data(for: request)
+            await NetworkActivityStore.shared.finish(
+                id, response: response, bytes: data.count,
+                duration: ProcessInfo.processInfo.systemUptime - start, error: nil
+            )
+            return (data, response)
+        } catch {
+            // Localized error strings can include signed URLs. Retain only the numeric code.
+            let code = (error as NSError).code
+            await NetworkActivityStore.shared.finish(
+                id, response: nil, bytes: 0,
+                duration: ProcessInfo.processInfo.systemUptime - start,
+                error: "Error \(code)"
+            )
+            throw error
+        }
+        #else
+        return try await session.data(for: request)
+        #endif
+    }
+
     private func send(
         _ request: URLRequest,
         using session: URLSession
     ) async throws -> (Data, HTTPURLResponse) {
         for attempt in 0..<3 {
             do {
-                let (data, response) = try await session.data(for: request)
+                let (data, response) = try await perform(request, using: session, attempt: attempt + 1)
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw SoundCloudError.invalidResponse
                 }

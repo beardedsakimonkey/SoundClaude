@@ -3,10 +3,14 @@ import SwiftUI
 
 /// The preference is observed only by the menu and overlays, not by app content.
 struct ViewUpdateDebugCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
     @AppStorage("debug.highlightViewUpdates") private var isEnabled = false
 
     var body: some Commands {
         CommandMenu("Debug") {
+            Button("Network Activity") { openWindow(id: "network-activity") }
+                .keyboardShortcut("n", modifiers: [.command, .option, .shift])
+            Divider()
             Toggle("Highlight View Updates", isOn: $isEnabled)
                 .keyboardShortcut("u", modifiers: [.command, .option, .shift])
         }

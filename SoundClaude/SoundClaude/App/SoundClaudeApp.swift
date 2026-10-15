@@ -44,6 +44,13 @@ struct SoundClaudeApp: App {
             ViewUpdateDebugCommands()
             #endif
         }
+        #if DEBUG
+        Window("Network Activity", id: "network-activity") {
+            NetworkActivityView()
+        }
+        .defaultSize(width: 1100, height: 650)
+        .commands { ViewUpdateDebugCommands() }
+        #endif
     }
 
     @ViewBuilder

@@ -182,3 +182,23 @@ confirmed playback resumed from the saved position; current-track stream
 resolution took 739.4 ms after Play. This is one network sample, not a latency
 guarantee. Raw local logs are in
 `/tmp/soundclaude-startup-benchmark/{before,after}-*.log` and `manual-play.log`.
+
+## Inspect network activity
+
+In a Debug build, select **Debug → Network Activity** (⌘⌥⇧N). The window
+records requests from app launch and keeps the latest 500 attempts in memory.
+Filter by API, artwork, other requests, or failures; search by URL or method.
+Select a row for request and response headers. Each rate-limit retry has its
+own row and attempt number. Durations cover each request, excluding retry waits;
+bytes are the response data size, not total wire traffic.
+
+**Pause** stops recording new requests; pending rows still finish. **Clear**
+removes the current history. Recording is not saved to disk. Query values,
+URL credentials, fragments, and all but a small set of content headers are
+hidden. Bodies are not recorded. The window covers API, authentication,
+artwork, profile HTML, and waveform requests through `SoundCloudClient`.
+It excludes artwork cache hits, browser sign-in traffic, and AVPlayer audio
+downloads. Automatic redirects appear as part of the original request.
+The window and recording code are excluded from Release builds.
+
+Run `make test-network-activity` to check redaction and recording controls.

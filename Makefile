@@ -334,3 +334,11 @@ test-playback-selection:
 		SoundClaude/SoundClaude/Playback/PlaybackController.swift \
 		tests/PlaybackSelectionTests.swift
 	/tmp/soundclaude-tests/playback-selection
+
+.PHONY: test-network-activity
+test-network-activity:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -D DEBUG -o /tmp/soundclaude-tests/network-activity \
+		SoundClaude/SoundClaude/App/NetworkActivity.swift \
+		tests/NetworkActivityTests.swift
+	/tmp/soundclaude-tests/network-activity
