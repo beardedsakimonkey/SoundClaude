@@ -22,7 +22,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published var likeErrorMessage: String?
 
-    @Published private(set) var historyTracks: [SoundCloudTrack] = []
+    // Do not broadcast deferred history writes to every AppModel observer.
+    private let history = HistoryState()
+    var historyTracks: [SoundCloudTrack] { history.tracks }
     private let historyStore = HistoryStore()
     private var historyAccountObservation: AnyCancellable?
 
@@ -111,16 +113,16 @@ final class AppModel: ObservableObject {
                     guard let self, case let .signedIn(currentUser) = auth.state,
                           (currentUser.urn ?? currentUser.permalinkURL.absoluteString)
                             == (user.urn ?? user.permalinkURL.absoluteString) else { return }
-                    historyTracks = tracks
+                    history.tracks = tracks
                 }
             }
         }
         historyAccountObservation = auth.$state.sink { [weak self] state in
             guard let self else { return }
             if case let .signedIn(user) = state {
-                historyTracks = historyStore.restore(for: user)
+                history.tracks = historyStore.restore(for: user)
             } else {
-                historyTracks = []
+                history.tracks = []
             }
         }
         playback.onTrackEnded = { [weak self] in

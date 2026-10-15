@@ -1,4 +1,12 @@
 import Foundation
+import Observation
+
+/// History changes invalidate only views that read the tracks.
+@MainActor
+@Observable
+final class HistoryState {
+    var tracks: [SoundCloudTrack] = []
+}
 
 struct HistoryStore {
     var defaults: UserDefaults = .standard
