@@ -119,30 +119,51 @@ struct DetailWaveformOverlay: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlayPreferenceValue(DetailWaveformPreferenceKey.self) { source in
-                GeometryReader { geometry in
-                    if let source {
-                        let bounds = geometry[source.bounds]
-                        // Outside route identity: changing pages for the same track
-                        // must not recreate the waveform or its comment markers.
-                        TrackWaveformView(
-                            track: source.track, model: model,
-                            invertsBarsOnTrackChange: source.isStation,
-                            keepsBarsVisible: source.isStation,
-                            onPlayTrack: source.onPlayTrack
-                        )
-                        .overlay(DetailWaveformScrollForwarder(target: source.scrollTarget))
-                        // Resolve slot geometry before inner bar animations can
-                        // apply it to their drawing views.
-                        .geometryGroup()
-                        .frame(width: bounds.width, height: bounds.height)
-                        .position(x: bounds.midX, y: bounds.midY)
-                        // Anchor updates must place the waveform immediately,
-                        // including the first layout after navigation. Inner bar
-                        // animations still use their own transactions.
-                        .transaction { $0.animation = nil }
-                    }
+                if let source {
+                    // Build the waveform outside the geometry reader so scrolling
+                    // updates its placement without rebuilding its drawing content.
+                    DetailWaveformContent(
+                        track: source.track, model: model,
+                        isStation: source.isStation,
+                        onPlayTrack: source.onPlayTrack
+                    )
+                    .overlay(DetailWaveformScrollForwarder(target: source.scrollTarget))
+                    .modifier(DetailWaveformPlacement(bounds: source.bounds))
                 }
-                .clipped()
             }
+    }
+}
+
+private struct DetailWaveformPlacement: ViewModifier {
+    let bounds: Anchor<CGRect>
+
+    func body(content: Content) -> some View {
+        GeometryReader { geometry in
+            let rect = geometry[bounds]
+            content
+                // Resolve slot geometry before inner bar animations can apply it.
+                .geometryGroup()
+                .frame(width: rect.width, height: rect.height)
+                .position(x: rect.midX, y: rect.midY)
+                .transaction { $0.animation = nil }
+        }
+        .clipped()
+    }
+}
+
+// Keep anchor preference updates out of the stateful waveform's inputs.
+private struct DetailWaveformContent: View {
+    let track: SoundCloudTrack?
+    let model: AppModel
+    let isStation: Bool
+    let onPlayTrack: ((SoundCloudTrack) async -> Void)?
+
+    var body: some View {
+        TrackWaveformView(
+            track: track, model: model,
+            invertsBarsOnTrackChange: isStation,
+            keepsBarsVisible: isStation,
+            onPlayTrack: onPlayTrack
+        )
     }
 }

@@ -16,6 +16,7 @@ private final class WaveformLifetime: ObservableObject {
 }
 
 private enum Measurements {
+    static var bodyUpdates = 0
     static var frame = CGRect.zero
     static var trackURN: String?
     static var isStation = false
@@ -46,6 +47,7 @@ struct TrackWaveformView: View {
     }
 
     private func captureInputs() {
+        Measurements.bodyUpdates += 1
         Measurements.trackURN = track?.urn
         Measurements.isStation = invertsBarsOnTrackChange && keepsBarsVisible
         Measurements.play = onPlayTrack
@@ -214,9 +216,12 @@ struct TrackWaveformView: View {
         precondition(scrollingHost.hitTest(hostPoint) === forwarder,
                      "The waveform overlay must route wheel events through the forwarder")
         let initialY = scrollView.contentView.bounds.minY
+        let updatesBeforeScroll = Measurements.bodyUpdates
         forwarder.scrollWheel(with: wheel)
         try? await Task.sleep(for: .milliseconds(250))
         precondition(scrollView.contentView.bounds.minY > initialY, "Wheel event did not scroll the page")
+        precondition(Measurements.bodyUpdates == updatesBeforeScroll,
+                     "Scrolling rebuilt the waveform body")
         app.testEvent = NSEvent.mouseEvent(
             with: .leftMouseDown, location: .zero, modifierFlags: [], timestamp: 0,
             windowNumber: 0, context: nil, eventNumber: 0, clickCount: 1, pressure: 1

@@ -11,7 +11,10 @@ struct SoundCloudTrack {
 }
 struct SoundCloudWaveform: Equatable {
     let height = 100
-    let samples = [20, 60, 100, 40]
+    var samples: [Int] {
+        Measurements.sampleReads += 1
+        return [20, 60, 100, 40]
+    }
 }
 @Observable final class PlaybackController {
     enum Direction { case forward, backward }
@@ -49,6 +52,7 @@ extension EnvironmentValues {
     @Entry var contentAnimationsPaused = false
 }
 private enum Measurements {
+    static var sampleReads = 0
     static var visibility: [Bool] = []
     static var creations = 0
 }
@@ -110,6 +114,52 @@ struct WaveformCommentsView: View {
         }
         precondition(Measurements.creations == 1, "Navigation recreated the comments")
         precondition(!Measurements.visibility.contains(false), "Navigation hid the comments")
-        print("Track waveform navigation tests passed")
+        // Scrolling a paused waveform must only move its existing content.
+        model.playback.isPlaybackActive = false
+        let scrollingHost = NSHostingView(rootView:
+            ScrollView {
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: 200)
+                    DetailWaveformSlot(track: SoundCloudTrack(urn: "same"))
+                    Color.clear.frame(height: 1200)
+                }
+            }
+            .modifier(DetailWaveformOverlay(model: model))
+        )
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+            styleMask: [.borderless], backing: .buffered, defer: false
+        )
+        window.contentView = scrollingHost
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        scrollingHost.layoutSubtreeIfNeeded()
+        try? await Task.sleep(for: .seconds(2))
+        func descendants(_ view: NSView) -> [NSView] {
+            [view] + view.subviews.flatMap(descendants)
+        }
+        let forwarder = descendants(scrollingHost).compactMap { $0 as? DetailWaveformScrollView }.first!
+        let scrollView = forwarder.target!.anchor!.enclosingScrollView!
+        let readsBeforeScroll = Measurements.sampleReads
+        precondition(readsBeforeScroll > 0, "Waveform was never drawn")
+        for y in [20, 40, 60] {
+            scrollView.contentView.scroll(to: NSPoint(x: 0, y: y))
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+            scrollingHost.layoutSubtreeIfNeeded()
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        precondition(Measurements.sampleReads == readsBeforeScroll,
+                     "Scrolling rebuilt the paused waveform drawing content")
+        scrollingHost.frame.size.width = 900
+        scrollingHost.layoutSubtreeIfNeeded()
+        try? await Task.sleep(for: .milliseconds(100))
+        precondition(Measurements.sampleReads > readsBeforeScroll,
+                     "Resizing must update waveform bar sampling")
+        let readsAfterResize = Measurements.sampleReads
+        model.playback.currentTime = 40
+        try? await Task.sleep(for: .milliseconds(100))
+        precondition(Measurements.sampleReads > readsAfterResize,
+                     "Seeking must update waveform progress")
+        print("Track waveform navigation and paused scrolling tests passed")
     }
 }

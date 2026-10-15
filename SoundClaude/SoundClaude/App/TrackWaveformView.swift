@@ -33,6 +33,7 @@ struct TrackWaveformView: View {
 
     private let playback: PlaybackController
     @State private var shadingCache = WaveformShadingCache()
+    @State private var waveformWidth: CGFloat = 0
     @State private var waveform: SoundCloudWaveform?
     @State private var waveformTrackURN: String?
     @State private var barDirection: Double = 1
@@ -182,8 +183,8 @@ struct TrackWaveformView: View {
 
     private func waveformView(_ waveform: SoundCloudWaveform?) -> some View {
         HStack(spacing: 8) {
-            GeometryReader { proxy in
-                let amplitudes = barAmplitudes(waveform, width: proxy.size.width)
+            Group {
+                let amplitudes = barAmplitudes(waveform, width: waveformWidth)
                 let trackChangeAnimation = reduceMotion || !animatesBarTransitions ? nil : Animation(
                     WaveformStaggeredSpring(
                         reversesStagger: isCurrentTrack && playback.trackChangeDirection == .backward
@@ -296,7 +297,7 @@ struct TrackWaveformView: View {
                     }
                 }
                 // Resampling during window resizing must not start or extend a spring.
-                .animation(nil, value: proxy.size)
+                .animation(nil, value: waveformWidth)
                 .animation(
                     trackChangeAnimation,
                     value: waveform
@@ -337,7 +338,7 @@ struct TrackWaveformView: View {
                     case .active(let location):
                         hoverFraction = fraction(
                             at: location.x,
-                            width: proxy.size.width
+                            width: waveformWidth
                         )
                         isHovering = true
                     case .ended:
@@ -350,14 +351,14 @@ struct TrackWaveformView: View {
                         .onChanged { value in
                             hoverFraction = fraction(
                                 at: value.location.x,
-                                width: proxy.size.width
+                                width: waveformWidth
                             )
                         }
                         .onEnded { value in
                             seek(
                                 to: fraction(
                                     at: value.location.x,
-                                    width: proxy.size.width
+                                    width: waveformWidth
                                 )
                             )
                         }
@@ -405,7 +406,12 @@ struct TrackWaveformView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity)
             .frame(height: height)
+            // Scrolling changes global geometry, but only width affects the bars.
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: {
+                waveformWidth = $0
+            }
         }
         // Keep a visible focus ring for keyboard navigation without focusing on click.
         .focusable(isCurrentTrack, interactions: .activate)
