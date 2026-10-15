@@ -228,9 +228,11 @@ struct StationDetailView: View {
                     }
                 }
                 .frame(minHeight: 64, alignment: .leading)
-                playbackControls
-                    .padding(.top, 10)
-                    .modifier(FadeInOnAppear())
+                if station != nil || currentStationTrack != nil {
+                    playbackControls
+                        .padding(.top, 10)
+                        .modifier(FadeInOnAppear())
+                }
             }
             .modifier(DetailWaveformHeader(
                 track: displayedTrack,
