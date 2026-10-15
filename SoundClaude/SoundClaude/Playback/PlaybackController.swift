@@ -75,7 +75,9 @@ final class PlaybackController {
     }
 
     private(set) var sessionToRestore: SavedPlayback?
-    private(set) var isPlaying = false
+    private(set) var isPlaying = false {
+        didSet { updateIsPlaybackActive() }
+    }
     private(set) var isLoading = false
     private var isWaitingForPlayback = false
 
@@ -144,7 +146,9 @@ final class PlaybackController {
     @ObservationIgnored private var nextPreparation: Preparation?
     @ObservationIgnored private var loadingPreparation: Preparation?
     @ObservationIgnored private var canStartImmediately = false
-    private var shouldPlayWhenReady = false
+    private var shouldPlayWhenReady = false {
+        didSet { updateIsPlaybackActive() }
+    }
     @ObservationIgnored private var hasNotifiedReady = false
     @ObservationIgnored private var lastSaveTime = Date.distantPast
     private let remoteCommandCenter = MPRemoteCommandCenter.shared()
@@ -532,8 +536,12 @@ final class PlaybackController {
     }
 
     // Keep transport controls stable while playback loads, seeks, or buffers.
-    var isPlaybackActive: Bool {
-        isPlaying || shouldPlayWhenReady
+    // Stored so seeks, which briefly pause the player, do not notify readers.
+    private(set) var isPlaybackActive = false
+
+    private func updateIsPlaybackActive() {
+        let isActive = isPlaying || shouldPlayWhenReady
+        if isPlaybackActive != isActive { isPlaybackActive = isActive }
     }
 
     func togglePlayPause() {
