@@ -137,6 +137,9 @@ struct TrackCardView: View {
                 hasAppeared = true
             }
         }
+        #if DEBUG
+        .debugViewUpdates("TrackCardView")
+        #endif
     }
 
     private var trackTitle: some View {

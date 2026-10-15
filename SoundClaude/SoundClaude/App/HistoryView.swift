@@ -17,6 +17,9 @@ struct HistoryView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("History")
+        #if DEBUG
+        .debugViewUpdates("HistoryView")
+        #endif
     }
 
     private var historyContent: some View {

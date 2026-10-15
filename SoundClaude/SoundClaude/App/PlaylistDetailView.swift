@@ -161,6 +161,9 @@ struct PlaylistDetailView: View {
                 cachedArtwork: $cachedFullSizeArtwork
             )
         }
+        #if DEBUG
+        .debugViewUpdates("PlaylistDetailView")
+        #endif
     }
 
     private var header: some View {

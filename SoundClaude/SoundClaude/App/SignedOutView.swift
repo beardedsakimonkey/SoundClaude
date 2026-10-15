@@ -21,5 +21,8 @@ struct SignedOutView: View {
         }
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #if DEBUG
+        .debugViewUpdates("SignedOutView")
+        #endif
     }
 }

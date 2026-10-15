@@ -79,3 +79,23 @@ make api
 
 The Fluid visualizer uses a Metal port of Pavel Dobryakov’s
 [WebGL Fluid Simulation](https://github.com/PavelDoGreat/WebGL-Fluid-Simulation).
+
+## Visualize SwiftUI updates
+
+Run a Debug build with `make run`, then select **Debug → Highlight View Updates**
+(or press **⌘⌥⇧U**). Instrumented pages, track cards, grid tiles, waveforms,
+sidebar, queue, and player show named borders that change color when their
+SwiftUI `body` is evaluated. The setting is saved across launches.
+
+These marks show body evaluations, not layout passes or actual screen redraws.
+They add drawing overhead, so turn them off when measuring performance.
+The menu and instrumentation are excluded from Release builds.
+
+To instrument another view, add this to the root view expression inside its
+`body` (calling it on a child from the parent measures the parent's evaluation):
+
+```swift
+#if DEBUG
+.debugViewUpdates("MyView")
+#endif
+```

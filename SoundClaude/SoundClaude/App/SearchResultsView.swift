@@ -57,6 +57,9 @@ struct SearchResultsView: View {
         }
         .padding(contentPadding)
         .navigationTitle(isGenreSearch || isTagSearch ? "Search" : query)
+        #if DEBUG
+        .debugViewUpdates("SearchResultsView")
+        #endif
     }
 }
 

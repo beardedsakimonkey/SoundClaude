@@ -175,6 +175,9 @@ struct TrackWaveformView: View {
             artworkAccent = accent
             accentArtworkURL = url
         }
+        #if DEBUG
+        .debugViewUpdates("TrackWaveformView")
+        #endif
     }
 
     private func waveformView(_ waveform: SoundCloudWaveform?) -> some View {

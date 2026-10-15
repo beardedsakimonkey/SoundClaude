@@ -44,6 +44,9 @@ struct SearchView: View {
             if !active { isSearchFocused = false }
         }
         .onDisappear { isSearchFocused = false }
+        #if DEBUG
+        .debugViewUpdates("SearchView")
+        #endif
     }
 
     private var searchContent: some View {

@@ -213,6 +213,9 @@ struct TrackGridTile: View {
         } message: {
             Text(likeErrorMessage ?? "Please try again.")
         }
+        #if DEBUG
+        .debugViewUpdates("TrackGridTile")
+        #endif
     }
 
     private var trackMenuItems: some View {

@@ -236,6 +236,9 @@ struct ArtistDetailView: View {
                 cachedArtwork: $cachedFullSizeArtwork
             )
         }
+        #if DEBUG
+        .debugViewUpdates("ArtistDetailView")
+        #endif
     }
 
     @ViewBuilder

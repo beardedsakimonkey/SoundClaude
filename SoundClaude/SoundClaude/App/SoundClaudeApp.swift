@@ -33,6 +33,9 @@ struct SoundClaudeApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             appCommands()
+            #if DEBUG
+            ViewUpdateDebugCommands()
+            #endif
         }
     }
 

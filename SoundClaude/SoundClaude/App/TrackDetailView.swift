@@ -89,6 +89,9 @@ struct TrackDetailView: View {
                 cachedArtwork: $cachedFullSizeArtwork
             )
         }
+        #if DEBUG
+        .debugViewUpdates("TrackDetailView")
+        #endif
     }
 
     private var displayedTrack: SoundCloudTrack { details?.track ?? track }

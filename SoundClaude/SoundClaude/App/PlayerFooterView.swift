@@ -77,6 +77,9 @@ struct PlayerFooterView: View {
         } message: {
             Text(model.likeErrorMessage ?? "Please try again.")
         }
+        #if DEBUG
+        .debugViewUpdates("PlayerFooterView")
+        #endif
     }
 
     private var trackIdentity: some View {

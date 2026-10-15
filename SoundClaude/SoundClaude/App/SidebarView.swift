@@ -86,6 +86,9 @@ struct SidebarView: View {
         } message: {
             Text(stationPlaybackError ?? "Please try again.")
         }
+        #if DEBUG
+        .debugViewUpdates("SidebarView")
+        #endif
     }
 
     private var sidebarList: some View {

@@ -26,6 +26,9 @@ struct FeedView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Feed")
         .task { await feed.load() }
+        #if DEBUG
+        .debugViewUpdates("FeedView")
+        #endif
     }
 
     private var feedContent: some View {

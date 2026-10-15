@@ -99,6 +99,9 @@ struct TrackQueueView: View {
             .padding(.bottom, 16)
         }
         .onExitCommand(perform: onDismiss)
+        #if DEBUG
+        .debugViewUpdates("TrackQueueView")
+        #endif
     }
 }
 

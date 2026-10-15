@@ -87,6 +87,9 @@ struct LikesView: View {
         .onChange(of: isActive) { _, active in
             if !active { isSearchFocused = false }
         }
+        #if DEBUG
+        .debugViewUpdates("LikesView")
+        #endif
     }
 
     private var header: some View {
