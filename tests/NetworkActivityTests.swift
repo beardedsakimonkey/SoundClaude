@@ -15,6 +15,9 @@ struct NetworkActivityTests {
         let entry = store.entries[0]
         precondition(!entry.url.contains(secret) && !entry.url.contains("password") && !entry.url.contains("fragment"))
         precondition(!entry.url.contains("private"))
+        let paged = NetworkActivitySanitizer.url(URL(string: "https://api.soundcloud.com/tracks?limit=50&offset=abc123cursor&linked_partitioning=true&q=1")!)
+        precondition(paged.contains("limit=50") && paged.contains("linked_partitioning=true"))
+        precondition(paged.contains("offset=REDACTED") && paged.contains("q=REDACTED"))
         precondition(!entry.requestHeaders.contains(secret))
         precondition(entry.requestHeaders.contains("application/json"))
         precondition(entry.attempt == 2 && entry.result == "Pending")

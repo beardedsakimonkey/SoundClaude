@@ -29,8 +29,19 @@ enum NetworkActivitySanitizer {
         parts.user = nil
         parts.password = nil
         parts.fragment = nil
-        parts.queryItems = parts.queryItems?.map { URLQueryItem(name: $0.name, value: "REDACTED") }
+        parts.queryItems = parts.queryItems?.map {
+            URLQueryItem(name: $0.name, value: isPagingValue($0) ? $0.value : "REDACTED")
+        }
         return parts.string ?? "Unknown URL"
+    }
+
+    /// Paging parameters identify which caller made a request. Only short numeric
+    /// or boolean values are shown, so an opaque cursor stays redacted.
+    private static func isPagingValue(_ item: URLQueryItem) -> Bool {
+        let allowed: Set<String> = ["limit", "offset", "linked_partitioning"]
+        guard allowed.contains(item.name.lowercased()), let value = item.value,
+              !value.isEmpty, value.count <= 10 else { return false }
+        return value.allSatisfy(\.isASCII) && (value.allSatisfy(\.isNumber) || value == "true" || value == "false")
     }
 
     static func headers(_ headers: [String: String]) -> String {
