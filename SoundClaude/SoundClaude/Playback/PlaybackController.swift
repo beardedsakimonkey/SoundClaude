@@ -115,6 +115,7 @@ final class PlaybackController {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let makePrefetchPlayer: @MainActor (URL) -> AVPlayer
     @ObservationIgnored private(set) var player: AVPlayer
+    @ObservationIgnored var onNeedsSource: ((SoundCloudTrack, UUID) -> Void)?
     @ObservationIgnored var onReadyToPlay: (() -> Void)?
     @ObservationIgnored var onTrackStarted: ((SoundCloudTrack) -> Void)?
     @ObservationIgnored var isTrackLiked: ((SoundCloudTrack) -> Bool)?
@@ -538,12 +539,19 @@ final class PlaybackController {
     func togglePlayPause() {
         if isPlaybackActive {
             pause()
-        } else if isLoading || player.currentItem != nil {
+        } else {
             play()
         }
     }
 
     private func play() {
+        if sessionToRestore != nil, let track = currentTrack, let onNeedsSource {
+            let fraction = seekFraction
+            let request = beginLoading(track: track, position: currentTime)
+            if let fraction { seek(toFraction: fraction) }
+            onNeedsSource(track, request)
+            return
+        }
         guard isLoading || player.currentItem != nil else { return }
         shouldPlayWhenReady = true
         saveSession()
@@ -587,7 +595,7 @@ final class PlaybackController {
     private func seek(to seconds: Double, fraction: Double?) {
         guard seconds.isFinite,
               currentTrack != nil,
-              isLoading || player.currentItem != nil,
+              sessionToRestore != nil || isLoading || player.currentItem != nil,
               player.currentItem?.status != .failed else { return }
         canStartImmediately = false
         let upperBound = duration > 0 ? duration : seconds

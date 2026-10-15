@@ -107,6 +107,14 @@ final class AppModel {
             )
         }
 
+        playback.onNeedsSource = { [weak self] track, requestID in
+            guard let self else { return }
+            playbackRequestID = requestID
+            playbackTask = Task { @MainActor [weak self] in
+                guard let self, playbackRequestID == requestID, !Task.isCancelled else { return }
+                await resolvePlayback(track, requestID: requestID)
+            }
+        }
         playback.onReadyToPlay = { [weak audioTap] in
             Task { @MainActor in
                 await audioTap?.startForCurrentProcess()
@@ -171,7 +179,6 @@ final class AppModel {
         await auth.restore()
         if case .signedIn = auth.state {
             await likes.restoreCache()
-            await restorePlayback()
         }
     }
 
@@ -184,7 +191,6 @@ final class AppModel {
         await auth.signIn()
         if case .signedIn = auth.state {
             await likes.restoreCache()
-            await restorePlayback()
         }
     }
 
@@ -335,15 +341,6 @@ final class AppModel {
         queueStore.save(queue)
     }
 
-    private func restorePlayback() async {
-        let interval = LaunchMetrics.begin("Playback restoration")
-        defer { LaunchMetrics.end(interval) }
-        guard playback.currentTrack == nil || playback.sessionToRestore != nil,
-              playbackTask == nil else { return }
-        guard let session = playback.sessionToRestore ?? playback.savedSession else { return }
-        await loadPlayback(session.track, position: session.position, autoplay: false)
-    }
-
     private func loadPlayback(
         _ track: SoundCloudTrack,
         position: Double = 0,
@@ -360,6 +357,10 @@ final class AppModel {
             autoplay: autoplay,
             direction: direction
         )
+        await resolvePlayback(track, requestID: requestID)
+    }
+
+    private func resolvePlayback(_ track: SoundCloudTrack, requestID: UUID) async {
         playbackRequestID = requestID
         errorMessage = nil
         prefetchNextTrack()
@@ -802,7 +803,7 @@ final class AppModel {
         let candidate = currentURN == nil || needsPage ? nil
             : resolvedQueue.relativeTrack(to: currentURN, offset: 1)
         let next = candidate?.urn == currentURN ? nil : candidate
-        playback.prefetch(next) { [auth, client] in
+        playback.prefetch(playback.isPlaybackActive ? next : nil) { [auth, client] in
             guard let next else { throw CancellationError() }
             let accessToken = try await auth.validAccessToken()
             try Task.checkCancellation()

@@ -148,6 +148,8 @@ struct PlaybackTests {
                 standby!.completePreroll?(true)
                 try await Task.sleep(for: .milliseconds(30))
             }
+            // AVPlayer publishes the paused status asynchronously.
+            try await until { !controller.isPlaying }
             let normalStarts = standby!.normalStarts
             controller.togglePlayPause()
             precondition(standby!.normalStarts == normalStarts + 1)
@@ -191,6 +193,29 @@ struct PlaybackTests {
         }
         precondition(!relaunched.isPlaybackActive && !relaunched.isPlaying)
         precondition(relaunched.player.rate == 0)
+
+        // A restored session waits for Play, including remote commands routed
+        // through the same transport path. Paused seeks update the resume point.
+        defaults.set(encoded, forKey: "playback.session")
+        let deferred = PlaybackController(defaults: defaults)
+        var sourceRequests = 0
+        var deferredRequest: UUID?
+        deferred.onNeedsSource = { selected, request in
+            sourceRequests += 1
+            precondition(selected == track(1))
+            deferredRequest = request
+        }
+        deferred.seek(to: 1)
+        precondition(deferred.currentTime == 1 && deferred.player.currentItem == nil)
+        precondition(sourceRequests == 0 && !deferred.isLoading)
+        deferred.togglePlayPause()
+        precondition(sourceRequests == 1 && deferred.isLoading && deferred.isPlaybackActive)
+        deferred.togglePlayPause()
+        precondition(sourceRequests == 1 && !deferred.isPlaybackActive)
+        deferred.load(source: source, requestID: deferredRequest!)
+        try await until { !deferred.isLoading && abs(deferred.player.currentTime().seconds - 1) < 0.05 }
+        precondition(!deferred.isPlaybackActive)
+        deferred.clearSession()
 
         // Selection and saved position update before a stream URL is available.
         let first = playback.beginLoading(track: track(1), position: 0.5)

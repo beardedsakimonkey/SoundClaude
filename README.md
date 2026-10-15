@@ -157,3 +157,28 @@ remain available; the first request for each playlist reads its entry and writes
 a separate file. List refreshes preserve unopened contents. Removed playlists
 get a deletion marker so their old cached tracks cannot return.
 
+Saved playback restores its title, artwork, and position without resolving audio.
+Play starts stream resolution and next-track preparation. Seeking while paused
+updates the saved resume point. This moves the network wait to the first Play.
+
+On October 15, 2026, five Release launches per build used the same account,
+selected page, paused track, and restored disk-cache snapshot. These were warm
+filesystem-cache runs without Instruments. The playlist cache contained 465
+content entries and 9,387 tracks, while the sidebar list had three entries.
+Medians from `SOUNDCLAUDE_LAUNCH_TIMINGS`:
+
+| Measurement | Before | After |
+| --- | ---: | ---: |
+| Root view appeared | 285.5 ms | 296.2 ms |
+| Startup task finished | 1,459.7 ms | 601.1 ms |
+| Full playlist cache decode | 123.1 ms | Not performed |
+| Current/next stream resolution while paused | Performed | Not performed |
+
+The startup-task marker improved by 858.6 ms (59%). This is completion of
+background startup work, not a measured rendering improvement: the root-view
+callback was slightly later. Network times vary, and these runs do not measure
+cold launches or end-to-end first-Play latency. A separate Release UI check
+confirmed playback resumed from the saved position; current-track stream
+resolution took 739.4 ms after Play. This is one network sample, not a latency
+guarantee. Raw local logs are in
+`/tmp/soundclaude-startup-benchmark/{before,after}-*.log` and `manual-play.log`.
