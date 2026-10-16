@@ -194,20 +194,18 @@ struct PlaylistDetailView: View {
         HStack(alignment: .top, spacing: 24) {
             playlistArtwork
             VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: displayedPlaylist.isPrivate ? 4 : 8) {
-                    Label("Playlist: \(displayedPlaylist.title)", systemImage: "music.note.list")
+                HStack(spacing: 8) {
+                    Label {
+                        Text("Playlist: \(Text(displayedPlaylist.title).foregroundStyle(Color.primary.opacity(0.9)))")
+                    } icon: {
+                        Image(systemName: "music.note.list")
+                    }
                         .labelStyle(.titleAndIcon)
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .textSelection(.enabled)
                         .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
-                    if displayedPlaylist.isPrivate {
-                        Image(systemName: "lock.fill")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .accessibilityLabel("Private playlist")
-                    }
                     if !displayedPlaylist.isPrivate {
                         likeButton
                             .opacity(isHoveringPlaylistLabel ? 1 : 0)
@@ -279,15 +277,21 @@ struct PlaylistDetailView: View {
     }
 
     private var playlistMetadata: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
-            playlistTimestamp
-            if !playlist.isSystemPlaylist {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("by")
-                    ArtistLink(
-                        artist: displayedPlaylist.owner,
-                        onSelect: onSelectArtist
-                    )
+        VStack(alignment: .leading, spacing: 8) {
+            if displayedPlaylist.isPrivate {
+                Label("Private", systemImage: "lock.fill")
+                    .labelStyle(.titleAndIcon)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                playlistTimestamp
+                if !playlist.isSystemPlaylist {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("by")
+                        ArtistLink(
+                            artist: displayedPlaylist.owner,
+                            onSelect: onSelectArtist
+                        )
+                    }
                 }
             }
         }

@@ -416,6 +416,8 @@ private struct StationTitleRow: View {
                 Text("Station:")
                 Button(action: onOpenSource) {
                     Text(title)
+                        .foregroundStyle(Color.primary)
+                        .opacity(0.9)
                         .underline(isHoveringStationTitle)
                         .contentShape(Rectangle())
                 }
