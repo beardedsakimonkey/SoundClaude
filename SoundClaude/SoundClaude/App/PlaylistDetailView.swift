@@ -526,6 +526,7 @@ private struct PlaylistTrackList: View, Equatable {
             tracks: tracks, trackLayout: trackLayout, model: model,
             onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
             onPlayTrack: playTrack,
+            fadesInTracks: true,
             onRemoveFromPlaylist: onRemoveFromPlaylist,
             isUpdatingPlaylist: isUpdatingPlaylist,
             removingTrackURN: removingTrackURN
