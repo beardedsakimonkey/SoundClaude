@@ -479,7 +479,7 @@ private struct PlayerFooterWaveform: View {
             if let playbackError = playback.errorMessage {
                 Text(playbackError)
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(.orange)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
                     .padding(.horizontal, 8)
