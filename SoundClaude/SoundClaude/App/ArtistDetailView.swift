@@ -274,6 +274,8 @@ struct ArtistDetailView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text(details.user.username)
                                 .font(.system(size: 36, weight: .semibold))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
                                 .textSelection(.enabled)
                             if let fullName = nonempty(details.user.fullName) {
                                 Text(fullName)
