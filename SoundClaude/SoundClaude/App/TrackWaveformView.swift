@@ -28,6 +28,9 @@ struct TrackWaveformView: View {
     let animatesBarTransitions: Bool
     let invertsBarsOnTrackChange: Bool
     let collapsesBarsWhenPaused: Bool
+
+    // The overshoot of the collapse spring stays above the previous 4-point height.
+    static let collapsedBarHeight: CGFloat = 5
     let keepsBarsVisible: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
 
@@ -309,7 +312,7 @@ struct TrackWaveformView: View {
                 .animation(
                     reduceMotion ? nil : .spring(
                         duration: 0.35,
-                        bounce: barsAreCollapsed && !showsHoverPreview ? 0.05 : 0.3
+                        bounce: barsAreCollapsed && !showsHoverPreview ? 0.2 : 0.3
                     ),
                     value: showsHoverPreview
                 )
@@ -320,7 +323,7 @@ struct TrackWaveformView: View {
                 .animation(
                     reduceMotion || !animatesBarTransitions ? nil : .spring(
                         duration: 0.35,
-                        bounce: barsAreCollapsed ? 0.05 : 0.3
+                        bounce: barsAreCollapsed ? 0.2 : 0.3
                     ),
                     value: barsAreCollapsed
                 )
@@ -606,7 +609,7 @@ struct TrackWaveformView: View {
     ) -> WaveformAmplitudes {
         // Keep the same bars for every track, including the loading state.
         let barCount = max(Int(width / 4), 1)
-        let collapsedHeight = 4.0
+        let collapsedHeight = Double(Self.collapsedBarHeight)
         let availableHeight = layout.availableBarHeight(for: height)
         let collapsedAmplitude = collapsedHeight / Double(availableHeight)
         if barsAreCollapsed && !showsHoverPreview {
