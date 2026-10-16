@@ -75,36 +75,53 @@ private struct SearchFocusTests {
                         avatarURL: nil, permalinkURL: URL(string: "https://soundcloud.com/focus-test")!
                     )
                     let searchHost = NSHostingView(rootView: SearchView(
-                        user: user, searchText: .constant(""), focusRequest: UUID(),
+                        user: user, searchText: .constant(""), focusRequest: nil,
                         onSearch: { _ in }
                     ))
                     window.contentView = searchHost
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         let searchField = descendant(NSTextField.self, in: searchHost)!
-                        precondition(searchField.currentEditor() != nil, "Search route must focus its input on arrival")
-                        click(NSPoint(x: 250, y: 100))
+                        precondition(searchField.currentEditor() == nil, "Restored Search must start without focus")
+                        precondition(searchField.isEnabled, "Restored Search must allow input")
+                        searchHost.rootView = SearchView(
+                            user: user, searchText: .constant(""), focusRequest: UUID(),
+                            onSearch: { _ in }
+                        )
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            precondition(searchField.currentEditor() == nil, "Outside click must release search focus")
-                            searchHost.rootView = SearchView(
-                                user: user, searchText: .constant(""), focusRequest: UUID(),
-                                onSearch: { _ in }
-                            )
+                            precondition(searchField.currentEditor() != nil, "Search route must focus its input on arrival")
+                            click(NSPoint(x: 250, y: 100))
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                precondition(searchField.currentEditor() != nil, "Reselecting Search must restore input focus")
+                                precondition(searchField.currentEditor() == nil, "Outside click must release search focus")
                                 searchHost.rootView = SearchView(
-                                    user: user, searchText: .constant(""), focusRequest: UUID(), isActive: false,
+                                    user: user, searchText: .constant(""), focusRequest: UUID(),
                                     onSearch: { _ in }
                                 )
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                    precondition(searchField.currentEditor() == nil, "A retained hidden search page must release focus")
+                                    precondition(searchField.currentEditor() != nil, "Reselecting Search must restore input focus")
                                     searchHost.rootView = SearchView(
-                                        user: user, searchText: .constant(""), focusRequest: UUID(),
+                                        user: user, searchText: .constant(""), focusRequest: UUID(), isActive: false,
                                         onSearch: { _ in }
                                     )
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                        precondition(searchField.currentEditor() != nil, "Returning to retained Search must restore requested focus")
-                                        print("Search focus tests passed")
-                                        app.terminate(nil)
+                                        precondition(searchField.currentEditor() == nil, "A retained hidden search page must release focus")
+                                        searchHost.rootView = SearchView(
+                                            user: user, searchText: .constant(""), focusRequest: UUID(),
+                                            onSearch: { _ in }
+                                        )
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                            precondition(searchField.currentEditor() != nil, "Returning to retained Search must restore requested focus")
+                                            let requestedHost = NSHostingView(rootView: SearchView(
+                                                user: user, searchText: .constant(""), focusRequest: UUID(),
+                                                onSearch: { _ in }
+                                            ))
+                                            window.contentView = requestedHost
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                let requestedField = descendant(NSTextField.self, in: requestedHost)!
+                                                precondition(requestedField.currentEditor() != nil, "Opening Search must focus a newly mounted input")
+                                                print("Search focus tests passed")
+                                                app.terminate(nil)
+                                            }
+                                        }
                                     }
                                 }
                             }

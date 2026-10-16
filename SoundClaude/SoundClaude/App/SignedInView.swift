@@ -11,7 +11,8 @@ struct SignedInView: View {
     @State private var playlistTrack: SoundCloudTrack?
     @State private var searchText = ""
     @State private var likesSearchText = ""
-    @State private var searchFocusRequest = UUID()
+    // Restoring Search at launch must not request keyboard focus.
+    @State private var searchFocusRequest: UUID?
     @State private var isShowingVisualizer = false
     @AppStorage("visualizerShader") private var visualizerShader: VisualizerShader = .pistons
     @State private var isShowingQueue = false

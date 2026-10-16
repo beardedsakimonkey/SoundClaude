@@ -14,7 +14,7 @@ extension EnvironmentValues {
 struct SearchView: View {
     let user: SoundCloudUser
     @Binding var searchText: String
-    let focusRequest: UUID
+    let focusRequest: UUID?
     var isActive = true
     let onSearch: (String) -> Void
 
@@ -104,7 +104,7 @@ struct SearchView: View {
 // Keep focus changes local so they do not update the recent searches or backdrop.
 private struct SearchInputView: View {
     @Binding var text: String
-    let focusRequest: UUID
+    let focusRequest: UUID?
     let dismissFocusRequest: UUID
     let isActive: Bool
     let onSubmit: () -> Void
@@ -117,10 +117,12 @@ private struct SearchInputView: View {
             text: $text,
             isFocused: $isFocused,
             accessibilityLabel: "Search SoundCloud",
+            preventsAutomaticFocus: true,
             onSubmit: onSubmit,
             onClear: { isFocused = true }
         )
         .task(id: focusRequest) {
+            guard focusRequest != nil else { return }
             // Wait until the navigation stack has mounted the text field.
             await Task.yield()
             guard !Task.isCancelled, isActive else { return }
