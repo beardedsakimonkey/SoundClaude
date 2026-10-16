@@ -229,7 +229,7 @@ private struct WaveformCommentMarkersContent: View {
                 }
             }
             .animation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15), value: interactionID)
-            .animation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.15), value: playbackID)
+            .animation(reduceMotion ? nil : .spring(duration: 0.44, bounce: 0.4), value: playbackID)
         }
         .opacity(showsComments ? 1 : 0)
         .allowsHitTesting(showsComments)
