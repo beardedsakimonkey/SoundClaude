@@ -60,7 +60,7 @@ struct PlaylistDetailView: View {
         ScrollbarReservedScrollView { _ in
             VStack(alignment: .leading, spacing: 24) {
                 header
-                VStack(alignment: .leading, spacing: trackLayout == .list ? 8 : 24) {
+                VStack(alignment: .leading, spacing: trackLayout == .list ? 4 : 12) {
                     HStack {
                         CountedSectionHeader(
                             title: "Tracks",
