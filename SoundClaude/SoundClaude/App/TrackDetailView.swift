@@ -516,16 +516,23 @@ struct TrackActionButtonStyle: ButtonStyle {
     @State private var isHovering = false
 
     let fill: Color
+    // Solid fills dim on hover instead of gaining a translucent layer behind them.
+    var dimsOnHover = false
 
     func makeBody(configuration: Configuration) -> some View {
+        let isHovered = isHovering && isEnabled
         configuration.label
             .foregroundStyle(.primary)
             .padding(.vertical, 10)
-            .background(fill, in: Capsule())
             .background {
                 Capsule()
-                    .fill(fill.opacity(isHovering && isEnabled ? 0.7 : 0))
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering && isEnabled)
+                    .fill(fill.opacity(dimsOnHover && isHovered ? 0.8 : 1))
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovered)
+            }
+            .background {
+                Capsule()
+                    .fill(fill.opacity(!dimsOnHover && isHovered ? 0.7 : 0))
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovered)
             }
             .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.5)
             .scaleEffect(configuration.isPressed && isEnabled && !reduceMotion ? 0.86 : 1)

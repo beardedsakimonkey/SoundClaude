@@ -18,12 +18,15 @@ struct DetailPlayButton: View {
     let action: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovering = false
 
     private var foregroundColor: Color {
         guard configuration.isStarting else { return .primary }
-        return colorScheme == .light
-            ? Color(.sRGB, red: 0.18, green: 0.50, blue: 0.30)
-            : .green
+        return colorScheme == .dark ? .black : .white
+    }
+
+    private var fillColor: Color {
+        configuration.isStarting ? .primary : .primary.opacity(0.12)
     }
 
     var body: some View {
@@ -43,9 +46,17 @@ struct DetailPlayButton: View {
             .frame(width: configuration.iconOnly ? 44 : nil)
             .frame(minHeight: 24)
         }
-        .labelStyle(DetailPlayButtonLabelStyle(iconOnly: configuration.iconOnly))
+        .labelStyle(DetailPlayButtonLabelStyle(
+            iconOnly: configuration.iconOnly,
+            nudgesIcon: configuration.isStarting && isHovering && configuration.isEnabled
+        ))
+        .animation(
+            reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.4),
+            value: configuration.isStarting && isHovering
+        )
+        .onContentHover { isHovering = $0 }
         .buttonStyle(TrackActionButtonStyle(
-            fill: .primary.opacity(0.12)
+            fill: fillColor, dimsOnHover: configuration.isStarting
         ))
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: configuration.isStarting)
         .disabled(!configuration.isEnabled)
@@ -56,13 +67,16 @@ struct DetailPlayButton: View {
 
 private struct DetailPlayButtonLabelStyle: LabelStyle {
     let iconOnly: Bool
+    // Start pushes the play icon forward on hover as a "go" cue.
+    let nudgesIcon: Bool
 
     func makeBody(configuration: Configuration) -> some View {
+        let icon = configuration.icon.offset(x: nudgesIcon ? 3 : 0)
         if iconOnly {
-            configuration.icon
+            icon
         } else {
             HStack {
-                configuration.icon
+                icon
                 configuration.title
             }
         }
