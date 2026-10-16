@@ -28,14 +28,27 @@ struct ArtistUsersView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(title)
+                HStack(spacing: 6) {
+                    if list == .followers {
+                        Text("Followers of")
+                    }
+                    ArtistLink(
+                        artist: artist,
+                        artworkLoader: model.artworkLoader,
+                        showsAvatarBorder: true,
+                        helpTitle: "View profile",
+                        onSelect: onSelectArtist
+                    )
+                    if list == .following {
+                        Text("is following")
+                    }
                     if let userCount {
                         Text("(\(userCount.formatted()))")
                             .foregroundStyle(.secondary)
                     }
                 }
                 .font(.title2)
+                .lineLimit(1)
 
                 UserGridView(
                     users: users,

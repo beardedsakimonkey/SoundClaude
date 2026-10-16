@@ -5,6 +5,7 @@ struct ArtistLink: View {
     var artworkLoader: ArtworkLoader? = nil
     var avatarSize: CGFloat = 24
     var showsAvatarBorder = false
+    var helpTitle = "View artist"
     let onSelect: (SoundCloudUser) -> Void
 
     @State private var isHovering = false
@@ -38,7 +39,7 @@ struct ArtistLink: View {
         }
         .buttonStyle(.plain)
         .onContentHover { isHovering = $0 }
-        .contentHelp("View artist")
-        .accessibilityLabel("View artist: \(artist.username)")
+        .contentHelp(helpTitle)
+        .accessibilityLabel("\(helpTitle): \(artist.username)")
     }
 }
