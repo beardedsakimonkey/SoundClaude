@@ -38,8 +38,34 @@ struct ArtistLink: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .artistContextMenu(artist: artist)
         .onContentHover { isHovering = $0 }
         .contentHelp(helpTitle)
         .accessibilityLabel("\(helpTitle): \(artist.username)")
+    }
+}
+
+// Shared by artist links in detail views and the player footer.
+extension View {
+    func artistContextMenu(artist: SoundCloudUser) -> some View {
+        modifier(ArtistContextMenu(artist: artist))
+    }
+}
+
+extension EnvironmentValues {
+    @Entry var openArtistStation: (SoundCloudUser) -> Void = { _ in }
+}
+
+private struct ArtistContextMenu: ViewModifier {
+    let artist: SoundCloudUser
+    @Environment(\.openArtistStation) private var openArtistStation
+
+    func body(content: Content) -> some View {
+        content.contextMenu {
+            Button("Go to station", systemImage: "dot.radiowaves.left.and.right") {
+                openArtistStation(artist)
+            }
+            .keyboardShortcut(nil)
+        }
     }
 }

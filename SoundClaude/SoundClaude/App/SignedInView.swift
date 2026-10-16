@@ -151,6 +151,9 @@ struct SignedInView: View {
             }
             .clipped()
         }
+        .environment(\.openArtistStation) { artist in
+            Task { await showArtistStation(artist) }
+        }
         .environment(\.waveformCommentArtistAction, showArtist)
         .environment(\.addToPlaylist, { playlistTrack = $0 })
         .sheet(item: $playlistTrack) { track in
@@ -175,7 +178,7 @@ struct SignedInView: View {
             defer { isOpeningCurrentTrackStation = false }
             await showCurrentTrackStation()
         }
-        .alert("Could not open track station", isPresented: Binding(
+        .alert("Could not open station", isPresented: Binding(
             get: { stationErrorMessage != nil },
             set: { if !$0 { stationErrorMessage = nil } }
         )) {
@@ -667,6 +670,29 @@ struct SignedInView: View {
         } catch {
             guard !Task.isCancelled, model.playback.currentTrack?.urn == track.urn,
                   model.queue.source == source else { return }
+            stationErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func showArtistStation(_ artist: SoundCloudUser) async {
+        do {
+            var user = artist
+            var urn = user.stationURN?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if urn?.isEmpty != false {
+                user = try await model.artistDetails(for: artist).user
+                urn = user.stationURN?.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            try Task.checkCancellation()
+            guard let urn, !urn.isEmpty else {
+                stationErrorMessage = "No station is available for this artist."
+                return
+            }
+            isShowingVisualizer = false
+            isShowingQueue = false
+            if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
+            showStation(urn, seedArtistName: user.username)
+        } catch is CancellationError {
+        } catch {
             stationErrorMessage = error.localizedDescription
         }
     }
