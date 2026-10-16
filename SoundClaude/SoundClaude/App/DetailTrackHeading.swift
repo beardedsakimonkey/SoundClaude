@@ -33,20 +33,29 @@ struct DetailTrackHeading: View {
     let onSelectArtist: (SoundCloudUser) -> Void
     @State private var isHoveringTitle = false
 
+    private static let titleFont = Font.system(size: 28, weight: .semibold)
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(track.title)
-                .font(.system(size: 28, weight: .semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .foregroundStyle(.primary)
-                .opacity(0.9)
-                .underline(isCollection && isHoveringTitle)
-                .textSelection(.disabled)
-                .contentShape(Rectangle())
-                .onTapGesture { if isCollection { onSelectTrack(track) } }
-                .onContentHover { isHoveringTitle = $0 }
-                .accessibilityAction(named: "View track") { onSelectTrack(track) }
+            // Reserve full-size line height so scaling down a long title doesn't shift the rows below.
+            Text(verbatim: " ")
+                .font(Self.titleFont)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .hidden()
+                .overlay(alignment: Alignment(horizontal: .leading, vertical: .lastTextBaseline)) {
+                    Text(track.title)
+                        .font(Self.titleFont)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .foregroundStyle(.primary)
+                        .opacity(0.9)
+                        .underline(isCollection && isHoveringTitle)
+                        .textSelection(.disabled)
+                        .contentShape(Rectangle())
+                        .onTapGesture { if isCollection { onSelectTrack(track) } }
+                        .onContentHover { isHoveringTitle = $0 }
+                        .accessibilityAction(named: "View track") { onSelectTrack(track) }
+                }
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 ArtistLink(
                     artist: track.artist, artworkLoader: artworkLoader,
