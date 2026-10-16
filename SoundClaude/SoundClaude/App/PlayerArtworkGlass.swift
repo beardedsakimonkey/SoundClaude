@@ -14,8 +14,6 @@ struct PlayerArtworkGlassParameters {
     var sweepWidth = 0.19
     var sweepPosition = 0.24
     var hoverSweepBoost = 0.0
-    // Controls the contrast of the front light's gradient as the face turns away.
-    var faceShading = 0.8
     // Base darkness, then the fraction of remaining light removed toward the back.
     var slabDarkness = 0.32
     var slabDepthShading = (0.54 - 0.32) / (1.0 - 0.32)
@@ -29,7 +27,6 @@ extension PlayerArtworkGlassParameters {
         parameters.sweepWidth = 0.2
         parameters.sweepPosition = -0.50
         parameters.hoverSweepBoost = 1.15
-        parameters.faceShading = 0.2
         parameters.slabDarkness = 0.23
         parameters.slabDepthShading = 0.36
         parameters.lipPosition = 1.0
@@ -46,7 +43,6 @@ private struct PlayerArtworkGlassParametersKey: EnvironmentKey {
 extension EnvironmentValues {
     // Animated sideways offset of the slab's back face, in points; set by PlayerArtworkGlassSlab.
     @Entry var playerArtworkGlassSlabShift: CGFloat = 0
-    @Entry var playerArtworkGlassRotation: Double = 0
 
     var playerArtworkGlassParameters: PlayerArtworkGlassParameters {
         get { self[PlayerArtworkGlassParametersKey.self] }
@@ -57,19 +53,14 @@ extension EnvironmentValues {
 /// Animates the slab edge separately from the glass's hover sheen, which runs on its own spring.
 struct PlayerArtworkGlassSlab: ViewModifier, Animatable {
     var shift: CGFloat
-    var rotation: Double
 
-    var animatableData: AnimatablePair<CGFloat, Double> {
-        get { AnimatablePair(shift, rotation) }
-        set {
-            shift = newValue.first
-            rotation = newValue.second
-        }
+    var animatableData: CGFloat {
+        get { shift }
+        set { shift = newValue }
     }
 
     func body(content: Content) -> some View {
         content.environment(\.playerArtworkGlassSlabShift, shift)
-            .environment(\.playerArtworkGlassRotation, rotation)
     }
 }
 
@@ -112,7 +103,6 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
     @Environment(\.playerArtworkGlassParameters) private var parameters
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.playerArtworkGlassSlabShift) private var slabShift
-    @Environment(\.playerArtworkGlassRotation) private var rotation
 
     func body(content: Content) -> some View {
         let parameters = parameters
@@ -146,9 +136,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
                         .float2(slabPadding, 0),
                         .float(artworkOverscan > 0 ? 1 : 0),
                         .float(slabShift),
-                        .float2(parameters.slabDarkness, parameters.slabDepthShading),
-                        .float(rotation * .pi / 180),
-                        .float(parameters.faceShading)
+                        .float2(parameters.slabDarkness, parameters.slabDepthShading)
                     ),
                     maxSampleOffset: .zero,
                     isEnabled: enablesGlass

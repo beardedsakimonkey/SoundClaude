@@ -638,8 +638,6 @@ struct DetailArtworkView: View {
         PlayerArtworkGlassParameters.detail.slabDarkness
     @AppStorage(DetailArtworkSlabTuning.depthShadingKey) private var debugSlabDepthShading =
         PlayerArtworkGlassParameters.detail.slabDepthShading
-    @AppStorage("debug.glass.faceShading") private var debugFaceShading =
-        PlayerArtworkGlassParameters.detail.faceShading
     @AppStorage(DetailArtworkSlabTuning.lipPositionKey) private var debugLipPosition =
         PlayerArtworkGlassParameters.detail.lipPosition
     @AppStorage(DetailArtworkSlabTuning.lipWidthKey) private var debugLipWidth =
@@ -676,7 +674,6 @@ struct DetailArtworkView: View {
         var parameters = PlayerArtworkGlassParameters.detail
         parameters.slabDarkness = debugSlabDarkness
         parameters.slabDepthShading = debugSlabDepthShading
-        parameters.faceShading = debugFaceShading
         parameters.lipPosition = debugLipPosition
         parameters.lipWidth = debugLipWidth
         parameters.reflectionStrength = debugLipStrength
@@ -857,8 +854,7 @@ struct DetailArtworkView: View {
         // A layer this far behind the face projects like the face shifted by depth * tan(angle);
         // positive angles bring the leading edge forward.
         .modifier(PlayerArtworkGlassSlab(
-            shift: -displayedSlabThickness * tan(rotation * .pi / 180),
-            rotation: rotation
+            shift: -displayedSlabThickness * tan(rotation * .pi / 180)
         ))
         // Match DetailArtworkRotation's springs so the edge tracks the turn.
         .animation(
@@ -881,7 +877,6 @@ struct DetailArtworkView: View {
                         debugSlabThickness = 8
                         debugSlabDarkness = defaults.slabDarkness
                         debugSlabDepthShading = defaults.slabDepthShading
-                        debugFaceShading = defaults.faceShading
                         debugLipPosition = defaults.lipPosition
                         debugLipWidth = defaults.lipWidth
                         debugLipStrength = defaults.reflectionStrength
@@ -902,9 +897,6 @@ struct DetailArtworkView: View {
                 slabSlider("Rest position", value: $debugShinePosition, range: -0.5...2, step: 0.01)
                 slabSlider("Hover travel", value: shineTravelBinding, range: 0...1.5, step: 0.01)
                 slabSlider("Hover brightness boost", value: $debugShineHoverBoost, range: 0...4, step: 0.05)
-                Divider()
-                Text("Front light").font(.subheadline.bold())
-                slabSlider("Face shading", value: $debugFaceShading, range: 0...20, step: 0.1)
                 Divider()
                 Text("Slab edge").font(.subheadline.bold())
                 slabSlider("Thickness (pt)", value: $debugSlabThickness, range: 0...30, step: 0.5)
