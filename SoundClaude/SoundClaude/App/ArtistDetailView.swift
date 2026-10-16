@@ -398,7 +398,9 @@ struct ArtistDetailView: View {
                                 .foregroundStyle(.secondary)
                                 .textSelection(.enabled)
                         }
-                        profileLinks
+                        if !webProfiles.isEmpty || webProfilesErrorMessage != nil {
+                            profileLinks
+                        }
                         if !relatedArtists.isEmpty || isLoadingRelatedArtists || relatedArtistsErrorMessage != nil {
                             relatedArtistsSection
                         }
