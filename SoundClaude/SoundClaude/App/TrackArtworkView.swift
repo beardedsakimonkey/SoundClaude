@@ -425,6 +425,12 @@ enum DetailArtworkMotion {
 struct DetailArtworkTransform {
     var y = 24.0
     var perspective = 0.7
+    // Where the right-edge fade begins across the artwork (0...1).
+    var fadeStart = 0.35
+    // Opacity left at the right edge at the full turn (0...1).
+    var fadeEdgeOpacity = 0.5
+    // Fade direction in degrees up from the right edge; 0 fades horizontally.
+    var fadeAngle = 19.0
 }
 
 extension EnvironmentValues {
@@ -455,9 +461,19 @@ struct DetailArtworkRotation: ViewModifier {
 
     #if DEBUG
     @AppStorage(DetailArtworkSlabTuning.turnKey) private var debugTurn = DetailArtworkTransform().y
+    @AppStorage(DetailArtworkSlabTuning.fadeStartKey) private var debugFadeStart = DetailArtworkTransform().fadeStart
+    @AppStorage(DetailArtworkSlabTuning.fadeEdgeOpacityKey) private var debugFadeEdgeOpacity =
+        DetailArtworkTransform().fadeEdgeOpacity
+    @AppStorage(DetailArtworkSlabTuning.fadeAngleKey) private var debugFadeAngle = DetailArtworkTransform().fadeAngle
     private var turn: Double { debugTurn }
+    private var fadeStart: Double { debugFadeStart }
+    private var fadeEdgeOpacity: Double { debugFadeEdgeOpacity }
+    private var fadeAngle: Double { debugFadeAngle }
     #else
     private var turn: Double { transform.y }
+    private var fadeStart: Double { transform.fadeStart }
+    private var fadeEdgeOpacity: Double { transform.fadeEdgeOpacity }
+    private var fadeAngle: Double { transform.fadeAngle }
     #endif
 
     private var displayedRotation: Bool {
@@ -507,8 +523,43 @@ struct DetailArtworkRotation: ViewModifier {
         }
     }
 
+    // 0 when flat, 1 at the full configured turn.
+    private var turnProgress: Double { turn == 0 ? 0 : min(abs(targetRotation / turn), 1) }
+
+    // Fades the receding edge into the background as the artwork turns, angled toward the top right.
+    private func trailingFade(progress: Double) -> some View {
+        let edgeOpacity = 1 - (1 - fadeEdgeOpacity) * progress
+        // Extend past the frame so the slab edge and shadows stay unclipped.
+        let bleed: CGFloat = 60
+        return GeometryReader { geometry in
+            let size = geometry.size
+            let angle = fadeAngle * .pi / 180
+            let direction = CGVector(dx: cos(angle), dy: -sin(angle))
+            // Span the gradient across the frame's extent along the fade direction.
+            let halfExtent = (size.width * abs(direction.dx) + size.height * abs(direction.dy)) / 2
+            let paddedSize = CGSize(width: size.width + bleed * 2, height: size.height + bleed * 2)
+            let unitPoint = { (sign: CGFloat) in
+                UnitPoint(
+                    x: (bleed + size.width / 2 + sign * direction.dx * halfExtent) / paddedSize.width,
+                    y: (bleed + size.height / 2 + sign * direction.dy * halfExtent) / paddedSize.height
+                )
+            }
+            // The gradient's end colors extend into the bleed.
+            LinearGradient(
+                stops: [
+                    .init(color: .black, location: fadeStart),
+                    .init(color: .black.opacity(edgeOpacity), location: 1)
+                ],
+                startPoint: unitPoint(-1),
+                endPoint: unitPoint(1)
+            )
+            .padding(-bleed)
+        }
+    }
+
     private func rotated<Artwork: View>(_ artwork: Artwork, perspective: Double) -> some View {
         artwork
+            .mask { trailingFade(progress: turnProgress) }
             .rotation3DEffect(
                 .degrees(targetRotation),
                 axis: (x: 0, y: 1, z: 0),
@@ -596,6 +647,10 @@ struct DetailArtworkView: View {
     @AppStorage(DetailArtworkSlabTuning.lipStrengthKey) private var debugLipStrength =
         PlayerArtworkGlassParameters.detail.reflectionStrength
     @AppStorage(DetailArtworkSlabTuning.turnKey) private var debugTurn = DetailArtworkTransform().y
+    @AppStorage(DetailArtworkSlabTuning.fadeStartKey) private var debugFadeStart = DetailArtworkTransform().fadeStart
+    @AppStorage(DetailArtworkSlabTuning.fadeEdgeOpacityKey) private var debugFadeEdgeOpacity =
+        DetailArtworkTransform().fadeEdgeOpacity
+    @AppStorage(DetailArtworkSlabTuning.fadeAngleKey) private var debugFadeAngle = DetailArtworkTransform().fadeAngle
     @AppStorage("debug.shine.strength") private var debugShineStrength =
         PlayerArtworkGlassParameters.detail.sweepStrength
     @AppStorage("debug.shine.width") private var debugShineWidth =
@@ -831,6 +886,9 @@ struct DetailArtworkView: View {
                         debugLipWidth = defaults.lipWidth
                         debugLipStrength = defaults.reflectionStrength
                         debugTurn = DetailArtworkTransform().y
+                        debugFadeStart = DetailArtworkTransform().fadeStart
+                        debugFadeEdgeOpacity = DetailArtworkTransform().fadeEdgeOpacity
+                        debugFadeAngle = DetailArtworkTransform().fadeAngle
                         debugShineStrength = defaults.sweepStrength
                         debugShineWidth = defaults.sweepWidth
                         debugShinePosition = defaults.sweepPosition
@@ -853,6 +911,11 @@ struct DetailArtworkView: View {
                 slabSlider("Darkness", value: $debugSlabDarkness, range: 0...1, step: 0.01)
                 slabSlider("Depth shading", value: $debugSlabDepthShading, range: 0...1, step: 0.01)
                 slabSlider("Turn (°)", value: $debugTurn, range: 0...35, step: 0.5)
+                Divider()
+                Text("Edge fade").font(.subheadline.bold())
+                slabSlider("Fade start", value: $debugFadeStart, range: 0...1, step: 0.01)
+                slabSlider("Edge opacity", value: $debugFadeEdgeOpacity, range: 0...1, step: 0.01)
+                slabSlider("Angle (°)", value: $debugFadeAngle, range: 0...90, step: 1)
                 Divider()
                 Text("Rim").font(.subheadline.bold())
                 slabSlider("Lip position (pt)", value: $debugLipPosition, range: 0...8, step: 0.1)
@@ -927,5 +990,8 @@ enum DetailArtworkSlabTuning {
     static let lipPositionKey = "debug.slab.lipPosition"
     static let lipWidthKey = "debug.slab.lipWidth"
     static let lipStrengthKey = "debug.slab.lipStrength"
+    static let fadeStartKey = "debug.slab.fadeStart"
+    static let fadeEdgeOpacityKey = "debug.slab.fadeEdgeOpacity"
+    static let fadeAngleKey = "debug.slab.fadeAngle"
 }
 #endif
