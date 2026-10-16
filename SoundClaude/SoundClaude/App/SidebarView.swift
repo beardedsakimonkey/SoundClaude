@@ -109,7 +109,11 @@ struct SidebarView: View {
                             .frame(width: 24)
                     }
                         .padding(.trailing, destination == .liked ? 28 : 0)
-                        .modifier(SidebarRowStyle(isSelected: selection == destination, usesPrimaryForeground: true) {
+                        .modifier(SidebarRowStyle(
+                            isSelected: selection == destination,
+                            usesPrimaryForeground: true,
+                            selectsOnMouseDown: true
+                        ) {
                             select(destination)
                         })
                         .simultaneousGesture(
@@ -560,22 +564,47 @@ private struct SidebarAccountHeader: View {
 private struct SidebarRowStyle: ViewModifier {
     let isSelected: Bool
     var usesPrimaryForeground = false
+    var selectsOnMouseDown = false
     let onSelect: () -> Void
 
+    @State private var isPressed = false
+
     func body(content: Content) -> some View {
-        Button(action: onSelect) {
-            content
-                .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .contentShape(Rectangle())
-        }
-            .buttonStyle(.plain)
+        rowContent(content)
             .modifier(SidebarForegroundHover(isSelected: isSelected, usesPrimaryForeground: usesPrimaryForeground))
             .background {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color.primary.opacity(isSelected ? 0.06 : 0))
             }
+    }
+
+    @ViewBuilder
+    private func rowContent(_ content: Content) -> some View {
+        let label = content
+            .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+
+        if selectsOnMouseDown {
+            label
+                // Select on mouse down rather than mouse up, like native sidebars.
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            guard !isPressed else { return }
+                            isPressed = true
+                            onSelect()
+                        }
+                        .onEnded { _ in isPressed = false }
+                )
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { onSelect() }
+        } else {
+            Button(action: onSelect) { label }
+                .buttonStyle(.plain)
+        }
     }
 }
 
