@@ -262,6 +262,7 @@ test-detail-heading:
 	swiftc -o /tmp/soundclaude-tests/detail-heading \
 		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 		SoundClaude/SoundClaude/App/DetailTrackHeading.swift \
+		SoundClaude/SoundClaude/App/TrackStationMenuItem.swift \
 		SoundClaude/SoundClaude/App/DetailNavigationAnimation.swift \
 		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
 		SoundClaude/SoundClaude/App/RelativeTimestampView.swift \

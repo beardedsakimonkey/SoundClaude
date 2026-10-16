@@ -46,6 +46,7 @@
 		B7DC513A84E2467A901BD001 /* CountedSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7DC513A84E2467A901BD002 /* CountedSectionHeader.swift */; };
 		D91400000000000000000001 /* TrackGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91400000000000000000002 /* TrackGridView.swift */; };
 		D922AA000000000000000001 /* TrackMenuItems.swift in Sources */ = {isa = PBXBuildFile; fileRef = D922AA000000000000000002 /* TrackMenuItems.swift */; };
+		D922AB000000000000000001 /* TrackStationMenuItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = D922AB000000000000000002 /* TrackStationMenuItem.swift */; };
 		A10000000000000000000015 /* TrackArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002D /* TrackArtworkView.swift */; };
 		A10000000000000000000016 /* SignedInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002E /* SignedInView.swift */; };
 		C2F91168AE4C486180421476 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E86C82775C864E97AE14574B /* SidebarView.swift */; };
@@ -189,6 +190,7 @@
 		B7DC513A84E2467A901BD002 /* CountedSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CountedSectionHeader.swift; sourceTree = "<group>"; };
 		D91400000000000000000002 /* TrackGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackGridView.swift; sourceTree = "<group>"; };
 		D922AA000000000000000002 /* TrackMenuItems.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMenuItems.swift; sourceTree = "<group>"; };
+		D922AB000000000000000002 /* TrackStationMenuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackStationMenuItem.swift; sourceTree = "<group>"; };
 		A2000000000000000000002D /* TrackArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackArtworkView.swift; sourceTree = "<group>"; };
 		A2000000000000000000002E /* SignedInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedInView.swift; sourceTree = "<group>"; };
 		E86C82775C864E97AE14574B /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
@@ -363,6 +365,7 @@
 				B7DC513A84E2467A901BD002 /* CountedSectionHeader.swift */,
 				D91400000000000000000002 /* TrackGridView.swift */,
 				D922AA000000000000000002 /* TrackMenuItems.swift */,
+				D922AB000000000000000002 /* TrackStationMenuItem.swift */,
 				A20000000000000000000036 /* TrackWaveformView.swift */,
 				D100EF000000000000000002 /* DetailWaveformSlot.swift */,
 				D100F0000000000000000002 /* DetailTrackHeading.swift */,
@@ -664,6 +667,7 @@
 				B7DC513A84E2467A901BD001 /* CountedSectionHeader.swift in Sources */,
 				D91400000000000000000001 /* TrackGridView.swift in Sources */,
 				D922AA000000000000000001 /* TrackMenuItems.swift in Sources */,
+				D922AB000000000000000001 /* TrackStationMenuItem.swift in Sources */,
 				A1000000000000000000001E /* TrackWaveformView.swift in Sources */,
 				D100EF000000000000000001 /* DetailWaveformSlot.swift in Sources */,
 				D100F0000000000000000001 /* DetailTrackHeading.swift in Sources */,

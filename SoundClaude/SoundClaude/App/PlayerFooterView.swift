@@ -103,6 +103,9 @@ struct PlayerFooterView: View {
                     ) {
                         onSelectTrack(track)
                     }
+                    .contextMenu {
+                        TrackStationMenuItem(track: track)
+                    }
                 } else {
                     Text("Select a track")
                 }

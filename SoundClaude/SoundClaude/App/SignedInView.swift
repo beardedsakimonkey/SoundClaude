@@ -151,6 +151,9 @@ struct SignedInView: View {
             }
             .clipped()
         }
+        .environment(\.openTrackStation) { track in
+            Task { await showTrackStation(track) }
+        }
         .environment(\.openArtistStation) { artist in
             Task { await showArtistStation(artist) }
         }
@@ -647,6 +650,10 @@ struct SignedInView: View {
 
     private func showCurrentTrackStation() async {
         guard let track = model.playback.currentTrack else { return }
+        await showTrackStation(track, requiresCurrentTrack: true)
+    }
+
+    private func showTrackStation(_ track: SoundCloudTrack, requiresCurrentTrack: Bool = false) async {
         let source = model.queue.source
         do {
             var seedTrack = track
@@ -656,8 +663,10 @@ struct SignedInView: View {
                 urn = seedTrack.stationURN?.trimmingCharacters(in: .whitespacesAndNewlines)
             }
             try Task.checkCancellation()
-            guard model.playback.currentTrack?.urn == track.urn,
-                  model.queue.source == source else { return }
+            if requiresCurrentTrack {
+                guard model.playback.currentTrack?.urn == track.urn,
+                      model.queue.source == source else { return }
+            }
             guard let urn, !urn.isEmpty else {
                 stationErrorMessage = "No station is available for this track."
                 return
@@ -668,8 +677,11 @@ struct SignedInView: View {
             forwardPath.removeAll()
             path.append(.station(urn, seedTrack: seedTrack))
         } catch {
-            guard !Task.isCancelled, model.playback.currentTrack?.urn == track.urn,
-                  model.queue.source == source else { return }
+            guard !Task.isCancelled else { return }
+            if requiresCurrentTrack {
+                guard model.playback.currentTrack?.urn == track.urn,
+                      model.queue.source == source else { return }
+            }
             stationErrorMessage = error.localizedDescription
         }
     }

@@ -72,6 +72,9 @@ struct TrackMenuItems: View {
         Button("Add to playlist", systemImage: "text.badge.plus") {
             addToPlaylist(track)
         }
+
+        TrackStationMenuItem(track: track)
+
         Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
             Task {
                 do {

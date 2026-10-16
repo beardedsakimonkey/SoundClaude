@@ -52,6 +52,9 @@ struct DetailTrackHeading: View {
                         .underline(isCollection && isHoveringTitle)
                         .textSelection(.disabled)
                         .contentShape(Rectangle())
+                        .contextMenu {
+                            TrackStationMenuItem(track: track)
+                        }
                         .onTapGesture { if isCollection { onSelectTrack(track) } }
                         .onContentHover { isHoveringTitle = $0 }
                         .accessibilityAction(named: "View track") { onSelectTrack(track) }
