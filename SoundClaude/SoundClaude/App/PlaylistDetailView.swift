@@ -21,7 +21,6 @@ struct PlaylistDetailView: View {
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isShowingArtwork = false
-    @State private var isHoveringPlaylistLabel = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
     @State private var likeErrorMessage: String?
     @State private var editingPlaylist: SoundCloudPlaylist?
@@ -91,25 +90,6 @@ struct PlaylistDetailView: View {
             } else {
                 ToolbarItem(placement: .primaryAction) {
                     Spacer()
-                }
-            }
-            if isOwnedByCurrentUser {
-                ToolbarItem(placement: .primaryAction) {
-                    Menu {
-                        Button {
-                            editingPlaylist = displayedPlaylist
-                        } label: {
-                            Label("Edit playlist", systemImage: "pencil")
-                        }
-                        .disabled(playlists.updatingPlaylistURNs.contains(playlist.urn)
-                            || playlistDeletion.deletingURNs.contains(playlist.urn))
-                        DeletePlaylistButton(playlist: displayedPlaylist, state: $playlistDeletion)
-                    } label: {
-                        Label("Playlist actions", systemImage: "ellipsis")
-                    }
-                    .menuIndicator(.hidden)
-                    .disabled(playlistDeletion.deletingURNs.contains(playlist.urn))
-                    .contentHelp("Playlist actions")
                 }
             }
             ToolbarItem(placement: .primaryAction) {
@@ -194,26 +174,14 @@ struct PlaylistDetailView: View {
         HStack(alignment: .top, spacing: 24) {
             playlistArtwork
             VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Label {
-                        Text("Playlist: \(Text(displayedPlaylist.title).foregroundStyle(Color.primary.opacity(0.9)))")
-                    } icon: {
-                        Image(systemName: "music.note.list")
-                    }
-                        .labelStyle(.titleAndIcon)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .textSelection(.enabled)
-                        .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
+                PlaylistNameRow(title: displayedPlaylist.title) {
                     if !displayedPlaylist.isPrivate {
                         likeButton
-                            .opacity(isHoveringPlaylistLabel ? 1 : 0)
-                            .animation(.easeInOut(duration: 0.2), value: isHoveringPlaylistLabel)
+                    }
+                    if isOwnedByCurrentUser {
+                        playlistEditingButtons
                     }
                 }
-                .contentShape(Rectangle())
-                .onContentHover { isHoveringPlaylistLabel = $0 }
                 .modifier(FadeInOnAppear())
                 Group {
                     if let displayedTrack {
@@ -279,8 +247,16 @@ struct PlaylistDetailView: View {
     private var playlistMetadata: some View {
         VStack(alignment: .leading, spacing: 8) {
             if displayedPlaylist.isPrivate {
-                Label("Private", systemImage: "lock.fill")
-                    .labelStyle(.titleAndIcon)
+                if isOwnedByCurrentUser {
+                    PlaylistPrivacyButton {
+                        editingPlaylist = displayedPlaylist
+                    }
+                    .disabled(playlists.updatingPlaylistURNs.contains(playlist.urn)
+                        || playlistDeletion.deletingURNs.contains(playlist.urn))
+                } else {
+                    Label("Private", systemImage: "lock.fill")
+                        .labelStyle(.titleAndIcon)
+                }
             }
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 playlistTimestamp
@@ -416,6 +392,26 @@ struct PlaylistDetailView: View {
         }
     }
 
+    private var playlistEditingButtons: some View {
+        HStack(spacing: 8) {
+            Button {
+                editingPlaylist = displayedPlaylist
+            } label: {
+                Image(systemName: "pencil")
+            }
+            .contentHelp("Edit playlist")
+            .accessibilityLabel("Edit playlist")
+            .disabled(playlists.updatingPlaylistURNs.contains(playlist.urn)
+                || playlistDeletion.deletingURNs.contains(playlist.urn))
+
+            DeletePlaylistButton(playlist: displayedPlaylist, state: $playlistDeletion)
+                .labelStyle(.iconOnly)
+                .contentHelp("Delete playlist")
+        }
+        .buttonStyle(PlaylistHeaderButtonStyle())
+        .fixedSize()
+    }
+
     private var likeButton: some View {
         let isLiked = playlist.isSystemPlaylist
             ? likes.likedStationURNs.contains(playlist.urn)
@@ -435,11 +431,8 @@ struct PlaylistDetailView: View {
             }
         } label: {
             Image(systemName: isLiked ? "heart.fill" : "heart")
-                .foregroundStyle(.secondary)
-                .padding(4)
-                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PlaylistHeaderButtonStyle())
         .contentHelp(actionLabel)
         .accessibilityLabel(actionLabel)
         .accessibilityValue(isLiked ? "Liked" : "Not liked")
@@ -500,6 +493,84 @@ struct PlaylistDetailView: View {
 
     private func load() async {
         await playlists.loadPlaylist(playlist)
+    }
+}
+
+// Keep pointer updates local so they do not invalidate the playlist detail body.
+private struct PlaylistNameRow<Actions: View>: View {
+    let title: String
+    @ViewBuilder let actions: Actions
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Label {
+                Text("Playlist: \(Text(title).foregroundStyle(Color.primary.opacity(0.9)))")
+            } icon: {
+                Image(systemName: "music.note.list")
+            }
+            .labelStyle(.titleAndIcon)
+            .font(.body)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .textSelection(.enabled)
+            .accessibilityLabel("Playlist, \(title)")
+
+            actions
+                .opacity(isHovered ? 1 : 0)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isHovered)
+        }
+        .contentShape(Rectangle())
+        .onContentHover { isHovered = $0 }
+    }
+}
+
+private struct PlaylistPrivacyButton: View {
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Label {
+                Text("Private")
+                    .underline(isHovered)
+            } icon: {
+                Image(systemName: "lock.fill")
+            }
+            .labelStyle(.titleAndIcon)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onContentHover { isHovered = $0 }
+        .contentHelp("Edit playlist privacy")
+        .accessibilityLabel("Private playlist, edit privacy")
+    }
+}
+
+private struct PlaylistHeaderButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        let isHighlighted = isEnabled && (isHovered || configuration.isPressed)
+        let isDestructive = configuration.role == .destructive
+        let foreground: Color = isDestructive ? .red : (isHighlighted ? .primary : .secondary)
+        let background: Color = isDestructive ? .red : .primary
+
+        configuration.label
+            .foregroundStyle(foreground)
+            .padding(4)
+            .background {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(background.opacity(isHighlighted ? (configuration.isPressed ? 0.16 : 0.08) : 0))
+            }
+            .contentShape(Rectangle())
+            .opacity(isEnabled ? 1 : 0.5)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHighlighted)
+            .onContentHover { isHovered = $0 }
+            .onDisappear { isHovered = false }
     }
 }
 
