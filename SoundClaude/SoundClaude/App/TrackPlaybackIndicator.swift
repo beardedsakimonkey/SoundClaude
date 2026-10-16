@@ -32,6 +32,12 @@ struct TrackPlaybackIndicator: View {
 }
 
 private struct PlaybackIndicatorBars: Shape {
+    private static let levels: [[CGFloat]] = [
+        [0.12, 1.00, 0.30, 0.55],
+        [0.18, 0.94, 0.28, 0.50],
+        [0.15, 1.00, 0.35, 0.60]
+    ]
+
     var growth: CGFloat
     let date: Date
     let animated: Bool
@@ -43,10 +49,18 @@ private struct PlaybackIndicatorBars: Shape {
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
+        let duration = 2.0
+        let time = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: duration)
+        let cycle = (time < 0 ? time + duration : time) / duration
         for index in 0..<3 {
-            let time = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.2)
-            let phase = time / 1.2 * 2 * .pi + Double(index) * 2 * .pi / 3
-            let level = animated ? CGFloat((sin(phase) + 1) / 2) * 7 : (index == 1 ? 7 : 3)
+            let levels = Self.levels[index]
+            let phase = (cycle + Double(index) / 3).truncatingRemainder(dividingBy: 1)
+            let position = phase * Double(levels.count)
+            let step = Int(position)
+            let blend = CGFloat((1 - cos((position - Double(step)) * .pi)) / 2)
+            let start = levels[step]
+            let end = levels[(step + 1) % levels.count]
+            let level = animated ? (start + (end - start) * blend) * 7 : (index == 1 ? 7 : 3)
             let height = 2 + level * growth
             path.addRoundedRect(
                 in: CGRect(x: rect.minX + CGFloat(index) * 4, y: rect.maxY - height, width: 2, height: height),

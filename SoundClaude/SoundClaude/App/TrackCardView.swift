@@ -166,7 +166,7 @@ struct TrackCardView: View {
         .overlay(alignment: .leading) {
             if showsPlaybackIndicator {
                 TrackPlaybackIndicator(
-                    isPlaying: model.playback.isPlaying,
+                    isPlaying: model.playback.isPlaybackActive,
                     isLoading: model.playback.isLoading
                 )
             }

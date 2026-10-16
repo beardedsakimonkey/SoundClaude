@@ -164,7 +164,7 @@ struct TrackGridTile: View {
                 .overlay(alignment: .leading) {
                     if isCurrentTrack {
                         TrackPlaybackIndicator(
-                            isPlaying: playback.isPlaying,
+                            isPlaying: playback.isPlaybackActive,
                             isLoading: playback.isLoading
                         )
                     }

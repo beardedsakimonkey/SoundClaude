@@ -87,7 +87,7 @@ struct TrackListRow: View {
                 .overlay(alignment: .leading) {
                     if showsPlaybackIndicator {
                         TrackPlaybackIndicator(
-                            isPlaying: playback.isPlaying,
+                            isPlaying: playback.isPlaybackActive,
                             isLoading: playback.isLoading
                         )
                         .opacity(0.9)
