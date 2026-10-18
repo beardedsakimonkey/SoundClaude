@@ -57,7 +57,6 @@ struct QueuePanel<Content: View>: View {
     let hoverSuppression: ContentHoverSuppression
     // Constructed by the parent, so geometry changes reuse the same content.
     let content: Content
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let frame = layout.fittedFrame(in: bounds)
@@ -65,16 +64,7 @@ struct QueuePanel<Content: View>: View {
             if isVisible {
                 content
                     .frame(width: frame.width, height: frame.height)
-                    .background {
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(white: colorScheme == .dark ? 0.20 : 0.94))
-                            .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(.primary.opacity(0.12), lineWidth: 1)
-                            .allowsHitTesting(false)
-                    }
+                    .modifier(QueuePanelGlass())
                     .contentShape(RoundedRectangle(cornerRadius: 16))
                     .onHover { hoverSuppression.isSuppressed = $0 }
                     .onDisappear {
@@ -88,5 +78,22 @@ struct QueuePanel<Content: View>: View {
         .frame(width: bounds.width, height: bounds.height, alignment: .topLeading)
         .coordinateSpace(name: "queuePanel")
         .onChange(of: bounds) { _, newBounds in layout.constrain(to: newBounds) }
+    }
+}
+
+private struct QueuePanelGlass: ViewModifier {
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+
+        if #available(macOS 26.0, *) {
+            content.glassEffect(.regular, in: shape)
+        } else {
+            content.background(.regularMaterial, in: shape)
+                .overlay {
+                    shape.strokeBorder(.primary.opacity(0.12), lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+                .shadow(color: .black.opacity(0.3), radius: 8, y: 2)
+        }
     }
 }
