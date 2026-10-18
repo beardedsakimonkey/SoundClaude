@@ -862,9 +862,25 @@ private struct WaveformAnimatedCanvas: View, Animatable {
         }
     }
 
+    // Canvases wider than 1024pt render some bars a pixel too wide, so draw the
+    // full waveform through narrower tiles. Tile edges stay on the 4pt bar grid.
+    private static let tileWidth: CGFloat = 512
+
     var body: some View {
-        Canvas { context, size in
-            renderer(&context, size, amplitudes, hoverOpacity)
+        GeometryReader { geometry in
+            let size = geometry.size
+            let tileCount = max(Int((size.width / Self.tileWidth).rounded(.up)), 1)
+            ZStack(alignment: .topLeading) {
+                ForEach(0..<tileCount, id: \.self) { tile in
+                    let minX = CGFloat(tile) * Self.tileWidth
+                    Canvas { context, _ in
+                        context.translateBy(x: -minX, y: 0)
+                        renderer(&context, size, amplitudes, hoverOpacity)
+                    }
+                    .frame(width: max(min(Self.tileWidth, size.width - minX), 0), height: size.height)
+                    .offset(x: minX)
+                }
+            }
         }
     }
 }
