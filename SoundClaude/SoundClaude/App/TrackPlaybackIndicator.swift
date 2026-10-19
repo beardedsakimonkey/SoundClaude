@@ -49,7 +49,7 @@ private struct PlaybackIndicatorBars: Shape {
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let duration = 2.0
+        let duration = 1.5
         let time = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: duration)
         let cycle = (time < 0 ? time + duration : time) / duration
         for index in 0..<3 {
