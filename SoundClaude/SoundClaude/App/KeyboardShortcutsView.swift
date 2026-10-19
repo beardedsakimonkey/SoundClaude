@@ -24,7 +24,6 @@ struct KeyboardShortcutsView: View {
             Shortcut(title: "Like or unlike current track", keys: ["L"]),
             Shortcut(title: "Toggle track queue", keys: ["Q"]),
             Shortcut(title: "Toggle visualizer", keys: ["V"]),
-            Shortcut(title: "Cycle shaders in visualizer", keys: ["Enter"]),
             Shortcut(title: "Focus current track", keys: ["F"]),
             Shortcut(title: "Focus current artist", keys: ["A"]),
             Shortcut(title: "Open active station or current track station", keys: ["S"]),
@@ -46,25 +45,9 @@ struct KeyboardShortcutsView: View {
                 .font(.title2.weight(.semibold))
 
             ScrollView {
-                Grid(alignment: .leading, horizontalSpacing: 32, verticalSpacing: 12) {
-                    ForEach(shortcutGroups.indices, id: \.self) { groupIndex in
-                        if groupIndex > 0 {
-                            Divider()
-                                .gridCellUnsizedAxes(.horizontal)
-                        }
-
-                        ForEach(shortcutGroups[groupIndex]) { shortcut in
-                            GridRow {
-                                Text(shortcut.title)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                                HStack(spacing: 4) {
-                                    keyCaps(shortcut.keys)
-                                }
-                                .gridColumnAlignment(.trailing)
-                            }
-                        }
-                    }
+                HStack(alignment: .top, spacing: 32) {
+                    shortcutColumn(groups: [shortcutGroups[0]])
+                    shortcutColumn(groups: Array(shortcutGroups.dropFirst()))
                 }
                 .padding(.trailing, 12)
                 .padding(.bottom, 2)
@@ -80,7 +63,7 @@ struct KeyboardShortcutsView: View {
             }
         }
         .padding(24)
-        .frame(width: 420)
+        .frame(width: 820)
         .background {
             Button("Close keyboard shortcuts") {
                 dismiss()
@@ -90,6 +73,26 @@ struct KeyboardShortcutsView: View {
             .accessibilityHidden(true)
         }
         .dismissOnOutsideClick()
+    }
+
+    private func shortcutColumn(groups: [[Shortcut]]) -> some View {
+        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
+            ForEach(groups.indices, id: \.self) { groupIndex in
+                ForEach(groups[groupIndex]) { shortcut in
+                    GridRow {
+                        Text(shortcut.title)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        HStack(spacing: 4) {
+                            keyCaps(shortcut.keys)
+                        }
+                        .fixedSize()
+                        .gridColumnAlignment(.trailing)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private func keyCaps(_ keys: [String]) -> some View {
