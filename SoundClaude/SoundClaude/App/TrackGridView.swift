@@ -50,6 +50,64 @@ struct TrackLayoutPicker: View {
     }
 }
 
+// Share the same look-ahead behavior across likes, history, and collections.
+struct TrackArtworkGrid<Content: View>: View {
+    let tracks: [SoundCloudTrack]
+    let loader: ArtworkLoader
+    @ViewBuilder let content: (SoundCloudTrack) -> Content
+
+    @State private var visibleIDs: Set<String> = []
+    @State private var columnCount = 1
+    @State private var prefetcher = GridArtworkPrefetcher()
+
+    private struct ArtworkWindow: Equatable {
+        var visible: [URL] = []
+        var prefetch: [URL] = []
+    }
+
+    private var artworkWindow: ArtworkWindow {
+        let indices = tracks.indices.filter { visibleIDs.contains(tracks[$0].id) }
+        guard let last = indices.last else { return ArtworkWindow() }
+        // Keep visible artwork separate from the two speculative rows below.
+        let end = min(tracks.count, last + 1 + columnCount * 2)
+        return ArtworkWindow(
+            visible: indices.compactMap { tracks[$0].displayArtworkURL },
+            prefetch: ((last + 1)..<end).compactMap { tracks[$0].displayArtworkURL }
+        )
+    }
+
+    var body: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 160), spacing: 20, alignment: .top)],
+            alignment: .leading,
+            spacing: 24
+        ) {
+            ForEach(tracks) { track in
+                content(track)
+                    .onAppear { visibleIDs.insert(track.id) }
+                    .onDisappear { visibleIDs.remove(track.id) }
+            }
+        }
+        .onGeometryChange(for: Int.self) { geometry in
+            max(1, Int((geometry.size.width + 20) / 180))
+        } action: { columnCount = $0 }
+        .environment(\.gridArtworkDidFinish, { url in
+            prefetcher.artworkDidFinish(url: url, loader: loader)
+        })
+        .onChange(of: artworkWindow, initial: true) { _, window in
+            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader)
+        }
+        .onAppear {
+            let window = artworkWindow
+            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader)
+        }
+        .onDisappear {
+            prefetcher.update(urls: [], visibleURLs: [], loader: loader)
+            visibleIDs.removeAll()
+        }
+    }
+}
+
 struct TrackGridTile: View {
     private static let artworkCornerRadius: CGFloat = 10
 

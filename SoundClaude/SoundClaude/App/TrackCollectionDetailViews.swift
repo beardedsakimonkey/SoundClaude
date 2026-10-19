@@ -47,32 +47,26 @@ struct TrackCollectionTracks: View {
 
     var body: some View {
         if trackLayout == .grid {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 160), spacing: 20, alignment: .top)],
-                alignment: .leading,
-                spacing: 24
-            ) {
-                ForEach(tracks) { track in
-                    TrackGridTile(
-                        track: track,
-                        playback: model.playback,
-                        analyzer: model.analyzer,
-                        artworkLoader: model.artworkLoader,
-                        likes: model.likes,
-                        onAddToQueue: model.addToQueue,
-                        onRemoveFromPlaylist: onRemoveFromPlaylist,
-                        isUpdatingPlaylist: isUpdatingPlaylist,
-                        onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist,
-                        onPlayTrack: onPlayTrack
-                    )
-                    .opacity(removingTrackURN == track.urn ? 0.4 : 1)
-                    .animation(
-                        .easeInOut(duration: 0.2),
-                        value: removingTrackURN == track.urn
-                    )
-                    .modifier(FadeInOnAppear(isEnabled: fadesInTracks))
-                }
+            TrackArtworkGrid(tracks: tracks, loader: model.artworkLoader) { track in
+                TrackGridTile(
+                    track: track,
+                    playback: model.playback,
+                    analyzer: model.analyzer,
+                    artworkLoader: model.artworkLoader,
+                    likes: model.likes,
+                    onAddToQueue: model.addToQueue,
+                    onRemoveFromPlaylist: onRemoveFromPlaylist,
+                    isUpdatingPlaylist: isUpdatingPlaylist,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist,
+                    onPlayTrack: onPlayTrack
+                )
+                .opacity(removingTrackURN == track.urn ? 0.4 : 1)
+                .animation(
+                    .easeInOut(duration: 0.2),
+                    value: removingTrackURN == track.urn
+                )
+                .modifier(FadeInOnAppear(isEnabled: fadesInTracks))
             }
             .padding(.bottom, 16)
         } else {

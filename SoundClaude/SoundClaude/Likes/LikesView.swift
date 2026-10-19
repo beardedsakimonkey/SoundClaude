@@ -209,32 +209,26 @@ struct LikesView: View {
                 }
 
                 if trackLayout == .grid {
-                    LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 160), spacing: 20, alignment: .top)],
-                        alignment: .leading,
-                        spacing: 24
-                    ) {
-                        ForEach(tracks) { track in
-                            TrackGridTile(
-                                track: track,
-                                playback: playback,
-                                analyzer: analyzer,
-                                artworkLoader: artworkLoader,
-                                likes: likes,
-                                onAddToQueue: onAddToQueue,
-                                onSelectTrack: onSelectTrack,
-                                onSelectArtist: onSelectArtist,
-                                onPlayTrack: onPlayTrack
-                            )
-                            .opacity(likes.isLiked(track) ? 1 : 0.5)
-                            .animation(
-                                reduceMotion ? nil : .easeInOut(duration: 0.2),
-                                value: likes.isLiked(track)
-                            )
-                            .transition(
-                                reduceMotion ? .identity : .scale(scale: 0.9).combined(with: .opacity)
-                            )
-                        }
+                    TrackArtworkGrid(tracks: tracks, loader: artworkLoader) { track in
+                        TrackGridTile(
+                            track: track,
+                            playback: playback,
+                            analyzer: analyzer,
+                            artworkLoader: artworkLoader,
+                            likes: likes,
+                            onAddToQueue: onAddToQueue,
+                            onSelectTrack: onSelectTrack,
+                            onSelectArtist: onSelectArtist,
+                            onPlayTrack: onPlayTrack
+                        )
+                        .opacity(likes.isLiked(track) ? 1 : 0.5)
+                        .animation(
+                            reduceMotion ? nil : .easeInOut(duration: 0.2),
+                            value: likes.isLiked(track)
+                        )
+                        .transition(
+                            reduceMotion ? .identity : .scale(scale: 0.9).combined(with: .opacity)
+                        )
                     }
                     .padding(.bottom, 16)
                 } else {

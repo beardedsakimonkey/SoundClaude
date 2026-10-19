@@ -1,6 +1,17 @@
 import AppKit
 import SwiftUI
 
+private struct GridArtworkDidFinishKey: EnvironmentKey {
+    static let defaultValue: (@MainActor (URL) -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    var gridArtworkDidFinish: (@MainActor (URL) -> Void)? {
+        get { self[GridArtworkDidFinishKey.self] }
+        set { self[GridArtworkDidFinishKey.self] = newValue }
+    }
+}
+
 struct TrackArtworkView: View {
     let artworkURL: URL?
     let loader: ArtworkLoader
@@ -11,6 +22,7 @@ struct TrackArtworkView: View {
     let animatesChanges: Bool
     let showsPlaceholderIcon: Bool
 
+    @Environment(\.gridArtworkDidFinish) private var gridArtworkDidFinish
     @State private var image: NSImage?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -66,6 +78,7 @@ struct TrackArtworkView: View {
                 withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
                     image = cached
                 }
+                if case .square500 = rendition { gridArtworkDidFinish?(artworkURL) }
                 return
             }
             if !animatesChanges {
@@ -81,6 +94,9 @@ struct TrackArtworkView: View {
             guard !Task.isCancelled else { return }
             withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
                 image = nextImage
+            }
+            if let artworkURL, case .square500 = rendition {
+                gridArtworkDidFinish?(artworkURL)
             }
         }
     }

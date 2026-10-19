@@ -25,8 +25,8 @@ actor ArtworkLoader {
     // Keep display images separate from compressed data. NSCache can evict
     // them under memory pressure; charge for decoded pixels, not file size.
     @MainActor private let images = MemoryCache<NSString, NSImage>(
-        countLimit: 48,
-        totalCostLimit: 16 * 1_024 * 1_024
+        countLimit: 64,
+        totalCostLimit: 32 * 1_024 * 1_024
     )
 
     init(client: SoundCloudClient) {
@@ -325,5 +325,52 @@ struct ArtworkAccent: Sendable {
             value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
         }
         return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+    }
+}
+
+// Keep at most three speculative loads active. A new window replaces pending
+// work; active requests finish so they can still serve visible image tasks.
+@MainActor
+final class GridArtworkPrefetcher {
+    private var pending: [URL] = []
+    private var active: Set<URL> = []
+    private var visible: Set<URL> = []
+    private var finished: Set<URL> = []
+
+    func update(urls: [URL], visibleURLs: [URL], loader: ArtworkLoader) {
+        visible = Set(visibleURLs)
+        finished.formIntersection(visible)
+        finished.formUnion(visible.filter {
+            loader.cachedImage(for: $0, rendition: .square500) != nil
+        })
+        var seen: Set<URL> = []
+        pending = urls.filter {
+            seen.insert($0).inserted && !visible.contains($0) && !active.contains($0)
+                && loader.cachedImage(for: $0, rendition: .square500) == nil
+        }
+        drain(loader: loader)
+    }
+
+    func artworkDidFinish(url: URL, loader: ArtworkLoader) {
+        // A failed image also settles the visible request. Cancelled views do
+        // not report completion. Record completion even if SwiftUI has not
+        // yet delivered the matching visible-window update.
+        finished.insert(url)
+        drain(loader: loader)
+    }
+
+    private func drain(loader: ArtworkLoader) {
+        guard visible.isSubset(of: finished) else { return }
+        while active.count < 3, !pending.isEmpty {
+            let url = pending.removeFirst()
+            guard loader.cachedImage(for: url, rendition: .square500) == nil else { continue }
+            active.insert(url)
+            Task { [weak self] in
+                _ = try? await loader.image(for: url, rendition: .square500)
+                guard let self else { return }
+                active.remove(url)
+                drain(loader: loader)
+            }
+        }
     }
 }

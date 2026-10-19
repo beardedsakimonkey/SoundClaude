@@ -6,11 +6,26 @@ import UniformTypeIdentifiers
 actor SoundCloudClient {
     let payload: Data
     private(set) var requests = 0
+    private(set) var requestedURLs: [URL] = []
+    private var holdsRequests = false
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+
+    func hold() { holdsRequests = true }
+    func release() {
+        holdsRequests = false
+        let continuations = waiting
+        waiting.removeAll()
+        continuations.forEach { $0.resume() }
+    }
 
     init(payload: Data) { self.payload = payload }
 
     func artworkData(from url: URL) async throws -> Data {
         requests += 1
+        requestedURLs.append(url)
+        if holdsRequests {
+            await withCheckedContinuation { waiting.append($0) }
+        }
         await Task.yield()
         return payload
     }
@@ -78,6 +93,61 @@ struct ArtworkCacheTests {
         precondition(small !== large, "Decode sizes must have separate cache entries")
         let revisitedLarge = try await loader.bitmap(for: url, rendition: .square1080)
         precondition(revisitedLarge === large)
+
+        // Replacing the scroll window drops queued work without starting
+        // more than three loads, and prefetch warms the exact display cache.
+        let prefetchClient = SoundCloudClient(payload: encoded as Data)
+        let prefetchLoader = ArtworkLoader(client: prefetchClient)
+        let prefetcher = GridArtworkPrefetcher()
+        let urls = (0..<8).map { URL(string: "https://i1.sndcdn.com/prefetch-\($0).png")! }
+        await prefetchClient.hold()
+        prefetcher.update(urls: urls + urls, visibleURLs: [], loader: prefetchLoader)
+        while await prefetchClient.requests < 3 { await Task.yield() }
+        let initialCount = await prefetchClient.requests
+        precondition(initialCount == 3, "Prefetch must limit concurrent requests")
+        prefetcher.update(urls: [urls[7]], visibleURLs: [], loader: prefetchLoader)
+        await prefetchClient.release()
+        while prefetchLoader.cachedImage(for: urls[7], rendition: .square500) == nil {
+            await Task.yield()
+        }
+        let fetchedURLs = await prefetchClient.requestedURLs
+        precondition(Set(fetchedURLs) == Set(Array(urls.prefix(3)) + [urls[7]]),
+                     "A new window must discard stale queued artwork")
+        precondition(fetchedURLs.count == 4, "Duplicate artwork must share prefetch work")
+        prefetcher.update(urls: [], visibleURLs: [], loader: prefetchLoader)
+
+        // Visible requests gate speculative work, including after a jump.
+        let gatedClient = SoundCloudClient(payload: encoded as Data)
+        let gatedLoader = ArtworkLoader(client: gatedClient)
+        let gated = GridArtworkPrefetcher()
+        gated.update(urls: [urls[2]], visibleURLs: [urls[0], urls[1]], loader: gatedLoader)
+        gated.artworkDidFinish(url: urls[0], loader: gatedLoader)
+        for _ in 0..<20 { await Task.yield() }
+        let beforeVisibleFinished = await gatedClient.requests
+        precondition(beforeVisibleFinished == 0, "All visible artwork must finish before prefetch")
+        await gatedClient.hold()
+        gated.artworkDidFinish(url: urls[1], loader: gatedLoader)
+        while await gatedClient.requests < 1 { await Task.yield() }
+        gated.update(urls: [urls[4]], visibleURLs: [urls[3]], loader: gatedLoader)
+        await gatedClient.release()
+        while gatedLoader.cachedImage(for: urls[2], rendition: .square500) == nil {
+            await Task.yield()
+        }
+        gated.artworkDidFinish(url: urls[1], loader: gatedLoader)
+        for _ in 0..<20 { await Task.yield() }
+        let afterJump = await gatedClient.requests
+        precondition(afterJump == 1, "Old completions must not unblock a new viewport")
+        // Completion does not require a cached image: errors must not stall the queue.
+        gated.artworkDidFinish(url: urls[3], loader: gatedLoader)
+        while gatedLoader.cachedImage(for: urls[4], rendition: .square500) == nil {
+            await Task.yield()
+        }
+        // Cached visible artwork needs no completion callback to start prefetch.
+        gated.update(urls: [urls[5]], visibleURLs: [urls[4]], loader: gatedLoader)
+        while gatedLoader.cachedImage(for: urls[5], rendition: .square500) == nil {
+            await Task.yield()
+        }
+        gated.update(urls: [], visibleURLs: [], loader: gatedLoader)
 
         let invalidLoader = ArtworkLoader(client: SoundCloudClient(payload: Data([0, 1, 2])))
         let invalid = try await invalidLoader.image(for: url)

@@ -52,24 +52,18 @@ struct HistoryView: View {
     @ViewBuilder
     private var trackList: some View {
         if trackLayout == .grid {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 160), spacing: 20, alignment: .top)],
-                alignment: .leading,
-                spacing: 24
-            ) {
-                ForEach(tracks) { track in
-                    TrackGridTile(
-                        track: track,
-                        playback: model.playback,
-                        analyzer: model.analyzer,
-                        artworkLoader: model.artworkLoader,
-                        likes: model.likes,
-                        onAddToQueue: model.addToQueue,
-                        onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist,
-                        onPlayTrack: play
-                    )
-                }
+            TrackArtworkGrid(tracks: tracks, loader: model.artworkLoader) { track in
+                TrackGridTile(
+                    track: track,
+                    playback: model.playback,
+                    analyzer: model.analyzer,
+                    artworkLoader: model.artworkLoader,
+                    likes: model.likes,
+                    onAddToQueue: model.addToQueue,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist,
+                    onPlayTrack: play
+                )
             }
         } else {
             LazyVStack(alignment: .leading, spacing: 0) {
