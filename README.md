@@ -158,8 +158,10 @@ a separate file. List refreshes preserve unopened contents. Removed playlists
 get a deletion marker so their old cached tracks cannot return.
 
 Saved playback restores its title, artwork, and position without resolving audio.
-Play starts stream resolution and next-track preparation. Seeking while paused
-updates the saved resume point. This moves the network wait to the first Play.
+One second after startup work finishes, a silent standby player resolves and
+buffers the saved track at its resume position. Play reuses that preparation,
+including an in-flight request. Playing sooner starts resolution immediately.
+Seeking while paused updates the saved resume point.
 
 On October 15, 2026, five Release launches per build used the same account,
 selected page, paused track, and restored disk-cache snapshot. These were warm

@@ -137,12 +137,14 @@ final class PlaybackController {
     private struct Preparation {
         let id: UUID
         let track: SoundCloudTrack
+        let position: Double
         let task: Task<AVPlayer, Error>
         var player: AVPlayer?
         var isPrerolled = false
     }
 
     @ObservationIgnored private var preparationObservation: NSKeyValueObservation?
+    @ObservationIgnored private var restoredPrefetchTask: Task<Void, Never>?
     @ObservationIgnored private var nextPreparation: Preparation?
     @ObservationIgnored private var loadingPreparation: Preparation?
     @ObservationIgnored private var canStartImmediately = false
@@ -211,6 +213,7 @@ final class PlaybackController {
     }
 
     deinit {
+        restoredPrefetchTask?.cancel()
         nextPreparation?.task.cancel()
         loadingPreparation?.task.cancel()
         preparationObservation?.invalidate()
@@ -281,6 +284,7 @@ final class PlaybackController {
         player.automaticallyWaitsToMinimizeStalling = true
         isWaitingForPlayback = false
         player.cancelPendingPrerolls()
+        player.currentItem?.cancelPendingSeeks()
         player.volume = volume
         player.isMuted = isMuted
         player.preventsDisplaySleepDuringVideoPlayback = false
@@ -311,6 +315,8 @@ final class PlaybackController {
     }
 
     func clearSession() {
+        restoredPrefetchTask?.cancel()
+        restoredPrefetchTask = nil
         pause()
         discardNextPreparation()
         loadingPreparation?.task.cancel()
@@ -343,6 +349,8 @@ final class PlaybackController {
         autoplay: Bool = true,
         direction: TrackChangeDirection = .forward
     ) -> UUID {
+        restoredPrefetchTask?.cancel()
+        restoredPrefetchTask = nil
         sessionToRestore = nil
         pause()
         canStartImmediately = false
@@ -384,14 +392,32 @@ final class PlaybackController {
         updateRemoteCommandAvailability()
         if let preparation = loadingPreparation, let prepared = preparation.player {
             loadingPreparation = nil
-            load(prepared: prepared, requestID: requestID, isPrerolled: preparation.isPrerolled)
+            load(prepared: prepared, requestID: requestID, isPrerolled: preparation.isPrerolled,
+                 preparedPosition: preparation.position)
         }
         return requestID
     }
 
-    /// Prepare one silent standby player, then reuse it when Next selects its track.
+    /// Delay audio work until startup is complete. Play can consume the same preparation.
+    func scheduleRestoredPrefetch(
+        delay: Duration = .seconds(1),
+        resolve: @escaping @MainActor (SoundCloudTrack) async throws -> PlaybackSource
+    ) {
+        restoredPrefetchTask?.cancel()
+        guard sessionToRestore != nil else { return }
+        restoredPrefetchTask = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: delay) } catch { return }
+            guard let self, !Task.isCancelled, sessionToRestore != nil,
+                  let track = currentTrack else { return }
+            prefetch(track, position: currentTime) { try await resolve(track) }
+            restoredPrefetchTask = nil
+        }
+    }
+
+    /// Prepare one silent standby player, then reuse it when its track is selected.
     func prefetch(
         _ track: SoundCloudTrack?,
+        position: Double = 0,
         resolve: @escaping @MainActor () async throws -> PlaybackSource
     ) {
         if let track, let next = nextPreparation,
@@ -412,7 +438,7 @@ final class PlaybackController {
             }
             return prepared
         }
-        nextPreparation = Preparation(id: id, track: track, task: task)
+        nextPreparation = Preparation(id: id, track: track, position: position, task: task)
     }
 
     /// Share an unfinished resolution with Next; failures fall back to a fresh request.
@@ -456,6 +482,13 @@ final class PlaybackController {
                       prepared.currentItem?.status == .readyToPlay else { return }
                 preparationObservation?.invalidate()
                 preparationObservation = nil
+                if let position = nextPreparation?.position, position > 0 {
+                    let finished = await prepared.seek(
+                        to: CMTime(seconds: position, preferredTimescale: 600),
+                        toleranceBefore: .zero, toleranceAfter: .zero
+                    )
+                    guard finished, nextPreparation?.id == id else { return }
+                }
                 prepared.preroll(atRate: 1) { [weak self] finished in
                     Task { @MainActor [weak self] in
                         guard let self, nextPreparation?.id == id else { return }
@@ -466,13 +499,16 @@ final class PlaybackController {
         }
     }
 
-    private func load(prepared: AVPlayer, requestID: UUID, isPrerolled: Bool = false) {
+    private func load(
+        prepared: AVPlayer, requestID: UUID, isPrerolled: Bool = false,
+        preparedPosition: Double = 0
+    ) {
         guard loadingRequestID == requestID, let item = prepared.currentItem else { return }
         replacePlayer(with: prepared)
-        // A fresh standby player is already at the start. Preserve its preroll
-        // instead of issuing a redundant seek before playback. Prefetch only
-        // creates and prerolls this player; it never plays or seeks it.
-        if seekFraction == nil, seekTarget == 0 {
+        // Preserve a completed preroll at the requested resume position.
+        // If the user sought elsewhere, use the normal seek path instead.
+        if seekFraction == nil, seekTarget == preparedPosition,
+           preparedPosition == 0 || isPrerolled {
             seekTarget = nil
             canStartImmediately = isPrerolled
         }

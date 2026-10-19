@@ -192,6 +192,13 @@ final class AppModel {
         await auth.restore()
         if case .signedIn = auth.state {
             await likes.restoreCache()
+            playback.scheduleRestoredPrefetch { [auth, client] track in
+                let accessToken = try await auth.validAccessToken()
+                try Task.checkCancellation()
+                return try await LaunchMetrics.measureAsync("Saved track stream resolution") {
+                    try await client.resolvePlayback(track: track, accessToken: accessToken)
+                }
+            }
         }
     }
 
@@ -919,6 +926,8 @@ final class AppModel {
     }
 
     private func prefetchNextTrack(likedTracks: [SoundCloudTrack]? = nil) {
+        // Keep the saved track's standby player until the user chooses playback.
+        guard playback.sessionToRestore == nil else { return }
         var resolvedQueue = queue
         resolvedQueue.replaceLikes(likedTracks ?? likes.tracks, currentURN: playback.currentTrack?.urn)
         let currentURN = playback.currentTrack?.urn

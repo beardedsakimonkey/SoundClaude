@@ -217,6 +217,55 @@ struct PlaybackTests {
         precondition(!deferred.isPlaybackActive)
         deferred.clearSession()
 
+        // Delayed restore prepares the saved position silently and reuses its player.
+        defaults.set(encoded, forKey: "playback.session")
+        var restoredPlayer: PrerollTestPlayer?
+        let warmed = PlaybackController(defaults: defaults) { url in
+            let player = PrerollTestPlayer(url: url)
+            restoredPlayer = player
+            return player
+        }
+        var restoreResolutions = 0
+        warmed.onTrackStarted = { _ in fatalError("Prefetch must not record a play") }
+        warmed.scheduleRestoredPrefetch(delay: .milliseconds(100)) { _ in
+            restoreResolutions += 1
+            return source
+        }
+        precondition(restoreResolutions == 0 && warmed.player.currentItem == nil)
+        try await until { restoredPlayer?.completePreroll != nil }
+        precondition(restoreResolutions == 1 && warmed.sessionToRestore != nil)
+        precondition(!warmed.isLoading && !warmed.isPlaybackActive)
+        precondition(restoredPlayer!.rate == 0 && restoredPlayer!.isMuted)
+        precondition(abs(restoredPlayer!.currentTime().seconds - 0.75) < 0.05)
+        restoredPlayer!.completePreroll?(true)
+        try await Task.sleep(for: .milliseconds(50))
+        warmed.onNeedsSource = { _, _ in }
+        warmed.togglePlayPause()
+        precondition(warmed.player === restoredPlayer)
+        precondition(restoredPlayer!.immediateStarts == 1)
+        warmed.pause()
+        warmed.clearSession()
+
+        // Early Play cancels the timer and does not start a second resolution.
+        defaults.set(encoded, forKey: "playback.session")
+        let early = PlaybackController(defaults: defaults)
+        early.scheduleRestoredPrefetch(delay: .milliseconds(50)) { _ in
+            fatalError("Early Play must cancel delayed prefetch")
+        }
+        early.onNeedsSource = { _, _ in }
+        early.togglePlayPause()
+        try await Task.sleep(for: .milliseconds(100))
+        early.clearSession()
+
+        // Signing out clears the timer before it can access the network.
+        defaults.set(encoded, forKey: "playback.session")
+        let cleared = PlaybackController(defaults: defaults)
+        cleared.scheduleRestoredPrefetch(delay: .milliseconds(50)) { _ in
+            fatalError("Cleared sessions must not prefetch")
+        }
+        cleared.clearSession()
+        try await Task.sleep(for: .milliseconds(100))
+
         // Selection and saved position update before a stream URL is available.
         let first = playback.beginLoading(track: track(1), position: 0.5)
         precondition(playback.currentTrack == track(1))
