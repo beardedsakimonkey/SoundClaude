@@ -149,6 +149,29 @@ struct ArtworkCacheTests {
         }
         gated.update(urls: [], visibleURLs: [], loader: gatedLoader)
 
+        let toggleClient = SoundCloudClient(payload: encoded as Data)
+        let toggleLoader = ArtworkLoader(client: toggleClient)
+        let toggled = GridArtworkPrefetcher()
+        await toggleClient.hold()
+        toggled.update(urls: urls, visibleURLs: [], loader: toggleLoader)
+        while await toggleClient.requests < 3 { await Task.yield() }
+        toggled.update(urls: urls, visibleURLs: [], loader: toggleLoader, isEnabled: false)
+        await toggleClient.release()
+        for url in urls.prefix(3) {
+            while toggleLoader.cachedImage(for: url, rendition: .square500) == nil {
+                await Task.yield()
+            }
+        }
+        for _ in 0..<20 { await Task.yield() }
+        let disabledRequests = await toggleClient.requests
+        precondition(disabledRequests == 3, "Disabling prefetch must stop queued work")
+        toggled.update(urls: [urls[7]], visibleURLs: [], loader: toggleLoader)
+        while toggleLoader.cachedImage(for: urls[7], rendition: .square500) == nil {
+            await Task.yield()
+        }
+        let enabledRequests = await toggleClient.requests
+        precondition(enabledRequests == 4, "Enabling prefetch must resume the current window")
+
         let invalidLoader = ArtworkLoader(client: SoundCloudClient(payload: Data([0, 1, 2])))
         let invalid = try await invalidLoader.image(for: url)
         precondition(invalid == nil && invalidLoader.cachedImage(for: url) == nil)

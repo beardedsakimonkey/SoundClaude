@@ -2,6 +2,9 @@ import AppKit
 import Foundation
 import CoreGraphics
 import ImageIO
+#if DEBUG
+import Observation
+#endif
 
 actor ArtworkLoader {
     enum Rendition: Sendable {
@@ -330,21 +333,33 @@ struct ArtworkAccent: Sendable {
 
 // Keep at most three speculative loads active. A new window replaces pending
 // work; active requests finish so they can still serve visible image tasks.
+#if DEBUG
+@Observable
+#endif
 @MainActor
 final class GridArtworkPrefetcher {
+    private var isEnabled = true
     private var pending: [URL] = []
     private var active: Set<URL> = []
     private var visible: Set<URL> = []
     private var finished: Set<URL> = []
 
-    func update(urls: [URL], visibleURLs: [URL], loader: ArtworkLoader) {
+    #if DEBUG
+    var visibleWaitingCount: Int { visible.subtracting(finished).count }
+    var visibleCount: Int { visible.count }
+    var prefetchWaitingCount: Int { pending.count }
+    var prefetchActiveCount: Int { active.count }
+    #endif
+
+    func update(urls: [URL], visibleURLs: [URL], loader: ArtworkLoader, isEnabled: Bool = true) {
+        self.isEnabled = isEnabled
         visible = Set(visibleURLs)
         finished.formIntersection(visible)
         finished.formUnion(visible.filter {
             loader.cachedImage(for: $0, rendition: .square500) != nil
         })
         var seen: Set<URL> = []
-        pending = urls.filter {
+        pending = (isEnabled ? urls : []).filter {
             seen.insert($0).inserted && !visible.contains($0) && !active.contains($0)
                 && loader.cachedImage(for: $0, rendition: .square500) == nil
         }
@@ -360,7 +375,7 @@ final class GridArtworkPrefetcher {
     }
 
     private func drain(loader: ArtworkLoader) {
-        guard visible.isSubset(of: finished) else { return }
+        guard isEnabled, visible.isSubset(of: finished) else { return }
         while active.count < 3, !pending.isEmpty {
             let url = pending.removeFirst()
             guard loader.cachedImage(for: url, rendition: .square500) == nil else { continue }

@@ -301,6 +301,13 @@ struct SignedInView: View {
         } detail: {
             selectedView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                #if DEBUG
+                .overlayPreferenceValue(GridArtworkQueueDebugKey.self, alignment: .topTrailing) { queues in
+                    if let prefetcher = queues.last {
+                        GridArtworkQueueDebugOverlay(prefetcher: prefetcher)
+                    }
+                }
+                #endif
         }
         .background {
             Group {

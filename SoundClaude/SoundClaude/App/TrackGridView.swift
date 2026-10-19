@@ -59,6 +59,11 @@ struct TrackArtworkGrid<Content: View>: View {
     @State private var visibleIDs: Set<String> = []
     @State private var columnCount = 1
     @State private var prefetcher = GridArtworkPrefetcher()
+    #if DEBUG
+    @AppStorage("debug.artworkPrefetchEnabled") private var prefetchEnabled = true
+    #else
+    private let prefetchEnabled = true
+    #endif
 
     private struct ArtworkWindow: Equatable {
         var visible: [URL] = []
@@ -88,6 +93,9 @@ struct TrackArtworkGrid<Content: View>: View {
                     .onDisappear { visibleIDs.remove(track.id) }
             }
         }
+        #if DEBUG
+        .preference(key: GridArtworkQueueDebugKey.self, value: [prefetcher])
+        #endif
         .onGeometryChange(for: Int.self) { geometry in
             max(1, Int((geometry.size.width + 20) / 180))
         } action: { columnCount = $0 }
@@ -95,11 +103,16 @@ struct TrackArtworkGrid<Content: View>: View {
             prefetcher.artworkDidFinish(url: url, loader: loader)
         })
         .onChange(of: artworkWindow, initial: true) { _, window in
-            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader)
+            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader, isEnabled: prefetchEnabled)
         }
         .onAppear {
             let window = artworkWindow
-            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader)
+            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader, isEnabled: prefetchEnabled)
+        }
+        .onChange(of: prefetchEnabled) { _, enabled in
+            let window = artworkWindow
+            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible,
+                              loader: loader, isEnabled: enabled)
         }
         .onDisappear {
             prefetcher.update(urls: [], visibleURLs: [], loader: loader)
@@ -307,3 +320,85 @@ struct TrackGridTile: View {
         .onContentHover { isHoveringMenu = $0 }
     }
 }
+
+#if DEBUG
+// Read counts only in this small overlay so artwork
+// completions do not cause the grid itself to rebuild.
+struct GridArtworkQueueDebugKey: PreferenceKey {
+    static let defaultValue: [GridArtworkPrefetcher] = []
+
+    static func reduce(value: inout [GridArtworkPrefetcher], nextValue: () -> [GridArtworkPrefetcher]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
+struct GridArtworkQueueDebugOverlay: View {
+    let prefetcher: GridArtworkPrefetcher
+    @AppStorage("debug.showArtworkQueues") private var isVisible = false
+    @AppStorage("debug.artworkPrefetchEnabled") private var prefetchEnabled = true
+
+    private var scale: Int {
+        max(24, prefetcher.visibleCount,
+            prefetcher.prefetchWaitingCount + prefetcher.prefetchActiveCount)
+    }
+
+    var body: some View {
+        if isVisible { panel }
+    }
+
+    private var panel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Toggle("Prefetch", isOn: $prefetchEnabled)
+                .toggleStyle(.switch)
+                .foregroundStyle(.white)
+                .frame(width: 240)
+            queueBar("Visible", waiting: 0, active: prefetcher.visibleWaitingCount)
+            queueBar("Prefetch", waiting: prefetcher.prefetchWaitingCount,
+                     active: prefetcher.prefetchActiveCount)
+            HStack(spacing: 16) {
+                legend("Waiting", color: .orange)
+                legend("Active", color: .cyan)
+            }
+        }
+        .font(.system(size: 13, weight: .semibold))
+        .monospacedDigit()
+        .padding(14)
+        .background(.black.opacity(0.9), in: RoundedRectangle(cornerRadius: 10))
+        .padding(16)
+        .transaction { $0.animation = nil }
+    }
+
+    private func queueBar(_ title: String, waiting: Int, active: Int) -> some View {
+        VStack(spacing: 5) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text("\(waiting + active)")
+            }
+            .foregroundStyle(.white)
+
+            ZStack(alignment: .leading) {
+                Rectangle().fill(.white.opacity(0.15))
+                HStack(spacing: 0) {
+                    Rectangle().fill(.cyan)
+                        .frame(width: 240 * CGFloat(active) / CGFloat(scale))
+                    Rectangle().fill(.orange)
+                        .frame(width: 240 * CGFloat(waiting) / CGFloat(scale))
+                }
+            }
+            .frame(height: 24)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+        }
+        .frame(width: 240)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(title): \(waiting) waiting, \(active) active")
+    }
+
+    private func legend(_ title: String, color: Color) -> some View {
+        HStack(spacing: 5) {
+            RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 12, height: 12)
+            Text(title).foregroundStyle(.white)
+        }
+    }
+}
+#endif
