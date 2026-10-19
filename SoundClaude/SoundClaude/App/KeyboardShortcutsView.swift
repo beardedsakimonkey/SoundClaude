@@ -2,6 +2,11 @@ import SwiftUI
 
 struct KeyboardShortcutsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var keyChrome: Color {
+        Color(white: colorScheme == .dark ? 0.3 : 0.7)
+    }
 
     private let shortcutGroups = [
         // Playback
@@ -100,19 +105,19 @@ struct KeyboardShortcutsView: View {
             Text(key)
                 .font(.system(.callout, design: .monospaced).weight(.medium))
                 .frame(minWidth: 24, minHeight: 22)
-                .padding(.horizontal, 4)
+                .padding(.horizontal, key == "Space" ? 10 : 4)
                 .background {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(.secondary.opacity(0.5))
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(keyChrome)
                             .offset(y: 3)
-                        RoundedRectangle(cornerRadius: 4)
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .fill(.background)
                     }
                 }
                 .overlay {
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(.tertiary, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(keyChrome, lineWidth: 1)
                 }
                 .padding(.bottom, 3)
         }
