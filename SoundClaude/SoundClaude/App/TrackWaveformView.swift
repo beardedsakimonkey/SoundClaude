@@ -36,6 +36,7 @@ struct TrackWaveformView: View {
 
     private let playback: PlaybackController
     @State private var shadingCache = WaveformShadingCache()
+    @State private var renderCache = WaveformRenderCache()
     @State private var waveformWidth: CGFloat = 0
     @State private var waveform: SoundCloudWaveform?
     @State private var waveformTrackURN: String?
@@ -207,30 +208,13 @@ struct TrackWaveformView: View {
                     hoverOpacity: showsHoverPreview ? 0.3 : 0
                 ) { context, size, amplitudes, hoverOpacity in
                     guard size.width > 0, size.height > 0 else { return }
-                    let bars = waveformBars(amplitudes, size: size)
-                    let path = CGMutablePath()
-                    for bar in bars {
-                        if layout == .compact {
-                            path.addRoundedRect(in: bar, cornerWidth: 1, cornerHeight: 1)
-                            continue
-                        }
-                        // Bar coordinates start at the bottom. Keep the
-                        // ground edge square and round only the top corners.
-                        let radius = min(1, bar.width / 2, bar.height / 2)
-                        path.move(to: CGPoint(x: bar.minX, y: bar.minY))
-                        path.addLine(to: CGPoint(x: bar.maxX, y: bar.minY))
-                        path.addArc(
-                            tangent1End: CGPoint(x: bar.maxX, y: bar.maxY),
-                            tangent2End: CGPoint(x: bar.midX, y: bar.maxY),
-                            radius: radius
-                        )
-                        path.addArc(
-                            tangent1End: CGPoint(x: bar.minX, y: bar.maxY),
-                            tangent2End: CGPoint(x: bar.minX, y: bar.minY),
-                            radius: radius
-                        )
-                        path.closeSubpath()
+                    let geometry = renderCache.geometry(
+                        amplitudes: amplitudes, size: size, layout: layout
+                    ) {
+                        waveformBars(amplitudes, size: size)
                     }
+                    let bars = geometry.bars
+                    let path = geometry.path
                     let backgroundOpacity = layout == .compact ? 0.9 : 0.5
                     let backgroundStrength = colorScheme == .light
                         && colorSchemeContrast != .increased ? 0.6 : 1.0
@@ -285,8 +269,8 @@ struct TrackWaveformView: View {
                             }
                         }
                     }
-                    // Bar geometry stays live; only the color shading is cached.
-                    // No bitmap allocation is needed for animated bar heights.
+                    // Geometry is reused until bar heights or layout change.
+                    // Color shading stays cached during bar animations.
                     context.translateBy(x: 0, y: size.height)
                     context.scaleBy(x: 1, y: -1)
                     var main = context
@@ -633,14 +617,8 @@ struct TrackWaveformView: View {
         let nearestDistance = abs(pointerIndex - nearestIndex)
         let farthestDistance = max(abs(pointerIndex), abs(pointerIndex - Double(barCount - 1)))
         let distanceRange = farthestDistance - nearestDistance
-        return WaveformAmplitudes(values: (0..<barCount).map { index in
-            let lowerBound = index * waveform.samples.count / barCount
-            let upperBound = max(
-                (index + 1) * waveform.samples.count / barCount,
-                lowerBound + 1
-            )
-            let sample = waveform.samples[lowerBound..<upperBound].max() ?? 0
-            let amplitude = min(max(Double(sample) / Double(waveform.height), 0), 1)
+        let baseAmplitudes = renderCache.baseAmplitudes(waveform, barCount: barCount)
+        return WaveformAmplitudes(values: baseAmplitudes.enumerated().map { index, amplitude in
             if barsAreCollapsed {
                 let distance = abs(Double(index) - pointerIndex)
                 let proximity = distanceRange > 0
@@ -845,6 +823,76 @@ private struct WaveformCollapseSpring: CustomAnimation {
         }
         bars.second = spring.value(target: bars.second, time: time)
         return bars as? V
+    }
+}
+
+// Reference caches do not publish changes while SwiftUI evaluates or draws the view.
+// Retain only the latest sample reduction and geometry to bound memory use.
+private final class WaveformRenderCache {
+    private var waveform: SoundCloudWaveform?
+    private var barCount = 0
+    private var baseValues: [Double] = []
+    private var geometryAmplitudes: WaveformAmplitudes?
+    private var geometrySize: CGSize = .zero
+    private var geometryLayout: TrackWaveformView.Layout?
+    private var cachedGeometry: (bars: [CGRect], path: CGPath)?
+
+    func baseAmplitudes(_ waveform: SoundCloudWaveform, barCount: Int) -> [Double] {
+        if self.barCount == barCount, self.waveform == waveform {
+            return baseValues
+        }
+        baseValues = (0..<barCount).map { index in
+            let lowerBound = index * waveform.samples.count / barCount
+            let upperBound = max(
+                (index + 1) * waveform.samples.count / barCount,
+                lowerBound + 1
+            )
+            let sample = waveform.samples[lowerBound..<upperBound].max() ?? 0
+            return min(max(Double(sample) / Double(waveform.height), 0), 1)
+        }
+        self.waveform = waveform
+        self.barCount = barCount
+        return baseValues
+    }
+
+    func geometry(
+        amplitudes: WaveformAmplitudes, size: CGSize, layout: TrackWaveformView.Layout,
+        makeBars: () -> [CGRect]
+    ) -> (bars: [CGRect], path: CGPath) {
+        if geometryAmplitudes == amplitudes, geometrySize == size,
+           geometryLayout == layout, let cachedGeometry {
+            return cachedGeometry
+        }
+        let bars = makeBars()
+        let path = CGMutablePath()
+        for bar in bars {
+            if layout == .compact {
+                path.addRoundedRect(in: bar, cornerWidth: 1, cornerHeight: 1)
+                continue
+            }
+            // Bar coordinates start at the bottom. Keep the
+            // ground edge square and round only the top corners.
+            let radius = min(1, bar.width / 2, bar.height / 2)
+            path.move(to: CGPoint(x: bar.minX, y: bar.minY))
+            path.addLine(to: CGPoint(x: bar.maxX, y: bar.minY))
+            path.addArc(
+                tangent1End: CGPoint(x: bar.maxX, y: bar.maxY),
+                tangent2End: CGPoint(x: bar.midX, y: bar.maxY),
+                radius: radius
+            )
+            path.addArc(
+                tangent1End: CGPoint(x: bar.minX, y: bar.maxY),
+                tangent2End: CGPoint(x: bar.minX, y: bar.minY),
+                radius: radius
+            )
+            path.closeSubpath()
+        }
+        let geometry: (bars: [CGRect], path: CGPath) = (bars, path)
+        geometryAmplitudes = amplitudes
+        geometrySize = size
+        geometryLayout = layout
+        cachedGeometry = geometry
+        return geometry
     }
 }
 
