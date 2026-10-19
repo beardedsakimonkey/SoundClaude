@@ -372,6 +372,10 @@ final class TrackArtworkPrefetcher {
         drain(loader: loader)
     }
 
+    func discardPending() {
+        pending.removeAll()
+    }
+
     func artworkDidFinish(url: URL, loader: ArtworkLoader) {
         // A failed image also settles the visible request. Cancelled views do
         // not report completion. Record completion even if SwiftUI has not
@@ -392,6 +396,61 @@ final class TrackArtworkPrefetcher {
                 active.remove(url)
                 drain(loader: loader)
             }
+        }
+    }
+}
+
+// Keep scroll bookkeeping outside observation so row lifecycle events do not
+// invalidate the list. Only data changes rebuild the index.
+@MainActor
+final class TrackListArtworkPrefetcher {
+    let prefetcher = TrackArtworkPrefetcher(rendition: .source)
+    private var indices: [String: Int] = [:]
+    private var urls: [URL?] = []
+    private var visibleIDs: Set<String> = []
+    private var isEnabled = true
+    private var updateTask: Task<Void, Never>?
+
+    func configure(ids: [String], urls: [URL?], loader: ArtworkLoader, isEnabled: Bool) {
+        indices = Dictionary(ids.enumerated().map { ($0.element, $0.offset) },
+                             uniquingKeysWith: { _, last in last })
+        self.urls = urls
+        self.isEnabled = isEnabled
+        visibleIDs.formIntersection(ids)
+        schedule(loader: loader)
+    }
+
+    func setVisible(_ id: String, isVisible: Bool, loader: ArtworkLoader) {
+        let changed = isVisible ? visibleIDs.insert(id).inserted : visibleIDs.remove(id) != nil
+        if changed { schedule(loader: loader) }
+    }
+
+    func stop(loader: ArtworkLoader) {
+        updateTask?.cancel()
+        updateTask = nil
+        visibleIDs.removeAll()
+        prefetcher.update(urls: [], visibleURLs: [], loader: loader)
+    }
+
+    private func schedule(loader: ArtworkLoader) {
+        updateTask?.cancel()
+        // Active requests can still serve rows. Do not drain a stale window
+        // while rapid scrolling is changing which rows are on screen.
+        prefetcher.discardPending()
+        updateTask = Task { [weak self] in
+            do { try await Task.sleep(for: .milliseconds(50)) }
+            catch { return }
+            guard let self else { return }
+            let visible = visibleIDs.compactMap { self.indices[$0] }.sorted()
+            let upcoming: [URL]
+            if let last = visible.last {
+                upcoming = urls[(last + 1)..<min(urls.count, last + 9)].compactMap { $0 }
+            } else {
+                upcoming = []
+            }
+            prefetcher.update(urls: upcoming, visibleURLs: visible.compactMap { self.urls[$0] },
+                              loader: loader, isEnabled: isEnabled)
+            updateTask = nil
         }
     }
 }

@@ -195,6 +195,33 @@ struct ArtworkCacheTests {
         precondition(listRequests == 8, "Eight prefetched rows must reuse their cached artwork")
         listPrefetcher.update(urls: [], visibleURLs: [], loader: listLoader)
 
+        // Rapid row changes must replace the window before speculative work starts.
+        let scrollClient = SoundCloudClient(payload: encoded as Data)
+        let scrollLoader = ArtworkLoader(client: scrollClient)
+        let scroll = TrackListArtworkPrefetcher()
+        let scrollIDs = (0..<20).map(String.init)
+        let scrollURLs = (0..<20).map { URL(string: "https://i1.sndcdn.com/scroll-\($0)-large.png")! }
+        scroll.configure(ids: scrollIDs, urls: scrollURLs, loader: scrollLoader, isEnabled: true)
+        scroll.setVisible("0", isVisible: true, loader: scrollLoader)
+        scroll.prefetcher.artworkDidFinish(url: scrollURLs[0], loader: scrollLoader)
+        scroll.setVisible("0", isVisible: false, loader: scrollLoader)
+        scroll.setVisible("10", isVisible: true, loader: scrollLoader)
+        scroll.prefetcher.artworkDidFinish(url: scrollURLs[10], loader: scrollLoader)
+        let duringScroll = await scrollClient.requests
+        precondition(duringScroll == 0, "Visibility updates must not immediately start loads")
+        for url in scrollURLs[11...18] {
+            while scrollLoader.cachedImage(for: url) == nil { await Task.yield() }
+        }
+        let scrolledURLs = await scrollClient.requestedURLs
+        precondition(Set(scrolledURLs) == Set(scrollURLs[11...18]),
+                     "Only the latest eight-row window should load after a rapid jump")
+        scroll.setVisible("10", isVisible: false, loader: scrollLoader)
+        scroll.setVisible("0", isVisible: true, loader: scrollLoader)
+        scroll.stop(loader: scrollLoader)
+        try await Task.sleep(for: .milliseconds(100))
+        let stoppedRequests = await scrollClient.requests
+        precondition(stoppedRequests == 8, "Leaving the list must cancel its delayed update")
+
         let invalidLoader = ArtworkLoader(client: SoundCloudClient(payload: Data([0, 1, 2])))
         let invalid = try await invalidLoader.image(for: url)
         precondition(invalid == nil && invalidLoader.cachedImage(for: url) == nil)
