@@ -232,7 +232,7 @@ struct LikesView: View {
                     }
                     .padding(.bottom, 16)
                 } else {
-                    ForEach(tracks) { track in
+                    TrackArtworkList(tracks: tracks, loader: artworkLoader) { track in
                         TrackListRow(
                             track: track,
                             playback: playback,

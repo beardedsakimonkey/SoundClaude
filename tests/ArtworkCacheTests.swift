@@ -98,7 +98,7 @@ struct ArtworkCacheTests {
         // more than three loads, and prefetch warms the exact display cache.
         let prefetchClient = SoundCloudClient(payload: encoded as Data)
         let prefetchLoader = ArtworkLoader(client: prefetchClient)
-        let prefetcher = GridArtworkPrefetcher()
+        let prefetcher = TrackArtworkPrefetcher()
         let urls = (0..<8).map { URL(string: "https://i1.sndcdn.com/prefetch-\($0).png")! }
         await prefetchClient.hold()
         prefetcher.update(urls: urls + urls, visibleURLs: [], loader: prefetchLoader)
@@ -119,7 +119,7 @@ struct ArtworkCacheTests {
         // Visible requests gate speculative work, including after a jump.
         let gatedClient = SoundCloudClient(payload: encoded as Data)
         let gatedLoader = ArtworkLoader(client: gatedClient)
-        let gated = GridArtworkPrefetcher()
+        let gated = TrackArtworkPrefetcher()
         gated.update(urls: [urls[2]], visibleURLs: [urls[0], urls[1]], loader: gatedLoader)
         gated.artworkDidFinish(url: urls[0], loader: gatedLoader)
         for _ in 0..<20 { await Task.yield() }
@@ -151,7 +151,7 @@ struct ArtworkCacheTests {
 
         let toggleClient = SoundCloudClient(payload: encoded as Data)
         let toggleLoader = ArtworkLoader(client: toggleClient)
-        let toggled = GridArtworkPrefetcher()
+        let toggled = TrackArtworkPrefetcher()
         await toggleClient.hold()
         toggled.update(urls: urls, visibleURLs: [], loader: toggleLoader)
         while await toggleClient.requests < 3 { await Task.yield() }
@@ -171,6 +171,29 @@ struct ArtworkCacheTests {
         }
         let enabledRequests = await toggleClient.requests
         precondition(enabledRequests == 4, "Enabling prefetch must resume the current window")
+
+        // Lists must warm all eight source images, without loading grid renditions.
+        let listURLs = (0..<8).map { URL(string: "https://i1.sndcdn.com/list-\($0)-large.png")! }
+        let listClient = SoundCloudClient(payload: encoded as Data)
+        let listLoader = ArtworkLoader(client: listClient)
+        let listPrefetcher = TrackArtworkPrefetcher(rendition: .source)
+        let visibleURL = URL(string: "https://i1.sndcdn.com/list-visible.png")!
+        listPrefetcher.update(urls: listURLs, visibleURLs: [visibleURL], loader: listLoader)
+        for _ in 0..<20 { await Task.yield() }
+        let beforeListVisibleFinished = await listClient.requests
+        precondition(beforeListVisibleFinished == 0)
+        listPrefetcher.artworkDidFinish(url: visibleURL, loader: listLoader)
+        for url in listURLs {
+            while listLoader.cachedImage(for: url, rendition: .source) == nil {
+                await Task.yield()
+            }
+            precondition(listLoader.cachedImage(for: url, rendition: .square500) == nil,
+                         "List prefetch must use the row's source rendition")
+            _ = try await listLoader.image(for: url)
+        }
+        let listRequests = await listClient.requests
+        precondition(listRequests == 8, "Eight prefetched rows must reuse their cached artwork")
+        listPrefetcher.update(urls: [], visibleURLs: [], loader: listLoader)
 
         let invalidLoader = ArtworkLoader(client: SoundCloudClient(payload: Data([0, 1, 2])))
         let invalid = try await invalidLoader.image(for: url)

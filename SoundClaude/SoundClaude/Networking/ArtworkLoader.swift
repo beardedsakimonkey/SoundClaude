@@ -337,7 +337,13 @@ struct ArtworkAccent: Sendable {
 @Observable
 #endif
 @MainActor
-final class GridArtworkPrefetcher {
+final class TrackArtworkPrefetcher {
+    let rendition: ArtworkLoader.Rendition
+
+    init(rendition: ArtworkLoader.Rendition = .square500) {
+        self.rendition = rendition
+    }
+
     private var isEnabled = true
     private var pending: [URL] = []
     private var active: Set<URL> = []
@@ -356,12 +362,12 @@ final class GridArtworkPrefetcher {
         visible = Set(visibleURLs)
         finished.formIntersection(visible)
         finished.formUnion(visible.filter {
-            loader.cachedImage(for: $0, rendition: .square500) != nil
+            loader.cachedImage(for: $0, rendition: rendition) != nil
         })
         var seen: Set<URL> = []
         pending = (isEnabled ? urls : []).filter {
             seen.insert($0).inserted && !visible.contains($0) && !active.contains($0)
-                && loader.cachedImage(for: $0, rendition: .square500) == nil
+                && loader.cachedImage(for: $0, rendition: rendition) == nil
         }
         drain(loader: loader)
     }
@@ -378,10 +384,10 @@ final class GridArtworkPrefetcher {
         guard isEnabled, visible.isSubset(of: finished) else { return }
         while active.count < 3, !pending.isEmpty {
             let url = pending.removeFirst()
-            guard loader.cachedImage(for: url, rendition: .square500) == nil else { continue }
+            guard loader.cachedImage(for: url, rendition: rendition) == nil else { continue }
             active.insert(url)
-            Task { [weak self] in
-                _ = try? await loader.image(for: url, rendition: .square500)
+            Task { [weak self, rendition] in
+                _ = try? await loader.image(for: url, rendition: rendition)
                 guard let self else { return }
                 active.remove(url)
                 drain(loader: loader)

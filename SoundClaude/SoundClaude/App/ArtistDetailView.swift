@@ -841,7 +841,7 @@ struct ArtistDetailView: View {
 
     private var trackList: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
-            ForEach(contentState.tracks) { track in
+            TrackArtworkList(tracks: contentState.tracks, loader: model.artworkLoader) { track in
                 TrackListRow(
                     track: track,
                     playback: model.playback,

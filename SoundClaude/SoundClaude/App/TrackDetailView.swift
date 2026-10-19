@@ -426,7 +426,7 @@ private struct TrackDetailRelatedTracks: View {
 
     private var relatedTrackList: some View {
         LazyVStack(alignment: .leading, spacing: 0) {
-            ForEach(relatedTracks) { relatedTrack in
+            TrackArtworkList(tracks: relatedTracks, loader: model.artworkLoader) { relatedTrack in
                 TrackListRow(
                     track: relatedTrack,
                     playback: model.playback,

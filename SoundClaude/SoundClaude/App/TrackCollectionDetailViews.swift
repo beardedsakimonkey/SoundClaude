@@ -70,29 +70,26 @@ struct TrackCollectionTracks: View {
             }
             .padding(.bottom, 16)
         } else {
-            // The Equatable wrapper hides this ForEach from the caller's lazy stack.
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(tracks) { track in
-                    TrackListRow(
-                        track: track,
-                        playback: model.playback,
-                        analyzer: model.analyzer,
-                        artworkLoader: model.artworkLoader,
-                        likes: model.likes,
-                        onAddToQueue: model.addToQueue,
-                        onRemoveFromPlaylist: onRemoveFromPlaylist,
-                        isUpdatingPlaylist: isUpdatingPlaylist,
-                        onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist,
-                        onPlayTrack: onPlayTrack
-                    )
-                    .opacity(removingTrackURN == track.urn ? 0.4 : 1)
-                    .animation(
-                        .easeInOut(duration: 0.2),
-                        value: removingTrackURN == track.urn
-                    )
-                    .modifier(FadeInOnAppear(isEnabled: fadesInTracks))
-                }
+            TrackArtworkList(tracks: tracks, loader: model.artworkLoader) { track in
+                TrackListRow(
+                    track: track,
+                    playback: model.playback,
+                    analyzer: model.analyzer,
+                    artworkLoader: model.artworkLoader,
+                    likes: model.likes,
+                    onAddToQueue: model.addToQueue,
+                    onRemoveFromPlaylist: onRemoveFromPlaylist,
+                    isUpdatingPlaylist: isUpdatingPlaylist,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist,
+                    onPlayTrack: onPlayTrack
+                )
+                .opacity(removingTrackURN == track.urn ? 0.4 : 1)
+                .animation(
+                    .easeInOut(duration: 0.2),
+                    value: removingTrackURN == track.urn
+                )
+                .modifier(FadeInOnAppear(isEnabled: fadesInTracks))
             }
         }
     }

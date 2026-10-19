@@ -58,7 +58,7 @@ struct TrackArtworkGrid<Content: View>: View {
 
     @State private var visibleIDs: Set<String> = []
     @State private var columnCount = 1
-    @State private var prefetcher = GridArtworkPrefetcher()
+    @State private var prefetcher = TrackArtworkPrefetcher()
     #if DEBUG
     @AppStorage("debug.artworkPrefetchEnabled") private var prefetchEnabled = true
     #else
@@ -94,12 +94,77 @@ struct TrackArtworkGrid<Content: View>: View {
             }
         }
         #if DEBUG
-        .preference(key: GridArtworkQueueDebugKey.self, value: [prefetcher])
+        .preference(key: TrackArtworkQueueDebugKey.self, value: [prefetcher])
         #endif
         .onGeometryChange(for: Int.self) { geometry in
             max(1, Int((geometry.size.width + 20) / 180))
         } action: { columnCount = $0 }
-        .environment(\.gridArtworkDidFinish, { url in
+        .environment(\.trackArtworkDidFinish, { url, rendition in
+            guard rendition == prefetcher.rendition else { return }
+            prefetcher.artworkDidFinish(url: url, loader: loader)
+        })
+        .onChange(of: artworkWindow, initial: true) { _, window in
+            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader, isEnabled: prefetchEnabled)
+        }
+        .onAppear {
+            let window = artworkWindow
+            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader, isEnabled: prefetchEnabled)
+        }
+        .onChange(of: prefetchEnabled) { _, enabled in
+            let window = artworkWindow
+            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible,
+                              loader: loader, isEnabled: enabled)
+        }
+        .onDisappear {
+            prefetcher.update(urls: [], visibleURLs: [], loader: loader)
+            visibleIDs.removeAll()
+        }
+    }
+}
+
+// Prefetch the next eight rows using the same rendition as TrackListRow.
+struct TrackArtworkList<Content: View>: View {
+    let tracks: [SoundCloudTrack]
+    let loader: ArtworkLoader
+    @ViewBuilder let content: (SoundCloudTrack) -> Content
+
+    @State private var visibleIDs: Set<String> = []
+    @State private var prefetcher = TrackArtworkPrefetcher(rendition: .source)
+    #if DEBUG
+    @AppStorage("debug.artworkPrefetchEnabled") private var prefetchEnabled = true
+    #else
+    private let prefetchEnabled = true
+    #endif
+
+    private struct ArtworkWindow: Equatable {
+        var visible: [URL] = []
+        var prefetch: [URL] = []
+    }
+
+    private var artworkWindow: ArtworkWindow {
+        let indices = tracks.indices.filter { visibleIDs.contains(tracks[$0].id) }
+        guard let last = indices.last else { return ArtworkWindow() }
+        // Keep visible artwork separate from the eight rows below.
+        let end = min(tracks.count, last + 1 + 8)
+        return ArtworkWindow(
+            visible: indices.compactMap { tracks[$0].displayArtworkURL },
+            prefetch: ((last + 1)..<end).compactMap { tracks[$0].displayArtworkURL }
+        )
+    }
+
+    var body: some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            ForEach(tracks) { track in
+                content(track)
+                    .onAppear { visibleIDs.insert(track.id) }
+                    .onDisappear { visibleIDs.remove(track.id) }
+            }
+        }
+        #if DEBUG
+        .preference(key: TrackArtworkQueueDebugKey.self, value: [prefetcher])
+        #endif
+        .environment(\.trackArtworkDidFinish, { url, rendition in
+            guard rendition == prefetcher.rendition else { return }
             prefetcher.artworkDidFinish(url: url, loader: loader)
         })
         .onChange(of: artworkWindow, initial: true) { _, window in
@@ -324,16 +389,16 @@ struct TrackGridTile: View {
 #if DEBUG
 // Read counts only in this small overlay so artwork
 // completions do not cause the grid itself to rebuild.
-struct GridArtworkQueueDebugKey: PreferenceKey {
-    static let defaultValue: [GridArtworkPrefetcher] = []
+struct TrackArtworkQueueDebugKey: PreferenceKey {
+    static let defaultValue: [TrackArtworkPrefetcher] = []
 
-    static func reduce(value: inout [GridArtworkPrefetcher], nextValue: () -> [GridArtworkPrefetcher]) {
+    static func reduce(value: inout [TrackArtworkPrefetcher], nextValue: () -> [TrackArtworkPrefetcher]) {
         value.append(contentsOf: nextValue())
     }
 }
 
-struct GridArtworkQueueDebugOverlay: View {
-    let prefetcher: GridArtworkPrefetcher
+struct TrackArtworkQueueDebugOverlay: View {
+    let prefetcher: TrackArtworkPrefetcher
     @AppStorage("debug.showArtworkQueues") private var isVisible = false
     @AppStorage("debug.artworkPrefetchEnabled") private var prefetchEnabled = true
 

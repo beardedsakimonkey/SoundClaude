@@ -302,9 +302,9 @@ struct SignedInView: View {
             selectedView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 #if DEBUG
-                .overlayPreferenceValue(GridArtworkQueueDebugKey.self, alignment: .topTrailing) { queues in
+                .overlayPreferenceValue(TrackArtworkQueueDebugKey.self, alignment: .topTrailing) { queues in
                     if let prefetcher = queues.last {
-                        GridArtworkQueueDebugOverlay(prefetcher: prefetcher)
+                        TrackArtworkQueueDebugOverlay(prefetcher: prefetcher)
                     }
                 }
                 #endif

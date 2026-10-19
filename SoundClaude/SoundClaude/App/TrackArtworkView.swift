@@ -1,14 +1,14 @@
 import AppKit
 import SwiftUI
 
-private struct GridArtworkDidFinishKey: EnvironmentKey {
-    static let defaultValue: (@MainActor (URL) -> Void)? = nil
+private struct TrackArtworkDidFinishKey: EnvironmentKey {
+    static let defaultValue: (@MainActor (URL, ArtworkLoader.Rendition) -> Void)? = nil
 }
 
 extension EnvironmentValues {
-    var gridArtworkDidFinish: (@MainActor (URL) -> Void)? {
-        get { self[GridArtworkDidFinishKey.self] }
-        set { self[GridArtworkDidFinishKey.self] = newValue }
+    var trackArtworkDidFinish: (@MainActor (URL, ArtworkLoader.Rendition) -> Void)? {
+        get { self[TrackArtworkDidFinishKey.self] }
+        set { self[TrackArtworkDidFinishKey.self] = newValue }
     }
 }
 
@@ -22,7 +22,7 @@ struct TrackArtworkView: View {
     let animatesChanges: Bool
     let showsPlaceholderIcon: Bool
 
-    @Environment(\.gridArtworkDidFinish) private var gridArtworkDidFinish
+    @Environment(\.trackArtworkDidFinish) private var trackArtworkDidFinish
     @State private var image: NSImage?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -78,7 +78,7 @@ struct TrackArtworkView: View {
                 withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
                     image = cached
                 }
-                if case .square500 = rendition { gridArtworkDidFinish?(artworkURL) }
+                trackArtworkDidFinish?(artworkURL, rendition)
                 return
             }
             if !animatesChanges {
@@ -95,8 +95,8 @@ struct TrackArtworkView: View {
             withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
                 image = nextImage
             }
-            if let artworkURL, case .square500 = rendition {
-                gridArtworkDidFinish?(artworkURL)
+            if let artworkURL {
+                trackArtworkDidFinish?(artworkURL, rendition)
             }
         }
     }

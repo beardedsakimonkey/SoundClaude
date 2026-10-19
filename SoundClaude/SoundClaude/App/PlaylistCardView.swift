@@ -156,7 +156,7 @@ struct PlaylistCardView: View {
     }
 
     private func trackRows(limit: Int) -> some View {
-        ForEach(tracks.prefix(limit), id: \.urn) { track in
+        TrackArtworkList(tracks: Array(tracks.prefix(limit)), loader: model.artworkLoader) { track in
             TrackListRow(
                 track: track,
                 playback: model.playback,

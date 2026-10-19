@@ -66,20 +66,18 @@ struct HistoryView: View {
                 )
             }
         } else {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(tracks) { track in
-                    TrackListRow(
-                        track: track,
-                        playback: model.playback,
-                        analyzer: model.analyzer,
-                        artworkLoader: model.artworkLoader,
-                        likes: model.likes,
-                        onAddToQueue: model.addToQueue,
-                        onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist,
-                        onPlayTrack: play
-                    )
-                }
+            TrackArtworkList(tracks: tracks, loader: model.artworkLoader) { track in
+                TrackListRow(
+                    track: track,
+                    playback: model.playback,
+                    analyzer: model.analyzer,
+                    artworkLoader: model.artworkLoader,
+                    likes: model.likes,
+                    onAddToQueue: model.addToQueue,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist,
+                    onPlayTrack: play
+                )
             }
         }
     }
