@@ -27,7 +27,13 @@ struct SignedInView: View {
     init(user: SoundCloudUser, model: AppModel) {
         self.user = user
         self.model = model
-        _selectedDestination = State(initialValue: SidebarSelectionStore().restore(for: user))
+        let selection = SidebarSelectionStore().restoreNavigation(for: user)
+        _selectedDestination = State(initialValue: selection.destination)
+        _navigationHistories = State(initialValue: selection.navigationHistories)
+    }
+
+    private var navigationSelection: NavigationSelection {
+        NavigationSelection(destination: selectedDestination ?? .liked, route: path.last)
     }
 
     private var destinationID: SidebarDestination.ID {
@@ -75,6 +81,9 @@ struct SignedInView: View {
         GeometryReader { geometry in
             navigationView
                 .frame(width: geometry.size.width, height: geometry.size.height)
+        }
+        .onChange(of: navigationSelection) { _, selection in
+            selectionStore.save(selection, for: user)
         }
         // Preserve page and scroll state, but suppress page drawing and frame timelines.
         .opacity(isShowingVisualizer ? 0 : 1)
@@ -754,7 +763,6 @@ struct SignedInView: View {
         }
         initialDetailArtworkRotation = nil
         selectedDestination = destination
-        selectionStore.save(destination, for: user)
     }
 
 }
@@ -771,11 +779,6 @@ private struct NavigationPageActivity: ViewModifier {
     }
 }
 
-private struct NavigationHistory {
-    var path: [Route] = []
-    var forwardPath: [Route] = []
-}
-
 private struct QueueBlurModifier: AnimatableModifier {
     var radius: CGFloat
 
@@ -787,17 +790,6 @@ private struct QueueBlurModifier: AnimatableModifier {
     func body(content: Content) -> some View {
         content.blur(radius: max(0, radius))
     }
-}
-
-private enum Route: Hashable {
-    case search(String)
-    case genre(String)
-    case tag(String)
-    case playlist(SoundCloudPlaylist)
-    case station(String, seedTrack: SoundCloudTrack? = nil, seedArtistName: String? = nil)
-    case track(SoundCloudTrack)
-    case artist(SoundCloudUser)
-    case artistUsers(SoundCloudUser, ArtistUserList)
 }
 
 // Hidden pages retain their state without running continuous animation timelines.

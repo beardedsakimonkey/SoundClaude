@@ -28,7 +28,7 @@ struct SoundCloudUser: Codable, Sendable, Hashable {
     }
 }
 
-enum ArtistUserList: String, Sendable, Hashable, CaseIterable {
+enum ArtistUserList: String, Codable, Sendable, Hashable, CaseIterable {
     case followers
     case following = "followings"
 
