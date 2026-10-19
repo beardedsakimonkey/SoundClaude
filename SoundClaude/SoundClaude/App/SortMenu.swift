@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SortMenu<Order: Hashable>: View {
@@ -6,8 +7,13 @@ struct SortMenu<Order: Hashable>: View {
     let options: [Order]
     let title: (Order) -> String
     var systemImage: String? = nil
-    @State private var isHovered = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isPointerInside = false
+    @Environment(\.contentHoverEnabled) private var hoverEnabled
+    @Environment(\.contentHoverSuppression) private var hoverSuppression
+
+    private var isHovered: Bool {
+        isPointerInside && hoverEnabled && hoverSuppression?.isSuppressed != true
+    }
 
     var body: some View {
         HStack(spacing: 4) {
@@ -51,12 +57,55 @@ struct SortMenu<Order: Hashable>: View {
             .menuIndicator(systemImage == nil ? .visible : .hidden)
             .fixedSize()
             .opacity(isHovered ? 1 : 0.7)
-            .onContentHover { isHovered = $0 }
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovered)
+            .animation(.easeInOut(duration: 0.15), value: isHovered)
             .accessibilityLabel(label)
             .accessibilityValue(title(selection))
             .contentHelp(label)
+            .background {
+                SortMenuHoverTrackingView { isPointerInside = $0 }
+            }
         }
         .fixedSize(horizontal: true, vertical: false)
+        .onDisappear { isPointerInside = false }
+    }
+}
+
+// SwiftUI hover callbacks did not fire over this native menu. Track its bounds in AppKit.
+private struct SortMenuHoverTrackingView: NSViewRepresentable {
+    let onHover: (Bool) -> Void
+
+    func makeNSView(context: Context) -> TrackingView {
+        let view = TrackingView()
+        view.onHover = onHover
+        return view
+    }
+
+    func updateNSView(_ nsView: TrackingView, context: Context) {
+        nsView.onHover = onHover
+    }
+
+    final class TrackingView: NSView {
+        var onHover: ((Bool) -> Void)?
+        private var hoverArea: NSTrackingArea?
+
+        // Observe pointer movement without intercepting menu clicks.
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let hoverArea { removeTrackingArea(hoverArea) }
+            let area = NSTrackingArea(
+                rect: .zero,
+                options: [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect],
+                owner: self,
+                userInfo: nil
+            )
+            addTrackingArea(area)
+            hoverArea = area
+        }
+
+        override func mouseEntered(with event: NSEvent) { onHover?(true) }
+        override func mouseMoved(with event: NSEvent) { onHover?(true) }
+        override func mouseExited(with event: NSEvent) { onHover?(false) }
     }
 }
