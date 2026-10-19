@@ -63,6 +63,12 @@ final class AppModel {
     @ObservationIgnored private var firstRelatedTrackPageCacheGeneration = UUID()
     private let firstArtistTrackPageCache = MemoryCache<NSString, SoundCloudTrackPage>(countLimit: 20)
     @ObservationIgnored private var firstArtistTrackPageCacheGeneration = UUID()
+    // Keep initial search pages across Back/Forward navigation without unbounded growth.
+    private let firstSearchTrackPageCache = MemoryCache<SearchTrackCacheKey, SoundCloudTrackPage>(countLimit: 20)
+    private let firstSearchPlaylistPageCache = MemoryCache<NSString, SoundCloudPlaylistPage>(countLimit: 20)
+    private let firstSearchUserPageCache = MemoryCache<NSString, SoundCloudUserPage>(countLimit: 20)
+    private let searchCategoryCache = MemoryCache<NSString, SearchCategory>(countLimit: 100)
+    @ObservationIgnored private var searchCacheGeneration = UUID()
     private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(countLimit: 100)
     private let artistWebProfilesCache = MemoryCache<NSURL, [SoundCloudWebProfile]>(countLimit: 100)
     @ObservationIgnored private var artistWebProfilesCacheGeneration = UUID()
@@ -236,6 +242,11 @@ final class AppModel {
         firstRelatedTrackPageCacheGeneration = UUID()
         firstArtistTrackPageCache.removeAll()
         firstArtistTrackPageCacheGeneration = UUID()
+        firstSearchTrackPageCache.removeAll()
+        firstSearchPlaylistPageCache.removeAll()
+        firstSearchUserPageCache.removeAll()
+        searchCategoryCache.removeAll()
+        searchCacheGeneration = UUID()
         artistHeaderCache.removeAll()
         stationCache.removeAll()
         stationCacheGeneration = UUID()
@@ -613,19 +624,60 @@ final class AppModel {
         )
     }
 
+    func searchCategory(for query: String) -> SearchCategory {
+        searchCategoryCache.value(forKey: query as NSString) ?? .tracks
+    }
+
+    func rememberSearchCategory(_ category: SearchCategory, for query: String) {
+        searchCategoryCache.insert(category, forKey: query as NSString)
+    }
+
     func searchTracks(query: String? = nil, genres: String? = nil, tags: String? = nil, pageURL: URL? = nil) async throws -> SoundCloudTrackPage {
+        let cacheKey = SearchTrackCacheKey(query: query, genres: genres, tags: tags)
+        if pageURL == nil, let cached = firstSearchTrackPageCache.value(forKey: cacheKey) {
+            return cached
+        }
+        let generation = searchCacheGeneration
         let accessToken = try await auth.validAccessToken()
-        return try await client.searchTracks(query: query, genres: genres, tags: tags, accessToken: accessToken, pageURL: pageURL)
+        let page = try await client.searchTracks(query: query, genres: genres, tags: tags, accessToken: accessToken, pageURL: pageURL)
+        try Task.checkCancellation()
+        guard generation == searchCacheGeneration else { throw CancellationError() }
+        if pageURL == nil {
+            firstSearchTrackPageCache.insert(page, forKey: cacheKey)
+        }
+        return page
     }
 
     func searchPlaylists(query: String, pageURL: URL? = nil) async throws -> SoundCloudPlaylistPage {
+        let cacheKey = query as NSString
+        if pageURL == nil, let cached = firstSearchPlaylistPageCache.value(forKey: cacheKey) {
+            return cached
+        }
+        let generation = searchCacheGeneration
         let accessToken = try await auth.validAccessToken()
-        return try await client.searchPlaylists(query: query, accessToken: accessToken, pageURL: pageURL)
+        let page = try await client.searchPlaylists(query: query, accessToken: accessToken, pageURL: pageURL)
+        try Task.checkCancellation()
+        guard generation == searchCacheGeneration else { throw CancellationError() }
+        if pageURL == nil {
+            firstSearchPlaylistPageCache.insert(page, forKey: cacheKey)
+        }
+        return page
     }
 
     func searchUsers(query: String, pageURL: URL? = nil) async throws -> SoundCloudUserPage {
+        let cacheKey = query as NSString
+        if pageURL == nil, let cached = firstSearchUserPageCache.value(forKey: cacheKey) {
+            return cached
+        }
+        let generation = searchCacheGeneration
         let accessToken = try await auth.validAccessToken()
-        return try await client.searchUsers(query: query, accessToken: accessToken, pageURL: pageURL)
+        let page = try await client.searchUsers(query: query, accessToken: accessToken, pageURL: pageURL)
+        try Task.checkCancellation()
+        guard generation == searchCacheGeneration else { throw CancellationError() }
+        if pageURL == nil {
+            firstSearchUserPageCache.insert(page, forKey: cacheKey)
+        }
+        return page
     }
 
     func artistTracks(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
@@ -1009,5 +1061,30 @@ private final class TrackCacheKey: NSObject {
     override func isEqual(_ object: Any?) -> Bool {
         guard let other = object as? TrackCacheKey else { return false }
         return urn == other.urn && secretToken == other.secretToken
+    }
+}
+
+private final class SearchTrackCacheKey: NSObject {
+    let query: String?
+    let genres: String?
+    let tags: String?
+
+    init(query: String?, genres: String?, tags: String?) {
+        self.query = query
+        self.genres = genres
+        self.tags = tags
+    }
+
+    override var hash: Int {
+        var hasher = Hasher()
+        hasher.combine(query)
+        hasher.combine(genres)
+        hasher.combine(tags)
+        return hasher.finalize()
+    }
+
+    override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? SearchTrackCacheKey else { return false }
+        return query == other.query && genres == other.genres && tags == other.tags
     }
 }

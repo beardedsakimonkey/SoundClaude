@@ -13,7 +13,29 @@ struct SearchResultsView: View {
 
     @Environment(\.searchViewportHeight) private var searchViewportHeight
 
-    @State private var tabSelection = SearchTabSelection()
+    @State private var tabSelection: SearchTabSelection
+
+    init(
+        query: String,
+        isGenreSearch: Bool = false,
+        isTagSearch: Bool = false,
+        contentPadding: CGFloat = 20,
+        model: AppModel,
+        onSelectTrack: @escaping (SoundCloudTrack) -> Void,
+        onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void,
+        onSelectArtist: @escaping (SoundCloudUser) -> Void
+    ) {
+        self.query = query
+        self.isGenreSearch = isGenreSearch
+        self.isTagSearch = isTagSearch
+        self.contentPadding = contentPadding
+        self.model = model
+        self.onSelectTrack = onSelectTrack
+        self.onSelectPlaylist = onSelectPlaylist
+        self.onSelectArtist = onSelectArtist
+        let category: SearchCategory = isGenreSearch || isTagSearch ? .tracks : model.searchCategory(for: query)
+        _tabSelection = State(initialValue: SearchTabSelection(category: category))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -22,7 +44,9 @@ struct SearchResultsView: View {
                 .textSelection(.enabled)
                 .modifier(FadeInOnAppear())
             if !isGenreSearch && !isTagSearch {
-                SearchTabs(selection: tabSelection)
+                SearchTabs(selection: tabSelection) { category in
+                    model.rememberSearchCategory(category, for: query)
+                }
                 .modifier(FadeInOnAppear())
             }
 
@@ -50,12 +74,18 @@ struct SearchResultsView: View {
 // Keep tab changes local to the picker and results, without updating the page.
 @Observable
 private final class SearchTabSelection {
-    var category: SearchCategory = .tracks
-    var visitedCategories: Set<SearchCategory> = [.tracks]
+    var category: SearchCategory
+    var visitedCategories: Set<SearchCategory>
+
+    init(category: SearchCategory) {
+        self.category = category
+        visitedCategories = [category]
+    }
 }
 
 private struct SearchTabs: View {
     let selection: SearchTabSelection
+    let onSelect: (SearchCategory) -> Void
 
     var body: some View {
         TabPicker(
@@ -66,6 +96,7 @@ private struct SearchTabs: View {
                 set: {
                     selection.visitedCategories.insert($0)
                     selection.category = $0
+                    onSelect($0)
                 }
             ),
             optionSystemImage: { $0.systemImage }
@@ -92,7 +123,7 @@ private struct SearchTabContent<Content: View>: View {
     }
 }
 
-private enum SearchCategory: String, CaseIterable {
+enum SearchCategory: String, CaseIterable {
     case tracks = "Tracks"
     case playlists = "Playlists"
     case users = "Users"
