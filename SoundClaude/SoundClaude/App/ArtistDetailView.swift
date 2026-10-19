@@ -876,7 +876,7 @@ struct ArtistDetailView: View {
                         await loadTracks()
                     }
             } else if contentState.hasLoadedTracks, contentState.tracks.isEmpty, contentState.tracksErrorMessage == nil {
-                EmptyStateView("No playable tracks")
+                EmptyStateView("No visible tracks")
             }
         }
     }
@@ -928,7 +928,7 @@ struct ArtistDetailView: View {
                !contentState.isLoadingReposts, !contentState.isLoadingRepostedPlaylists,
                contentState.repostsNextPageURL == nil, contentState.repostedPlaylistsNextPageURL == nil,
                contentState.repostsErrorMessage == nil, contentState.repostedPlaylistsErrorMessage == nil {
-                EmptyStateView("No reposts")
+                EmptyStateView("No visible reposts")
             }
         }
         .task(id: details?.user.urn) {
@@ -1023,7 +1023,7 @@ struct ArtistDetailView: View {
                !contentState.isLoadingLikes, !contentState.isLoadingLikedPlaylists,
                contentState.likesNextPageURL == nil, contentState.likedPlaylistsNextPageURL == nil,
                contentState.likesErrorMessage == nil, contentState.likedPlaylistsErrorMessage == nil {
-                EmptyStateView("No likes")
+                EmptyStateView("No visible likes")
             }
         }
         .task(id: details?.user.urn) {
@@ -1066,7 +1066,7 @@ struct ArtistDetailView: View {
                     }
             } else if contentState.hasLoadedPlaylists, contentState.playlists.isEmpty,
                       contentState.playlistsErrorMessage == nil {
-                EmptyStateView("No playlists")
+                EmptyStateView("No visible playlists")
             }
         }
         .task {
