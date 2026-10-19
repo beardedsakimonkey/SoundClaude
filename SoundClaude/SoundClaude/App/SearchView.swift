@@ -167,9 +167,11 @@ private struct RecentSearchButton: View {
                             }
                         }
                     }
-                    .padding(8)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .contentShape(RoundedRectangle(cornerRadius: 6))
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(RecentSearchButtonStyle())
             .overlay {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
@@ -199,5 +201,15 @@ private struct RecentSearchButton: View {
             .padding(.trailing, 8)
         }
         .onContentHover { isHovering = $0 }
+    }
+}
+
+private struct RecentSearchButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.primary.opacity(configuration.isPressed ? 0.12 : 0.06))
+            }
     }
 }
