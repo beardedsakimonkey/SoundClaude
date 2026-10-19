@@ -1,3 +1,4 @@
+import Observation
 import SwiftUI
 
 struct SearchResultsView: View {
@@ -12,8 +13,7 @@ struct SearchResultsView: View {
 
     @Environment(\.searchViewportHeight) private var searchViewportHeight
 
-    @State private var category: SearchCategory = .tracks
-    @State private var visitedCategories: Set<SearchCategory> = [.tracks]
+    @State private var tabSelection = SearchTabSelection()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -22,35 +22,19 @@ struct SearchResultsView: View {
                 .textSelection(.enabled)
                 .modifier(FadeInOnAppear())
             if !isGenreSearch && !isTagSearch {
-                TabPicker(
-                    title: "Search type",
-                    options: SearchCategory.allCases,
-                    selection: Binding(
-                        get: { category },
-                        set: {
-                            visitedCategories.insert($0)
-                            category = $0
-                        }
-                    ),
-                    optionSystemImage: { $0.systemImage }
-                )
+                SearchTabs(selection: tabSelection)
                 .modifier(FadeInOnAppear())
             }
 
-            // Keep visited lists mounted to retain results and pagination.
-            ZStack(alignment: .topLeading) {
-                ForEach(SearchCategory.allCases, id: \.self) { resultCategory in
-                    if visitedCategories.contains(resultCategory) {
-                        SearchResultList(
-                            query: query, isGenreSearch: isGenreSearch, isTagSearch: isTagSearch,
-                            category: resultCategory, isActive: category == resultCategory,
-                            model: model,
-                            onSelectTrack: onSelectTrack,
-                            onSelectPlaylist: onSelectPlaylist,
-                            onSelectArtist: onSelectArtist
-                        )
-                    }
-                }
+            SearchTabContent(selection: tabSelection) { category, isActive in
+                SearchResultList(
+                    query: query, isGenreSearch: isGenreSearch, isTagSearch: isTagSearch,
+                    category: category, isActive: isActive,
+                    model: model,
+                    onSelectTrack: onSelectTrack,
+                    onSelectPlaylist: onSelectPlaylist,
+                    onSelectArtist: onSelectArtist
+                )
             }
             // Keep enough scroll space below the tabs while results load or are short.
             .frame(minHeight: searchViewportHeight, alignment: .topLeading)
@@ -59,6 +43,51 @@ struct SearchResultsView: View {
         .navigationTitle(isGenreSearch || isTagSearch ? "Search" : query)
         #if DEBUG
         .debugViewUpdates("SearchResultsView")
+        #endif
+    }
+}
+
+// Keep tab changes local to the picker and results, without updating the page.
+@Observable
+private final class SearchTabSelection {
+    var category: SearchCategory = .tracks
+    var visitedCategories: Set<SearchCategory> = [.tracks]
+}
+
+private struct SearchTabs: View {
+    let selection: SearchTabSelection
+
+    var body: some View {
+        TabPicker(
+            title: "Search type",
+            options: SearchCategory.allCases,
+            selection: Binding(
+                get: { selection.category },
+                set: {
+                    selection.visitedCategories.insert($0)
+                    selection.category = $0
+                }
+            ),
+            optionSystemImage: { $0.systemImage }
+        )
+    }
+}
+
+private struct SearchTabContent<Content: View>: View {
+    let selection: SearchTabSelection
+    @ViewBuilder let content: (SearchCategory, Bool) -> Content
+
+    var body: some View {
+        // Keep visited lists mounted to retain results and pagination.
+        ZStack(alignment: .topLeading) {
+            ForEach(SearchCategory.allCases, id: \.self) { category in
+                if selection.visitedCategories.contains(category) {
+                    content(category, selection.category == category)
+                }
+            }
+        }
+        #if DEBUG
+        .debugViewUpdates("SearchTabContent")
         #endif
     }
 }
