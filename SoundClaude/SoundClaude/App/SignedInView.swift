@@ -6,6 +6,7 @@ struct SignedInView: View {
     private let model: AppModel
     @State private var selectedDestination: SidebarDestination?
     private let selectionStore = SidebarSelectionStore()
+    @State private var artistTabSelections = ArtistTabSelections()
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
     @State private var initialDetailArtworkRotation: Bool?
     @State private var playlistTrack: SoundCloudTrack?
@@ -277,6 +278,7 @@ struct SignedInView: View {
                 onSelectProfile: showArtist,
                 onReselect: {
                     navigationHistories[destinationID] = NavigationHistory()
+                    artistTabSelections.tabs[destinationID] = nil
                     if selectedDestination == .search { searchFocusRequest = UUID() }
                 },
                 onSignOut: model.signOut
@@ -314,6 +316,7 @@ struct SignedInView: View {
         isShowingQueue = false
         if selectedDestination == destination {
             navigationHistories[destination.id] = NavigationHistory()
+            artistTabSelections.tabs[destination.id] = nil
         }
         selectDestination(destination)
     }
@@ -455,7 +458,7 @@ struct SignedInView: View {
             ArtistDetailView(
                 artist: artist,
                 model: model,
-                selectedTab: artistTabSelection(for: artist),
+                tabSelection: artistTabSelection(for: artist),
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist,
                 onSelectPlaylist: showPlaylist,
@@ -472,13 +475,8 @@ struct SignedInView: View {
         }
     }
 
-    private func artistTabSelection(for artist: SoundCloudUser) -> Binding<ArtistDetailView.ContentTab> {
-        let historyID = destinationID
-        let artistURL = artist.permalinkURL
-        return Binding(
-            get: { navigationHistories[historyID]?.artistTabs[artistURL] ?? .tracks },
-            set: { navigationHistories[historyID, default: NavigationHistory()].artistTabs[artistURL] = $0 }
-        )
+    private func artistTabSelection(for artist: SoundCloudUser) -> ArtistTabSelection {
+        artistTabSelections.selection(for: artist.permalinkURL, in: destinationID)
     }
 
     private var bottomFade: some View {
@@ -756,6 +754,7 @@ struct SignedInView: View {
     private func selectDestination(_ destination: SidebarDestination) {
         if destination == .search {
             navigationHistories[destination.id] = NavigationHistory()
+            artistTabSelections.tabs[destination.id] = nil
             searchFocusRequest = UUID()
         }
         initialDetailArtworkRotation = nil
@@ -780,8 +779,6 @@ private struct NavigationPageActivity: ViewModifier {
 private struct NavigationHistory {
     var path: [Route] = []
     var forwardPath: [Route] = []
-    // Page views are recreated on navigation, so keep each artist's tab with its history.
-    var artistTabs: [URL: ArtistDetailView.ContentTab] = [:]
 }
 
 private struct QueueBlurModifier: AnimatableModifier {
@@ -825,5 +822,17 @@ private struct CurrentStationShortcut: View {
             .disabled(playback.currentTrack == nil || isOpeningStation)
             .hidden()
             .accessibilityHidden(true)
+    }
+}
+
+// Preserve tab choices across navigation without invalidating the navigation tree.
+private final class ArtistTabSelections {
+    var tabs: [SidebarDestination.ID: [URL: ArtistTabSelection]] = [:]
+
+    func selection(for artistURL: URL, in historyID: SidebarDestination.ID) -> ArtistTabSelection {
+        if let selection = tabs[historyID]?[artistURL] { return selection }
+        let selection = ArtistTabSelection()
+        tabs[historyID, default: [:]][artistURL] = selection
+        return selection
     }
 }
