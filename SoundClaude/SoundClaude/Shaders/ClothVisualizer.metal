@@ -195,30 +195,6 @@ static float clothStoneNoise(float2 p, float footprint) {
     return mix(value, 0.5, smoothstep(0.25, 0.8, footprint));
 }
 
-static float3 clothSpeckledFloor(float2 p, float3 accentColor) {
-    float2 grid = p * 2.5;
-    float2 cell = floor(grid);
-    float seed = clothSpeckleHash(cell);
-    float2 center = 0.2 + 0.6 * float2(clothSpeckleHash(cell + 17.3),
-                                      clothSpeckleHash(cell + 41.7));
-    float2 offset = fract(grid) - center;
-    float angle = clothSpeckleHash(cell + 9.2) * 6.283185;
-    float2 local = float2(cos(angle) * offset.x - sin(angle) * offset.y,
-                         sin(angle) * offset.x + cos(angle) * offset.y);
-    local.y *= mix(1.2, 2.4, clothSpeckleHash(cell + 63.1));
-    float radius = mix(0.04, 0.13, clothSpeckleHash(cell + 28.6));
-    // Slightly uneven, elongated flecks, scattered across an otherwise flat base.
-    float distance = length(local) + 0.2 * local.x - radius;
-    float aa = max(fwidth(distance), 0.001);
-    float footprint = max(length(dfdx(grid)), length(dfdy(grid)));
-    float fleck = (1.0 - smoothstep(-aa, aa, distance)) * step(0.68, seed);
-    // Fade flecks smaller than a pixel to prevent sparkle while orbiting.
-    fleck *= 1.0 - smoothstep(radius * 0.5, radius * 2.0, footprint);
-    float3 tint = clothSpeckleHash(cell + 82.4) < 0.65
-        ? accentColor * 0.78 : mix(accentColor, float3(1), 0.12);
-    return mix(accentColor, tint, fleck);
-}
-
 static float2 clothTileSite(float2 cell) {
     return cell + 0.15 + 0.7 * float2(clothSpeckleHash(cell + 103.7),
                                      clothSpeckleHash(cell + 251.9));
@@ -284,10 +260,9 @@ static float3 clothTiledFloor(float2 p, float3 accentColor, float tileSize) {
     float bevelWidth = mix(0.009, 0.022, wear);
     float bevel = (1.0 - smoothstep(0.0, bevelWidth + aa, lip)) * detail;
     float dirt = (1.0 - smoothstep(0.0, 0.045 + aa, lip)) * detail;
-    // Keep each tile close to the accent, with sparse flecks across its face.
+    // Keep each tile close to the accent.
     float shade = mix(0.91, 1.0, clothSpeckleHash(nearestCell + 379.1));
-    float3 base = accentColor * mix(0.955, shade, detail);
-    float3 color = clothSpeckledFloor(p, base);
+    float3 color = accentColor * mix(0.955, shade, detail);
     // Restrained surface wear; beveled edges and recessed grout carry most of
     // the texture. Light the bevels from the same side as the cloth and poles.
     float grain = clothStoneNoise(p * 65.0 + 51.3, worldFootprint * 65.0);

@@ -10,8 +10,6 @@ struct PistonSettings: Equatable {
     var bloomStrength: Float = 1.5
     var spotlightStrength: Float = 0.5
     var spotlightSize: Float = 1.5
-    var particleBrightness: Float = 5
-    var particleSize: Float = 1.5
     var damping: Float = 0.04
     var gravity: Float = 20
     var travel: Float = 2.75
