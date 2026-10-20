@@ -8,11 +8,6 @@ struct SearchTextField: View {
         var spacing: CGFloat { self == .regular ? 10 : 8 }
         var padding: CGFloat { self == .regular ? 12 : 10 }
         var cornerRadius: CGFloat { self == .regular ? 10 : 8 }
-        var background: AnyShapeStyle {
-            self == .regular
-                ? AnyShapeStyle(.primary.opacity(0.06))
-                : AnyShapeStyle(.quaternary)
-        }
     }
 
     let placeholder: String
@@ -60,7 +55,7 @@ struct SearchTextField: View {
         .padding(style.padding)
         .background {
             RoundedRectangle(cornerRadius: style.cornerRadius)
-                .fill(style.background)
+                .fill(.primary.opacity(0.06))
                 .overlay {
                     RoundedRectangle(cornerRadius: style.cornerRadius)
                         .fill(.white.opacity(isFocused.wrappedValue ? 0.08 : 0))
