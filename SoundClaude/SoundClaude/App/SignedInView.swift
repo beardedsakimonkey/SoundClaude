@@ -413,6 +413,7 @@ struct SignedInView: View {
                     onSelectPlaylist: showPlaylist,
                     onSelectArtist: showArtist
                 )
+                .scrollKeyNavigation()
             }
             .background(alignment: .top) {
                 RouteGradientBackdrop()
@@ -428,6 +429,7 @@ struct SignedInView: View {
                     onSelectPlaylist: showPlaylist,
                     onSelectArtist: showArtist
                 )
+                .scrollKeyNavigation()
             }
             .background(alignment: .top) {
                 RouteGradientBackdrop()

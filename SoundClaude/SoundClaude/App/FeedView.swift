@@ -128,6 +128,7 @@ struct FeedView: View {
                 }
             }
             .padding(20)
+            .scrollKeyNavigation()
         }
     }
 

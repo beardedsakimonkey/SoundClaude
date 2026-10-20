@@ -46,6 +46,7 @@ struct HistoryView: View {
                 }
             }
             .padding(20)
+            .scrollKeyNavigation()
         }
     }
 

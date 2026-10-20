@@ -73,6 +73,7 @@ struct ArtistUsersView: View {
                 }
             }
             .padding(24)
+            .scrollKeyNavigation()
         }
         .background(alignment: .top) {
             RouteGradientBackdrop()
