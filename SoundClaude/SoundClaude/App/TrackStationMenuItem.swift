@@ -9,7 +9,7 @@ struct TrackStationMenuItem: View {
     @Environment(\.openTrackStation) private var openTrackStation
 
     var body: some View {
-        Button("Go to station", systemImage: "dot.radiowaves.left.and.right") {
+        Button("Start station", systemImage: "dot.radiowaves.left.and.right") {
             openTrackStation(track)
         }
         .keyboardShortcut(nil)

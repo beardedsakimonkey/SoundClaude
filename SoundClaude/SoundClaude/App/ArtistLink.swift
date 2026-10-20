@@ -62,7 +62,7 @@ private struct ArtistContextMenu: ViewModifier {
 
     func body(content: Content) -> some View {
         content.contextMenu {
-            Button("Go to station", systemImage: "dot.radiowaves.left.and.right") {
+            Button("Start station", systemImage: "dot.radiowaves.left.and.right") {
                 openArtistStation(artist)
             }
             .keyboardShortcut(nil)
