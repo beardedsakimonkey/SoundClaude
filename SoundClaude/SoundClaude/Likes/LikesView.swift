@@ -122,8 +122,7 @@ struct LikesView: View {
                 label: "Sort tracks",
                 selection: $sortOrder,
                 options: LikesSortOrder.allCases,
-                title: { $0.title },
-                systemImage: "line.3.horizontal.decrease.circle"
+                title: { $0.title }
             )
             TrackLayoutPicker(trackLayout: $trackLayout)
         }

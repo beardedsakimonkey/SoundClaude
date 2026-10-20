@@ -30,12 +30,21 @@ enum CommentSortOrder: String, CaseIterable {
 struct CommentSortMenu: View {
     @AppStorage("commentSortOrder") private var sortOrder = CommentSortOrder.newest
     var body: some View {
-        SortMenu(
-            label: "Sort comments",
-            selection: $sortOrder,
-            options: CommentSortOrder.allCases,
-            title: { $0.title }
-        )
+        HStack(spacing: 4) {
+            Image(systemName: "arrow.down")
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+
+            SortMenu(
+                label: "Sort comments",
+                selection: $sortOrder,
+                options: CommentSortOrder.allCases,
+                title: { $0.title },
+                reservesWidestTitle: false
+            )
+        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 

@@ -6,7 +6,7 @@ struct SortMenu<Order: Hashable>: View {
     @Binding var selection: Order
     let options: [Order]
     let title: (Order) -> String
-    var systemImage: String? = nil
+    var reservesWidestTitle = true
     @State private var isPointerInside = false
     @Environment(\.contentHoverEnabled) private var hoverEnabled
     @Environment(\.contentHoverSuppression) private var hoverSuppression
@@ -16,56 +16,44 @@ struct SortMenu<Order: Hashable>: View {
     }
 
     var body: some View {
-        HStack(spacing: 4) {
-            if systemImage == nil {
-                Image(systemName: "arrow.down")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
+        // Reserve the widest title so changing the order doesn't resize the header.
+        ZStack {
+            ForEach(reservesWidestTitle ? options : [], id: \.self) { order in
+                menu(showing: order)
+                    .hidden()
             }
 
-            let menu = Menu {
-                Picker(label, selection: $selection) {
-                    ForEach(options, id: \.self) { order in
-                        Text(title(order))
-                            .tag(order)
-                    }
+            menu(showing: selection)
+                .background {
+                    SortMenuHoverTrackingView { isPointerInside = $0 }
                 }
-                .pickerStyle(.inline)
-            } label: {
-                if let systemImage {
-                    Image(systemName: systemImage)
-                } else {
-                    Text(title(selection))
-                        .font(.subheadline)
-                }
-            }
-
-            Group {
-                if systemImage != nil {
-                    menu
-                        .menuStyle(.button)
-                        .buttonStyle(.plain)
-                        // Keep header spacing outside the menu's popup anchor.
-                        .fixedSize()
-                        .frame(width: 36, height: 36)
-                } else {
-                    menu
-                        .menuStyle(.borderlessButton)
-                }
-            }
-            .menuIndicator(systemImage == nil ? .visible : .hidden)
-            .fixedSize()
-            .opacity(isHovered ? 1 : 0.7)
-            .accessibilityLabel(label)
-            .accessibilityValue(title(selection))
-            .contentHelp(label)
-            .background {
-                SortMenuHoverTrackingView { isPointerInside = $0 }
-            }
+                .opacity(isHovered ? 1 : 0.7)
+                .accessibilityLabel(label)
+                .accessibilityValue(title(selection))
+                .contentHelp(label)
         }
+        // The borderless menu insets its chevron 2.5pt more than its title. Even out the edges.
+        .padding(.trailing, -2.5)
         .fixedSize(horizontal: true, vertical: false)
         .onDisappear { isPointerInside = false }
+    }
+
+    private func menu(showing order: Order) -> some View {
+        Menu {
+            Picker(label, selection: $selection) {
+                ForEach(options, id: \.self) { order in
+                    Text(title(order))
+                        .tag(order)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Text(title(order))
+                .font(.subheadline)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.visible)
+        .fixedSize()
     }
 }
 
