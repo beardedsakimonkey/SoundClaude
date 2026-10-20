@@ -80,8 +80,10 @@ struct PlaylistDetailView: View {
             .padding(24)
         }
         .background(alignment: .top) {
-            TrackCollectionBackdrop(artworkURL: artworkURL, loader: model.artworkLoader)
-                .ignoresSafeArea(edges: .top)
+            TrackCollectionPlaybackContent {
+                TrackCollectionBackdrop(artworkURL: artworkURL, loader: model.artworkLoader)
+                    .ignoresSafeArea(edges: .top)
+            }
         }
         .navigationTitle(displayedPlaylist.title)
         .toolbar {
@@ -148,7 +150,9 @@ struct PlaylistDetailView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 24) {
-            artworkAndPlayback
+            TrackCollectionPlaybackContent {
+                artworkAndPlayback
+            }
             if let description = displayedPlaylist.description?
                 .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
                 ExpandableDescriptionText(

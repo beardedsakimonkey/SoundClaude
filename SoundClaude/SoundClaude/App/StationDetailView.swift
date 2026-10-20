@@ -72,7 +72,9 @@ struct StationDetailView: View {
     var body: some View {
         ScrollbarReservedScrollView { _ in
             VStack(alignment: .leading, spacing: 24) {
-                header
+                TrackCollectionPlaybackContent {
+                    header
+                }
                 VStack(alignment: .leading, spacing: trackLayout == .list ? 4 : 12) {
                     HStack {
                         CountedSectionHeader(title: "Tracks", count: station?.trackCount ?? tracks.count)
@@ -109,8 +111,10 @@ struct StationDetailView: View {
             .padding(24)
         }
         .background(alignment: .top) {
-            TrackCollectionBackdrop(artworkURL: artworkURL, loader: model.artworkLoader)
-                .ignoresSafeArea(edges: .top)
+            TrackCollectionPlaybackContent {
+                TrackCollectionBackdrop(artworkURL: artworkURL, loader: model.artworkLoader)
+                    .ignoresSafeArea(edges: .top)
+            }
         }
         .navigationTitle(title)
         .toolbar {
