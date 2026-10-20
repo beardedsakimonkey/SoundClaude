@@ -27,6 +27,7 @@ private struct UserGridCard: View {
     let artworkLoader: ArtworkLoader
     let onSelectArtist: (SoundCloudUser) -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
 
@@ -68,7 +69,7 @@ private struct UserGridCard: View {
                     if let followersCount = user.followersCount {
                         Text("\(followersCount.formatted()) \(followersCount == 1 ? "follower" : "followers")")
                             .font(.caption)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(colorScheme == .light ? HierarchicalShapeStyle.secondary : .tertiary)
                     }
                 }
                 .multilineTextAlignment(.center)
