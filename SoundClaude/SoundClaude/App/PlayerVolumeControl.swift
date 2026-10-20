@@ -8,6 +8,7 @@ struct PlayerVolumeControl: View {
     private let sliderLength: CGFloat = 90
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @GestureState private var isPressingVolume = false
     @State private var isShowingVolume = false
     @State private var isHoveringVolumeButton = false
@@ -95,7 +96,9 @@ struct PlayerVolumeControl: View {
             }
         }
         .symbolRenderingMode(.hierarchical)
-        .foregroundStyle(Color(white: isPressingVolume ? 1 : 0.65))
+        .foregroundStyle(Color(white: colorScheme == .dark
+            ? (isPressingVolume ? 1 : 0.65)
+            : (isPressingVolume ? 0.1 : 0.35)))
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isPressingVolume)
     }
 
@@ -118,9 +121,11 @@ private struct PlayerVolumeSlider: View {
     let pressState: GestureState<Bool>
     var axis: Axis = .horizontal
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isFocused: Bool
 
     private var isPressed: Bool { pressState.wrappedValue }
+    private var tint: Color { colorScheme == .dark ? .white : .black }
 
     var body: some View {
         GeometryReader { geometry in
@@ -130,11 +135,11 @@ private struct PlayerVolumeSlider: View {
 
             ZStack(alignment: isVertical ? .bottom : .leading) {
                 Capsule()
-                    .fill(.white.opacity(0.18))
+                    .fill(tint.opacity(colorScheme == .dark ? 0.18 : 0.12))
                     .frame(width: isVertical ? 8 : nil, height: isVertical ? nil : 8)
 
                 Rectangle()
-                    .fill(.white.opacity(isPressed ? 1 : 0.65))
+                    .fill(tint.opacity(colorScheme == .dark ? (isPressed ? 1 : 0.65) : (isPressed ? 0.5 : 0.3)))
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isPressed)
                     .frame(width: isVertical ? 8 : fillLength, height: isVertical ? fillLength : 8)
             }
