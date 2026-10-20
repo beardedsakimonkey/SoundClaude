@@ -76,15 +76,6 @@ private struct UserGridCard: View {
             }
             .padding(10)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.primary.opacity(0.06))
-                    .opacity(isHovering ? 1 : 0)
-                    .animation(
-                        reduceMotion ? nil : .easeInOut(duration: 0.25),
-                        value: isHovering
-                    )
-            }
             .padding(12)
             .contentShape(Rectangle())
         }
