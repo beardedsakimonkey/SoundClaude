@@ -116,7 +116,7 @@ struct LikesView: View {
                     .controlSize(.small)
             }
             searchBar
-                .frame(maxWidth: 280)
+                .frame(maxWidth: 200)
                 .padding(.leading, 8)
             SortMenu(
                 label: "Sort tracks",
