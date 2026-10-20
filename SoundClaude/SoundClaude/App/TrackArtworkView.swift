@@ -415,8 +415,8 @@ enum DetailArtworkMotion {
     static let hoverLift: CGFloat = 1
     static let hoverScale: CGFloat = 1.04
 
-    static let hoverIn: Animation = .spring(response: 0.4, dampingFraction: 0.65)
-    static let hoverOut: Animation = .spring(response: 0.6, dampingFraction: 0.75)
+    static let hoverIn: Animation = .spring(response: 0.35, dampingFraction: 0.65)
+    static let hoverOut: Animation = .spring(response: 0.35 * 1.5, dampingFraction: 0.75)
 
     static let rotationIn: Animation = .spring(response: 0.45, dampingFraction: 0.7)
     static let rotationOut: Animation = .spring(response: 0.8, dampingFraction: 0.7)

@@ -209,7 +209,7 @@ struct TrackGridTile: View {
                         cornerRadius: Self.artworkCornerRadius
                     ))
                     .animation(
-                        reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
+                        reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.75),
                         value: isHoveringArtwork
                     )
                     .overlay {
