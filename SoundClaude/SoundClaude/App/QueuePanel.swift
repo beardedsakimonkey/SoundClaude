@@ -20,7 +20,7 @@ final class QueuePanelLayout: ObservableObject {
         let maxX = max(0, bounds.width - 16 - 96)
         let maxY = max(0, bounds.height - 60)
         let initialX = max(0, bounds.width - margin - width - 16)
-        let initialY = max(0, bounds.height - margin - height)
+        let initialY = max(0, bounds.height - margin - height + 8)
         return CGRect(
             x: min(maxX, max(minX, proposed?.minX ?? initialX)),
             y: min(maxY, max(0, proposed?.minY ?? initialY)),
