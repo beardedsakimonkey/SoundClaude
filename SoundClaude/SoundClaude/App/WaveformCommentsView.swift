@@ -287,6 +287,7 @@ private struct WaveformCommentMarker: View, Equatable {
     @Binding var seekRequest: Double?
     let hoverSpace: Namespace.ID
     @Environment(\.waveformCommentArtistAction) private var onSelectArtist
+    @Environment(\.colorScheme) private var colorScheme
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         // The bindings address stable state owned by the marker layer.
@@ -307,7 +308,9 @@ private struct WaveformCommentMarker: View, Equatable {
             WaveformCommentAvatar(url: comment.user?.avatarURL, loader: loader)
             .equatable()
             .overlay { Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1) }
-            .overlay { Circle().fill(.black.opacity(isActive ? 0 : 0.5)) }
+            .overlay {
+                Circle().fill((colorScheme == .dark ? Color.black : .white).opacity(isActive ? 0 : 0.5))
+            }
             .shadow(color: .black.opacity(isActive ? 0.4 : 0), radius: 5, y: 2)
             // Nearby avatars grow from 16 to 30 points; the active one reaches 32.
             .scaleEffect((isActive ? 32 : 16 + 14 * proximity) / 32)
