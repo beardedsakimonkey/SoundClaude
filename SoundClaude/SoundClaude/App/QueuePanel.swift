@@ -89,7 +89,8 @@ private struct QueuePanelGlass: ViewModifier {
 
         Group {
             if #available(macOS 26.0, *) {
-                content.glassEffect(.regular, in: shape)
+                // Glass applied to the content itself swallows the rows' drop targets.
+                content.background { Color.clear.glassEffect(.regular, in: shape) }
             } else {
                 content.background(.regularMaterial, in: shape)
                     .overlay {
