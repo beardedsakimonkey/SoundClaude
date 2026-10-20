@@ -82,18 +82,27 @@ struct QueuePanel<Content: View>: View {
 }
 
 private struct QueuePanelGlass: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
 
-        if #available(macOS 26.0, *) {
-            content.glassEffect(.regular, in: shape)
-        } else {
-            content.background(.regularMaterial, in: shape)
-                .overlay {
-                    shape.strokeBorder(.primary.opacity(0.12), lineWidth: 1)
-                        .allowsHitTesting(false)
-                }
-                .shadow(color: .black.opacity(0.3), radius: 8, y: 2)
+        Group {
+            if #available(macOS 26.0, *) {
+                content.glassEffect(.regular, in: shape)
+            } else {
+                content.background(.regularMaterial, in: shape)
+                    .overlay {
+                        shape.strokeBorder(.primary.opacity(0.12), lineWidth: 1)
+                            .allowsHitTesting(false)
+                    }
+                    .shadow(color: .black.opacity(0.3), radius: 8, y: 2)
+            }
         }
+        .background(
+            (colorScheme == .dark ? Color.black : Color.white)
+                .opacity(colorScheme == .dark ? 0.4 : 0.6),
+            in: shape
+        )
     }
 }
