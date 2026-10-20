@@ -174,7 +174,6 @@ struct SidebarView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                     Button("Try Again") { Task { await playlists.load() } }
-                                        .modifier(SidebarHoverBackground())
                                 }
                             } else if !playlists.isLoading && playlists.cache.hasLoadedList && playlists.playlists.isEmpty {
                                 Text("No playlists")
@@ -199,7 +198,6 @@ struct SidebarView: View {
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                     Button("Try Again") { Task { await playlists.loadLikes() } }
-                                        .modifier(SidebarHoverBackground())
                                 }
                             } else if !playlists.isLoadingLikes && playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
                                 Text("No liked playlists")
@@ -298,7 +296,6 @@ struct SidebarView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Button("Try Again") { Task { try? await likes.loadStationLikes() } }
-                                .modifier(SidebarHoverBackground())
                         }
                     } else if !likes.isLoadingStationLikes && likes.hasLoadedStationLikes && likes.likedStations.isEmpty {
                         Text("No liked stations")
@@ -613,7 +610,6 @@ private struct SidebarForegroundHover: ViewModifier {
     var usesPrimaryForeground = false
     var idleOpacity: Double = 1
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovered = false
 
     private var foregroundColor: Color {
@@ -630,32 +626,6 @@ private struct SidebarForegroundHover: ViewModifier {
         content
             .foregroundStyle(foregroundColor)
             .opacity(isHovered ? 1 : idleOpacity)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isHovered)
-            .onContentHover { isHovered = $0 }
-    }
-}
-
-private struct SidebarHoverBackground: ViewModifier {
-    var isSelected = false
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.isEnabled) private var isEnabled
-    @State private var isHovered = false
-
-    func body(content: Content) -> some View {
-        content
-            .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(isSelected ? 0.06 : 0))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(Color.primary.opacity(isHovered && isEnabled ? 0.06 : 0))
-                            .animation(
-                                reduceMotion ? nil : .easeInOut(duration: 0.2),
-                                value: isHovered && isEnabled
-                            )
-                    }
-            }
             .onContentHover { isHovered = $0 }
     }
 }
