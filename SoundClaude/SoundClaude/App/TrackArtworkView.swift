@@ -346,6 +346,7 @@ struct TrackArtworkBackdropView: View {
 
     @State private var image: NSImage?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         GeometryReader { geometry in
@@ -361,7 +362,7 @@ struct TrackArtworkBackdropView: View {
                         .scaleEffect(1.15)
                         .blur(radius: 36)
                         .saturation(1.15)
-                        .opacity(0.38)
+                        .opacity(colorScheme == .dark ? 0.38 : 0.25)
                         .mask {
                             if fadesToBottom {
                                 LinearGradient(
