@@ -57,7 +57,6 @@ struct SortMenu<Order: Hashable>: View {
             .menuIndicator(systemImage == nil ? .visible : .hidden)
             .fixedSize()
             .opacity(isHovered ? 1 : 0.7)
-            .animation(.easeInOut(duration: 0.15), value: isHovered)
             .accessibilityLabel(label)
             .accessibilityValue(title(selection))
             .contentHelp(label)

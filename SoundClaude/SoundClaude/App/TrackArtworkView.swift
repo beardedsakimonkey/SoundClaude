@@ -717,13 +717,12 @@ struct DetailArtworkView: View {
                     Button("Tune Glass…") { isShowingSlabControls = true }
                     #endif
                 }
-                // Only a physical lift darkens the shadow; rotation keeps the resting opacity.
                 .animation(
                     reduceMotion ? nil : (displayedLift > 0
                         ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut)
                 ) { artwork in
                     artwork.shadow(
-                        color: .black.opacity(displayedLift > 0 ? 0.32 : 0.22),
+                        color: .black.opacity(0.22),
                         radius: 6 + 10 * liftProgress,
                         x: 0,
                         y: 4 + 10 * liftProgress
