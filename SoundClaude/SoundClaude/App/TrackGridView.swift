@@ -99,10 +99,6 @@ struct TrackArtworkGrid<Content: View>: View {
         .onGeometryChange(for: Int.self) { geometry in
             max(1, Int((geometry.size.width + 20) / 180))
         } action: { columnCount = $0 }
-        .environment(\.trackArtworkDidFinish, { url, rendition in
-            guard rendition == prefetcher.rendition else { return }
-            prefetcher.artworkDidFinish(url: url, loader: loader)
-        })
         .onChange(of: artworkWindow, initial: true) { _, window in
             prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader, isEnabled: prefetchEnabled)
         }
@@ -146,10 +142,6 @@ struct TrackArtworkList<Content: View>: View {
         #if DEBUG
         .preference(key: TrackArtworkQueueDebugKey.self, value: [coordinator.prefetcher])
         #endif
-        .environment(\.trackArtworkDidFinish, { url, rendition in
-            guard rendition == .source else { return }
-            coordinator.prefetcher.artworkDidFinish(url: url, loader: loader)
-        })
         .onChange(of: tracks, initial: true) { _, tracks in
             configure(tracks)
         }

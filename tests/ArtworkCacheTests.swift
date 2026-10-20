@@ -8,14 +8,20 @@ actor SoundCloudClient {
     private(set) var requests = 0
     private(set) var requestedURLs: [URL] = []
     private var holdsRequests = false
-    private var waiting: [CheckedContinuation<Void, Never>] = []
+    private var waiting: [(URL, CheckedContinuation<Void, Never>)] = []
 
     func hold() { holdsRequests = true }
     func release() {
         holdsRequests = false
         let continuations = waiting
         waiting.removeAll()
-        continuations.forEach { $0.resume() }
+        continuations.forEach { $0.1.resume() }
+    }
+
+    func release(urls: Set<URL>) {
+        let continuations = waiting.filter { urls.contains($0.0) }
+        waiting.removeAll { urls.contains($0.0) }
+        continuations.forEach { $0.1.resume() }
     }
 
     init(payload: Data) { self.payload = payload }
@@ -24,7 +30,7 @@ actor SoundCloudClient {
         requests += 1
         requestedURLs.append(url)
         if holdsRequests {
-            await withCheckedContinuation { waiting.append($0) }
+            await withCheckedContinuation { waiting.append((url, $0)) }
         }
         await Task.yield()
         return payload
@@ -116,38 +122,50 @@ struct ArtworkCacheTests {
         precondition(fetchedURLs.count == 4, "Duplicate artwork must share prefetch work")
         prefetcher.update(urls: [], visibleURLs: [], loader: prefetchLoader)
 
-        // Visible requests gate speculative work, including after a jump.
+        // No view callbacks: the queue must own visible work and share it with
+        // image tasks, including a task cancelled when a lazy tile disappears.
         let gatedClient = SoundCloudClient(payload: encoded as Data)
         let gatedLoader = ArtworkLoader(client: gatedClient)
         let gated = TrackArtworkPrefetcher()
-        gated.update(urls: [urls[2]], visibleURLs: [urls[0], urls[1]], loader: gatedLoader)
-        gated.artworkDidFinish(url: urls[0], loader: gatedLoader)
-        for _ in 0..<20 { await Task.yield() }
-        let beforeVisibleFinished = await gatedClient.requests
-        precondition(beforeVisibleFinished == 0, "All visible artwork must finish before prefetch")
         await gatedClient.hold()
-        gated.artworkDidFinish(url: urls[1], loader: gatedLoader)
-        while await gatedClient.requests < 1 { await Task.yield() }
+        gated.update(urls: [urls[2]], visibleURLs: [urls[0], urls[1]], loader: gatedLoader)
+        try await until { await gatedClient.requests == 2 }
+        let imageTask = Task { try await gatedLoader.image(for: urls[0], rendition: .square500) }
+        await Task.yield()
+        imageTask.cancel()
+        let beforeVisibleFinished = await gatedClient.requestedURLs
+        precondition(Set(beforeVisibleFinished) == Set(urls.prefix(2)),
+                     "Only visible artwork may start before the visible loads finish")
+
+        // Old completions must not unblock a new viewport or start stale work.
         gated.update(urls: [urls[4]], visibleURLs: [urls[3]], loader: gatedLoader)
-        await gatedClient.release()
-        while gatedLoader.cachedImage(for: urls[2], rendition: .square500) == nil {
-            await Task.yield()
+        try await until { await gatedClient.requests == 3 }
+        await gatedClient.release(urls: Set(urls.prefix(2)))
+        try await until {
+            gatedLoader.cachedImage(for: urls[0], rendition: .square500) != nil
+                && gatedLoader.cachedImage(for: urls[1], rendition: .square500) != nil
         }
-        gated.artworkDidFinish(url: urls[1], loader: gatedLoader)
+        _ = await imageTask.result
         for _ in 0..<20 { await Task.yield() }
         let afterJump = await gatedClient.requests
-        precondition(afterJump == 1, "Old completions must not unblock a new viewport")
-        // Completion does not require a cached image: errors must not stall the queue.
-        gated.artworkDidFinish(url: urls[3], loader: gatedLoader)
-        while gatedLoader.cachedImage(for: urls[4], rendition: .square500) == nil {
-            await Task.yield()
-        }
-        // Cached visible artwork needs no completion callback to start prefetch.
+        precondition(afterJump == 3, "Old completions must not unblock a new viewport")
+        await gatedClient.release()
+        try await until { gatedLoader.cachedImage(for: urls[4], rendition: .square500) != nil }
+        let gatedRequests = await gatedClient.requestedURLs
+        precondition(Set(gatedRequests) == Set([urls[0], urls[1], urls[3], urls[4]])
+                     && gatedRequests.count == 4,
+                     "Cancelled views must not stall the queue or duplicate network work")
         gated.update(urls: [urls[5]], visibleURLs: [urls[4]], loader: gatedLoader)
-        while gatedLoader.cachedImage(for: urls[5], rendition: .square500) == nil {
-            await Task.yield()
-        }
+        try await until { gatedLoader.cachedImage(for: urls[5], rendition: .square500) != nil }
         gated.update(urls: [], visibleURLs: [], loader: gatedLoader)
+
+        // Failed decoding also settles visible work without a view callback.
+        let failedClient = SoundCloudClient(payload: Data([0, 1, 2]))
+        let failedLoader = ArtworkLoader(client: failedClient)
+        let failed = TrackArtworkPrefetcher()
+        failed.update(urls: [urls[1]], visibleURLs: [urls[0]], loader: failedLoader)
+        try await until { await failedClient.requests == 2 }
+        failed.update(urls: [], visibleURLs: [], loader: failedLoader)
 
         let toggleClient = SoundCloudClient(payload: encoded as Data)
         let toggleLoader = ArtworkLoader(client: toggleClient)
@@ -178,11 +196,12 @@ struct ArtworkCacheTests {
         let listLoader = ArtworkLoader(client: listClient)
         let listPrefetcher = TrackArtworkPrefetcher(rendition: .source)
         let visibleURL = URL(string: "https://i1.sndcdn.com/list-visible.png")!
+        await listClient.hold()
         listPrefetcher.update(urls: listURLs, visibleURLs: [visibleURL], loader: listLoader)
-        for _ in 0..<20 { await Task.yield() }
+        try await until { await listClient.requests == 1 }
         let beforeListVisibleFinished = await listClient.requests
-        precondition(beforeListVisibleFinished == 0)
-        listPrefetcher.artworkDidFinish(url: visibleURL, loader: listLoader)
+        precondition(beforeListVisibleFinished == 1)
+        await listClient.release()
         for url in listURLs {
             while listLoader.cachedImage(for: url, rendition: .source) == nil {
                 await Task.yield()
@@ -192,7 +211,7 @@ struct ArtworkCacheTests {
             _ = try await listLoader.image(for: url)
         }
         let listRequests = await listClient.requests
-        precondition(listRequests == 8, "Eight prefetched rows must reuse their cached artwork")
+        precondition(listRequests == 9, "Eight prefetched rows must reuse their cached artwork")
         listPrefetcher.update(urls: [], visibleURLs: [], loader: listLoader)
 
         // Rapid row changes must replace the window before speculative work starts.
@@ -203,28 +222,35 @@ struct ArtworkCacheTests {
         let scrollURLs = (0..<20).map { URL(string: "https://i1.sndcdn.com/scroll-\($0)-large.png")! }
         scroll.configure(ids: scrollIDs, urls: scrollURLs, loader: scrollLoader, isEnabled: true)
         scroll.setVisible("0", isVisible: true, loader: scrollLoader)
-        scroll.prefetcher.artworkDidFinish(url: scrollURLs[0], loader: scrollLoader)
         scroll.setVisible("0", isVisible: false, loader: scrollLoader)
         scroll.setVisible("10", isVisible: true, loader: scrollLoader)
-        scroll.prefetcher.artworkDidFinish(url: scrollURLs[10], loader: scrollLoader)
         let duringScroll = await scrollClient.requests
         precondition(duringScroll == 0, "Visibility updates must not immediately start loads")
         for url in scrollURLs[11...18] {
             while scrollLoader.cachedImage(for: url) == nil { await Task.yield() }
         }
         let scrolledURLs = await scrollClient.requestedURLs
-        precondition(Set(scrolledURLs) == Set(scrollURLs[11...18]),
-                     "Only the latest eight-row window should load after a rapid jump")
+        precondition(Set(scrolledURLs) == Set(scrollURLs[10...18]),
+                     "Only the current row and its eight-row window should load after a rapid jump")
         scroll.setVisible("10", isVisible: false, loader: scrollLoader)
         scroll.setVisible("0", isVisible: true, loader: scrollLoader)
         scroll.stop(loader: scrollLoader)
         try await Task.sleep(for: .milliseconds(100))
         let stoppedRequests = await scrollClient.requests
-        precondition(stoppedRequests == 8, "Leaving the list must cancel its delayed update")
+        precondition(stoppedRequests == 9, "Leaving the list must cancel its delayed update")
 
         let invalidLoader = ArtworkLoader(client: SoundCloudClient(payload: Data([0, 1, 2])))
         let invalid = try await invalidLoader.image(for: url)
         precondition(invalid == nil && invalidLoader.cachedImage(for: url) == nil)
-        print("Artwork cache reuse, rendition isolation, downsampling, and invalid image tests passed")
+        print("Artwork cache, visible request ownership, prefetch gating, and scrolling tests passed")
+    }
+
+    @MainActor
+    private static func until(_ condition: @MainActor () async -> Bool) async throws {
+        let deadline = ContinuousClock.now + .seconds(5)
+        while !(await condition()) {
+            precondition(ContinuousClock.now < deadline, "Artwork queue did not make progress")
+            try await Task.sleep(for: .milliseconds(1))
+        }
     }
 }

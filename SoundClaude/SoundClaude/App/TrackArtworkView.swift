@@ -1,17 +1,6 @@
 import AppKit
 import SwiftUI
 
-private struct TrackArtworkDidFinishKey: EnvironmentKey {
-    static let defaultValue: (@MainActor (URL, ArtworkLoader.Rendition) -> Void)? = nil
-}
-
-extension EnvironmentValues {
-    var trackArtworkDidFinish: (@MainActor (URL, ArtworkLoader.Rendition) -> Void)? {
-        get { self[TrackArtworkDidFinishKey.self] }
-        set { self[TrackArtworkDidFinishKey.self] = newValue }
-    }
-}
-
 struct TrackArtworkView: View {
     let artworkURL: URL?
     let loader: ArtworkLoader
@@ -22,7 +11,6 @@ struct TrackArtworkView: View {
     let animatesChanges: Bool
     let showsPlaceholderIcon: Bool
 
-    @Environment(\.trackArtworkDidFinish) private var trackArtworkDidFinish
     @State private var image: NSImage?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -78,7 +66,6 @@ struct TrackArtworkView: View {
                 withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
                     image = cached
                 }
-                trackArtworkDidFinish?(artworkURL, rendition)
                 return
             }
             if !animatesChanges {
@@ -94,9 +81,6 @@ struct TrackArtworkView: View {
             guard !Task.isCancelled else { return }
             withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
                 image = nextImage
-            }
-            if let artworkURL {
-                trackArtworkDidFinish?(artworkURL, rendition)
             }
         }
     }

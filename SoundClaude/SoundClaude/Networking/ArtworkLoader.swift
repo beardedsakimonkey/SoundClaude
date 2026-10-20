@@ -349,6 +349,7 @@ final class TrackArtworkPrefetcher {
     private var active: Set<URL> = []
     private var visible: Set<URL> = []
     private var finished: Set<URL> = []
+    private var loadingVisible: Set<URL> = []
 
     #if DEBUG
     var visibleWaitingCount: Int { visible.subtracting(finished).count }
@@ -369,19 +370,26 @@ final class TrackArtworkPrefetcher {
             seen.insert($0).inserted && !visible.contains($0) && !active.contains($0)
                 && loader.cachedImage(for: $0, rendition: rendition) == nil
         }
+        // Own the visible loads instead of waiting for SwiftUI view callbacks.
+        // A lazy view's task can be cancelled or deferred independently of its
+        // appearance. Loader coalescing shares this work with the image views.
+        for url in visible.subtracting(finished).subtracting(loadingVisible) {
+            loadingVisible.insert(url)
+            Task { [weak self, rendition] in
+                _ = try? await loader.image(for: url, rendition: rendition)
+                guard let self else { return }
+                loadingVisible.remove(url)
+                // Failure also settles a request. Old windows must not retain
+                // completions or unblock artwork in the current window.
+                if visible.contains(url) { finished.insert(url) }
+                drain(loader: loader)
+            }
+        }
         drain(loader: loader)
     }
 
     func discardPending() {
         pending.removeAll()
-    }
-
-    func artworkDidFinish(url: URL, loader: ArtworkLoader) {
-        // A failed image also settles the visible request. Cancelled views do
-        // not report completion. Record completion even if SwiftUI has not
-        // yet delivered the matching visible-window update.
-        finished.insert(url)
-        drain(loader: loader)
     }
 
     private func drain(loader: ArtworkLoader) {
