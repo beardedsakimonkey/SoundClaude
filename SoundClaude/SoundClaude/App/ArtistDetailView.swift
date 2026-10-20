@@ -794,7 +794,7 @@ struct ArtistDetailView: View {
 
         private var glassParameters: PlayerArtworkGlassParameters {
             var parameters = PlayerArtworkGlassParameters()
-            parameters.sweepStrength = 0
+            parameters.specularStrength = 0
             return parameters
         }
 
@@ -811,8 +811,7 @@ struct ArtistDetailView: View {
             .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.12 : 1)
             .clipShape(Circle())
             .modifier(PlayerArtworkGlass(
-                cornerRadius: pictureSize / 2,
-                isHovering: isHoveringArtwork && !reduceMotion
+                cornerRadius: pictureSize / 2
             ))
             .environment(\.playerArtworkGlassParameters, glassParameters)
             .animation(

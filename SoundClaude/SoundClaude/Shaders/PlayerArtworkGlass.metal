@@ -53,9 +53,9 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     float lipWidth,
     float reflectionStrength,
     float causticStrength,
-    float sweepStrength,
-    float sweepWidth,
-    float sweepPosition,
+    float specularStrength,
+    float specularSoftness,
+    float rotation,
     float2 origin,
     float masksFace,
     float slabShift,
@@ -102,14 +102,19 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     float reflection = reflectionStrength * lip * (0.12 + 0.48 * highlight + 0.24 * counterlight)
         + caustic * counterlight * causticStrength;
 
-    // Two parallel reflections: a broad band and a thinner, fainter streak.
-    // Both follow the same hover motion, with a gap that scales with their width.
-    float2 uv = local / max(size, float2(1.0));
-    float sweep = uv.y + 0.45 * uv.x - sweepPosition;
-    float width = max(sweepWidth, 0.001);
-    float broadStreak = exp(-pow(sweep / width, 2.0));
-    float thinStreak = exp(-pow((sweep - width * 2.0) / (width * 0.4), 2.0));
-    reflection += sweepStrength * (broadStreak + thinStreak * 0.7);
+    // A fixed light above and to the left reflects off the rotating glass plane.
+    // A finite eye position gives the reflection a soft local highlight.
+    float2 facePosition = (local - center) / max(min(size.x, size.y), 1.0);
+    float sine = sin(rotation);
+    float cosine = cos(rotation);
+    float3 surfacePosition = float3(facePosition.x * cosine, facePosition.y, -facePosition.x * sine);
+    float3 surfaceNormal = float3(sine, 0.0, cosine);
+    float3 lightDirection = normalize(float3(light * 0.45, 1.0));
+    float3 viewDirection = normalize(float3(0.0, 0.0, 2.5) - surfacePosition);
+    float3 halfway = normalize(lightDirection + viewDirection);
+    float exponent = 2.0 / pow(max(specularSoftness, 0.02), 2.0);
+    float specular = pow(max(dot(surfaceNormal, halfway), 0.0), exponent);
+    reflection += specularStrength * specular;
     color = mix(color, half3(1.0), half(saturate(reflection)));
     half4 face = half4(color * faceAlpha, faceAlpha);
     return face + edge * (1.0h - face.a);

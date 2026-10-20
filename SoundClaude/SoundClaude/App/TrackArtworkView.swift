@@ -587,8 +587,6 @@ struct DetailArtworkRotation: ViewModifier {
 struct DetailArtworkView: View {
     enum HoverStyle {
         case lift, rotation
-
-        var shineTravel: Double { self == .lift ? 0.35 : 1.5 }
     }
 
     let artworkURL: URL?
@@ -604,12 +602,6 @@ struct DetailArtworkView: View {
     var artworkLift: CGFloat = 0
     var hoverStyle: HoverStyle = .rotation
     var isShowingArtwork = false
-    private var hoverAnimation: Animation {
-        hoverStyle == .rotation ? DetailArtworkMotion.rotationIn : DetailArtworkMotion.hoverIn
-    }
-    private var hoverOutAnimation: Animation {
-        hoverStyle == .rotation ? DetailArtworkMotion.rotationOut : DetailArtworkMotion.hoverOut
-    }
     var onImageHover: ((Bool) -> Void)? = nil
     var track: SoundCloudTrack? = nil
     @ObservedObject var likes: LikesController
@@ -643,7 +635,6 @@ struct DetailArtworkView: View {
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.detailArtworkHoverActive) private var isHoveringArtwork
     @Environment(\.detailArtworkYRotation) private var rotation
     @Environment(\.detailArtworkTurn) private var turn
     @State private var likeErrorMessage: String?
@@ -665,25 +656,11 @@ struct DetailArtworkView: View {
     @AppStorage(DetailArtworkSlabTuning.fadeEdgeOpacityKey) private var debugFadeEdgeOpacity =
         DetailArtworkTransform().fadeEdgeOpacity
     @AppStorage(DetailArtworkSlabTuning.fadeAngleKey) private var debugFadeAngle = DetailArtworkTransform().fadeAngle
-    @AppStorage("debug.shine.strength") private var debugShineStrength =
-        PlayerArtworkGlassParameters.detail.sweepStrength
-    @AppStorage("debug.shine.width") private var debugShineWidth =
-        PlayerArtworkGlassParameters.detail.sweepWidth
-    @AppStorage("debug.shine.position") private var debugShinePosition =
-        PlayerArtworkGlassParameters.detail.sweepPosition
-    @AppStorage("debug.shine.rotationTravel") private var debugRotationShineTravel =
-        HoverStyle.rotation.shineTravel
-    @AppStorage("debug.shine.trackTravel") private var debugTrackShineTravel =
-        HoverStyle.lift.shineTravel
-    @AppStorage("debug.shine.hoverBoost") private var debugShineHoverBoost =
-        PlayerArtworkGlassParameters.detail.hoverSweepBoost
+    @AppStorage("debug.specular.strength") private var debugSpecularStrength =
+        PlayerArtworkGlassParameters.detail.specularStrength
+    @AppStorage("debug.specular.softness") private var debugSpecularSoftness =
+        PlayerArtworkGlassParameters.detail.specularSoftness
     @State private var isShowingSlabControls = false
-
-    private var shineTravelBinding: Binding<Double> {
-        hoverStyle == .lift ? $debugTrackShineTravel : $debugRotationShineTravel
-    }
-
-    private var displayedShineTravel: Double { shineTravelBinding.wrappedValue }
 
     private var displayedSlabThickness: CGFloat { debugSlabThickness }
     private var glassParameters: PlayerArtworkGlassParameters {
@@ -693,14 +670,11 @@ struct DetailArtworkView: View {
         parameters.lipPosition = debugLipPosition
         parameters.lipWidth = debugLipWidth
         parameters.reflectionStrength = debugLipStrength
-        parameters.sweepStrength = debugShineStrength
-        parameters.sweepWidth = debugShineWidth
-        parameters.sweepPosition = debugShinePosition
-        parameters.hoverSweepBoost = debugShineHoverBoost
+        parameters.specularStrength = debugSpecularStrength
+        parameters.specularSoftness = debugSpecularSoftness
         return parameters
     }
     #else
-    private var displayedShineTravel: Double { hoverStyle.shineTravel }
     private var displayedSlabThickness: CGFloat { slabThickness }
     private var glassParameters: PlayerArtworkGlassParameters { .detail }
     #endif
@@ -711,8 +685,6 @@ struct DetailArtworkView: View {
     private var displayedOverscan: CGFloat {
         displayedSlabThickness * tan(abs(turn) * .pi / 180)
     }
-
-    private var isArtworkHoverActive: Bool { isHoveringArtwork || isShowingArtwork }
 
     private var reflectionStops: [Gradient.Stop] {
         ReflectionFade.stops(
@@ -853,15 +825,10 @@ struct DetailArtworkView: View {
         .frame(width: size, height: size)
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius,
-            isHovering: isArtworkHoverActive && !reduceMotion,
-            hoverSweepTravel: displayedShineTravel,
+            rotation: rotation,
             slabThickness: displayedSlabThickness,
             artworkOverscan: overscan
         ))
-        .animation(
-            reduceMotion ? nil : (isArtworkHoverActive ? hoverAnimation : hoverOutAnimation),
-            value: isArtworkHoverActive
-        )
         .modifier(DetailArtworkReflectionBlur(
             radius: reflectionBlurRadius,
             cornerRadius: cornerRadius,
@@ -900,19 +867,13 @@ struct DetailArtworkView: View {
                         debugFadeStart = DetailArtworkTransform().fadeStart
                         debugFadeEdgeOpacity = DetailArtworkTransform().fadeEdgeOpacity
                         debugFadeAngle = DetailArtworkTransform().fadeAngle
-                        debugShineStrength = defaults.sweepStrength
-                        debugShineWidth = defaults.sweepWidth
-                        debugShinePosition = defaults.sweepPosition
-                        shineTravelBinding.wrappedValue = hoverStyle.shineTravel
-                        debugShineHoverBoost = defaults.hoverSweepBoost
+                        debugSpecularStrength = defaults.specularStrength
+                        debugSpecularSoftness = defaults.specularSoftness
                     }
                 }
-                Text("Hover shine").font(.subheadline.bold())
-                slabSlider("Shine strength", value: $debugShineStrength, range: 0...0.5, step: 0.01)
-                slabSlider("Shine width", value: $debugShineWidth, range: 0.01...1, step: 0.01)
-                slabSlider("Rest position", value: $debugShinePosition, range: -0.5...2, step: 0.01)
-                slabSlider("Hover travel", value: shineTravelBinding, range: 0...1.5, step: 0.01)
-                slabSlider("Hover brightness boost", value: $debugShineHoverBoost, range: 0...4, step: 0.05)
+                Text("Specular highlight").font(.subheadline.bold())
+                slabSlider("Strength", value: $debugSpecularStrength, range: 0...0.5, step: 0.01)
+                slabSlider("Softness", value: $debugSpecularSoftness, range: 0.05...0.6, step: 0.01)
                 Divider()
                 Text("Slab edge").font(.subheadline.bold())
                 slabSlider("Thickness (pt)", value: $debugSlabThickness, range: 0...30, step: 0.5)

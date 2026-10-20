@@ -10,10 +10,8 @@ struct PlayerArtworkGlassParameters {
     var lipWidth = 0.85
     var reflectionStrength = 0.75
     var causticStrength = 0.15
-    var sweepStrength = 0.065
-    var sweepWidth = 0.19
-    var sweepPosition = 0.24
-    var hoverSweepBoost = 0.0
+    var specularStrength = 0.12
+    var specularSoftness = 0.25
     // Base darkness, then the fraction of remaining light removed toward the back.
     var slabDarkness = 0.32
     var slabDepthShading = (0.54 - 0.32) / (1.0 - 0.32)
@@ -23,10 +21,6 @@ extension PlayerArtworkGlassParameters {
     // Detail artwork defaults captured from the Tune Glass controls.
     static var detail: Self {
         var parameters = Self()
-        parameters.sweepStrength = 0.05
-        parameters.sweepWidth = 0.2
-        parameters.sweepPosition = -0.50
-        parameters.hoverSweepBoost = 1.15
         parameters.slabDarkness = 0.23
         parameters.slabDepthShading = 0.36
         parameters.lipPosition = 1.0
@@ -50,7 +44,7 @@ extension EnvironmentValues {
     }
 }
 
-/// Animates the slab edge separately from the glass's hover sheen, which runs on its own spring.
+/// Animates the projected slab edge alongside the artwork rotation.
 struct PlayerArtworkGlassSlab: ViewModifier, Animatable {
     var shift: CGFloat
 
@@ -66,33 +60,18 @@ struct PlayerArtworkGlassSlab: ViewModifier, Animatable {
 
 struct PlayerArtworkGlass: ViewModifier, Animatable {
     let cornerRadius: CGFloat
-    // Moves the face reflection as the cover lifts toward the light. Zero keeps it fixed.
-    var hoverSweepTravel = 0.0
+    // Y rotation in degrees, animated with the same spring as the artwork.
+    var rotation = 0.0
     // Nonzero pads the shader layer so it can draw the slab's side past the face.
     // Needs `artworkOverscan` to supply the artwork the side shows.
     var slabThickness: CGFloat = 0
     // How far the content draws past its frame on every side, unclipped. The glass masks it
     // to the face, and the slab's side reveals the overscan.
     var artworkOverscan: CGFloat = 0
-    private var hoverProgress: Double
 
     var animatableData: Double {
-        get { hoverProgress }
-        set { hoverProgress = newValue }
-    }
-
-    init(
-        cornerRadius: CGFloat,
-        isHovering: Bool,
-        hoverSweepTravel: Double = 0,
-        slabThickness: CGFloat = 0,
-        artworkOverscan: CGFloat = 0
-    ) {
-        self.cornerRadius = cornerRadius
-        self.hoverSweepTravel = hoverSweepTravel
-        self.slabThickness = slabThickness
-        self.artworkOverscan = artworkOverscan
-        hoverProgress = isHovering ? 1 : 0
+        get { rotation }
+        set { rotation = newValue }
     }
 
     // Room for the slab edge at turns up to about 36 degrees, limited to the artwork available.
@@ -110,8 +89,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
         let enablesGlass = parameters.isEnabled && !reduceTransparency
         let slabPadding = enablesGlass ? Self.slabPadding(thickness: slabThickness, overscan: artworkOverscan) : 0
         let slabShift = min(max(slabShift, -slabPadding), slabPadding)
-        let sweepPosition = parameters.sweepPosition + hoverSweepTravel * hoverProgress
-        let sweepStrength = parameters.sweepStrength * (1 + parameters.hoverSweepBoost * hoverProgress)
+        let rotationRadians = rotation * .pi / 180
 
         content
             .padding(.horizontal, slabPadding)
@@ -130,9 +108,9 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
                         .float(parameters.lipWidth),
                         .float(parameters.reflectionStrength),
                         .float(parameters.causticStrength),
-                        .float(sweepStrength),
-                        .float(parameters.sweepWidth),
-                        .float(sweepPosition),
+                        .float(parameters.specularStrength),
+                        .float(parameters.specularSoftness),
+                        .float(rotationRadians),
                         .float2(slabPadding, 0),
                         .float(artworkOverscan > 0 ? 1 : 0),
                         .float(slabShift),

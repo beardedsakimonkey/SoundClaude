@@ -423,8 +423,7 @@ private struct PlayerFooterArtworkThumbnail: View {
         .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.15 : 1)
         .clipShape(artworkShape)
         .modifier(PlayerArtworkGlass(
-            cornerRadius: cornerRadius,
-            isHovering: isHoveringArtwork && !reduceMotion
+            cornerRadius: cornerRadius
         ))
     }
 

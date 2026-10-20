@@ -214,8 +214,7 @@ struct TrackGridTile: View {
                     .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
                     .clipShape(RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous))
                     .modifier(PlayerArtworkGlass(
-                        cornerRadius: Self.artworkCornerRadius,
-                        isHovering: isHoveringArtwork && !reduceMotion
+                        cornerRadius: Self.artworkCornerRadius
                     ))
                     .animation(
                         reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
