@@ -115,6 +115,7 @@ final class PlaybackController {
     }
 
     @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let sessionDefaults: UserDefaults
     @ObservationIgnored private let makePrefetchPlayer: @MainActor (URL) -> AVPlayer
     @ObservationIgnored private(set) var player: AVPlayer
     @ObservationIgnored var onNeedsSource: ((SoundCloudTrack, UUID) -> Void)?
@@ -158,9 +159,11 @@ final class PlaybackController {
 
     init(
         defaults: UserDefaults = .standard,
+        sessionDefaults: UserDefaults? = nil,
         makePrefetchPlayer: @escaping @MainActor (URL) -> AVPlayer = { AVPlayer(url: $0) }
     ) {
         self.defaults = defaults
+        self.sessionDefaults = sessionDefaults ?? defaults
         self.makePrefetchPlayer = makePrefetchPlayer
         defaults.register(defaults: [
             SettingsKey.volume: Float(1),
@@ -292,7 +295,7 @@ final class PlaybackController {
     }
 
     var savedSession: SavedPlayback? {
-        guard let data = defaults.data(forKey: SettingsKey.session),
+        guard let data = sessionDefaults.data(forKey: SettingsKey.session),
               let session = try? JSONDecoder().decode(SavedPlayback.self, from: data),
               session.position.isFinite, session.position >= 0 else { return nil }
         return session
@@ -310,7 +313,7 @@ final class PlaybackController {
             isLiked: sessionToRestore?.isLiked ?? isTrackLiked?(track)
         )
         guard let data = try? JSONEncoder().encode(session) else { return }
-        defaults.set(data, forKey: SettingsKey.session)
+        sessionDefaults.set(data, forKey: SettingsKey.session)
         lastSaveTime = Date()
     }
 
@@ -337,7 +340,7 @@ final class PlaybackController {
         isPlaying = false
         isWaitingForPlayback = false
         errorMessage = nil
-        defaults.removeObject(forKey: SettingsKey.session)
+        sessionDefaults.removeObject(forKey: SettingsKey.session)
         updateNowPlayingInfo()
         updateRemoteCommandAvailability()
     }

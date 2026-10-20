@@ -336,6 +336,16 @@ test-playback-selection:
 		tests/PlaybackSelectionTests.swift
 	/tmp/soundclaude-tests/playback-selection
 
+# Session saves must not invalidate views that observe UI settings (requires GUI).
+.PHONY: test-playback-session
+test-playback-session:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/playback-session \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/Playback/PlaybackController.swift \
+		tests/PlaybackSessionStorageTests.swift
+	/tmp/soundclaude-tests/playback-session
+
 .PHONY: test-network-activity
 test-network-activity:
 	@mkdir -p /tmp/soundclaude-tests
