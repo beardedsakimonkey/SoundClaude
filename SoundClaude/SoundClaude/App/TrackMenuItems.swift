@@ -45,7 +45,6 @@ struct TrackMenuItems: View {
     @ObservedObject var likes: LikesController
     @Binding var likeErrorMessage: String?
     var onAddToQueue: ((SoundCloudTrack) -> Void)? = nil
-    var onRemoveFromQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
     var isUpdatingPlaylist = false
 
@@ -54,11 +53,7 @@ struct TrackMenuItems: View {
     var body: some View {
         let isLiked = likes.isLiked(track)
 
-        if let onRemoveFromQueue {
-            Button("Remove from queue", systemImage: "text.badge.minus") {
-                onRemoveFromQueue(track)
-            }
-        } else if let onAddToQueue {
+        if let onAddToQueue {
             Button("Play next", systemImage: "text.line.first.and.arrowtriangle.forward") {
                 onAddToQueue(track)
             }

@@ -138,29 +138,18 @@ struct TrackListRow: View {
                 // Keep the duration's width so hover does not change text truncation.
                 .opacity(isHovering ? 0 : 1)
                 .overlay {
-                    Menu {
-                        trackMenuItems
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .frame(width: 28, height: 28)
-                            .contentShape(Circle())
-                    }
-                    .menuStyle(.button)
-                    .buttonStyle(.plain)
-                    .menuIndicator(.hidden)
-                    .fixedSize()
-                    .background {
-                        Circle()
-                            .fill(Color.primary.opacity(isHoveringMenu ? 0.1 : 0))
-                            .frame(width: 28, height: 28)
-                    }
-                    .contentShape(Circle())
-                    .opacity(isHovering ? 1 : 0)
-                    .allowsHitTesting(isHovering)
-                    .accessibilityHidden(!isHovering)
-                    .accessibilityLabel("More options for \(track.title)")
-                    .contentHelp("More options")
-                    .onContentHover { isHoveringMenu = $0 }
+                    trailingHoverButton
+                        .fixedSize()
+                        .background {
+                            Circle()
+                                .fill(Color.primary.opacity(isHoveringMenu ? 0.1 : 0))
+                                .frame(width: 28, height: 28)
+                        }
+                        .contentShape(Circle())
+                        .opacity(isHovering ? 1 : 0)
+                        .allowsHitTesting(isHovering)
+                        .accessibilityHidden(!isHovering)
+                        .onContentHover { isHoveringMenu = $0 }
                 }
         }
         .padding(.vertical, isCompact ? 4 : 6)
@@ -204,13 +193,42 @@ struct TrackListRow: View {
         #endif
     }
 
+    @ViewBuilder
+    private var trailingHoverButton: some View {
+        if let onRemoveFromQueue {
+            Button {
+                onRemoveFromQueue(track)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(width: 28, height: 28)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(track.title) from queue")
+            .contentHelp("Remove from queue")
+        } else {
+            Menu {
+                trackMenuItems
+            } label: {
+                Image(systemName: "ellipsis")
+                    .frame(width: 28, height: 28)
+                    .contentShape(Circle())
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .accessibilityLabel("More options for \(track.title)")
+            .contentHelp("More options")
+        }
+    }
+
     private var trackMenuItems: some View {
         TrackMenuItems(
             track: track,
             likes: likes,
             likeErrorMessage: $likeErrorMessage,
             onAddToQueue: onAddToQueue,
-            onRemoveFromQueue: onRemoveFromQueue,
             onRemoveFromPlaylist: onRemoveFromPlaylist,
             isUpdatingPlaylist: isUpdatingPlaylist
         )
