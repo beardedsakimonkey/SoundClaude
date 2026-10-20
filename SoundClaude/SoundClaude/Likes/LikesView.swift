@@ -99,9 +99,8 @@ struct LikesView: View {
                     Text("Likes")
                         .font(.largeTitle.weight(.semibold))
                     Text("(\(likes.tracks.count))")
-                        .font(.largeTitle.weight(.regular))
-                        .foregroundStyle(.primary)
-                        .opacity(0.6)
+                        .font(.title2.weight(.regular))
+                        .foregroundStyle(.secondary)
                 }
                 .fixedSize(horizontal: true, vertical: false)
 
