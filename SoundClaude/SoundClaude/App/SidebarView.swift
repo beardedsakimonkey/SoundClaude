@@ -329,7 +329,11 @@ struct SidebarView: View {
             .padding(.trailing, startingPlaylistURN == playlist.urn || addingToPlaylistURNs.contains(playlist.urn) ? 28 : 0)
             .contentHelp(playlist.title)
             .task(id: playlist.urn) { await playlists.loadArtwork(for: playlist) }
-            .modifier(SidebarRowStyle(isSelected: false, usesPrimaryForeground: currentPlaylistURN == playlist.urn) {
+            .modifier(SidebarRowStyle(
+                isSelected: false,
+                usesPrimaryForeground: currentPlaylistURN == playlist.urn,
+                selectsOnMouseDown: true
+            ) {
                 onSelectPlaylist(playlist)
             })
             .simultaneousGesture(TapGesture(count: 2).onEnded {
@@ -451,35 +455,33 @@ struct SidebarView: View {
     }
 
     private func sectionHeader(_ title: String, isExpanded: Binding<Bool>, isLoading: Bool) -> some View {
-        Button {
+        HStack {
+            Text(title)
+            Image(systemName: "chevron.right")
+                .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
+                .animation(
+                    reduceMotion ? nil : .easeInOut(duration: 0.25),
+                    value: isExpanded.wrappedValue
+                )
+                .accessibilityHidden(true)
+            Spacer()
+            if isLoading {
+                LoadingSpinner()
+                    .controlSize(.mini)
+                    .accessibilityHidden(true)
+            }
+        }
+        .font(.caption.weight(.semibold))
+        .padding(.horizontal, 10)
+        .padding(.top, 16)
+        .padding(.bottom, 6)
+        .contentShape(Rectangle())
+        .modifier(SidebarForegroundHover())
+        .modifier(SidebarMouseDownAction {
             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
                 isExpanded.wrappedValue.toggle()
             }
-        } label: {
-            HStack {
-                Text(title)
-                Image(systemName: "chevron.right")
-                    .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
-                    .animation(
-                        reduceMotion ? nil : .easeInOut(duration: 0.25),
-                        value: isExpanded.wrappedValue
-                    )
-                    .accessibilityHidden(true)
-                Spacer()
-                if isLoading {
-                    LoadingSpinner()
-                        .controlSize(.mini)
-                        .accessibilityHidden(true)
-                }
-            }
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 10)
-            .padding(.top, 16)
-            .padding(.bottom, 6)
-            .contentShape(Rectangle())
-            .modifier(SidebarForegroundHover())
-        }
-        .buttonStyle(.plain)
+        })
         .accessibilityLabel(title)
         .accessibilityValue("\(isExpanded.wrappedValue ? "Expanded" : "Collapsed")\(isLoading ? ", Loading" : "")")
         .contentHelp("\(isExpanded.wrappedValue ? "Collapse" : "Expand") \(title)")
@@ -506,31 +508,29 @@ private struct SidebarAccountHeader: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Button {
-                onSelectProfile(user)
-            } label: {
-                HStack(spacing: 8) {
-                    TrackArtworkView(
-                        artworkURL: user.avatarURL,
-                        loader: artworkLoader,
-                        size: 24,
-                        showsBorder: false,
-                        showsPlaceholderIcon: false
-                    )
-                    .clipShape(Circle())
-                    .overlay {
-                        Circle()
-                            .strokeBorder(.white.opacity(0.2), lineWidth: 1)
-                    }
-                    Text(user.username)
-                        .font(.callout.weight(.medium))
-                        .underline(isProfileHovered)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+            HStack(spacing: 8) {
+                TrackArtworkView(
+                    artworkURL: user.avatarURL,
+                    loader: artworkLoader,
+                    size: 24,
+                    showsBorder: false,
+                    showsPlaceholderIcon: false
+                )
+                .clipShape(Circle())
+                .overlay {
+                    Circle()
+                        .strokeBorder(.white.opacity(0.2), lineWidth: 1)
                 }
-                .contentShape(Rectangle())
+                Text(user.username)
+                    .font(.callout.weight(.medium))
+                    .underline(isProfileHovered)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
-            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .modifier(SidebarMouseDownAction {
+                onSelectProfile(user)
+            })
             .onContentHover { isProfileHovered = $0 }
             .contentHelp("View profile: \(user.username)")
             .accessibilityLabel("View profile: \(user.username)")
@@ -564,8 +564,6 @@ private struct SidebarRowStyle: ViewModifier {
     var selectsOnMouseDown = false
     let onSelect: () -> Void
 
-    @State private var isPressed = false
-
     func body(content: Content) -> some View {
         rowContent(content)
             .modifier(SidebarForegroundHover(isSelected: isSelected, usesPrimaryForeground: usesPrimaryForeground))
@@ -585,23 +583,33 @@ private struct SidebarRowStyle: ViewModifier {
 
         if selectsOnMouseDown {
             label
-                // Select on mouse down rather than mouse up, like native sidebars.
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { _ in
-                            guard !isPressed else { return }
-                            isPressed = true
-                            onSelect()
-                        }
-                        .onEnded { _ in isPressed = false }
-                )
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isButton)
-                .accessibilityAction { onSelect() }
+                .modifier(SidebarMouseDownAction(action: onSelect))
         } else {
             Button(action: onSelect) { label }
                 .buttonStyle(.plain)
         }
+    }
+}
+
+private struct SidebarMouseDownAction: ViewModifier {
+    let action: () -> Void
+
+    @State private var isPressed = false
+
+    func body(content: Content) -> some View {
+        content
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard !isPressed else { return }
+                        isPressed = true
+                        action()
+                    }
+                    .onEnded { _ in isPressed = false }
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { action() }
     }
 }
 
