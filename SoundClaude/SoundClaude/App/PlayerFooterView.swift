@@ -455,12 +455,16 @@ private struct PlayerFooterWaveform: View {
                 )
                 .onContentHover { isHoveringWaveform = $0 }
             } else {
-                Color.clear
+                Text("Select a track to play")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity)
                     .frame(height: waveformHeight)
-                    .accessibilityHidden(true)
             }
 
             PlayerFooterTimestamps(playback: playback)
+            .opacity(playback.currentTrack == nil ? 0 : 1)
+            .accessibilityHidden(playback.currentTrack == nil)
             .padding(.horizontal, playback.currentTrack == nil ? 0 : waveformHorizontalInset)
             .font(.caption.monospacedDigit())
             .foregroundStyle(.tertiary)
