@@ -39,15 +39,39 @@ struct PistonSettings: Equatable {
         // FNV-1a keeps each track's hue stable across launches, unlike Hasher.
         var hash: UInt64 = 0xcbf29ce484222325
         for byte in trackURN.utf8 { hash = (hash ^ UInt64(byte)) &* 0x100000001b3 }
-        let angle = Float(hash % 1000) / 999 * 44 * .pi / 180
-        // Luminance-preserving hue rotation, as in SVG's feColorMatrix hueRotate.
+        // Rotate the OKLab hue so lightness and chroma stay perceptually constant.
+        // The default glow spans blue (hue 258°) to purple (310°).
+        let angle = Float(hash % 1000) / 999 * 52 * .pi / 180
+        let lab = Self.oklab(fromLinearSRGB: backgroundGlowColor)
         let c = cos(angle), s = sin(angle)
-        let rotation = simd_float3x3(rows: [
-            SIMD3(0.213 + 0.787 * c - 0.213 * s, 0.715 - 0.715 * c - 0.715 * s, 0.072 - 0.072 * c + 0.928 * s),
-            SIMD3(0.213 - 0.213 * c + 0.143 * s, 0.715 + 0.285 * c + 0.140 * s, 0.072 - 0.072 * c - 0.283 * s),
-            SIMD3(0.213 - 0.213 * c - 0.787 * s, 0.715 - 0.715 * c + 0.715 * s, 0.072 + 0.928 * c + 0.072 * s)
-        ])
-        return simd_max(rotation * backgroundGlowColor, .zero)
+        let rotated = SIMD3(lab.x, lab.y * c - lab.z * s, lab.y * s + lab.z * c)
+        return simd_max(Self.linearSRGB(fromOKLab: rotated), .zero)
+    }
+
+    private static func oklab(fromLinearSRGB rgb: SIMD3<Float>) -> SIMD3<Float> {
+        let lms = simd_float3x3(rows: [
+            SIMD3(0.4122214708, 0.5363325363, 0.0514459929),
+            SIMD3(0.2119034982, 0.6806995451, 0.1073969566),
+            SIMD3(0.0883024619, 0.2817188376, 0.6299787005)
+        ]) * rgb
+        return simd_float3x3(rows: [
+            SIMD3(0.2104542553, 0.7936177850, -0.0040720468),
+            SIMD3(1.9779984951, -2.4285922050, 0.4505937099),
+            SIMD3(0.0259040371, 0.7827717662, -0.8086757660)
+        ]) * SIMD3(cbrt(lms.x), cbrt(lms.y), cbrt(lms.z))
+    }
+
+    private static func linearSRGB(fromOKLab lab: SIMD3<Float>) -> SIMD3<Float> {
+        let lms = simd_float3x3(rows: [
+            SIMD3(1, 0.3963377774, 0.2158037573),
+            SIMD3(1, -0.1055613458, -0.0638541728),
+            SIMD3(1, -0.0894841775, -1.2914855480)
+        ]) * lab
+        return simd_float3x3(rows: [
+            SIMD3(4.0767416621, -3.3077115913, 0.2309699292),
+            SIMD3(-1.2684380046, 2.6097574011, -0.3413193965),
+            SIMD3(-0.0041960863, -0.7034186147, 1.7076147010)
+        ]) * (lms * lms * lms)
     }
 
     /// The glow's hue at full brightness, used to tint the spotlights.
