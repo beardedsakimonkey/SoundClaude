@@ -42,7 +42,7 @@ struct TrackQueueView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("Track Queue")
+                        Text("Queue")
                         Text("(\(tracks.count))")
                             .foregroundStyle(.secondary)
                             .fontWeight(.regular)

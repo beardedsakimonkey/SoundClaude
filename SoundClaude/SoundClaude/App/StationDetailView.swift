@@ -227,7 +227,7 @@ struct StationDetailView: View {
                     }
                 }
                 .frame(minHeight: 64, alignment: .leading)
-                if station != nil || currentStationTrack != nil {
+                if station != nil || currentStationTrack != nil || seedTrack != nil {
                     playbackControls
                         .padding(.top, 10)
                         .modifier(FadeInOnAppear())
