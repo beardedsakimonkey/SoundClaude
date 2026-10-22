@@ -312,6 +312,7 @@ struct PlaylistDetailView: View {
     private func playbackControls(iconOnly: Bool) -> some View {
         HStack(spacing: 12) {
             playButton(iconOnly: iconOnly)
+            shuffleButton
             trackNavigationButtons
             if let track = displayedTrack {
                 DetailLikeButton(
@@ -353,6 +354,29 @@ struct PlaylistDetailView: View {
                 }
             }
         }
+    }
+
+    private var shuffleButton: some View {
+        Button {
+            guard let track = tracks.randomElement() else { return }
+            if !model.playback.isShuffleEnabled {
+                model.toggleShuffle()
+            }
+            Task {
+                await model.play(track, queue: TrackQueue(
+                    source: .playlist(playlist.urn), tracks: tracks,
+                    nextPageURL: nextPageURL, playlistTitle: displayedPlaylist.title
+                ), loadRemainingTracks: true)
+            }
+        } label: {
+            Label("Shuffle playlist", systemImage: "shuffle")
+                .frame(width: 44, height: 24)
+        }
+        .labelStyle(.iconOnly)
+        .font(.title3.weight(.semibold))
+        .buttonStyle(TrackActionButtonStyle(fill: .clear))
+        .contentHelp("Shuffle this playlist")
+        .disabled(tracks.isEmpty)
     }
 
     private var trackNavigationButtons: some View {

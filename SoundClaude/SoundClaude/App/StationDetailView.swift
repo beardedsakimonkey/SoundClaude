@@ -271,6 +271,7 @@ struct StationDetailView: View {
                     Task { await playTrack(track) }
                 }
             }
+            shuffleButton
             Group {
                 Button {
                     navigateTrack(backward: true)
@@ -310,6 +311,23 @@ struct StationDetailView: View {
         }
         .font(.title3.weight(.semibold))
         .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
+    }
+
+    private var shuffleButton: some View {
+        Button {
+            guard let track = tracks.randomElement() else { return }
+            if !model.playback.isShuffleEnabled {
+                model.toggleShuffle()
+            }
+            Task { await playTrack(track) }
+        } label: {
+            Label("Shuffle station", systemImage: "shuffle")
+                .frame(width: 44, height: 24)
+        }
+        .labelStyle(.iconOnly)
+        .buttonStyle(TrackActionButtonStyle(fill: .clear))
+        .contentHelp("Shuffle this station")
+        .disabled(tracks.isEmpty)
     }
 
     private func navigateTrack(backward: Bool) {
