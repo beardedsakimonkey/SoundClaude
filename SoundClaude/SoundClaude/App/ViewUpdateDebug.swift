@@ -9,11 +9,12 @@ struct ViewUpdateDebugCommands: Commands {
 
     var body: some Commands {
         CommandMenu("Debug") {
-            Button("Network Activity") { openWindow(id: "network-activity") }
-                .keyboardShortcut("n", modifiers: [.command, .option, .shift])
-            Toggle("Artwork Prefetching", isOn: $showsArtworkQueues)
             Toggle("Highlight View Updates", isOn: $isEnabled)
                 .keyboardShortcut("u", modifiers: [.command, .option, .shift])
+            Toggle("Artwork Prefetching", isOn: $showsArtworkQueues)
+                .keyboardShortcut("a", modifiers: [.command, .option, .shift])
+            Button("Network Activity") { openWindow(id: "network-activity") }
+                .keyboardShortcut("n", modifiers: [.command, .option, .shift])
         }
     }
 }
