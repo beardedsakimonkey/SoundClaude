@@ -94,6 +94,14 @@ struct PlaylistDetailView: View {
                     Spacer()
                 }
             }
+            if isOwnedByCurrentUser {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    playlistEditingButtons
+                }
+                if #available(macOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                }
+            }
             ToolbarItem(placement: .primaryAction) {
                 OpenInSoundCloudButton(url: displayedPlaylist.permalinkURL)
                     .contentHelp("Open this playlist in your web browser")
@@ -181,9 +189,6 @@ struct PlaylistDetailView: View {
                 PlaylistNameRow(title: displayedPlaylist.title) {
                     if !displayedPlaylist.isPrivate {
                         likeButton
-                    }
-                    if isOwnedByCurrentUser {
-                        playlistEditingButtons
                     }
                 }
                 .modifier(FadeInOnAppear())
@@ -396,24 +401,23 @@ struct PlaylistDetailView: View {
         }
     }
 
+    @ViewBuilder
     private var playlistEditingButtons: some View {
-        HStack(spacing: 8) {
-            Button {
-                editingPlaylist = displayedPlaylist
-            } label: {
-                Image(systemName: "pencil")
-            }
-            .contentHelp("Edit playlist")
-            .accessibilityLabel("Edit playlist")
-            .disabled(playlists.updatingPlaylistURNs.contains(playlist.urn)
-                || playlistDeletion.deletingURNs.contains(playlist.urn))
-
-            DeletePlaylistButton(playlist: displayedPlaylist, state: $playlistDeletion)
+        Button {
+            editingPlaylist = displayedPlaylist
+        } label: {
+            Label("Edit Playlist", systemImage: "pencil")
                 .labelStyle(.iconOnly)
-                .contentHelp("Delete playlist")
+                .frame(width: 20, height: 20)
         }
-        .buttonStyle(PlaylistHeaderButtonStyle())
-        .fixedSize()
+        .contentHelp("Edit playlist")
+        .disabled(playlists.updatingPlaylistURNs.contains(playlist.urn)
+            || playlistDeletion.deletingURNs.contains(playlist.urn))
+
+        DeletePlaylistButton(playlist: displayedPlaylist, state: $playlistDeletion)
+            .labelStyle(.iconOnly)
+            .frame(width: 20, height: 20)
+            .contentHelp("Delete playlist")
     }
 
     private var likeButton: some View {
@@ -559,16 +563,12 @@ private struct PlaylistHeaderButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         let isHighlighted = isEnabled && (isHovered || configuration.isPressed)
-        let isDestructive = configuration.role == .destructive
-        let foreground: Color = isDestructive ? .red : (isHighlighted ? .primary : .secondary)
-        let background: Color = isDestructive ? .red : .primary
-
         configuration.label
-            .foregroundStyle(foreground)
+            .foregroundStyle(isHighlighted ? .primary : .secondary)
             .padding(4)
             .background {
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(background.opacity(isHighlighted ? (configuration.isPressed ? 0.16 : 0.08) : 0))
+                    .fill(.primary.opacity(isHighlighted ? (configuration.isPressed ? 0.16 : 0.08) : 0))
             }
             .contentShape(Rectangle())
             .opacity(isEnabled ? 1 : 0.5)
