@@ -58,8 +58,15 @@ struct TrackQueueView: View {
                 }
 
                 if let sourceLabel {
-                    QueueSourceButton(label: sourceLabel, action: onSelectSource)
-                        .id(sourceLabel.title)
+                    HStack(spacing: 6) {
+                        Text("Playing from")
+                            .font(.subheadline)
+                            .foregroundStyle(.tertiary)
+                            .accessibilityHidden(true)
+                        QueueSourceButton(label: sourceLabel, action: onSelectSource)
+                            .id(sourceLabel.title)
+                    }
+                    .padding(.top, 8)
                 }
             }
             .padding(16)
@@ -198,7 +205,7 @@ private struct QueueSourceButton: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
-            .font(.caption)
+            .font(.subheadline)
             .foregroundStyle(.secondary)
             .contentShape(Rectangle())
         }
