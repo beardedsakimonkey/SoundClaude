@@ -28,6 +28,10 @@ struct TrackQueueView: View {
         model.queue.resolvedTracks(likes: likes.tracks)
     }
 
+    private var canClear: Bool {
+        tracks.contains { $0.urn != model.playback.currentTrack?.urn }
+    }
+
     private var sourceLabel: QueueSourceLabel? {
         guard !tracks.isEmpty else { return nil }
         return QueueSourceLabel(queue: model.queue, playlistTitle: model.queuePlaylist?.title)
@@ -46,7 +50,7 @@ struct TrackQueueView: View {
                     .font(.title2.weight(.semibold))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    if !tracks.isEmpty {
+                    if canClear {
                         QueueClearButton(action: model.clearQueue)
                     }
 

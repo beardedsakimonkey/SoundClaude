@@ -359,8 +359,9 @@ final class AppModel {
     func clearQueue() {
         shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
-        queue = TrackQueue(source: .single, tracks: [])
-        queue.setShuffle(playback.isShuffleEnabled, currentURN: nil)
+        let current = playback.currentTrack
+        queue = TrackQueue(source: .single, tracks: current.map { [$0] } ?? [])
+        queue.setShuffle(playback.isShuffleEnabled, currentURN: current?.urn)
         saveQueue()
         prefetchNextTrack()
     }
