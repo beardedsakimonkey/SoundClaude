@@ -435,7 +435,6 @@ private struct StationTitleRow: View {
     private var stationTitle: some View {
         Label {
             HStack(spacing: 4) {
-                Text("Station:")
                 Button(action: onOpenSource) {
                     Text(title)
                         .foregroundStyle(Color.primary)

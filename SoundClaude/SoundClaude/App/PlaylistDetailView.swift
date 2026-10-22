@@ -540,7 +540,8 @@ private struct PlaylistNameRow<Actions: View>: View {
     var body: some View {
         HStack(spacing: 8) {
             Label {
-                Text("Playlist: \(Text(title).foregroundStyle(Color.primary.opacity(0.9)))")
+                Text(title)
+                    .foregroundStyle(Color.primary.opacity(0.9))
             } icon: {
                 Image(systemName: "music.note.list")
             }
