@@ -8,6 +8,7 @@ struct TrackListRow: View {
     @ObservedObject var likes: LikesController
     var showsArtist = true
     var isCompact = false
+    var showsDuration = true
     var onAddToQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
@@ -136,7 +137,8 @@ struct TrackListRow: View {
                 .foregroundStyle(.secondary)
                 .fixedSize()
                 // Keep the duration's width so hover does not change text truncation.
-                .opacity(isHovering ? 0 : 1)
+                .opacity(showsDuration && !isHovering ? 1 : 0)
+                .accessibilityHidden(!showsDuration)
                 .overlay {
                     trailingHoverButton
                         .fixedSize()
