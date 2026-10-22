@@ -191,6 +191,8 @@ struct StationDetailView: View {
                 StationTitleRow(
                     title: title,
                     stationType: stationType,
+                    playback: model.playback,
+                    isCurrent: model.queue.source == .station(urn),
                     isOpeningSource: isOpeningSource,
                     isLiked: likes.likedStationURNs.contains(urn),
                     isUpdating: likes.isLoadingStationLikes || likes.updatingStationURNs.contains(urn),
@@ -405,6 +407,8 @@ private struct StationTrackList: View, Equatable {
 private struct StationTitleRow: View {
     let title: String
     let stationType: String
+    let playback: PlaybackController
+    let isCurrent: Bool
     let isOpeningSource: Bool
     let isLiked: Bool
     let isUpdating: Bool
@@ -446,7 +450,7 @@ private struct StationTitleRow: View {
                 .accessibilityLabel("\(stationType == "Artist station" ? "View artist" : "View track"): \(title)")
             }
         } icon: {
-            Image(systemName: "dot.radiowaves.left.and.right")
+            StationPlayingIcon(playback: playback, isCurrent: isCurrent)
         }
         .labelStyle(.titleAndIcon)
         .font(.body)

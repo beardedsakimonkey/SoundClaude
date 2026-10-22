@@ -5,6 +5,7 @@ struct SidebarView: View {
     let onSelect: (SidebarDestination) -> Void
     let currentPlaylistURN: String?
     let currentStationURN: String?
+    let playback: PlaybackController
     @ObservedObject var playlists: PlaylistsController
     @ObservedObject var likes: LikesController
     let user: SoundCloudUser
@@ -258,9 +259,15 @@ struct SidebarView: View {
                         Label {
                             Text(station.displayTitle)
                         } icon: {
-                            Image(systemName: station.isStation
-                                  ? "dot.radiowaves.left.and.right" : "music.note.list")
+                            if station.isStation {
+                                StationPlayingIcon(
+                                    playback: playback, isCurrent: currentStationURN == station.urn
+                                )
                                 .frame(width: 24, height: 24)
+                            } else {
+                                Image(systemName: "music.note.list")
+                                    .frame(width: 24, height: 24)
+                            }
                         }
                         .lineLimit(1)
                         .contentHelp(station.displayTitle)
@@ -635,5 +642,20 @@ private struct SidebarForegroundHover: ViewModifier {
             .foregroundStyle(foregroundColor)
             .opacity(isHovered ? 1 : idleOpacity)
             .onContentHover { isHovered = $0 }
+    }
+}
+
+// Reads playback state in its own body so play/pause does not invalidate the screen showing it.
+struct StationPlayingIcon: View {
+    let playback: PlaybackController
+    let isCurrent: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Image(systemName: "dot.radiowaves.left.and.right")
+            .symbolEffect(
+                .variableColor.iterative,
+                isActive: isCurrent && playback.isPlaybackActive && !reduceMotion
+            )
     }
 }
