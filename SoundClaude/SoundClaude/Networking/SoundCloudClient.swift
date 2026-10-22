@@ -52,7 +52,7 @@ enum SoundCloudError: LocalizedError {
         case .configuration:
             return "Add SoundCloud credentials to Config/Local.xcconfig."
         case .invalidResponse, .invalidData:
-            return "SoundCloud returned invalid data."
+            return "SoundCloud returned invalid data"
         case .unauthorized:
             return "The SoundCloud session has expired."
         case .rateLimited:
@@ -62,7 +62,7 @@ enum SoundCloudError: LocalizedError {
         case .playbackUnavailable:
             return "This track is not available for off-platform playback."
         case .unexpectedURL:
-            return "SoundCloud returned an unexpected URL."
+            return "SoundCloud returned an unexpected URL"
         case .network:
             return "SoundCloud could not be reached. Check the network connection."
         }
@@ -1205,7 +1205,7 @@ actor SoundCloudClient {
         throw SoundCloudError.api(
             message?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
                 ? message!
-                : "SoundCloud returned HTTP \(response.statusCode) (\(HTTPURLResponse.localizedString(forStatusCode: response.statusCode).capitalized))."
+                : "SoundCloud returned HTTP \(response.statusCode) (\(HTTPURLResponse.localizedString(forStatusCode: response.statusCode).capitalized))"
         )
     }
 
