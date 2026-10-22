@@ -4,12 +4,15 @@ import simd
 struct PistonSettings: Equatable {
     var stringsPerPiston = 24
     var ropeLength: Float = 2.59
-    var ropeStretchiness: Float = 0.15
+    var ropeStretchiness: Float = 0
     var ropeThickness: Float = 0.024
     var neutralRopeGlow: Float = 1.0
+    var restingRopeBrightness: Float = 0.5 // Rope brightness while a piston rests at the bottom.
+    var restingRopeGlow: Float = 0.25 // Rope halo strength while a piston rests at the bottom.
     var bloomStrength: Float = 1.5
     var spotlightStrength: Float = 0.5
     var spotlightSize: Float = 1.5
+    var lightTint: Float = 0.5 // How strongly the background glow's hue tints the scene lighting.
     var damping: Float = 0.04
     var gravity: Float = 20
     var travel: Float = 2.75
@@ -28,6 +31,38 @@ struct PistonSettings: Equatable {
     var metallic: Float = 0.20
     var reflectionStrength: Float = 0.42
     var edgeSoftness: Float = 0.05
+
+    /// Shifts the background glow's hue toward purple by a fixed amount per track.
+    /// Without a track the glow keeps its configured color.
+    func glowColor(for trackURN: String?) -> SIMD3<Float> {
+        guard let trackURN else { return backgroundGlowColor }
+        // FNV-1a keeps each track's hue stable across launches, unlike Hasher.
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in trackURN.utf8 { hash = (hash ^ UInt64(byte)) &* 0x100000001b3 }
+        let angle = Float(hash % 1000) / 999 * 44 * .pi / 180
+        // Luminance-preserving hue rotation, as in SVG's feColorMatrix hueRotate.
+        let c = cos(angle), s = sin(angle)
+        let rotation = simd_float3x3(rows: [
+            SIMD3(0.213 + 0.787 * c - 0.213 * s, 0.715 - 0.715 * c - 0.715 * s, 0.072 - 0.072 * c + 0.928 * s),
+            SIMD3(0.213 - 0.213 * c + 0.143 * s, 0.715 + 0.285 * c + 0.140 * s, 0.072 - 0.072 * c - 0.283 * s),
+            SIMD3(0.213 - 0.213 * c - 0.787 * s, 0.715 - 0.715 * c + 0.715 * s, 0.072 + 0.928 * c + 0.072 * s)
+        ])
+        return simd_max(rotation * backgroundGlowColor, .zero)
+    }
+
+    /// The glow's hue at full brightness, used to tint the spotlights.
+    func spotlightColor(for trackURN: String?) -> SIMD3<Float> {
+        let glow = glowColor(for: trackURN)
+        return glow / max(glow.max(), 0.000001)
+    }
+
+    /// The glow's hue at unit luminance, blended toward white by the light tint.
+    func lightColor(for trackURN: String?) -> SIMD3<Float> {
+        let color = spotlightColor(for: trackURN)
+        let luminance = simd_dot(color, SIMD3(0.2126, 0.7152, 0.0722))
+        guard luminance > 0 else { return .one }
+        return simd_mix(.one, color / luminance, SIMD3(repeating: lightTint))
+    }
 
     func twistAngle(height: Float) -> Float {
         guard travel > 0 else { return 0 }

@@ -39,6 +39,7 @@ struct VisualizerView: View {
             fluidTouch: fluidTouch,
             trackProgress: playback.duration > 0 ? playback.currentTime / playback.duration : 0,
             hasTrack: playback.currentTrack != nil,
+            trackURN: playback.currentTrack?.urn,
             isPlaying: playback.isPlaying,
             clothCamera: Binding(get: { camera }, set: { camera = $0 }),
             spectrumBuffer: spectrumBuffer,
@@ -225,10 +226,16 @@ struct VisualizerView: View {
                     tuningSlider("Rope stretchiness", value: $pistonSettings.ropeStretchiness, range: 0...1)
                     tuningSlider("Rope thickness", value: $pistonSettings.ropeThickness, range: 0.004...0.08, format: "%.3f")
                     tuningSlider("Neutral rope glow", value: $pistonSettings.neutralRopeGlow, range: 0...1)
+                    tuningSlider("Resting rope brightness", value: $pistonSettings.restingRopeBrightness, range: 0...1)
+                        .help("Rope brightness while a piston rests at the bottom. Ropes fade to full brightness over the first 10% of its travel.")
+                    tuningSlider("Resting rope glow", value: $pistonSettings.restingRopeGlow, range: 0...1)
+                        .help("Rope halo strength while a piston rests at the bottom. The halo fades to full strength over the first 10% of its travel.")
                     tuningSlider("Bloom strength", value: $pistonSettings.bloomStrength, range: 0...3)
-                    tuningSlider("Sky spotlights", value: $pistonSettings.spotlightStrength, range: 0...3)
-                        .help("Peak spotlight brightness when a piston is fully raised.")
+                    tuningSlider("Spotlight strength", value: $pistonSettings.spotlightStrength, range: 0...3)
+                        .help("Brightness of every spotlight, regardless of piston height.")
                     tuningSlider("Spotlight size", value: $pistonSettings.spotlightSize, range: 0.1...3, format: "%.2f×")
+                    tuningSlider("Light tint", value: $pistonSettings.lightTint, range: 0...1)
+                        .help("How strongly the background glow's color tints the scene lighting. 0 keeps it white.")
                     tuningSlider("Damping", value: $pistonSettings.damping, range: 0.001...0.08, format: "%.3f")
                     tuningSlider("Gravity", value: $pistonSettings.gravity, range: 0...20)
                     Divider()

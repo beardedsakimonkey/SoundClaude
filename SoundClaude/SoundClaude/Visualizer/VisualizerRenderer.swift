@@ -63,6 +63,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var pistonSettings = PistonSettings()
     var trackProgress: Double = 0
     var hasTrack = false
+    var trackURN: String?
     var isPlaying = false
     var clothCamera = ClothCamera()
 
@@ -296,7 +297,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         // Match the floor used by the rope solver.
         uniforms[3].z = -1.65
         uniforms.append(SIMD4<Float>(Float(view.drawableSize.width), Float(view.drawableSize.height),
-                                     0, 0))
+                                     pistonSettings.restingRopeBrightness, pistonSettings.restingRopeGlow))
         uniforms.append(SIMD4<Float>(pistonSettings.stripeThickness, pistonSettings.stripeFrequency,
                                      pistonSettings.headTwist * .pi / 180, pistonSettings.travel))
         uniforms.append(SIMD4<Float>(pistonSettings.stripeColor, 0))
@@ -310,6 +311,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         let artworkAspect = artworkImage.map { Float($0.width) / Float($0.height) } ?? 1
         uniforms.append(SIMD4<Float>(progress, artworkAspect, artworkTexture == nil ? 0 : 1, hasTrack ? 1 : 0))
         uniforms.append(SIMD4<Float>(pistonSettings.groundColor, 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.spotlightColor(for: trackURN), 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.lightColor(for: trackURN), 0))
         return (buffer, uniforms, PistonSimulation.count *
             (32 * 12 * 3 + pistonSettings.stringsPerPiston * (PistonSimulation.segments * 6 + 12 * 8 * 6)))
     }

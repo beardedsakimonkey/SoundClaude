@@ -5,7 +5,7 @@ struct PistonUniforms {
     float4 camera; // aspect, yaw, pitch, distance
     float4 heights[2];
     float4 ropes; // half thickness, strings per piston, ground height, pass (scene, mask, floor, light, glow, sky)
-    float4 viewport; // drawable width and height, unused, unused
+    float4 viewport; // drawable width and height, resting rope brightness, resting rope glow
     float4 stripes; // thickness, frequency, full-rise head twist (radians), travel
     float4 stripeColor; // linear RGB, unused
     float4 metalColor; // linear RGB, unused
@@ -14,6 +14,8 @@ struct PistonUniforms {
     float4 finish; // reflection strength, edge softness, neutral rope glow, bloom strength
     float4 track; // progress, artwork aspect, has artwork, has track
     float4 groundColor; // linear RGB, unused
+    float4 spotlightColor; // linear RGB matching the background glow's hue, unused
+    float4 lightColor; // linear RGB scene light tint with unit luminance, unused
 };
 struct PistonVertex {
     float4 position [[position]];
@@ -26,19 +28,16 @@ struct PistonVertex {
     float3 cylinderPosition; // position relative to this piston's axis
     float4 surface; // radius, bottom, top, base flag
     float stripeHeight;
-    float ropeBrightness;
+    float ropeLift;
 };
-static float pistonRopeBrightness(uint piston, constant PistonUniforms &u) {
-    // Height follows smoothed audio energy. Keep idle ropes clearly visible.
+// Zero while a piston rests, rising to one over the lower part of its travel.
+static float pistonRopeLift(uint piston, constant PistonUniforms &u) {
     float height = u.heights[piston / 4][piston % 4];
     float level = u.stripes.w > 0 ? saturate((height - 0.8) / u.stripes.w) : 0;
-    return mix(0.3, 1.0, pow(level, 0.75));
+    return smoothstep(0.0, 0.1, level);
 }
-static float pistonSpotlightBrightness(uint piston, constant PistonUniforms &u) {
-    float height = u.heights[piston / 4][piston % 4];
-    float level = u.stripes.w > 0 ? saturate((height - 0.8) / u.stripes.w) : 0;
-    // Keep a faint beam at rest and brighten early as the piston rises.
-    return u.material.z * mix(0.15, 1.0, pow(level, 0.75));
+static float pistonRopeBrightness(uint piston, constant PistonUniforms &u) {
+    return mix(u.viewport.z, 1.0, pistonRopeLift(piston, u));
 }
 static float3 pistonLightPosition(float3 p) {
     float3 light = normalize(float3(-0.4, 0.8, 1));
@@ -109,9 +108,9 @@ static float4 pistonAtmosphere(float2 pixel, float depth, constant PistonUniform
         }
         float skyFade = 1 - smoothstep(0.72, 1.0, elevation);
         float floorFade = smoothstep(bottom, 0.855, sampleHeight);
-        density += max(0.0, integral) * skyFade * floorFade * pistonSpotlightBrightness(piston, u);
+        density += max(0.0, integral) * skyFade * floorFade * u.material.z;
     }
-    float3 emission = float3(0.52, 0.72, 1.0) * (1 - exp(-density * 0.26));
+    float3 emission = u.spotlightColor.rgb * (1 - exp(-density * 0.26));
     return float4(emission, max(emission.r, max(emission.g, emission.b)));
 }
 static float4 pistonWithAtmosphere(float4 surface, float2 pixel, float depth,
@@ -229,7 +228,21 @@ vertex PistonVertex pistonVisualizerVertex(
         float3 tip = points[string * 21 + 20].xyz;
         // Rest the bob on the floor while the rope tip stays inside it.
         tip.y = max(tip.y, u.ropes.z + radius);
-        p = tip + n * radius;
+        if (glowPass) {
+            // A camera-facing disc lets the bob's halo fade softly like the ropes'.
+            // Only the first quad is drawn; the remaining vertices collapse.
+            const float2 quad[6] = {
+                float2(-1,-1), float2(1,-1), float2(-1,1),
+                float2(-1,1), float2(1,-1), float2(1,1)
+            };
+            float2 offset = v % bobVertices < 6 ? quad[v % 6] : float2(0);
+            p = pistonRotate(tip - float3(0, 1, 0), u.camera.y, u.camera.z);
+            // Sit on the bob's front so its own depth cannot hide the halo.
+            p += float3(offset * radius * 2.5, radius);
+            n = float3(offset, 0);
+        } else {
+            p = tip + n * radius;
+        }
         surface.w = -1; // Preserve the sphere normal when shading the rope color.
         uint localString = string % stringsPerPiston;
         ropeUV = float2(0, localString % 2 == 0 ? 2.0 : 1.0);
@@ -272,7 +285,7 @@ vertex PistonVertex pistonVisualizerVertex(
             : float3(0.65);
     }
     float4 receiver = float4(0);
-    if (local < solidVertices || isBob) {
+    if (local < solidVertices || (isBob && !glowPass)) {
         if (lightPass) {
             // Use the same cap geometry for the scene and its cylinder shadow.
             float3 lightPosition = pistonLightPosition(p);
@@ -297,7 +310,7 @@ vertex PistonVertex pistonVisualizerVertex(
     out.cylinderPosition = cylinderPosition;
     out.surface = surface;
     out.stripeHeight = stripeHeight;
-    out.ropeBrightness = pistonRopeBrightness(piston, u);
+    out.ropeLift = pistonRopeLift(piston, u);
     return out;
 }
 struct PistonFragment {
@@ -323,18 +336,18 @@ static float3 pistonMetal(float3 n, float3 view, float3 light, float3 tint,
         + distribution * geometry * fresnel / max(4 * nv * nl, 0.001)) * nl;
 }
 
-// An analytic studio environment: tall cool softboxes and a warm overhead fill.
-// Reflection directions are in world space so highlights move with the camera.
-static float3 pistonStudio(float3 r, float roughness) {
+// An analytic studio environment: tall softboxes and an overhead fill, all
+// tinted by the scene light. Reflection directions are in world space so
+// highlights move with the camera.
+static float3 pistonStudio(float3 r, float roughness, float3 light) {
     float blur = roughness * roughness;
     float key = exp(-pow((r.x + 0.48) / (0.15 + blur), 2.0)
                     -pow((r.y - 0.32) / (0.8 + blur), 2.0)) * smoothstep(-0.2, 0.4, r.z);
     float rim = exp(-pow((r.x - 0.8) / (0.12 + blur), 2.0)
                     -pow((r.y - 0.15) / (0.7 + blur), 2.0));
     float overhead = pow(max(r.y, 0.0), mix(12.0, 3.0, roughness));
-    return mix(float3(0.035, 0.045, 0.065), float3(0.18, 0.22, 0.29), r.y * 0.5 + 0.5)
-        + float3(1.65, 1.85, 2.1) * key + float3(0.7, 0.95, 1.3) * rim
-        + float3(0.7, 0.57, 0.42) * overhead;
+    return (mix(0.044, 0.216, r.y * 0.5 + 0.5) + 1.82 * key + 0.92 * rim + 0.59 * overhead)
+        * light;
 }
 // Approximate each rope with ten segments for a soft local reflection.
 // Sample simulation positions so the reflected streaks follow the moving ropes.
@@ -383,11 +396,11 @@ fragment PistonFragment pistonVisualizerFragment(
     if (u.ropes.w > 3.5) {
         if (in.uv.y < 0.5) discard_fragment();
         float glowStrength = in.uv.y > 1.5 ? 1.0 : saturate(u.finish.z);
-        float across = abs(in.uv.x);
+        // Bob discs carry their corner offset in the normal for a radial falloff.
+        float across = in.surface.w < 0 ? length(in.normal.xy) : abs(in.uv.x);
         float halo = exp(-across * across * 6.0) * (1 - smoothstep(0.65, 1.0, across));
-        // Fade the halo faster than the rope itself as the piston drops.
-        float glowBrightness = pow(in.ropeBrightness, 1.5);
-        float3 emission = in.color * halo * 0.28 * glowStrength * glowBrightness * u.finish.w;
+        // Resting ropes keep a faint halo; it fades in with their brightness.
+        float3 emission = in.color * halo * 0.28 * glowStrength * mix(u.viewport.w, 1.0, in.ropeLift) * u.finish.w;
         float alpha = max(emission.r, max(emission.g, emission.b));
         // The wider halo rasterizes the rope's plane again. Its interpolated
         // depth can round behind the opaque rope, causing speckles in both
@@ -423,9 +436,9 @@ fragment PistonFragment pistonVisualizerFragment(
         float pool = exp(-dot(poolOffset, poolOffset));
         float specular = pow(max(0.0, dot(n, normalize(light + view))), 18.0);
         float3 groundTint = u.groundColor.rgb / float3(0.19, 0.21, 0.24);
-        float3 ambient = float3(0.025, 0.033, 0.048) * groundTint;
-        float3 diffuseColor = u.groundColor.rgb * diffuse * pool;
-        float3 highlight = float3(0.24, 0.26, 0.30) * groundTint * specular * pool;
+        float3 ambient = 0.032 * groundTint * u.lightColor.rgb;
+        float3 diffuseColor = u.groundColor.rgb * diffuse * pool * u.lightColor.rgb;
+        float3 highlight = 0.258 * groundTint * specular * pool * u.lightColor.rgb;
         // Approximate each cap's ambient occlusion with a soft footprint.
         // Raised caps cast a wider, weaker patch; low caps darken contact areas.
         float occlusion = 0;
@@ -560,7 +573,7 @@ fragment PistonFragment pistonVisualizerFragment(
             : pow(max(0.0, 1.0 - in.uv.x * in.uv.x), 3.0);
         float3 emissive = in.color * (0.8 + 0.2 * diffuse) + float3(0.24) * core;
         shaded = mix(shaded, emissive, in.uv.y > 1.5 ? 1.0 : saturate(u.finish.z));
-        shaded *= in.ropeBrightness;
+        shaded *= mix(u.viewport.z, 1.0, in.ropeLift);
     }
     if (!isRope) {
         float radialDistance = length(in.cylinderPosition.xz);
@@ -593,7 +606,7 @@ fragment PistonFragment pistonVisualizerFragment(
         float nv = max(dot(n, view), 0.0);
         float3 f0 = mix(float3(0.04), tint, metallic);
         float3 fresnel = f0 + (max(float3(1 - roughness), f0) - f0) * pow(1 - nv, 5.0);
-        float3 environment = pistonStudio(worldReflection, roughness) * fresnel
+        float3 environment = pistonStudio(worldReflection, roughness, u.lightColor.rgb) * fresnel
             * (1 - 0.4 * roughness) * u.finish.x;
         float centerX = in.receiver.x - in.cylinderPosition.x;
         uint piston = uint(clamp(round(centerX / 1.85 + 3.5), 0.0, 7.0));
@@ -602,11 +615,11 @@ fragment PistonFragment pistonVisualizerFragment(
                                                  piston, u, points) * fresnel * u.finish.x;
         }
         float3 direct = pistonMetal(n, view, light, tint, roughness, metallic)
-            * float3(2.4, 2.5, 2.7) * visibility;
+            * 2.49 * u.lightColor.rgb * visibility;
         float3 skyLight = normalize(pistonRotate(float3(0, 1, 0), u.camera.y, u.camera.z));
         float headLight = smoothstep(0.25, 0.8, dot(n, cylinderAxis));
         direct += pistonMetal(n, view, skyLight, tint, roughness, metallic)
-            * float3(3.0, 4.0, 5.5) * pistonSpotlightBrightness(piston, u) * headLight;
+            * u.spotlightColor.rgb * 5.5 * u.material.z * headLight;
         shaded = (environment + tint * (1 - metallic) * 0.18 + direct) * jointVisibility;
         // Soft highlight rolloff keeps bright reflections from clipping.
         shaded = shaded / (1 + shaded);

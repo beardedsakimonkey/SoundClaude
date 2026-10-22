@@ -45,23 +45,27 @@ import Metal
         let queue = device.makeCommandQueue()!
         var missing = 0
         var covered = 0
+        var raisedGlow: Float = 0
         // Tiny position changes reproduce idle simulation drift. The glow must cover
         // every fully covered rope pixel, despite its wider ribbon and separate pass.
-        for frame in 0...32 {
+        // The last frame lowers the pistons to rest, which must dim the glow.
+        for frame in 0...33 {
             let occluded = frame == 32
+            let resting = frame == 33
             var points = [SIMD4<Float>](repeating: SIMD4(0.4, 0.2, 0.8, 0), count: 21)
             points[0] = SIMD4(-0.4 + Float(frame) * 0.00001, 1.8, -0.8, 0)
             let buffer = points.withUnsafeBytes {
                 device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)!
             }
-            var uniforms = [SIMD4<Float>](repeating: .zero, count: 14)
+            var uniforms = [SIMD4<Float>](repeating: .zero, count: 15)
             uniforms[0] = SIMD4(1, 0.3, 0.4, 3)
-            uniforms[1] = SIMD4(repeating: 0.8)
+            uniforms[1] = SIMD4(repeating: resting ? 0.8 : 1.1) // Raised enough for full rope glow.
             uniforms[2] = uniforms[1]
             uniforms[3] = SIMD4(0.02, 24, -1.65, 0)
-            uniforms[4] = SIMD4(256, 256, 0, 0)
+            uniforms[4] = SIMD4(256, 256, 1, 0.25)
             uniforms[5].w = 2.7
             uniforms[10] = SIMD4(0.42, 0.05, 1, 1.5)
+            uniforms[14] = SIMD4(1, 1, 1, 0)
             let commandBuffer = queue.makeCommandBuffer()!
             for passIndex in 0..<2 {
                 let pass = MTLRenderPassDescriptor()
@@ -101,6 +105,14 @@ import Metal
             if occluded {
                 precondition(glowPixels.allSatisfy { $0 == 0 }, "Glow must remain hidden behind foreground geometry")
             }
+            let glowEnergy = glowPixels.reduce(0, +)
+            if resting {
+                precondition(scenePixels.contains { $0 > 0 }, "Resting ropes must stay visible")
+                precondition(glowEnergy > 0 && glowEnergy < raisedGlow * 0.3,
+                             "Resting ropes must keep only a faint glow")
+                continue
+            }
+            if frame == 0 { raisedGlow = glowEnergy }
             for pixel in 0..<256 * 256 where scenePixels[pixel * 4 + 3] > 0.99 {
                 covered += 1
                 // Idle brightness and the halo profile give at least 0.05 alpha here.
@@ -121,15 +133,17 @@ import Metal
             (0.5, 0, false, 0.8, 2.7), (0.5, 1, true, 0.8, 2.7)
         ]
         for (pitch, strength, blocked, height, travel) in cases {
-            var uniforms = [SIMD4<Float>](repeating: .zero, count: 13)
+            var uniforms = [SIMD4<Float>](repeating: .zero, count: 15)
             uniforms[0] = SIMD4(1, 0.3, pitch, 20)
             uniforms[1] = SIMD4(repeating: height)
             uniforms[2] = SIMD4(repeating: height)
             uniforms[3] = SIMD4(0.02, 24, -1.65, 5)
-            uniforms[4] = SIMD4(256, 256, 0, 0)
+            uniforms[4] = SIMD4(256, 256, 1, 0.25)
             uniforms[5].w = travel
             uniforms[9].z = strength
             uniforms[9].w = 1
+            uniforms[13] = SIMD4(0.52, 0.72, 1.0, 0)
+            uniforms[14] = SIMD4(1, 1, 1, 0)
             let pass = MTLRenderPassDescriptor()
             pass.colorAttachments[0].texture = multisampleColor
             pass.colorAttachments[0].resolveTexture = scene
@@ -184,12 +198,8 @@ import Metal
                 }
             }
         }
-        precondition(responseEnergy[0] < responseEnergy[1] && responseEnergy[1] < responseEnergy[2],
-                     "Spotlights must brighten as pistons rise")
-        precondition(responseEnergy[3] == responseEnergy[2],
-                     "Spotlight brightness must stop increasing at full travel")
-        precondition(responseEnergy[4] == responseEnergy[0],
-                     "Zero travel must keep spotlights at idle brightness")
+        precondition(responseEnergy.allSatisfy { $0 == responseEnergy[0] },
+                     "Spotlight brightness must not depend on piston height")
         print("Piston rendering tests passed (\(covered) rope pixels, plus foreground occlusion and sky spotlights)")
     }
 }
