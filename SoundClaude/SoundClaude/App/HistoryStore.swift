@@ -9,7 +9,8 @@ final class HistoryState {
 }
 
 struct HistoryStore {
-    var defaults: UserDefaults = .standard
+    // History saves must not invalidate views observing UI settings with @AppStorage.
+    var defaults: UserDefaults = UserDefaults(suiteName: "com.tim.soundclaude.history")!
     static let limit = 500
     private static let recordingQueue = DispatchQueue(
         label: "com.tim.soundclaude.native.history", qos: .utility
