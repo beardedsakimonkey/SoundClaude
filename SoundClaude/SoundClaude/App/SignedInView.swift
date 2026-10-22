@@ -17,7 +17,6 @@ struct SignedInView: View {
     @State private var isShowingVisualizer = false
     @AppStorage("visualizerShader") private var visualizerShader: VisualizerShader = .pistons
     @State private var isShowingQueue = false
-    @State private var queuePanelLayout = QueuePanelLayout()
     @State private var isOpeningCurrentTrackStation = false
     @State private var stationErrorMessage: String?
     @State private var queueHoverSuppression = ContentHoverSuppression()
@@ -144,7 +143,6 @@ struct SignedInView: View {
                     height: max(0, geometry.size.height - footerHeight)
                 )
                 QueuePanel(
-                    layout: queuePanelLayout,
                     bounds: bounds,
                     isVisible: isShowingQueue && !isShowingVisualizer,
                     hoverSuppression: queueHoverSuppression,
@@ -152,9 +150,7 @@ struct SignedInView: View {
                         model: model,
                         onSelectTrack: showTrack,
                         onSelectArtist: showArtist,
-                        onDismiss: { isShowingQueue = false },
-                        onMove: { queuePanelLayout.move($0, in: bounds) },
-                        onMoveEnd: { queuePanelLayout.endGesture() }
+                        onDismiss: { isShowingQueue = false }
                     )
                 )
                 .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: isShowingQueue)

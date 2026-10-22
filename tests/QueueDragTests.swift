@@ -65,42 +65,10 @@ struct TrackListRow: View {
     }
 }
 
-private struct PanelContentProbe: View {
-    static var bodyUpdates = 0
-
-    var body: some View {
-        Self.bodyUpdates += 1
-        return Text("Queue content")
-    }
-}
-
 @main
 struct QueueDragTests {
     @MainActor
     static func main() {
-        let layout = QueuePanelLayout()
-        let bounds = CGSize(width: 600, height: 500)
-        // The panel may cross the sides and bottom, but its drag area must
-        // remain reachable, including after the app window gets smaller.
-        layout.move(CGSize(width: -2000, height: 2000), in: bounds)
-        layout.endGesture()
-        let leftFrame = layout.fittedFrame(in: bounds)
-        precondition(leftFrame.minX < 0 && leftFrame.maxY > bounds.height)
-        precondition(leftFrame.maxX >= 206 && leftFrame.minY <= bounds.height - 60)
-        layout.move(CGSize(width: 4000, height: -4000), in: bounds)
-        layout.endGesture()
-        let rightFrame = layout.fittedFrame(in: bounds)
-        precondition(rightFrame.maxX > bounds.width && rightFrame.minY == 0)
-        precondition(rightFrame.minX + 112 <= bounds.width)
-        let smallerBounds = CGSize(width: 400, height: 300)
-        layout.constrain(to: smallerBounds)
-        let constrained = layout.fittedFrame(in: smallerBounds)
-        precondition(constrained.minX + 112 <= smallerBounds.width)
-        precondition(constrained.minY + 60 <= smallerBounds.height)
-        if CommandLine.arguments.contains("--layout-only") {
-            print("Queue panel bounds tests passed")
-            return
-        }
         precondition(CGPreflightPostEventAccess(), "Mouse event access is required")
         let originalPointer = CGEvent(source: nil)?.location
         let previousApp = NSWorkspace.shared.frontmostApplication
@@ -109,7 +77,7 @@ struct QueueDragTests {
         let model = AppModel()
         let window = NSWindow(contentRect: NSRect(x: 150, y: 150, width: 600, height: 500), styleMask: [.titled], backing: .buffered, defer: false)
         var dismissCalls = 0
-        window.contentView = NSHostingView(rootView: TrackQueueView(model: model, onSelectTrack: { _ in }, onSelectArtist: { _ in }, onDismiss: { dismissCalls += 1 }, onMove: { _ in }, onMoveEnd: {}))
+        window.contentView = NSHostingView(rootView: TrackQueueView(model: model, onSelectTrack: { _ in }, onSelectArtist: { _ in }, onDismiss: { dismissCalls += 1 }))
         window.makeKeyAndOrderFront(nil)
         app.activate(ignoringOtherApps: true)
 
@@ -139,31 +107,14 @@ struct QueueDragTests {
             }
             precondition(app.isActive && handles(window.contentView!).count == 5)
             await pause()
-            @MainActor func headerView(in view: NSView) -> NSView? {
-                if view.accessibilityLabel() == "Move track queue" { return view }
-                return view.subviews.lazy.compactMap { headerView(in: $0) }.first
+            // Header buttons sit in the top-right corner of the panel.
+            let content = window.contentView!
+            let headerY = window.convertPoint(toScreen: content.convert(
+                NSPoint(x: 0, y: content.isFlipped ? 30 : content.bounds.height - 30), to: nil)).y
+            @MainActor func headerPoint(fromRight offset: CGFloat) -> CGPoint {
+                let x = window.convertPoint(toScreen: content.convert(NSPoint(x: content.bounds.width - offset, y: 0), to: nil)).x
+                return CGPoint(x: x, y: NSScreen.screens[0].frame.height - headerY)
             }
-            let header = headerView(in: window.contentView!)!
-            let headerBounds = header.convert(header.bounds, to: window.contentView!)
-            precondition(abs(headerBounds.minX) < 1, "Header target must reach the left panel edge")
-            precondition(abs(headerBounds.width - window.contentView!.bounds.width) < 1,
-                         "Header target must reach the right panel edge")
-            let topGap = window.contentView!.isFlipped
-                ? headerBounds.minY - window.contentView!.bounds.minY
-                : window.contentView!.bounds.maxY - headerBounds.maxY
-            precondition(abs(topGap) < 1, "Header target must reach the top panel edge")
-            let headerLocal = header.convert(NSPoint(x: header.bounds.midX, y: header.bounds.midY), to: nil)
-            let headerScreen = window.convertPoint(toScreen: headerLocal)
-            let headerPoint = CGPoint(x: headerScreen.x, y: NSScreen.screens[0].frame.height - headerScreen.y)
-            post(.mouseMoved, headerPoint)
-            await pause()
-            precondition(NSCursor.current == NSCursor.openHand, "Header hover must show the open hand")
-            post(.leftMouseDown, headerPoint)
-            await pause()
-            precondition(NSCursor.current == NSCursor.closedHand, "Header press must show the closed hand")
-            post(.leftMouseUp, headerPoint)
-            await pause()
-            precondition(NSCursor.current == NSCursor.openHand, "Header release must restore the open hand")
             TitleAnimationProbe.animatedURNs = []
             let start = point("Track 1")
             let target = point("Track 3")
@@ -223,43 +174,20 @@ struct QueueDragTests {
             await pause() // Allow AppKit's rejected-drop animation to finish.
             precondition(order() == [2,3,1,4,5].map { "Reorder Track \($0)" }, "Rejected drop must restore the order")
             precondition(model.moves == 1, "Rejected drop must not commit")
-            // The full-width drag background must not intercept the buttons.
-            let clearPoint = CGPoint(x: headerPoint.x + header.bounds.width / 2 - 80, y: headerPoint.y)
+            let clearPoint = headerPoint(fromRight: 80)
             post(.mouseMoved, clearPoint)
             await pause()
-            precondition(NSCursor.current == NSCursor.arrow, "Clear hover must show the arrow")
             post(.leftMouseDown, clearPoint)
             post(.leftMouseUp, clearPoint)
             await pause()
             precondition(model.clearCalls == 1, "Clear must remain clickable")
-            let closePoint = CGPoint(x: headerPoint.x + header.bounds.width / 2 - 30, y: headerPoint.y)
+            let closePoint = headerPoint(fromRight: 30)
             post(.mouseMoved, closePoint)
             await pause()
-            precondition(NSCursor.current == NSCursor.arrow, "Close hover must show the arrow")
             post(.leftMouseDown, closePoint)
             post(.leftMouseUp, closePoint)
             await pause()
             precondition(dismissCalls == 1, "Close must remain clickable")
-            // Moving the panel must reuse its content instead of rebuilding it
-            // for every pointer event.
-            let layout = QueuePanelLayout()
-            let bounds = CGSize(width: 600, height: 500)
-            window.contentView = NSHostingView(rootView: QueuePanel(
-                layout: layout, bounds: bounds, isVisible: true,
-                hoverSuppression: ContentHoverSuppression(), content: PanelContentProbe()
-            ))
-            await pause()
-            let updatesBeforeMove = PanelContentProbe.bodyUpdates
-            let frameBeforeMove = layout.fittedFrame(in: bounds)
-            for step in 1...20 {
-                layout.move(CGSize(width: step * 4, height: step * 3), in: bounds)
-                try? await Task.sleep(for: .milliseconds(20))
-            }
-            layout.endGesture()
-            await pause()
-            precondition(layout.fittedFrame(in: bounds).origin != frameBeforeMove.origin)
-            precondition(PanelContentProbe.bodyUpdates == updatesBeforeMove,
-                         "Panel movement must not rebuild its content")
             if let originalPointer { post(.mouseMoved, originalPointer) }
             previousApp?.activate()
             print("Queue drag UI tests passed")

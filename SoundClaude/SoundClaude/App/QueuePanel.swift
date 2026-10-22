@@ -1,57 +1,6 @@
 import SwiftUI
 
-// Only QueuePanel observes this object. Pointer updates must not invalidate the
-// navigation screen or recreate the queue's rows and track lookup.
-final class QueuePanelLayout: ObservableObject {
-    @Published private var frame: CGRect?
-    private var gestureStart: CGRect?
-
-    func fittedFrame(in bounds: CGSize) -> CGRect {
-        fitted(frame, in: bounds)
-    }
-
-    private func fitted(_ proposed: CGRect?, in bounds: CGSize) -> CGRect {
-        let margin: CGFloat = 8
-        let width = min(560, max(0, bounds.width - margin * 2))
-        let height = min(520, max(0, bounds.height - margin * 2))
-        // Leave 96 points of the draggable header visible. Reserve the right
-        // 110 points for Clear/Close, which cannot be used to drag the panel.
-        let minX = min(0, 110 + 96 - width)
-        let maxX = max(0, bounds.width - 16 - 96)
-        let maxY = max(0, bounds.height - 60)
-        let initialX = max(0, bounds.width - margin - width - 16)
-        let initialY = max(0, bounds.height - margin - height + 8)
-        return CGRect(
-            x: min(maxX, max(minX, proposed?.minX ?? initialX)),
-            y: min(maxY, max(0, proposed?.minY ?? initialY)),
-            width: width,
-            height: height
-        )
-    }
-
-    func move(_ translation: CGSize, in bounds: CGSize) {
-        let start = gestureStart ?? fittedFrame(in: bounds)
-        gestureStart = start
-        update(fitted(start.offsetBy(dx: translation.width, dy: translation.height), in: bounds))
-    }
-
-    func endGesture() { gestureStart = nil }
-
-    func constrain(to bounds: CGSize) {
-        if frame != nil { update(fittedFrame(in: bounds)) }
-        endGesture()
-    }
-
-    private func update(_ newFrame: CGRect) {
-        guard frame != newFrame else { return }
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) { frame = newFrame }
-    }
-}
-
 struct QueuePanel<Content: View>: View {
-    @ObservedObject var layout: QueuePanelLayout
     let bounds: CGSize
     let isVisible: Bool
     let hoverSuppression: ContentHoverSuppression
@@ -59,25 +8,24 @@ struct QueuePanel<Content: View>: View {
     let content: Content
 
     var body: some View {
-        let frame = layout.fittedFrame(in: bounds)
+        let margin: CGFloat = 8
+        let width = min(440, max(0, bounds.width - margin * 2))
+        let height = min(520, max(0, bounds.height - margin * 2))
+        let x = max(0, bounds.width - margin - width - 16)
+        let y = max(0, bounds.height - margin - height + 8)
         ZStack(alignment: .topLeading) {
             if isVisible {
                 content
-                    .frame(width: frame.width, height: frame.height)
+                    .frame(width: width, height: height)
                     .modifier(QueuePanelGlass())
                     .contentShape(RoundedRectangle(cornerRadius: 16))
                     .onHover { hoverSuppression.isSuppressed = $0 }
-                    .onDisappear {
-                        hoverSuppression.isSuppressed = false
-                        layout.endGesture()
-                    }
-                    .offset(x: frame.minX, y: frame.minY)
+                    .onDisappear { hoverSuppression.isSuppressed = false }
+                    .offset(x: x, y: y)
                     .transition(.offset(y: 24).combined(with: .opacity))
             }
         }
         .frame(width: bounds.width, height: bounds.height, alignment: .topLeading)
-        .coordinateSpace(name: "queuePanel")
-        .onChange(of: bounds) { _, newBounds in layout.constrain(to: newBounds) }
     }
 }
 

@@ -5,8 +5,6 @@ struct TrackQueueView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onDismiss: () -> Void
-    let onMove: (CGSize) -> Void
-    let onMoveEnd: () -> Void
 
     @ObservedObject private var likes: LikesController
 
@@ -14,16 +12,12 @@ struct TrackQueueView: View {
         model: AppModel,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
-        onDismiss: @escaping () -> Void,
-        onMove: @escaping (CGSize) -> Void,
-        onMoveEnd: @escaping () -> Void
+        onDismiss: @escaping () -> Void
     ) {
         self.model = model
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
         self.onDismiss = onDismiss
-        self.onMove = onMove
-        self.onMoveEnd = onMoveEnd
         _likes = ObservedObject(wrappedValue: model.likes)
     }
 
@@ -42,27 +36,14 @@ struct TrackQueueView: View {
                 }
                 .font(.title2.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .allowsHitTesting(false)
 
                 if !tracks.isEmpty {
                     QueueClearButton(action: model.clearQueue)
-                        .anchorPreference(key: QueueHeaderButtonBounds.self, value: .bounds) { [$0] }
                 }
 
                 QueueCloseButton(action: onDismiss)
-                    .anchorPreference(key: QueueHeaderButtonBounds.self, value: .bounds) { [$0] }
             }
             .padding(16)
-            .backgroundPreferenceValue(QueueHeaderButtonBounds.self) { anchors in
-                GeometryReader { geometry in
-                    QueueHeaderDragArea(
-                        onMove: onMove,
-                        onMoveEnd: onMoveEnd,
-                        buttonRects: anchors.map { geometry[$0] }
-                    )
-                }
-            }
-            .clipShape(UnevenRoundedRectangle(topLeadingRadius: 16, topTrailingRadius: 16))
 
             Group {
                 if tracks.isEmpty {
