@@ -190,9 +190,10 @@ vertex PistonVertex pistonVisualizerVertex(
         uint sector = v / 12, corner = v % 12;
         const uint ends[6] = {0, 1, 0, 0, 1, 1};
         const uint tops[6] = {0, 0, 1, 1, 0, 1};
-        float radius = cap ? 0.65 : (base ? 0.38 : 0.22);
-        float bottom = cap ? height - 0.055 : (base ? -1.65 : -1.53);
-        float top = cap ? height + 0.055 : (base ? -1.41 : height);
+        // A low, wide base; it stays inside the ropes, which hang at radius 0.57.
+        float radius = cap ? 0.65 : (base ? 0.50 : 0.22);
+        float bottom = cap ? height - 0.055 : (base ? -1.65 : -1.60);
+        float top = cap ? height + 0.055 : (base ? -1.57 : height);
         surface = float4(radius, bottom, top, base ? 1.0 : 0.0);
         float twist = cap && u.stripes.w > 0
             ? clamp((height - 0.8) / u.stripes.w, 0.0, 1.0) * u.stripes.z : 0;
@@ -558,10 +559,10 @@ fragment PistonFragment pistonVisualizerFragment(
     float jointVisibility = 1;
     if (in.receiver.w > 0.5) {
         // Fake crevice occlusion where the shaft (radius 0.22) enters the
-        // base's top at y = -1.41. Fade up the shaft and across the base lip.
+        // base's top at y = -1.57. Fade up the shaft and across the base lip.
         float2 jointDistance = float2(
             (length(in.cylinderPosition.xz) - 0.22) / 0.085,
-            (in.cylinderPosition.y + 1.41) / 0.16);
+            (in.cylinderPosition.y + 1.57) / 0.16);
         jointVisibility -= 0.30 * exp(-dot(jointDistance, jointDistance));
     }
     float3 shaded = color * (0.28 * jointVisibility + 0.72 * diffuse * visibility
