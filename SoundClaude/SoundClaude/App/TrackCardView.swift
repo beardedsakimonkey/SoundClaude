@@ -100,6 +100,7 @@ struct TrackCardView: View {
                 HStack(spacing: 10) {
                     likeButton
                     repostButton
+                    commentCount
                     Spacer(minLength: 0)
                     Text(duration)
                         .monospacedDigit()
@@ -249,6 +250,13 @@ struct TrackCardView: View {
         .contentHelp(isReposted ? "Undo repost" : "Repost track")
         .accessibilityLabel(isReposted ? "Undo repost" : "Repost track")
         .accessibilityValue(isReposted ? "Reposted" : "Not reposted")
+    }
+
+    private var commentCount: some View {
+        statistic(track.commentCount, label: "comments", systemImage: "text.bubble")
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 5)
     }
 
     private func statistic(_ count: Int?, label: String, systemImage: String) -> some View {
