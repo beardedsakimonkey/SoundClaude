@@ -725,19 +725,21 @@ private struct PlayerSpeedSlider: View {
             let previewSpeed = isHovering && !isDragging
                 ? hoverLocation.map { speed(at: $0, length: length) } : nil
             let previewPosition = previewSpeed.map { inset + length * fraction($0) }
+            let isPreviewingLabels = (hoverLocation?.y ?? 0) >= trackHeight
             VStack(spacing: 0) {
                 track(width: geometry.size.width, length: length, previewSpeed: previewSpeed)
                 ZStack(alignment: .topLeading) {
                     ForEach(marks, id: \.self) { mark in
-                        // Only hide a label the hovered speed would overlap.
-                        markerLabel(mark)
-                            .opacity(previewPosition.map { abs($0 - (inset + length * fraction(mark))) < 36 } == true ? 0 : 1)
+                        // Highlight fixed labels in place; a traveling copy can overlap its neighbors.
+                        markerLabel(mark, isHighlighted: isPreviewingLabels && previewSpeed == mark)
+                            .opacity(!isPreviewingLabels && previewPosition.map { abs($0 - (inset + length * fraction(mark))) < 36 } == true ? 0 : 1)
                             .position(x: inset + length * fraction(mark), y: 22)
+                            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: previewSpeed)
                     }
                 }
                 .frame(width: geometry.size.width, height: 32)
                 .overlay(alignment: .topLeading) {
-                    if let previewSpeed, let previewPosition {
+                    if !isPreviewingLabels, let previewSpeed, let previewPosition {
                         markerLabel(previewSpeed, isHighlighted: true)
                             .position(x: previewPosition, y: 22)
                             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: previewSpeed)
