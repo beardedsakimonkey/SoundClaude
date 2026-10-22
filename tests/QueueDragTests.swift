@@ -49,6 +49,7 @@ struct TrackListRow: View {
     let analyzer: Int
     let artworkLoader: Int
     @ObservedObject var likes: LikesController
+    var showsMetadata = true
     var showsDuration = true
     var showsLikes = true
     let onRemoveFromQueue: (SoundCloudTrack) -> Void
@@ -67,6 +68,7 @@ struct TrackListRow: View {
             .modifier(TrackPlaybackTitleInset(inset: 0))
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: 56)
+            .background(track.urn == "track:1" ? Color.red : Color.blue)
     }
 }
 
@@ -139,15 +141,34 @@ struct QueueDragTests {
             await pause()
             post(.leftMouseDown, start)
             await pause()
-            post(.leftMouseDragged, CGPoint(x: start.x, y: start.y + 8))
+            post(.leftMouseDragged, CGPoint(x: start.x + 40, y: start.y + 8))
             await pause()
+            let moved = point("Track 1")
+            precondition(abs(moved.y - start.y - 8) < 1, "The actual row must follow the mouse before a reorder: start \(start), moved \(moved)")
+            precondition(abs(moved.x - start.x) < 1, "Dragging must never move the row horizontally")
+            // Overlap the next row without crossing its center. Check rendered
+            // pixels, not just handle positions, to catch incorrect stacking.
+            post(.leftMouseDragged, CGPoint(x: start.x, y: start.y + 24))
+            await pause()
+            let contentView = window.contentView!
+            let sampleScreen = NSPoint(x: start.x + 100,
+                                       y: NSScreen.screens[0].frame.height - (start.y + 40))
+            let sample = contentView.convert(window.convertPoint(fromScreen: sampleScreen), from: nil)
+            let bitmap = contentView.bitmapImageRepForCachingDisplay(in: contentView.bounds)!
+            contentView.cacheDisplay(in: contentView.bounds, to: bitmap)
+            let pixelX = Int(sample.x / contentView.bounds.width * CGFloat(bitmap.pixelsWide))
+            let sampleY = contentView.isFlipped ? sample.y : contentView.bounds.height - sample.y
+            let pixelY = Int(sampleY / contentView.bounds.height * CGFloat(bitmap.pixelsHigh))
+            let color = bitmap.colorAt(x: pixelX, y: pixelY)!.usingColorSpace(.deviceRGB)!
+            precondition(color.redComponent > color.blueComponent + 0.4,
+                         "The dragged row must draw above lower rows: \(color)")
             post(.leftMouseDragged, CGPoint(x: target.x, y: target.y + 10))
             await pause()
             precondition(order() == [2,3,1,4,5].map { "Reorder Track \($0)" }, "Rows must move before mouse release: \(order()), active: \(app.isActive)")
             precondition(model.moves == 0, "Hover must not commit")
             precondition(
-                ["track:1", "track:2", "track:3"].allSatisfy(TitleAnimationProbe.animatedURNs.contains),
-                "Moved track titles must retain the row animation"
+                ["track:2", "track:3"].allSatisfy(TitleAnimationProbe.animatedURNs.contains),
+                "Neighboring track titles must retain the row animation"
             )
             post(.leftMouseUp, CGPoint(x: target.x, y: target.y + 10))
             await pause()
@@ -205,6 +226,26 @@ struct QueueDragTests {
             post(.leftMouseUp, closePoint)
             await pause()
             precondition(dismissCalls == 1, "Close must remain clickable")
+            TitleAnimationProbe.rowUpdates = [:]
+            model.queue = TrackQueue(source: .single, tracks: (1...1_000).map {
+                SoundCloudTrack(urn: "track:\($0)", title: "Track \($0)")
+            })
+            await pause()
+            await pause()
+            precondition(TitleAnimationProbe.rowUpdates.count < 100,
+                         "Opening a large queue must only create nearby rows")
+            let largeQueueStart = point("Track 1")
+            post(.mouseMoved, largeQueueStart)
+            post(.leftMouseDown, largeQueueStart)
+            await pause()
+            post(.leftMouseDragged, CGPoint(x: largeQueueStart.x, y: largeQueueStart.y + 24))
+            await pause()
+            precondition(TitleAnimationProbe.rowUpdates.count < 100,
+                         "Lifting a row must preserve lazy loading")
+            precondition(handles(window.contentView!).count < 100,
+                         "The queue must not instantiate a handle for every track")
+            post(.leftMouseUp, CGPoint(x: largeQueueStart.x, y: largeQueueStart.y + 24))
+            await pause()
             if let originalPointer { post(.mouseMoved, originalPointer) }
             previousApp?.activate()
             print("Queue drag UI tests passed")

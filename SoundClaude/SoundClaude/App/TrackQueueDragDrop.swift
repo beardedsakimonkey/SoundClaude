@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
 
 /// Owns the temporary drag order and commits a single move after a valid drop.
 struct TrackQueueList<Row: View>: View {
@@ -11,30 +10,43 @@ struct TrackQueueList<Row: View>: View {
     @ViewBuilder let row: (SoundCloudTrack) -> Row
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var dragSession = QueueMouseSession()
     @State private var draggedURN: String?
     @State private var previewTracks: [SoundCloudTrack]?
+    @State private var dragTranslation: CGFloat = 0
+    @State private var dragFrames: [String: CGRect] = [:]
     @State private var rowFrames: [String: CGRect] = [:]
 
     private let dragCoordinateSpace = "trackQueueDrag"
 
-    private var displayedTracks: [SoundCloudTrack] {
-        previewTracks ?? tracks
+    // Keep the row identities and layout slots fixed for the whole gesture.
+    // Only their vertical offsets change, so the source keeps receiving events.
+    private func updateDrag(translation: CGFloat) {
+        guard let draggedURN, let frame = dragFrames[draggedURN],
+              let source = tracks.firstIndex(where: { $0.urn == draggedURN }) else { return }
+        dragTranslation = translation
+        let center = frame.midY + translation
+        var destination = source
+        for (index, track) in tracks.enumerated() {
+            guard let target = dragFrames[track.urn] else { continue }
+            if index > source && center > target.midY { destination = index }
+            if index < source && center < target.midY {
+                destination = min(destination, index)
+            }
+        }
+        var preview = tracks
+        preview.move(fromOffsets: IndexSet(integer: source),
+                     toOffset: destination > source ? destination + 1 : destination)
+        previewTracks = preview
     }
 
-    private func previewMove(to targetURN: String, location: CGPoint) {
-        guard let draggedURN, var preview = previewTracks,
-              let source = preview.firstIndex(where: { $0.urn == draggedURN }),
-              let destination = preview.firstIndex(where: { $0.urn == targetURN }),
-              source != destination,
-              let frame = rowFrames[targetURN] else { return }
-        // Cross the target's midpoint before moving, to avoid bouncing between rows.
-        guard destination > source ? location.y > frame.height / 2
-                                   : location.y < frame.height / 2 else { return }
-        preview.move(
-            fromOffsets: IndexSet(integer: source),
-            toOffset: destination > source ? destination + 1 : destination
-        )
-        previewTracks = preview
+    private func offset(for urn: String) -> CGFloat {
+        if urn == draggedURN { return dragTranslation }
+        guard draggedURN != nil,
+              let destination = previewTracks?.firstIndex(where: { $0.urn == urn }),
+              let originalFrame = dragFrames[urn],
+              let targetFrame = dragFrames[tracks[destination].urn] else { return 0 }
+        return targetFrame.minY - originalFrame.minY
     }
 
     private func commitDrag() -> Bool {
@@ -43,24 +55,30 @@ struct TrackQueueList<Row: View>: View {
               let destination = previewTracks?.firstIndex(where: { $0.urn == draggedURN }) else {
             return false
         }
-        onMove(
-            IndexSet(integer: source),
-            destination > source ? destination + 1 : destination
-        )
+        if source != destination {
+            onMove(
+                IndexSet(integer: source),
+                destination > source ? destination + 1 : destination
+            )
+        }
         cancelDrag()
         return true
     }
 
     private func cancelDrag() {
+        dragSession.stop()
         previewTracks = nil
         draggedURN = nil
+        dragTranslation = 0
+        dragFrames = [:]
     }
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    ForEach(displayedTracks) { track in
+                    ForEach(tracks.map { QueueRowItem(track: $0, isDragged: $0.urn == draggedURN) }) { item in
+                        let track = item.track
                         HStack(spacing: 0) {
                             QueueDragHandle()
                                 .accessibilityLabel("Reorder \(track.title)")
@@ -69,14 +87,18 @@ struct TrackQueueList<Row: View>: View {
                         .overlay(alignment: .leading) {
                             GeometryReader { geometry in
                                 QueueDragSource(
-                                    urn: track.urn,
                                     title: track.title,
-                                    rowSize: geometry.size,
+                                    session: dragSession,
                                     onStart: {
+                                        dragFrames = rowFrames
                                         draggedURN = track.urn
                                         previewTracks = tracks
                                     },
-                                    onEnd: cancelDrag
+                                    onChange: updateDrag,
+                                    onEnd: { valid in
+                                        if valid { _ = commitDrag() } else { cancelDrag() }
+                                    },
+                                    onCancel: cancelDrag
                                 )
                                 .frame(width: 28, height: geometry.size.height)
                             }
@@ -89,31 +111,30 @@ struct TrackQueueList<Row: View>: View {
                                 )
                             }
                         }
+                        .background {
+                            if draggedURN == track.urn {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(nsColor: .windowBackgroundColor).opacity(0.8))
+                                    .shadow(color: .black.opacity(0.2), radius: 6, y: 2)
+                            }
+                        }
                         .contentShape(Rectangle())
-                        .onDrop(of: [UTType.utf8PlainText], delegate: QueueDropDelegate(
-                            isActive: draggedURN != nil,
-                            onHover: { previewMove(to: track.urn, location: $0) },
-                            onDrop: commitDrag
-                        ))
-                        .id(track.urn)
+                        .offset(y: offset(for: track.urn))
+                        .animation(
+                            draggedURN == nil || draggedURN == track.urn || reduceMotion ? nil
+                                : .spring(response: 0.3, dampingFraction: 0.85),
+                            value: offset(for: track.urn)
+                        )
+                        .zIndex(item.isDragged ? 999 : 0)
                     }
                 }
                 .frame(maxWidth: .infinity)
             }
-            .onDrop(of: [UTType.utf8PlainText], delegate: QueueDropDelegate(
-                isActive: draggedURN != nil,
-                onHover: { _ in },
-                onDrop: commitDrag
-            ))
-            .animation(
-                reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85),
-                value: displayedTracks.map(\.urn)
-            )
             .coordinateSpace(name: dragCoordinateSpace)
             .onPreferenceChange(QueueRowFramesKey.self) { rowFrames = $0 }
             .onAppear {
                 if let urn = currentTrackURN {
-                    proxy.scrollTo(urn, anchor: .center)
+                    proxy.scrollTo(QueueRowIdentity(urn: urn, isDragged: false), anchor: .center)
                 }
             }
         }
@@ -129,60 +150,92 @@ struct TrackQueueList<Row: View>: View {
     }
 }
 
-private struct QueueDropDelegate: DropDelegate {
-    let isActive: Bool
-    let onHover: (CGPoint) -> Void
-    let onDrop: () -> Bool
+// Lazy stacks cache a row's initial zIndex. Refresh only the active row's
+// identity when lifting/lowering it; all other rows retain their state.
+private struct QueueRowItem: Identifiable {
+    let track: SoundCloudTrack
+    let isDragged: Bool
+    var id: QueueRowIdentity { QueueRowIdentity(urn: track.urn, isDragged: isDragged) }
+}
 
-    func validateDrop(info: DropInfo) -> Bool { isActive }
+private struct QueueRowIdentity: Hashable {
+    let urn: String
+    let isDragged: Bool
+}
 
-    func dropEntered(info: DropInfo) {
-        if isActive { onHover(info.location) }
+// Keep tracking outside the row because its lazy-stack identity changes at
+// mouse-down. This moves the live row, without a native drag image or snapshot.
+@MainActor
+private final class QueueMouseSession {
+    private var monitor: Any?
+
+    func start(
+        event: NSEvent,
+        source: NSView,
+        onChange: @escaping (CGFloat) -> Void,
+        onEnd: @escaping (Bool) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        stop()
+        let start = event.locationInWindow
+        let window = source.window
+        let scrollView = source.enclosingScrollView
+        monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDragged, .leftMouseUp, .keyDown]) { [weak self, weak window, weak scrollView] event in
+            guard let self else { return event }
+            if event.type == .keyDown {
+                guard event.keyCode == 53 else { return event }
+                self.stop()
+                onCancel()
+                return nil
+            }
+            guard event.window === window else {
+                self.stop()
+                onCancel()
+                return event
+            }
+            if event.type == .leftMouseDragged {
+                onChange(start.y - event.locationInWindow.y)
+            } else {
+                let valid = scrollView.map {
+                    $0.bounds.contains($0.convert(event.locationInWindow, from: nil))
+                } ?? false
+                self.stop()
+                onEnd(valid)
+            }
+            return event
+        }
     }
 
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        guard isActive else { return DropProposal(operation: .cancel) }
-        onHover(info.location)
-        return DropProposal(operation: .move)
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        guard isActive else { return false }
-        onHover(info.location)
-        return onDrop()
+    func stop() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
     }
 }
 
-// AppKit owns the drag session so moving the SwiftUI row does not cancel a
-// gesture. Its end callback also cleans up drops outside the queue and Escape.
 private struct QueueDragSource: NSViewRepresentable {
-    let urn: String
     let title: String
-    let rowSize: CGSize
+    let session: QueueMouseSession
     let onStart: () -> Void
-    let onEnd: () -> Void
+    let onChange: (CGFloat) -> Void
+    let onEnd: (Bool) -> Void
+    let onCancel: () -> Void
 
     func makeNSView(context: Context) -> DragView { DragView() }
 
     func updateNSView(_ view: DragView, context: Context) {
         view.setAccessibilityLabel("Reorder \(title)")
-        view.urn = urn
-        view.title = title
-        view.rowSize = rowSize
-        view.onStart = onStart
-        view.onEnd = onEnd
+        view.onMouseDown = { [weak view] event in
+            guard let view else { return }
+            session.start(event: event, source: view, onChange: onChange,
+                          onEnd: onEnd, onCancel: onCancel)
+            onStart()
+        }
     }
 
-    final class DragView: NSView, NSDraggingSource {
-        var urn = ""
-        var title = ""
-        var rowSize: CGSize = .zero
-        var onStart: (() -> Void)?
-        var onEnd: (() -> Void)?
-        private var mouseDownLocation: NSPoint?
+    final class DragView: NSView {
+        var onMouseDown: ((NSEvent) -> Void)?
 
         override var isFlipped: Bool { true }
-
         override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
         override func resetCursorRects() {
@@ -190,81 +243,7 @@ private struct QueueDragSource: NSViewRepresentable {
         }
 
         override func mouseDown(with event: NSEvent) {
-            mouseDownLocation = event.locationInWindow
-        }
-
-        override func mouseUp(with event: NSEvent) {
-            mouseDownLocation = nil
-        }
-
-        override func mouseDragged(with event: NSEvent) {
-            guard let start = mouseDownLocation,
-                  hypot(event.locationInWindow.x - start.x, event.locationInWindow.y - start.y) >= 4
-            else { return }
-            mouseDownLocation = nil
-            let item = NSPasteboardItem()
-            item.setString(urn, forType: .string)
-            let draggingItem = NSDraggingItem(pasteboardWriter: item)
-            let image = rowSnapshot() ?? titlePreview()
-            let point = convert(event.locationInWindow, from: nil)
-            let startPoint = convert(start, from: nil)
-            draggingItem.setDraggingFrame(
-                NSRect(
-                    x: point.x - startPoint.x,
-                    y: point.y - startPoint.y,
-                    width: image.size.width,
-                    height: image.size.height
-                ),
-                contents: image
-            )
-            onStart?()
-            beginDraggingSession(with: [draggingItem], event: event, source: self)
-        }
-
-        private func rowSnapshot() -> NSImage? {
-            guard let contentView = window?.contentView,
-                  rowSize.width > 0, rowSize.height > 0 else { return nil }
-            // Capture the already-rendered row before onStart can move it. This
-            // includes loaded artwork and the current SwiftUI appearance/state.
-            let rect = convert(NSRect(origin: bounds.origin, size: rowSize), to: contentView)
-            guard let bitmap = contentView.bitmapImageRepForCachingDisplay(in: rect) else {
-                return nil
-            }
-            contentView.cacheDisplay(in: rect, to: bitmap)
-            let image = NSImage(size: rowSize)
-            image.addRepresentation(bitmap)
-            return image
-        }
-
-        private func titlePreview() -> NSImage {
-            NSImage(size: NSSize(width: 240, height: 36), flipped: false) { rect in
-                NSColor.controlBackgroundColor.setFill()
-                NSBezierPath(roundedRect: rect, xRadius: 6, yRadius: 6).fill()
-                let paragraph = NSMutableParagraphStyle()
-                paragraph.lineBreakMode = .byTruncatingTail
-                (self.title as NSString).draw(
-                    in: rect.insetBy(dx: 10, dy: 9),
-                    withAttributes: [.font: NSFont.systemFont(ofSize: 13),
-                                     .foregroundColor: NSColor.labelColor,
-                                     .paragraphStyle: paragraph]
-                )
-                return true
-            }
-        }
-
-        func draggingSession(
-            _ session: NSDraggingSession,
-            sourceOperationMaskFor context: NSDraggingContext
-        ) -> NSDragOperation {
-            context == .withinApplication ? .move : []
-        }
-
-        func draggingSession(
-            _ session: NSDraggingSession,
-            endedAt screenPoint: NSPoint,
-            operation: NSDragOperation
-        ) {
-            onEnd?()
+            onMouseDown?(event)
         }
     }
 }
