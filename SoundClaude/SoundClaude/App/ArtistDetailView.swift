@@ -713,7 +713,8 @@ struct ArtistDetailView: View {
             model.toggleShuffle()
         }
         await model.play(track, queue: TrackQueue(
-            source: .artist(urn), tracks: contentState.tracks, nextPageURL: contentState.nextPageURL
+            source: .artist(urn), tracks: contentState.tracks, nextPageURL: contentState.nextPageURL,
+            sourceArtist: details?.user ?? artist
         ), loadRemainingTracks: true)
     }
 
@@ -855,7 +856,8 @@ struct ArtistDetailView: View {
                         await model.play(selected, queue: TrackQueue(
                             source: .artist(details?.user.urn ?? artist.urn ?? ""),
                             tracks: contentState.tracks,
-                            nextPageURL: contentState.nextPageURL
+                            nextPageURL: contentState.nextPageURL,
+                            sourceArtist: details?.user ?? artist
                         ))
                     }
                 )
@@ -957,7 +959,8 @@ struct ArtistDetailView: View {
                         await model.play(selected, queue: TrackQueue(
                             source: source,
                             tracks: items.compactMap(\.track),
-                            nextPageURL: queueNextPageURL
+                            nextPageURL: queueNextPageURL,
+                            sourceArtist: details?.user ?? artist
                         ))
                     }
                 )

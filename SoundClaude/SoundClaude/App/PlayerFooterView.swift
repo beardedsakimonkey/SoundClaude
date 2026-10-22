@@ -138,23 +138,14 @@ struct PlayerFooterView: View {
         }
     }
 
-    private var currentPlaylist: (urn: String, title: String)? {
-        guard case let .playlist(urn) = model.queue.source else { return nil }
-        // AppModel updates the queue when this playlist title changes. Reading
-        // the cache here does not subscribe the footer to every playlist load.
-        let playlists = model.playlists
-        guard let title = playlists.cache.contents[urn]?.playlist.title
-            ?? playlists.playlists.first(where: { $0.urn == urn })?.title
-            ?? model.queue.playlistTitle else { return nil }
-        return (urn, title)
-    }
+    private var currentPlaylist: (urn: String, title: String)? { model.queuePlaylist }
 
     private var stationURN: String? {
         guard case let .station(urn) = model.queue.source else { return nil }
         return urn
     }
 
-    private var stationTitle: String { model.queue.stationTitle ?? "Station" }
+    private var stationTitle: String { model.queue.sourceTitle ?? "Station" }
 
     private var likeButton: some View {
         let track = playback.currentTrack

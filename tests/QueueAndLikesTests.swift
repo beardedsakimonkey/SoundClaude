@@ -58,24 +58,24 @@ struct QueueAndLikesTests {
         let queueStore = TrackQueueStore(defaults: defaults)
 
         let playlist = SoundCloudPlaylist.systemPlaylist(urn: "playlist:1", title: "Saved playlist")
-        queueStore.save(TrackQueue(source: .playlist(playlist.urn), tracks: [track(1)], playlistTitle: playlist.title))
+        queueStore.save(TrackQueue(source: .playlist(playlist.urn), tracks: [track(1)], sourceTitle: playlist.title))
         let restoredPlaylist = queueStore.restore(likes: [], currentTrack: track(1), shuffleEnabled: false)
-        precondition(restoredPlaylist.playlistTitle == playlist.title)
+        precondition(restoredPlaylist.sourceTitle == playlist.title)
         var legacyPlaylist = try JSONSerialization.jsonObject(
             with: JSONEncoder().encode(restoredPlaylist)
         ) as! [String: Any]
-        legacyPlaylist.removeValue(forKey: "playlistTitle")
+        legacyPlaylist.removeValue(forKey: "sourceTitle")
         let restoredLegacyPlaylist = try JSONDecoder().decode(
             TrackQueue.self, from: JSONSerialization.data(withJSONObject: legacyPlaylist)
         )
-        precondition(restoredLegacyPlaylist.playlistTitle == nil)
+        precondition(restoredLegacyPlaylist.sourceTitle == nil)
         precondition(restoredLegacyPlaylist.source == .playlist(playlist.urn))
 
         // Reopening preserves edits even when playback's current track was removed.
         for source: TrackQueue.Source in [.feed, .likes, .station("track:1")] {
             for shuffled in [false, true] {
                 var saved = TrackQueue(source: source, tracks: (1...4).map(track),
-                                       nextPageURL: next, stationTitle: "Test station")
+                                       nextPageURL: next, sourceTitle: "Test station")
                 saved.setShuffle(shuffled, currentURN: "track:1")
                 precondition(saved.add(track(5)))
                 precondition(saved.remove(track(1)))
@@ -88,7 +88,7 @@ struct QueueAndLikesTests {
                         likes: (1...4).map(track), currentTrack: currentTrack, shuffleEnabled: shuffled
                     )
                     precondition(restored.playbackTracks == saved.playbackTracks)
-                    precondition(restored.source == source && restored.stationTitle == "Test station")
+                    precondition(restored.source == source && restored.sourceTitle == "Test station")
                     precondition(restored.isShuffled == shuffled && restored.nextPageURL == next)
                     try restored.append(SoundCloudTrackPage(tracks: [track(1), track(6)], nextURL: nil))
                     precondition(!restored.tracks.contains(track(1)))
@@ -316,21 +316,37 @@ struct QueueAndLikesTests {
         precondition(restored.relativeTrack(to: "track:2", offset: 1) == track(3))
         let stationQueue = TrackQueue(
             source: .station("soundcloud:track-stations:1"), tracks: [track(1), track(2)],
-            stationTitle: "Seed track station"
+            sourceTitle: "Seed track station"
         )
         let stationData = try JSONEncoder().encode(stationQueue)
         let restoredStation = try JSONDecoder().decode(TrackQueue.self, from: stationData)
         precondition(restoredStation.source == stationQueue.source)
-        precondition(restoredStation.stationTitle == "Seed track station")
+        precondition(restoredStation.sourceTitle == "Seed track station")
         // Queues saved before station titles were added must still restore.
         var legacyStationJSON = try JSONSerialization.jsonObject(with: stationData) as! [String: Any]
-        legacyStationJSON.removeValue(forKey: "stationTitle")
+        legacyStationJSON.removeValue(forKey: "sourceTitle")
         let legacyStation = try JSONDecoder().decode(
             TrackQueue.self, from: JSONSerialization.data(withJSONObject: legacyStationJSON)
         )
         precondition(legacyStation.source == stationQueue.source)
-        precondition(legacyStation.stationTitle == nil)
+        precondition(legacyStation.sourceTitle == nil)
         precondition(legacyStation.tracks == stationQueue.tracks)
+        // Related and artist queues keep the page they came from.
+        let relatedQueue = TrackQueue(source: .related("track:9"), tracks: [track(1)], sourceTrack: track(9))
+        let artistQueue = TrackQueue(source: .artistReposts("user:1"), tracks: [track(1)], sourceArtist: user)
+        let relatedData = try JSONEncoder().encode(relatedQueue)
+        let restoredRelated = try JSONDecoder().decode(TrackQueue.self, from: relatedData)
+        precondition(restoredRelated.sourceTrack == track(9))
+        let restoredArtist = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(artistQueue))
+        precondition(restoredArtist.sourceArtist == user)
+        // Queues saved before source tracks were added must still restore.
+        var legacyRelatedJSON = try JSONSerialization.jsonObject(with: relatedData) as! [String: Any]
+        legacyRelatedJSON.removeValue(forKey: "sourceTrack")
+        let legacyRelated = try JSONDecoder().decode(
+            TrackQueue.self, from: JSONSerialization.data(withJSONObject: legacyRelatedJSON)
+        )
+        precondition(legacyRelated.source == relatedQueue.source)
+        precondition(legacyRelated.sourceTrack == nil)
         var likesQueue = TrackQueue(source: .likes, tracks: [track(1), track(2), track(3)])
         likesQueue.setShuffle(true, currentURN: "track:1")
         let shuffled = likesQueue.relativeTrack(to: "track:1", offset: 1)!

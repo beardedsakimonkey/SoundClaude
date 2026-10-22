@@ -342,13 +342,13 @@ struct StationDetailView: View {
             }
         } else if let track = displayedTrack {
             model.navigateTrack(from: track, offset: backward ? -1 : 1, queue: TrackQueue(
-                source: .station(urn), tracks: [track] + tracks, stationTitle: title
+                source: .station(urn), tracks: [track] + tracks, sourceTitle: title
             ))
         }
     }
 
     private func playTrack(_ track: SoundCloudTrack) async {
-        await model.play(track, queue: TrackQueue(source: .station(urn), tracks: tracks, stationTitle: title))
+        await model.play(track, queue: TrackQueue(source: .station(urn), tracks: tracks, sourceTitle: title))
     }
 
     private func load() async {
@@ -397,7 +397,7 @@ private struct StationTrackList: View, Equatable {
     }
 
     private func playTrack(_ track: SoundCloudTrack) async {
-        await model.play(track, queue: TrackQueue(source: .station(urn), tracks: tracks, stationTitle: title))
+        await model.play(track, queue: TrackQueue(source: .station(urn), tracks: tracks, sourceTitle: title))
     }
 }
 

@@ -16,7 +16,12 @@ private enum TitleAnimationProbe {
     static var rowUpdates: [String: Int] = [:]
 }
 
-struct SoundCloudUser {}
+struct SoundCloudUser: Codable { var username = "" }
+enum SidebarDestination {
+    case feed, liked, history
+    var title: String { "" }
+    var systemImage: String { "" }
+}
 struct SoundCloudTrack: Identifiable, Equatable, Codable {
     var urn: String
     var title: String
@@ -32,6 +37,7 @@ final class AppModel {
     let likes = LikesController()
     let playback = Playback()
     let analyzer = 0
+    var queuePlaylist: (urn: String, title: String)? { nil }
     let artworkLoader = 0
     var moves = 0
     func moveQueueTracks(fromOffsets: IndexSet, toOffset: Int) {
@@ -84,7 +90,7 @@ struct QueueDragTests {
         let model = AppModel()
         let window = NSWindow(contentRect: NSRect(x: 150, y: 150, width: 600, height: 500), styleMask: [.titled], backing: .buffered, defer: false)
         var dismissCalls = 0
-        window.contentView = NSHostingView(rootView: TrackQueueView(model: model, onSelectTrack: { _ in }, onSelectArtist: { _ in }, onDismiss: { dismissCalls += 1 }))
+        window.contentView = NSHostingView(rootView: TrackQueueView(model: model, onSelectTrack: { _ in }, onSelectArtist: { _ in }, onSelectSource: {}, onDismiss: { dismissCalls += 1 }))
         window.makeKeyAndOrderFront(nil)
         app.activate(ignoringOtherApps: true)
 

@@ -440,7 +440,8 @@ private struct TrackDetailRelatedTracks: View {
                         await model.play(selected, queue: TrackQueue(
                             source: .related(track.urn),
                             tracks: relatedTracks,
-                            nextPageURL: nextPageURL
+                            nextPageURL: nextPageURL,
+                            sourceTrack: track
                         ))
                     }
                 )

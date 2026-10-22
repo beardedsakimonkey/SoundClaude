@@ -176,8 +176,8 @@ final class AppModel {
             guard let self, case let .playlist(urn) = queue.source,
                   let playlist = cache.contents[urn]?.playlist
                     ?? cache.playlists.first(where: { $0.urn == urn }),
-                  queue.playlistTitle != playlist.title else { return }
-            queue.playlistTitle = playlist.title
+                  queue.sourceTitle != playlist.title else { return }
+            queue.sourceTitle = playlist.title
             saveQueue()
         }
     }
@@ -304,7 +304,7 @@ final class AppModel {
         trackSelectionTask?.cancel()
         // Keep the current player item and position. Deduplication leaves the seed first,
         // even when the station omits it or returns it later in the list.
-        queue = TrackQueue(source: .station(urn), tracks: [currentTrack] + tracks, stationTitle: title)
+        queue = TrackQueue(source: .station(urn), tracks: [currentTrack] + tracks, sourceTitle: title)
         queue.setShuffle(playback.isShuffleEnabled, currentURN: currentTrack.urn)
         saveQueue()
         if !playback.isPlaybackActive {
@@ -376,6 +376,16 @@ final class AppModel {
 
     private func saveQueue() {
         queueStore.save(queue)
+    }
+
+    var queuePlaylist: (urn: String, title: String)? {
+        guard case let .playlist(urn) = queue.source else { return nil }
+        // The playlistsObservation sink updates the queue when this playlist title changes.
+        // Reading the cache here does not subscribe views to every playlist load.
+        guard let title = playlists.cache.contents[urn]?.playlist.title
+            ?? playlists.playlists.first(where: { $0.urn == urn })?.title
+            ?? queue.sourceTitle else { return nil }
+        return (urn, title)
     }
 
     private func loadPlayback(

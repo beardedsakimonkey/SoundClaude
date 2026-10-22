@@ -63,8 +63,9 @@ struct TrackQueue: Codable {
     }
 
     let source: Source
-    let stationTitle: String?
-    var playlistTitle: String?
+    var sourceTitle: String?
+    let sourceTrack: SoundCloudTrack?
+    let sourceArtist: SoundCloudUser?
     private(set) var tracks: [SoundCloudTrack]
     private(set) var nextPageURL: URL?
     private var loadedPageURLs: Set<URL> = []
@@ -87,10 +88,18 @@ struct TrackQueue: Codable {
         var followingURNs: [String]
     }
 
-    init(source: Source, tracks: [SoundCloudTrack], nextPageURL: URL? = nil, stationTitle: String? = nil, playlistTitle: String? = nil) {
+    init(
+        source: Source,
+        tracks: [SoundCloudTrack],
+        nextPageURL: URL? = nil,
+        sourceTitle: String? = nil,
+        sourceTrack: SoundCloudTrack? = nil,
+        sourceArtist: SoundCloudUser? = nil
+    ) {
         self.source = source
-        self.stationTitle = stationTitle
-        self.playlistTitle = playlistTitle
+        self.sourceTitle = sourceTitle
+        self.sourceTrack = sourceTrack
+        self.sourceArtist = sourceArtist
         var known = Set<String>()
         self.tracks = tracks.filter { known.insert($0.urn).inserted }
         self.nextPageURL = nextPageURL

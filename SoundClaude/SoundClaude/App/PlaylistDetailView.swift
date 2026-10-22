@@ -349,7 +349,7 @@ struct PlaylistDetailView: View {
             } else if let track = startingTrack {
                 Task {
                     await model.play(track, queue: TrackQueue(
-                        source: .playlist(playlist.urn), tracks: tracks, nextPageURL: nextPageURL, playlistTitle: displayedPlaylist.title
+                        source: .playlist(playlist.urn), tracks: tracks, nextPageURL: nextPageURL, sourceTitle: displayedPlaylist.title
                     ))
                 }
             }
@@ -365,7 +365,7 @@ struct PlaylistDetailView: View {
             Task {
                 await model.play(track, queue: TrackQueue(
                     source: .playlist(playlist.urn), tracks: tracks,
-                    nextPageURL: nextPageURL, playlistTitle: displayedPlaylist.title
+                    nextPageURL: nextPageURL, sourceTitle: displayedPlaylist.title
                 ), loadRemainingTracks: true)
             }
         } label: {
@@ -417,7 +417,7 @@ struct PlaylistDetailView: View {
             }
         } else if let track = startingTrack {
             model.navigateTrack(from: track, offset: backward ? -1 : 1, queue: TrackQueue(
-                source: .playlist(playlist.urn), tracks: tracks, nextPageURL: nextPageURL, playlistTitle: displayedPlaylist.title
+                source: .playlist(playlist.urn), tracks: tracks, nextPageURL: nextPageURL, sourceTitle: displayedPlaylist.title
             ))
         }
     }
@@ -521,7 +521,7 @@ struct PlaylistDetailView: View {
         await model.play(track, queue: TrackQueue(
             source: .playlist(playlist.urn),
             tracks: tracks,
-            nextPageURL: nextPageURL, playlistTitle: displayedPlaylist.title
+            nextPageURL: nextPageURL, sourceTitle: displayedPlaylist.title
         ))
     }
 
@@ -638,7 +638,7 @@ private struct PlaylistTrackList: View, Equatable {
         await model.play(track, queue: TrackQueue(
             source: .playlist(playlist.urn),
             tracks: tracks,
-            nextPageURL: nextPageURL, playlistTitle: playlist.title
+            nextPageURL: nextPageURL, sourceTitle: playlist.title
         ))
     }
 }

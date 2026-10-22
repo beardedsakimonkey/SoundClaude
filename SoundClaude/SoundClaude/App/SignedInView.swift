@@ -150,6 +150,7 @@ struct SignedInView: View {
                         model: model,
                         onSelectTrack: showTrack,
                         onSelectArtist: showArtist,
+                        onSelectSource: showQueueSource,
                         onDismiss: { isShowingQueue = false }
                     )
                 )
@@ -265,8 +266,7 @@ struct SignedInView: View {
                     await model.play(track, queue: TrackQueue(
                         source: station.isStation ? .station(station.urn) : .playlist(station.urn),
                         tracks: contents.tracks,
-                        stationTitle: contents.title ?? station.displayTitle,
-                        playlistTitle: station.isStation ? nil : contents.title ?? station.displayTitle
+                        sourceTitle: contents.title ?? station.displayTitle
                     ))
                 },
                 onSelectPlaylist: showPlaylist,
@@ -276,7 +276,7 @@ struct SignedInView: View {
                     await model.play(track, queue: TrackQueue(
                         source: .playlist(playlist.urn),
                         tracks: contents.tracks,
-                        nextPageURL: contents.nextPageURL, playlistTitle: contents.playlist.title
+                        nextPageURL: contents.nextPageURL, sourceTitle: contents.playlist.title
                     ))
                 },
                 onDeletePlaylist: removeDeletedPlaylist,
@@ -649,7 +649,7 @@ struct SignedInView: View {
             isShowingVisualizer = false
             isShowingQueue = false
             if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
-            showStation(urn, seedArtistName: model.queue.stationTitle ?? "Station")
+            showStation(urn, seedArtistName: model.queue.sourceTitle ?? "Station")
         default:
             isOpeningCurrentTrackStation = true
         }
@@ -714,6 +714,59 @@ struct SignedInView: View {
         } catch {
             stationErrorMessage = error.localizedDescription
         }
+    }
+
+    private func showQueueSource() {
+        let queue = model.queue
+        switch queue.source {
+        case .single:
+            return
+        case .feed:
+            openDestination(.feed)
+        case .likes:
+            openDestination(.liked)
+        case .history:
+            openDestination(.history)
+        case let .search(query):
+            showQueueSourceRoute(.search(query))
+        case let .genre(genre):
+            showQueueSourceRoute(.genre(genre))
+        case let .tag(tag):
+            showQueueSourceRoute(.tag(tag))
+        case let .playlist(urn):
+            isShowingQueue = false
+            let title = model.queuePlaylist?.title ?? "Playlist"
+            Task {
+                if let playlist = await model.playlistDetails(urn: urn, title: title) {
+                    showPlaylist(playlist)
+                }
+            }
+        case let .station(urn):
+            isShowingQueue = false
+            if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
+            showStation(urn, seedArtistName: queue.sourceTitle ?? "Station")
+        case .related:
+            if let track = queue.sourceTrack { showTrack(track) }
+        case .artist:
+            showQueueSourceArtist(queue.sourceArtist, tab: .tracks)
+        case .artistReposts:
+            showQueueSourceArtist(queue.sourceArtist, tab: .reposts)
+        case .artistLikes:
+            showQueueSourceArtist(queue.sourceArtist, tab: .likes)
+        }
+    }
+
+    private func showQueueSourceRoute(_ route: Route) {
+        isShowingQueue = false
+        guard path.last != route else { return }
+        forwardPath.removeAll()
+        path.append(route)
+    }
+
+    private func showQueueSourceArtist(_ artist: SoundCloudUser?, tab: ArtistDetailView.ContentTab) {
+        guard let artist else { return }
+        artistTabSelection(for: artist).tab = tab
+        showArtist(artist)
     }
 
     private func showStation(_ urn: String, seedArtistName: String) {
