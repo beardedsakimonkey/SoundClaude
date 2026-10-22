@@ -54,6 +54,7 @@ struct TrackWaveformView: View {
     private let commentsAppearanceDelay: Duration = .seconds(WaveformStaggeredSpring.duration * 0.75)
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
+    @Environment(\.isEnabled) private var isEnabled
     @Environment(\.contentHoverSuppression) private var hoverSuppression
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
@@ -396,9 +397,9 @@ struct TrackWaveformView: View {
             }
         }
         // Keep a visible focus ring for keyboard navigation without focusing on click.
-        .focusable(isCurrentTrack, interactions: .activate)
+        .focusable(isCurrentTrack && isEnabled, interactions: .activate)
         .onKeyPress(keys: [.leftArrow, .rightArrow], phases: [.down, .repeat]) { press in
-            guard isCurrentTrack,
+            guard isEnabled, isCurrentTrack,
                   press.modifiers.isEmpty || press.modifiers == .option else { return .ignored }
             let step: Double = press.modifiers.contains(.option) ? 30 : 5
             playback.seek(by: press.key == .leftArrow ? -step : step)
@@ -411,7 +412,7 @@ struct TrackWaveformView: View {
                 + format(seconds: displayedDuration)
         )
         .accessibilityAdjustableAction { direction in
-            guard isCurrentTrack else { return }
+            guard isEnabled, isCurrentTrack else { return }
             switch direction {
             case .increment:
                 playback.seek(by: 5)
@@ -588,7 +589,7 @@ struct TrackWaveformView: View {
     }
 
     private var showsHoverPreview: Bool {
-        track != nil && isHovering && contentHoverEnabled && hoverSuppression?.isSuppressed != true
+        isEnabled && track != nil && isHovering && contentHoverEnabled && hoverSuppression?.isSuppressed != true
     }
 
     private func barAmplitudes(
@@ -663,7 +664,7 @@ struct TrackWaveformView: View {
     }
 
     private func seek(to fraction: Double) {
-        guard let track else { return }
+        guard isEnabled, let track else { return }
         if isCurrentTrack {
             pendingSeek = nil
             playback.seek(toFraction: fraction)

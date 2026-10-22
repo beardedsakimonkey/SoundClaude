@@ -442,6 +442,7 @@ private struct PlayerFooterWaveform: View {
     @State private var waveformHorizontalInset: CGFloat = 0
 
     var body: some View {
+        let canInteract = playback.errorMessage == nil
         let raisesTimestamps = playback.currentTrack != nil
             && !playback.isPlaybackActive && !isHoveringWaveform
 
@@ -456,6 +457,9 @@ private struct PlayerFooterWaveform: View {
                     collapsesBarsWhenPaused: true
                 )
                 .onContentHover { isHoveringWaveform = $0 }
+                .environment(\.contentHoverEnabled, canInteract)
+                .disabled(!canInteract)
+                .allowsHitTesting(canInteract)
             } else {
                 Text("Select a track to play")
                     .font(.caption)
@@ -470,6 +474,17 @@ private struct PlayerFooterWaveform: View {
             .padding(.horizontal, playback.currentTrack == nil ? 0 : waveformHorizontalInset)
             .font(.caption.monospacedDigit())
             .foregroundStyle(.tertiary)
+            .overlay {
+                if let playbackError = playback.errorMessage {
+                    Label(playbackError, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity)
+                        .contentHelp(playbackError)
+                        .offset(y: -8)
+                }
+            }
             // Follow the lower edge as centered bars collapse.
             .offset(y: -4 - (raisesTimestamps
                 ? (TrackWaveformView.Layout.compact.availableBarHeight(for: waveformHeight)
@@ -483,21 +498,6 @@ private struct PlayerFooterWaveform: View {
             )
         }
         .frame(maxWidth: .infinity)
-        .overlay(alignment: .top) {
-            if let playbackError = playback.errorMessage {
-                Text(playbackError)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: waveformHeight)
-                    .contentHelp(playbackError)
-            }
-        }
         .onGeometryChange(for: CGFloat.self) { geometry in
             TrackWaveformView.Layout.compact.horizontalBarInset(for: geometry.size.width)
         } action: { inset in

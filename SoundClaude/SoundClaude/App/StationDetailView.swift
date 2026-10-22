@@ -130,12 +130,8 @@ struct StationDetailView: View {
         }
         .task(id: loadAttempt) { await load() }
         .task(id: urn) {
-            do {
-                try await likes.loadStationLikes()
-            } catch {
-                guard !Task.isCancelled else { return }
-                model.likeErrorMessage = error.localizedDescription
-            }
+            // Load failures are shown with a retry action in the sidebar.
+            try? await likes.loadStationLikes()
         }
         .task(id: isOpeningSource) {
             guard isOpeningSource else { return }

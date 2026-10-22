@@ -112,11 +112,8 @@ struct PlaylistDetailView: View {
         }
         .task(id: displayedPlaylist.isPrivate) {
             if playlist.isSystemPlaylist {
-                do {
-                    try await likes.loadStationLikes()
-                } catch {
-                    likeErrorMessage = error.localizedDescription
-                }
+                // Load failures are shown with a retry action in the sidebar.
+                try? await likes.loadStationLikes()
             } else if !displayedPlaylist.isPrivate {
                 await playlists.loadLikes()
             }
@@ -571,10 +568,6 @@ private struct PlaylistHeaderButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(isHighlighted ? .primary : .secondary)
             .padding(4)
-            .background {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(.primary.opacity(isHighlighted ? (configuration.isPressed ? 0.16 : 0.08) : 0))
-            }
             .contentShape(Rectangle())
             .opacity(isEnabled ? 1 : 0.5)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHighlighted)
