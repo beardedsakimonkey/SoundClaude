@@ -1205,7 +1205,7 @@ actor SoundCloudClient {
         throw SoundCloudError.api(
             message?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
                 ? message!
-                : "SoundCloud returned HTTP \(response.statusCode)."
+                : "SoundCloud returned HTTP \(response.statusCode) (\(HTTPURLResponse.localizedString(forStatusCode: response.statusCode).capitalized))."
         )
     }
 
