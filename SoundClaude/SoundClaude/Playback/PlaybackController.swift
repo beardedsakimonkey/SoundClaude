@@ -137,7 +137,9 @@ final class PlaybackController {
 
     func setCustomSpeed(_ speed: Float) {
         guard speed.isFinite else { return }
-        customSpeed = min(max((speed * 20).rounded() / 20, 0.5), 2)
+        // Snap to semitones, since varispeed shifts pitch with speed.
+        let semitones = min(max((12 * log2(speed)).rounded(), -12), 12)
+        customSpeed = Float(pow(2.0, Double(semitones) / 12))
         defaults.set(customSpeed, forKey: SettingsKey.customSpeed)
         speedMode = .custom
     }
