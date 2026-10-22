@@ -13,6 +13,7 @@ extension EnvironmentValues {
 }
 private enum TitleAnimationProbe {
     static var animatedURNs: Set<String> = []
+    static var rowUpdates: [String: Int] = [:]
 }
 
 struct SoundCloudUser {}
@@ -39,7 +40,7 @@ final class AppModel {
     }
     var clearCalls = 0
     func clearQueue() { clearCalls += 1 }
-    func removeFromQueue(_ track: SoundCloudTrack) {}
+    func removeFromQueue(_ track: SoundCloudTrack) { queue.remove(track) }
     func play(_ track: SoundCloudTrack) async {}
 }
 struct TrackListRow: View {
@@ -47,13 +48,17 @@ struct TrackListRow: View {
     let playback: Playback
     let analyzer: Int
     let artworkLoader: Int
-    let likes: LikesController
+    @ObservedObject var likes: LikesController
+    var showsDuration = true
+    var showsLikes = true
     let onRemoveFromQueue: (SoundCloudTrack) -> Void
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
     var body: some View {
-        Text(track.title)
+        let _ = TitleAnimationProbe.rowUpdates[track.urn, default: 0] += 1
+        Button { onRemoveFromQueue(track) } label: { Text(track.title) }
+            .buttonStyle(.plain)
             .transaction { transaction in
                 if transaction.animation != nil {
                     TitleAnimationProbe.animatedURNs.insert(track.urn)
@@ -106,6 +111,18 @@ struct QueueDragTests {
                 await pause()
             }
             precondition(app.isActive && handles(window.contentView!).count == 5)
+            await pause()
+            let originalQueue = model.queue
+            let rowUpdates = TitleAnimationProbe.rowUpdates
+            model.removeFromQueue(model.queue.tracks[2])
+            await pause()
+            await pause() // Let the removal animation finish.
+            precondition(model.queue.tracks.map(\.urn) == [1,2,4,5].map { "track:\($0)" })
+            for urn in ["track:1", "track:2", "track:4", "track:5"] {
+                precondition(TitleAnimationProbe.rowUpdates[urn] == rowUpdates[urn],
+                             "Removing a track must not re-render surviving row \(urn)")
+            }
+            model.queue = originalQueue
             await pause()
             // Header buttons sit in the top-right corner of the panel.
             let content = window.contentView!

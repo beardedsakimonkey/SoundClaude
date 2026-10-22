@@ -1,8 +1,28 @@
 import Foundation
 
 struct TrackQueueStore {
-    var defaults: UserDefaults = .standard
+    let defaults: UserDefaults
     private let key = "playback.queue"
+
+    init() {
+        self.init(
+            defaults: UserDefaults(suiteName: "com.tim.soundclaude.track-queue")!,
+            legacyDefaults: .standard
+        )
+    }
+
+    init(defaults: UserDefaults, legacyDefaults: UserDefaults? = nil) {
+        self.defaults = defaults
+        // Queue saves must not invalidate views observing UI settings with @AppStorage.
+        // Move the old value once; clearing the queue must not restore it later.
+        if let legacyDefaults, legacyDefaults !== defaults {
+            if defaults.data(forKey: key) == nil,
+               let saved = legacyDefaults.data(forKey: key) {
+                defaults.set(saved, forKey: key)
+            }
+            legacyDefaults.removeObject(forKey: key)
+        }
+    }
 
     func save(_ queue: TrackQueue) {
         guard let data = try? JSONEncoder().encode(queue.withoutLikesMetadata()) else { return }

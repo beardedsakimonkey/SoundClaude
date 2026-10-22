@@ -342,6 +342,7 @@ test-playback-session:
 	swiftc -o /tmp/soundclaude-tests/playback-session \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Playback/PlaybackController.swift \
+		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
 		tests/PlaybackSessionStorageTests.swift
 	/tmp/soundclaude-tests/playback-session
 

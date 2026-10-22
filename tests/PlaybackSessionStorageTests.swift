@@ -1,6 +1,9 @@
 import AppKit
 import SwiftUI
 
+// TrackQueue pagination errors are outside this storage regression.
+enum SoundCloudError: Error { case invalidData }
+
 private final class Evaluations {
     var count = 0
 }
@@ -69,10 +72,42 @@ struct PlaybackSessionStorageTests {
             precondition(evaluations.count == initialCount,
                          "Session saves must not reevaluate views that observe UI settings")
         }
+        var queue = TrackQueue(source: .single, tracks: [track])
+        let queueStore = TrackQueueStore(defaults: sessions)
+        queueStore.save(queue)
+        settle()
+        precondition(evaluations.count == initialCount,
+                     "Queue saves must not reevaluate views that observe UI settings")
+        queue.remove(track)
+        queueStore.save(queue)
+        settle()
+        precondition(evaluations.count == initialCount,
+                     "Queue removal must not reevaluate views that observe UI settings")
+        queueStore.clear()
+        settle()
+        precondition(evaluations.count == initialCount,
+                     "Queue clearing must not reevaluate views that observe UI settings")
+
+        // Migrate existing queues, prefer an already migrated queue, and never resurrect a cleared queue.
+        let oldQueue = TrackQueue(source: .single, tracks: [track])
+        TrackQueueStore(defaults: settings).save(oldQueue)
+        let migrated = TrackQueueStore(defaults: sessions, legacyDefaults: settings)
+        precondition(migrated.restore(currentTrack: nil, shuffleEnabled: false).tracks == [track])
+        precondition(settings.data(forKey: "playback.queue") == nil)
+        migrated.save(queue)
+        TrackQueueStore(defaults: settings).save(oldQueue)
+        let reopened = TrackQueueStore(defaults: sessions, legacyDefaults: settings)
+        precondition(reopened.restore(currentTrack: nil, shuffleEnabled: false).tracks.isEmpty)
+        reopened.clear()
+        let clearedQueue = TrackQueueStore(defaults: sessions, legacyDefaults: settings)
+        precondition(clearedQueue.restore(currentTrack: nil, shuffleEnabled: false).tracks.isEmpty)
+
         // Settings changes must still reach the view.
+        settle()
+        let beforeSettingsChange = evaluations.count
         settings.set("grid", forKey: "playlistTrackLayout")
         settle()
-        precondition(evaluations.count > initialCount)
+        precondition(evaluations.count > beforeSettingsChange)
         let restored = PlaybackController(defaults: settings, sessionDefaults: sessions)
         precondition(restored.savedSession?.position == 23)
         restored.clearSession()

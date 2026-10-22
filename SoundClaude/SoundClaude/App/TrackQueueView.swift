@@ -56,24 +56,12 @@ struct TrackQueueView: View {
                         onMove: model.moveQueueTracks,
                         onDismiss: onDismiss
                     ) { track in
-                        TrackListRow(
+                        QueueTrackRow(
                             track: track,
-                            playback: model.playback,
-                            analyzer: model.analyzer,
-                            artworkLoader: model.artworkLoader,
-                            likes: model.likes,
-                            showsDuration: false,
-                            showsLikes: false,
-                            onRemoveFromQueue: model.removeFromQueue,
-                            onSelectTrack: { selected in
-                                onDismiss()
-                                onSelectTrack(selected)
-                            },
-                            onSelectArtist: { artist in
-                                onDismiss()
-                                onSelectArtist(artist)
-                            },
-                            onPlayTrack: { await model.play($0) }
+                            model: model,
+                            onSelectTrack: onSelectTrack,
+                            onSelectArtist: onSelectArtist,
+                            onDismiss: onDismiss
                         )
                     }
                 }
@@ -85,6 +73,38 @@ struct TrackQueueView: View {
         #if DEBUG
         .debugViewUpdates("TrackQueueView")
         #endif
+    }
+}
+
+// Keep row actions independent of the queue array and drag layout state.
+// Removing or moving another track must not change this row's inputs.
+private struct QueueTrackRow: View {
+    let track: SoundCloudTrack
+    let model: AppModel
+    let onSelectTrack: (SoundCloudTrack) -> Void
+    let onSelectArtist: (SoundCloudUser) -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        TrackListRow(
+            track: track,
+            playback: model.playback,
+            analyzer: model.analyzer,
+            artworkLoader: model.artworkLoader,
+            likes: model.likes,
+            showsDuration: false,
+            showsLikes: false,
+            onRemoveFromQueue: model.removeFromQueue,
+            onSelectTrack: { selected in
+                onDismiss()
+                onSelectTrack(selected)
+            },
+            onSelectArtist: { artist in
+                onDismiss()
+                onSelectArtist(artist)
+            },
+            onPlayTrack: { await model.play($0) }
+        )
     }
 }
 
