@@ -63,6 +63,7 @@ struct TrackQueueView: View {
                             artworkLoader: model.artworkLoader,
                             likes: model.likes,
                             showsDuration: false,
+                            showsLikes: false,
                             onRemoveFromQueue: model.removeFromQueue,
                             onSelectTrack: { selected in
                                 onDismiss()

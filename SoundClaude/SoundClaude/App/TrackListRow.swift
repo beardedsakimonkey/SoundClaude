@@ -9,6 +9,7 @@ struct TrackListRow: View {
     var showsArtist = true
     var isCompact = false
     var showsDuration = true
+    var showsLikes = true
     var onAddToQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
@@ -98,14 +99,15 @@ struct TrackListRow: View {
                     reduceMotion ? nil : .easeInOut(duration: 0.2),
                     value: showsPlaybackIndicator
                 )
-                let likeCount = likes.likeCount(for: track)
-                if showsArtist || likeCount != nil || isLiked {
+                let likeCount = showsLikes ? likes.likeCount(for: track) : nil
+                let showsLikeIndicator = showsLikes && (likeCount != nil || isLiked)
+                if showsArtist || showsLikeIndicator {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         if showsArtist {
                             ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                                 .onContentHover { isHoveringArtist = $0 }
                         }
-                        if likeCount != nil || isLiked {
+                        if showsLikeIndicator {
                             if showsArtist {
                                 Text("·")
                                     .accessibilityHidden(true)
