@@ -516,10 +516,8 @@ private struct PlayerFooterTimestamps: View {
         HStack {
             Text(format(seconds: playback.currentTime))
                 .foregroundStyle(.secondary)
-                .offset(x: -6)
             Spacer()
             Text(format(seconds: playback.duration))
-                .offset(x: 6)
         }
     }
 
