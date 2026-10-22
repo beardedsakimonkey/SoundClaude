@@ -79,28 +79,36 @@ struct TrackListRow: View {
                 trackDetails
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Spacer()
-            Text(duration)
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .fixedSize()
-                // Keep the duration's width so hover does not change text truncation.
-                .opacity(showsMetadata && !isHovering ? 1 : 0)
-                .accessibilityHidden(!showsMetadata)
-                .overlay {
-                    trailingHoverButton
+            if showsMetadata {
+                Spacer()
+            }
+            Group {
+                if showsMetadata {
+                    Text(duration)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
                         .fixedSize()
-                        .background {
-                            Circle()
-                                .fill(Color.primary.opacity(isHoveringMenu ? 0.1 : 0))
-                                .frame(width: 28, height: 28)
-                        }
-                        .contentShape(Circle())
-                        .opacity(isHovering ? 1 : 0)
-                        .allowsHitTesting(isHovering)
-                        .accessibilityHidden(!isHovering)
-                        .onContentHover { isHoveringMenu = $0 }
+                        // Keep the duration's width so hover does not change text truncation.
+                        .opacity(isHovering ? 0 : 1)
+                } else {
+                    // Without metadata, reserve only the hover button's width.
+                    Color.clear.frame(width: 28, height: 28)
                 }
+            }
+            .overlay {
+                trailingHoverButton
+                    .fixedSize()
+                    .background {
+                        Circle()
+                            .fill(Color.primary.opacity(isHoveringMenu ? 0.1 : 0))
+                            .frame(width: 28, height: 28)
+                    }
+                    .contentShape(Circle())
+                    .opacity(isHovering ? 1 : 0)
+                    .allowsHitTesting(isHovering)
+                    .accessibilityHidden(!isHovering)
+                    .onContentHover { isHoveringMenu = $0 }
+            }
         }
         .padding(.vertical, isCompact ? 4 : 6)
         .padding(.horizontal, 8)
