@@ -414,10 +414,15 @@ struct PlaylistDetailView: View {
         .disabled(playlists.updatingPlaylistURNs.contains(playlist.urn)
             || playlistDeletion.deletingURNs.contains(playlist.urn))
 
-        DeletePlaylistButton(playlist: displayedPlaylist, state: $playlistDeletion)
-            .labelStyle(.iconOnly)
-            .frame(width: 20, height: 20)
-            .contentHelp("Delete playlist")
+        Button(role: .destructive) {
+            playlistDeletion.pendingPlaylist = displayedPlaylist
+        } label: {
+            Label("Delete Playlist", systemImage: "trash")
+                .labelStyle(.iconOnly)
+                .frame(width: 20, height: 20)
+        }
+        .contentHelp("Delete playlist")
+        .disabled(playlistDeletion.deletingURNs.contains(playlist.urn))
     }
 
     private var likeButton: some View {
