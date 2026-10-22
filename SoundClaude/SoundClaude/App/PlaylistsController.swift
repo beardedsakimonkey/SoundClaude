@@ -344,10 +344,59 @@ final class PlaylistsController: ObservableObject {
             )
         }
         try checkSession(session)
+        if removing {
+            trackURNs[playlist.urn]?.remove(track.urn)
+        } else {
+            trackURNs[playlist.urn]?.insert(track.urn)
+        }
         if let syncTask { await syncTask.value }
         if let task = playlistTasks[playlist.urn] { await task.value }
         try checkSession(session)
         await loadPlaylist(playlist)
+    }
+
+    // Membership scans keep only track URNs, not full track lists.
+    private var trackURNs: [String: Set<String>] = [:]
+    private var trackURNTasks: [String: Task<Set<String>, Error>] = [:]
+
+    func contains(_ track: SoundCloudTrack, in playlist: SoundCloudPlaylist) async throws -> Bool {
+        try await trackURNs(in: playlist).contains(track.urn)
+    }
+
+    private func trackURNs(in playlist: SoundCloudPlaylist) async throws -> Set<String> {
+        await restoreCache()
+        let urn = playlist.urn
+        if let task = playlistTasks[urn] { await task.value }
+        if let contents = cache.contents[urn], contents.isComplete {
+            return Set(contents.tracks.map(\.urn))
+        }
+        if let urns = trackURNs[urn] { return urns }
+        if let task = trackURNTasks[urn] { return try await task.value }
+        guard let accountID else { throw CancellationError() }
+        let session = sessionID
+        let task = Task { @MainActor in
+            defer { if sessionID == session { trackURNTasks.removeValue(forKey: urn) } }
+            if let saved = try? await store.loadContents(urn: urn, accountID: accountID), saved.isComplete {
+                try checkSession(session)
+                return Set(saved.tracks.map(\.urn))
+            }
+            var urns = Set<String>()
+            var url: URL?
+            var visited = Set<URL>()
+            repeat {
+                let token = try await accessToken(session: session)
+                let page = try await client.playlistTracks(urn: urn, accessToken: token, pageURL: url)
+                try checkSession(session)
+                try validate(next: page.nextURL, requested: url, visited: &visited)
+                urns.formUnion(page.tracks.map(\.urn))
+                url = page.nextURL
+                if url != nil { try await Task.sleep(for: .milliseconds(350)) }
+            } while url != nil
+            trackURNs[urn] = urns
+            return urns
+        }
+        trackURNTasks[urn] = task
+        return try await task.value
     }
 
     func deletePlaylist(_ playlist: SoundCloudPlaylist) async throws {
@@ -543,6 +592,9 @@ final class PlaylistsController: ObservableObject {
         syncTask?.cancel()
         restoreTask?.cancel()
         for task in playlistTasks.values { task.cancel() }
+        for task in trackURNTasks.values { task.cancel() }
+        trackURNTasks = [:]
+        trackURNs = [:]
         syncTask = nil
         restoreTask = nil
         playlistTasks = [:]

@@ -58,14 +58,14 @@ struct TrackMenuItems: View {
                 onAddToQueue(track)
             }
         }
+        Button("Add to playlist", systemImage: "text.badge.plus") {
+            addToPlaylist(track)
+        }
         if let onRemoveFromPlaylist {
             Button("Remove from playlist", systemImage: "text.badge.minus", role: .destructive) {
                 onRemoveFromPlaylist(track)
             }
             .disabled(isUpdatingPlaylist)
-        }
-        Button("Add to playlist", systemImage: "text.badge.plus") {
-            addToPlaylist(track)
         }
 
         TrackStationMenuItem(track: track)
