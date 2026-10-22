@@ -253,6 +253,8 @@ struct PlayerFooterView: View {
                 .accessibilityLabel(isShowingVisualizer ? "Hide visualizer" : "Show visualizer")
                 .accessibilityValue(isShowingVisualizer ? "Open" : "Closed")
 
+                PlayerSpeedControl(playback: playback)
+
                 PlayerVolumeControl(playback: playback, usesCompactVolume: footerWidth < 1_000)
             }
             .buttonStyle(.borderless)
@@ -604,4 +606,103 @@ private struct PlayerFooterGlass: ViewModifier {
         onSelectStation: { _, _ in }
     )
     .frame(width: 900)
+}
+
+private struct PlayerSpeedControl: View {
+    @Bindable var playback: PlaybackController
+    @State private var isShowingSpeed = false
+
+    private var rateLabel: String {
+        playback.playbackRate.formatted(.number.precision(.fractionLength(0...2))) + "×"
+    }
+
+    var body: some View {
+        Button {
+            isShowingSpeed.toggle()
+        } label: {
+            Text(rateLabel)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(playback.playbackRate == 1 ? Color.primary : Color.accentColor)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .modifier(PlayerSpeedHoverFeedback())
+        .contentHelp("Playback speed and pitch")
+        .accessibilityLabel("Playback speed and pitch")
+        .accessibilityValue(rateLabel)
+        .popover(isPresented: $isShowingSpeed, arrowEdge: .top) {
+            VStack(spacing: 12) {
+                HStack {
+                    Text("Speed").font(.headline)
+                    Spacer()
+                    Text(rateLabel)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: Binding(
+                    get: { playback.playbackRate },
+                    set: { playback.setCustomSpeed($0) }
+                ), in: 0.5...2, step: 0.05)
+                .controlSize(.large)
+                .frame(minHeight: 44)
+                .accessibilityLabel("Playback speed")
+                .accessibilityValue(rateLabel)
+
+                HStack(spacing: 10) {
+                    presetButton(rate: 0.8, label: "0.8×")
+                    presetButton(rate: 1, label: "1×")
+                    presetButton(rate: 1.25, label: "1.25×")
+                }
+            }
+            .padding(20)
+            .frame(width: 320)
+        }
+    }
+
+    private func presetButton(rate: Float, label: String) -> some View {
+        let isSelected = abs(playback.playbackRate - rate) < 0.001
+        return Button {
+            playback.setCustomSpeed(rate)
+        } label: {
+            Text(label)
+                .font(.system(.body, design: .rounded, weight: .semibold))
+                .monospacedDigit()
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                .background(
+                    isSelected ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.06),
+                    in: RoundedRectangle(cornerRadius: 10)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(isSelected ? Color.accentColor : .clear, lineWidth: 1)
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .modifier(PlayerSpeedHoverFeedback())
+        .modifier(SpringPressEffect())
+        .accessibilityLabel("Set speed to \(label)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+private struct PlayerSpeedHoverFeedback: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+            .contentShape(Rectangle())
+            .onContentHover { isHovering = $0 }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovering)
+    }
 }

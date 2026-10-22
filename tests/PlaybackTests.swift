@@ -81,6 +81,57 @@ struct PlaybackTests {
             bitrateKilobitsPerSecond: 160, isPreview: false
         )
 
+        // Speed changes preserve pause intent and survive seeks and new items.
+        do {
+            let controller = PlaybackController(defaults: defaults)
+            controller.isMuted = true
+            controller.speedMode = .nightcore
+            let request = controller.beginLoading(track: track(1), autoplay: false)
+            controller.load(source: source, requestID: request)
+            try await until { !controller.isLoading && !controller.isBuffering }
+            precondition(controller.player.rate == 0)
+            precondition(controller.player.defaultRate == 1.25)
+            precondition(controller.player.currentItem?.audioTimePitchAlgorithm == .varispeed)
+            controller.togglePlayPause()
+            try await until { controller.isPlaying }
+            precondition(controller.player.rate == 1.25)
+            controller.speedMode = .slowed
+            precondition(controller.player.rate == 0.8)
+            controller.setCustomSpeed(0.8)
+            precondition(controller.player.rate == 0.8)
+            precondition(controller.player.currentItem?.audioTimePitchAlgorithm == .varispeed)
+            controller.setCustomSpeed(1.5)
+            precondition(controller.player.rate == 1.5)
+            precondition(controller.player.currentItem?.audioTimePitchAlgorithm == .varispeed)
+            controller.seek(to: 0.5)
+            try await until { !controller.isBuffering && controller.player.rate == 1.5 }
+            controller.pause()
+            controller.setCustomSpeed(0.75)
+            precondition(controller.player.rate == 0)
+            let restored = PlaybackController(defaults: defaults)
+            precondition(restored.speedMode == .custom && restored.customSpeed == 0.75)
+            precondition(restored.player.rate == 0)
+            controller.setCustomSpeed(.nan)
+            precondition(controller.customSpeed == 0.75)
+            controller.setCustomSpeed(4)
+            precondition(controller.customSpeed == 2)
+            controller.setCustomSpeed(0)
+            precondition(controller.customSpeed == 0.5)
+            controller.prefetch(track(2)) { source }
+            try await Task.sleep(for: .milliseconds(100))
+            controller.speedMode = .nightcore
+            let nextRequest = controller.beginLoading(track: track(2))
+            let consumed = await controller.loadPrefetched(requestID: nextRequest)
+            precondition(consumed)
+            try await until { controller.isPlaying }
+            precondition(controller.player.rate == 1.25)
+            precondition(controller.player.currentItem?.audioTimePitchAlgorithm == .varispeed)
+            controller.clearSession()
+            for key in ["playback.speedMode", "playback.customSpeed", "playback.isMuted"] {
+                defaults.removeObject(forKey: key)
+            }
+        }
+
         // A one-track queue wraps to the loaded track without replacing its
         // player or item. Next also resumes a paused track from the start.
         for repeatMode in ["all", "one"] {

@@ -106,7 +106,63 @@ final class PlaybackController {
         }
     }
 
+    enum SpeedMode: String, CaseIterable {
+        case normal, nightcore, slowed, custom
+
+        var label: String {
+            switch self {
+            case .normal: "Normal"
+            case .nightcore: "Nightcore"
+            case .slowed: "Slowed"
+            case .custom: "Custom"
+            }
+        }
+    }
+
+    var speedMode: SpeedMode = .normal {
+        didSet {
+            defaults.set(speedMode.rawValue, forKey: SettingsKey.speedMode)
+            applySpeed()
+        }
+    }
+    private(set) var customSpeed: Float = 1
+    var playbackRate: Float {
+        switch speedMode {
+        case .normal: 1
+        case .nightcore: 1.25
+        case .slowed: 0.8
+        case .custom: customSpeed
+        }
+    }
+
+    func setCustomSpeed(_ speed: Float) {
+        guard speed.isFinite else { return }
+        customSpeed = min(max((speed * 20).rounded() / 20, 0.5), 2)
+        defaults.set(customSpeed, forKey: SettingsKey.customSpeed)
+        speedMode = .custom
+    }
+
+    private func configureSpeed(for player: AVPlayer) {
+        player.defaultRate = playbackRate
+        player.currentItem?.audioTimePitchAlgorithm = .varispeed
+    }
+
+    private func applySpeed() {
+        configureSpeed(for: player)
+        if let prepared = nextPreparation?.player {
+            prepared.cancelPendingPrerolls()
+            nextPreparation?.isPrerolled = false
+            configureSpeed(for: prepared)
+        }
+        canStartImmediately = false
+        // Respect pause, loading, and pending seeks when changing speed.
+        playIfReady()
+        updateNowPlayingInfo()
+    }
+
     private enum SettingsKey {
+        static let speedMode = "playback.speedMode"
+        static let customSpeed = "playback.customSpeed"
         static let volume = "playback.volume"
         static let isMuted = "playback.isMuted"
         static let isShuffleEnabled = "playback.isShuffleEnabled"
@@ -166,6 +222,7 @@ final class PlaybackController {
         self.sessionDefaults = sessionDefaults ?? defaults
         self.makePrefetchPlayer = makePrefetchPlayer
         defaults.register(defaults: [
+            SettingsKey.customSpeed: Float(1),
             SettingsKey.volume: Float(1),
             SettingsKey.isMuted: false,
             SettingsKey.isShuffleEnabled: false,
@@ -175,7 +232,11 @@ final class PlaybackController {
         isMuted = defaults.bool(forKey: SettingsKey.isMuted)
         isShuffleEnabled = defaults.bool(forKey: SettingsKey.isShuffleEnabled)
         repeatMode = RepeatMode(rawValue: defaults.string(forKey: SettingsKey.repeatMode) ?? "") ?? .off
+        speedMode = SpeedMode(rawValue: defaults.string(forKey: SettingsKey.speedMode) ?? "") ?? .normal
+        let savedSpeed = defaults.float(forKey: SettingsKey.customSpeed)
+        customSpeed = savedSpeed.isFinite ? min(max(savedSpeed, 0.5), 2) : 1
         player = AVPlayer()
+        configureSpeed(for: player)
         player.automaticallyWaitsToMinimizeStalling = true
         player.volume = volume
         player.isMuted = isMuted
@@ -284,6 +345,7 @@ final class PlaybackController {
         if let timeObserver { player.removeTimeObserver(timeObserver) }
         player.replaceCurrentItem(with: nil)
         player = prepared
+        configureSpeed(for: player)
         player.automaticallyWaitsToMinimizeStalling = true
         isWaitingForPlayback = false
         player.cancelPendingPrerolls()
@@ -437,6 +499,7 @@ final class PlaybackController {
             prepared.preventsDisplaySleepDuringVideoPlayback = false
             if let self, nextPreparation?.id == id {
                 nextPreparation?.player = prepared
+                configureSpeed(for: prepared)
                 prepareBuffer(for: prepared, id: id)
             }
             return prepared
@@ -492,7 +555,7 @@ final class PlaybackController {
                     )
                     guard finished, nextPreparation?.id == id else { return }
                 }
-                prepared.preroll(atRate: 1) { [weak self] finished in
+                prepared.preroll(atRate: playbackRate) { [weak self] finished in
                     Task { @MainActor [weak self] in
                         guard let self, nextPreparation?.id == id else { return }
                         nextPreparation?.isPrerolled = finished
@@ -526,6 +589,7 @@ final class PlaybackController {
     private func load(item: AVPlayerItem, requestID: UUID) {
         guard loadingRequestID == requestID else { return }
         loadingRequestID = nil
+        item.audioTimePitchAlgorithm = .varispeed
         if player.currentItem !== item {
             player.replaceCurrentItem(with: item)
         }
@@ -612,7 +676,7 @@ final class PlaybackController {
             // Preroll already filled the initial buffer. Avoid another stall-
             // avoidance wait on Next, but retain normal recovery after a stall.
             canStartImmediately = false
-            player.playImmediately(atRate: 1)
+            player.playImmediately(atRate: playbackRate)
         } else {
             player.play()
         }
@@ -845,8 +909,8 @@ final class PlaybackController {
             MPMediaItemPropertyArtist: track.uploader,
             MPMediaItemPropertyPlaybackDuration: duration,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: safePlaybackTime,
-            MPNowPlayingInfoPropertyPlaybackRate: isPlayerPlaying ? 1.0 : 0.0,
-            MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlayerPlaying ? playbackRate : 0,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: playbackRate,
             MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue,
             MPNowPlayingInfoPropertyExternalContentIdentifier: track.urn,
             MPNowPlayingInfoPropertyServiceIdentifier: "SoundCloud",
