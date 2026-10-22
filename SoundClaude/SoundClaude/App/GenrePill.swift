@@ -22,11 +22,18 @@ extension EnvironmentValues {
 
 struct GenrePill: View {
     let genre: String
+    var isInteractive = true
     @Environment(\.searchGenre) private var searchGenre
 
     var body: some View {
-        SearchPill(text: genre, label: "Search tracks in genre: \(genre)") {
-            searchGenre(genre)
+        if isInteractive {
+            SearchPill(text: genre, label: "Search tracks in genre: \(genre)") {
+                searchGenre(genre)
+            }
+        } else {
+            PillLabel(text: genre)
+                .fixedSize()
+                .accessibilityLabel("Genre: \(genre)")
         }
     }
 }
@@ -51,19 +58,7 @@ private struct SearchPill: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 2) {
-                Text("#")
-                Text(text)
-            }
-            .font(.caption)
-            .foregroundStyle(isHovering ? Color.primary : Color.secondary)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .overlay {
-                Capsule()
-                    .strokeBorder(.secondary.opacity(isHovering ? 0.7 : 0.35), lineWidth: 1)
-            }
-            .contentShape(Capsule())
+            PillLabel(text: text, isHovering: isHovering)
         }
         .buttonStyle(.plain)
         .onContentHover { isHovering = $0 }
@@ -71,6 +66,27 @@ private struct SearchPill: View {
         .fixedSize()
         .accessibilityLabel(label)
         .contentHelp(label)
+    }
+}
+
+private struct PillLabel: View {
+    let text: String
+    var isHovering = false
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Text("#")
+            Text(text)
+        }
+        .font(.caption)
+        .foregroundStyle(isHovering ? Color.primary : Color.secondary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .overlay {
+            Capsule()
+                .strokeBorder(.secondary.opacity(isHovering ? 0.7 : 0.35), lineWidth: 1)
+        }
+        .contentShape(Capsule())
     }
 }
 

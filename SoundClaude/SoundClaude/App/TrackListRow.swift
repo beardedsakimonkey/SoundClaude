@@ -8,8 +8,7 @@ struct TrackListRow: View {
     @ObservedObject var likes: LikesController
     var showsArtist = true
     var isCompact = false
-    var showsDuration = true
-    var showsLikes = true
+    var showsMetadata = true
     var onAddToQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
@@ -32,8 +31,6 @@ struct TrackListRow: View {
         let isCurrentTrack = playback[isCurrentTrack: track.urn]
         let isPlaybackActive = isCurrentTrack
             ? playback.isPlaybackActive : isStartingPlayback
-        let showsPlaybackIndicator = isCurrentTrack && playback.isPlaybackActive
-        let isLiked = likes.isLiked(track)
 
         HStack(spacing: 12) {
             Button(action: playOrPauseTrack) {
@@ -68,79 +65,28 @@ struct TrackListRow: View {
             .onContentHover { isHoveringArtwork = $0 }
             .contentHelp(isPlaybackActive ? "Pause" : "Play")
             .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Button {
-                        onSelectTrack(track)
-                    } label: {
-                        Text(track.title)
-                            .underline(isHoveringTitle)
-                            .foregroundStyle(isCurrentTrack ? Color.accentColor : Color.primary)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .opacity(0.95)
-                    .onContentHover { isHoveringTitle = $0 }
-                    if track.access == .preview {
-                        TrackPreviewBadge()
+            ViewThatFits(in: .horizontal) {
+                if showsMetadata,
+                   let genre = track.genre?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !genre.isEmpty {
+                    HStack(spacing: 12) {
+                        trackDetails
+                            .fixedSize(horizontal: true, vertical: false)
+                        Spacer(minLength: 0)
+                        GenrePill(genre: genre, isInteractive: false)
                     }
                 }
-                .modifier(TrackPlaybackTitleInset(inset: showsPlaybackIndicator ? 16 : 0))
-                .overlay(alignment: .leading) {
-                    if showsPlaybackIndicator {
-                        TrackPlaybackIndicator(
-                            isPlaying: playback.isPlaybackActive,
-                            isLoading: playback.isLoading
-                        )
-                        .opacity(0.9)
-                    }
-                }
-                .animation(
-                    reduceMotion ? nil : .easeInOut(duration: 0.2),
-                    value: showsPlaybackIndicator
-                )
-                let likeCount = showsLikes ? likes.likeCount(for: track) : nil
-                let showsLikeIndicator = showsLikes && (likeCount != nil || isLiked)
-                if showsArtist || showsLikeIndicator {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        if showsArtist {
-                            ArtistLink(artist: track.artist, onSelect: onSelectArtist)
-                                .onContentHover { isHoveringArtist = $0 }
-                        }
-                        if showsLikeIndicator {
-                            if showsArtist {
-                                Text("·")
-                                    .accessibilityHidden(true)
-                            }
-                            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                                Image(systemName: isLiked ? "heart.fill" : "heart")
-                                if let likeCount {
-                                    Text(likeCount.formatted())
-                                }
-                            }
-                            .font(.system(size: 9))
-                            .fixedSize()
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(
-                                [isLiked ? "Liked" : nil, likeCount.map { "\($0.formatted()) likes" }]
-                                    .compactMap { $0 }
-                                    .joined(separator: ", ")
-                            )
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
+                trackDetails
             }
-            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
             Spacer()
             Text(duration)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .fixedSize()
                 // Keep the duration's width so hover does not change text truncation.
-                .opacity(showsDuration && !isHovering ? 1 : 0)
-                .accessibilityHidden(!showsDuration)
+                .opacity(showsMetadata && !isHovering ? 1 : 0)
+                .accessibilityHidden(!showsMetadata)
                 .overlay {
                     trailingHoverButton
                         .fixedSize()
@@ -195,6 +141,78 @@ struct TrackListRow: View {
         #if DEBUG
         .debugViewUpdates("TrackListRow")
         #endif
+    }
+
+    private var trackDetails: some View {
+        let isCurrentTrack = playback[isCurrentTrack: track.urn]
+        let showsPlaybackIndicator = isCurrentTrack && playback.isPlaybackActive
+        let isLiked = likes.isLiked(track)
+
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Button {
+                    onSelectTrack(track)
+                } label: {
+                    Text(track.title)
+                        .underline(isHoveringTitle)
+                        .foregroundStyle(isCurrentTrack ? Color.accentColor : Color.primary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .opacity(0.95)
+                .onContentHover { isHoveringTitle = $0 }
+                if track.access == .preview {
+                    TrackPreviewBadge()
+                }
+            }
+            .modifier(TrackPlaybackTitleInset(inset: showsPlaybackIndicator ? 16 : 0))
+            .overlay(alignment: .leading) {
+                if showsPlaybackIndicator {
+                    TrackPlaybackIndicator(
+                        isPlaying: playback.isPlaybackActive,
+                        isLoading: playback.isLoading
+                    )
+                    .opacity(0.9)
+                }
+            }
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: 0.2),
+                value: showsPlaybackIndicator
+            )
+            let likeCount = showsMetadata ? likes.likeCount(for: track) : nil
+            let showsLikeIndicator = showsMetadata && (likeCount != nil || isLiked)
+            if showsArtist || showsLikeIndicator {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    if showsArtist {
+                        ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                            .onContentHover { isHoveringArtist = $0 }
+                    }
+                    if showsLikeIndicator {
+                        if showsArtist {
+                            Text("·")
+                                .accessibilityHidden(true)
+                        }
+                        HStack(alignment: .firstTextBaseline, spacing: 2) {
+                            Image(systemName: isLiked ? "heart.fill" : "heart")
+                            if let likeCount {
+                                Text(likeCount.formatted())
+                            }
+                        }
+                        .font(.system(size: 9))
+                        .fixedSize()
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(
+                            [isLiked ? "Liked" : nil, likeCount.map { "\($0.formatted()) likes" }]
+                                .compactMap { $0 }
+                                .joined(separator: ", ")
+                        )
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .lineLimit(1)
     }
 
     @ViewBuilder

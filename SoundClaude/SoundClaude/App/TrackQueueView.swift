@@ -92,8 +92,7 @@ private struct QueueTrackRow: View {
             analyzer: model.analyzer,
             artworkLoader: model.artworkLoader,
             likes: model.likes,
-            showsDuration: false,
-            showsLikes: false,
+            showsMetadata: false,
             onRemoveFromQueue: model.removeFromQueue,
             onSelectTrack: { selected in
                 onDismiss()
