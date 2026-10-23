@@ -200,12 +200,6 @@ static float2 clothTileSite(float2 cell) {
                                      clothSpeckleHash(cell + 251.9));
 }
 
-static float clothTileGroutExtra(float2 cell) {
-    float seed = clothSpeckleHash(cell + 487.3);
-    // Roughly one in ten tiles has wider joints around its perimeter.
-    return seed > 0.9 ? mix(0.006, 0.012, (seed - 0.9) * 10.0) : 0.0;
-}
-
 static float3 clothTiledFloor(float2 p, float3 accentColor, float tileSize) {
     // Keep the accent tint at a fixed luminance so dark tracks do not dim the floor.
     float luminance = dot(accentColor, float3(0.2126, 0.7152, 0.0722));
@@ -227,10 +221,9 @@ static float3 clothTiledFloor(float2 p, float3 accentColor, float tileSize) {
             }
         }
     }
-    // Start with the geometric edge, then weather the grout and tile lip below.
+    // Measure the geometric edge for uniform grout and tile lip widths.
     float edge = 1e10;
     float2 edgeNormal = float2(0);
-    float groutExtra = clothTileGroutExtra(nearestCell);
     for (int y = -2; y <= 2; ++y) {
         for (int x = -2; x <= 2; ++x) {
             if (x == 0 && y == 0) continue;
@@ -239,9 +232,6 @@ static float3 clothTiledFloor(float2 p, float3 accentColor, float tileSize) {
             float2 separation = neighbor - nearest;
             float2 normal = normalize(separation);
             float distance = dot(0.5 * (nearest + neighbor), normal);
-            // Both tiles agree on the shared joint width. Compare inset edges
-            // so wider joints also meet cleanly at corners.
-            distance -= max(groutExtra, clothTileGroutExtra(neighborCell));
             if (distance < edge) {
                 edge = distance;
                 edgeNormal = normal;
@@ -254,10 +244,10 @@ static float3 clothTiledFloor(float2 p, float3 accentColor, float tileSize) {
     float worldFootprint = footprint * tileSize;
     float wear = clothStoneNoise(p * 1.7 + 7.4, worldFootprint * 1.7);
     float roughness = clothStoneNoise(p * 18.0, worldFootprint * 18.0);
-    float groutWidth = 0.004 + 0.005 * roughness;
+    float groutWidth = 0.0065;
     float seam = (1.0 - smoothstep(groutWidth - aa, groutWidth + aa, edge)) * detail;
     float lip = edge - groutWidth;
-    float bevelWidth = mix(0.009, 0.022, wear);
+    float bevelWidth = 0.0155;
     float bevel = (1.0 - smoothstep(0.0, bevelWidth + aa, lip)) * detail;
     float dirt = (1.0 - smoothstep(0.0, 0.045 + aa, lip)) * detail;
     // Keep each tile close to the accent.
