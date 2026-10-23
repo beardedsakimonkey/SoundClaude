@@ -464,7 +464,7 @@ private struct PlayerFooterWaveform: View {
             .accessibilityHidden(playback.currentTrack == nil)
             .padding(.horizontal, playback.currentTrack == nil ? 0 : waveformHorizontalInset)
             .font(.caption.monospacedDigit())
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(playback.isPlaybackActive || isHoveringWaveform ? .secondary : .tertiary)
             .overlay {
                 if let playbackError = playback.errorMessage {
                     Label(playbackError, systemImage: "exclamationmark.triangle")
@@ -506,7 +506,6 @@ private struct PlayerFooterTimestamps: View {
     var body: some View {
         HStack {
             Text(format(seconds: playback.currentTime))
-                .foregroundStyle(.secondary)
             Spacer()
             Text(format(seconds: playback.duration))
         }
