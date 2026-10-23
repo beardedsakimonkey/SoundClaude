@@ -1,6 +1,6 @@
 # SoundClaude
 
-https://github.com/user-attachments/assets/071d9ff1-36c6-42a5-9b89-5cef9f318aae
+https://github.com/user-attachments/assets/c4c8524f-6f96-49e1-a15f-4f4fc52a87a8
 
 > [!NOTE]
 > This app requires a SoundCloud client ID and secret, which require an
@@ -75,132 +75,7 @@ make api
 > [!NOTE]
 > macOS asks for System Audio Recording access when the process tap starts.
 
-## Acknowledgements
+## Attribution
 
 The Fluid visualizer uses a Metal port of Pavel Dobryakov’s
 [WebGL Fluid Simulation](https://github.com/PavelDoGreat/WebGL-Fluid-Simulation).
-
-## Visualize SwiftUI updates
-
-Run a Debug build with `make run`, then select **Debug → Highlight View Updates**
-(or press **⌘⌥⇧U**). Instrumented pages, track cards, grid tiles, waveforms,
-sidebar, queue, and player show named borders that change color when their
-SwiftUI `body` is evaluated. The setting is saved across launches.
-
-These marks show body evaluations, not layout passes or actual screen redraws.
-They add drawing overhead, so turn them off when measuring performance.
-The menu and instrumentation are excluded from Release builds.
-
-To instrument another view, add this to the root view expression inside its
-`body` (calling it on a child from the parent measures the parent's evaluation):
-
-```swift
-#if DEBUG
-.debugViewUpdates("MyView")
-#endif
-```
-
-## Measure app launch
-
-Build with `make build CONFIGURATION=Release`. Quit the running app, then run:
-
-```sh
-SOUNDCLAUDE_LAUNCH_TIMINGS=1 SoundClaude/DerivedData/Build/Products/Release/SoundClaude.app/Contents/MacOS/SoundClaude
-```
-
-The terminal reports elapsed milliseconds from the start of app initialization
-and the duration of each measured step. It covers model setup, Keychain access,
-player setup, queue and history restoration, library cache reads and sync,
-session validation, and playback restoration. Cache intervals separate disk reads,
-decoding, and publishing; playback intervals separate stream resolution from
-player item attachment. Publishing measures synchronous updates and observers,
-not the later SwiftUI layout work they trigger. Repeated library operations also
-produce intervals, so use the initial entries when comparing launches.
-No account data or credentials are logged. Console output is off by default.
-
-For CPU stacks and a timeline, open the project in Xcode, select **Product →
-Profile**, and choose **App Launch** or **Time Profiler**. Add the **os_signpost**
-instrument to inspect the `SoundClaude` subsystem's `Launch` intervals alongside
-CPU work. Signposts are available in both Debug and Release builds.
-
-If Instruments launches a different installed build, quit it and start a recording
-of all processes first:
-
-```sh
-xcrun xctrace record --template 'Time Profiler' --instrument os_signpost \
-  --all-processes --time-limit 15s --output /tmp/SoundClaude-launch.trace
-```
-
-While recording, launch the Release executable from another terminal with the
-command above. Filter the trace to that process and verify its executable path.
-Use a new output filename for each recording. Compare console timings from
-separate runs without Instruments to avoid including profiling overhead.
-
-“Root view appeared” and “Signed-in view appeared” are SwiftUI appearance
-callbacks, not proof that a frame reached the display. “Startup task finished”
-means `AppModel.start()` returned; session validation and view tasks can still
-be running. Use App Launch to measure process startup and rendering before or
-beyond these application markers.
-
-Compare several Release launches with the same account, selected page, and
-cache state. Record cold and warm cache results separately. Durations include
-network waits and task suspension; nested and concurrent intervals overlap and
-must not be added together. Use CPU stacks to locate main-thread work, and the
-intervals to identify slow cache or network operations. Keep view update
-highlighting off when profiling Debug builds.
-
-### Deferred startup work
-
-Playlist startup restoration reads only the sidebar list. Track contents load
-when a playlist is opened and are saved in separate files. Old combined caches
-remain available; the first request for each playlist reads its entry and writes
-a separate file. List refreshes preserve unopened contents. Removed playlists
-get a deletion marker so their old cached tracks cannot return.
-
-Saved playback restores its title, artwork, and position without resolving audio.
-One second after startup work finishes, a silent standby player resolves and
-buffers the saved track at its resume position. Play reuses that preparation,
-including an in-flight request. Playing sooner starts resolution immediately.
-Seeking while paused updates the saved resume point.
-
-On October 15, 2026, five Release launches per build used the same account,
-selected page, paused track, and restored disk-cache snapshot. These were warm
-filesystem-cache runs without Instruments. The playlist cache contained 465
-content entries and 9,387 tracks, while the sidebar list had three entries.
-Medians from `SOUNDCLAUDE_LAUNCH_TIMINGS`:
-
-| Measurement | Before | After |
-| --- | ---: | ---: |
-| Root view appeared | 285.5 ms | 296.2 ms |
-| Startup task finished | 1,459.7 ms | 601.1 ms |
-| Full playlist cache decode | 123.1 ms | Not performed |
-| Current/next stream resolution while paused | Performed | Not performed |
-
-The startup-task marker improved by 858.6 ms (59%). This is completion of
-background startup work, not a measured rendering improvement: the root-view
-callback was slightly later. Network times vary, and these runs do not measure
-cold launches or end-to-end first-Play latency. A separate Release UI check
-confirmed playback resumed from the saved position; current-track stream
-resolution took 739.4 ms after Play. This is one network sample, not a latency
-guarantee. Raw local logs are in
-`/tmp/soundclaude-startup-benchmark/{before,after}-*.log` and `manual-play.log`.
-
-## Inspect network activity
-
-In a Debug build, select **Debug → Network Activity** (⌘⌥⇧N). The window
-records requests from app launch and keeps the latest 500 attempts in memory.
-Filter by API, artwork, other requests, or failures; search by URL or method.
-Select a row for request and response headers. Each rate-limit retry has its
-own row and attempt number. Durations cover each request, excluding retry waits;
-bytes are the response data size, not total wire traffic.
-
-**Pause** stops recording new requests; pending rows still finish. **Clear**
-removes the current history. Recording is not saved to disk. Query values,
-URL credentials, fragments, and all but a small set of content headers are
-hidden. Bodies are not recorded. The window covers API, authentication,
-artwork, profile HTML, and waveform requests through `SoundCloudClient`.
-It excludes artwork cache hits, browser sign-in traffic, and AVPlayer audio
-downloads. Automatic redirects appear as part of the original request.
-The window and recording code are excluded from Release builds.
-
-Run `make test-network-activity` to check redaction and recording controls.
