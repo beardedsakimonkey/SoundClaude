@@ -374,7 +374,7 @@ struct PlaylistDetailView: View {
         }
         .labelStyle(.iconOnly)
         .font(.title3.weight(.semibold))
-        .buttonStyle(TrackActionButtonStyle(fill: .clear))
+        .buttonStyle(TrackActionButtonStyle(fill: .clear, hoverFill: .primary.opacity(0.12)))
         .contentHelp("Shuffle this playlist")
         .disabled(tracks.isEmpty)
     }

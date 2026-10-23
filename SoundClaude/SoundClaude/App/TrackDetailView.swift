@@ -517,6 +517,7 @@ struct TrackActionButtonStyle: ButtonStyle {
     @State private var isHovering = false
 
     let fill: Color
+    var hoverFill: Color? = nil
     // Solid fills dim on hover instead of gaining a translucent layer behind them.
     var dimsOnHover = false
 
@@ -532,7 +533,7 @@ struct TrackActionButtonStyle: ButtonStyle {
             }
             .background {
                 Capsule()
-                    .fill(fill.opacity(!dimsOnHover && isHovered ? 0.7 : 0))
+                    .fill((hoverFill ?? fill).opacity(!dimsOnHover && isHovered ? 0.7 : 0))
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovered)
             }
             .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.5)

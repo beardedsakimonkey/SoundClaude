@@ -327,7 +327,7 @@ struct StationDetailView: View {
                 .frame(width: 44, height: 24)
         }
         .labelStyle(.iconOnly)
-        .buttonStyle(TrackActionButtonStyle(fill: .clear))
+        .buttonStyle(TrackActionButtonStyle(fill: .clear, hoverFill: .primary.opacity(0.12)))
         .contentHelp("Shuffle this station")
         .disabled(tracks.isEmpty)
     }

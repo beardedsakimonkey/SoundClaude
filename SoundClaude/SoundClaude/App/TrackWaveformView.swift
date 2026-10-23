@@ -376,7 +376,7 @@ struct TrackWaveformView: View {
                         HStack(spacing: 0) {
                             timestamp(timestampCurrentTime, color: accentColor(isDark: true))
                                 .animation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.5)) {
-                                    $0.scaleEffect(showsHoverPreview ? 1.1 : 1, anchor: .bottom)
+                                    $0.scaleEffect(showsHoverPreview ? 1.2 : 1, anchor: .bottom)
                                 }
                                 .frame(width: 0)
                             Spacer(minLength: 0)
