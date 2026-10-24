@@ -411,7 +411,7 @@ struct ArtistDetailView: View {
                     .modifier(FadeInOnAppear())
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding(24)
         }
     }

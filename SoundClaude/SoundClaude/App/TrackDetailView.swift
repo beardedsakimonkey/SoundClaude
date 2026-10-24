@@ -188,7 +188,7 @@ struct TrackDetailView: View {
                     .frame(maxWidth: .infinity)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding(24)
         }
     }

@@ -76,7 +76,7 @@ struct PlaylistDetailView: View {
                     trackList
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding(24)
         }
         .background(alignment: .top) {

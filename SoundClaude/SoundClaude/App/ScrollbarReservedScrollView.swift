@@ -20,8 +20,8 @@ struct ScrollbarReservedScrollView<Content: View>: View {
             ScrollView {
                 content(contentSize)
                     // AppKit can defer its narrower width proposal until the first scroll.
-                    .frame(width: contentSize.width)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(width: contentSize.width, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                     .scrollKeyNavigation()
             }
             .frame(width: geometry.size.width)
