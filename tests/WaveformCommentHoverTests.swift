@@ -19,7 +19,7 @@ final class ArtworkLoader {}
 final class AppModel {
     let artworkLoader = ArtworkLoader()
     let playback = PlaybackController()
-    func trackComments(for track: SoundCloudTrack, limit: Int) async throws -> CommentPage {
+    func trackComments(for track: SoundCloudTrack, limit: Int = 100) async throws -> CommentPage {
         CommentPage(comments: [
             SoundCloudComment(id: "left", body: "A comment to hover", user: SoundCloudUser(username: "Left artist"), timestampMilliseconds: 25000),
             SoundCloudComment(id: "neighbor", body: "A nearby comment", user: SoundCloudUser(username: "Nearby artist"), timestampMilliseconds: 30000),
@@ -43,6 +43,7 @@ private enum Observations {
     static var names: Set<String> = []
     static var frames: [String: CGRect] = [:]
     static var selected: String?
+    static var isLayoutHovered = false
 }
 // Observe bubble lifetime and its navigation action without networking or artwork.
 struct ArtistLink: View {
@@ -70,10 +71,23 @@ struct ArtistLink: View {
         let originalPointer = CGEvent(source: nil)?.location
         let model = AppModel()
         let root = VStack(spacing: 0) {
+            Color.clear.frame(height: 56)
+            HStack {
+                Spacer()
+                Button {} label: {
+                    Image(systemName: "square.grid.2x2.fill")
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onContentHover { Observations.isLayoutHovered = $0 }
+            }
+            Spacer()
+        }
+        .overlay(alignment: .top) {
             WaveformCommentsView(track: SoundCloudTrack(urn: "test"), model: model,
                                  duration: 100, showsComments: true, onSeek: { _ in })
                 .frame(height: 32)
-            Spacer()
         }
         .padding(.top, 40)
         .coordinateSpace(name: "test")
@@ -102,6 +116,8 @@ struct ArtistLink: View {
             precondition(app.isActive, "Test window must be active")
             await post(.mouseMoved, CGPoint(x: 300, y: 200))
             await settle()
+            await post(.mouseMoved, CGPoint(x: 582, y: 110))
+            precondition(Observations.isLayoutHovered, "Empty comment overflow must not block layout button hover")
             for (name, x) in [("Left artist", 150.0), ("Short artist", 360.0), ("Right artist", 450.0)] {
                 await post(.mouseMoved, CGPoint(x: x, y: 56))
                 precondition(Observations.names.contains(name), "Avatar must show its comment")

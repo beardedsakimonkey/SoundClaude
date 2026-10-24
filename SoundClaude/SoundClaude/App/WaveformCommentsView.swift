@@ -1,7 +1,5 @@
 import SwiftUI
 
-private let waveformCommentHoverOverflow: CGFloat = 60
-
 private struct WaveformCommentArtistActionKey: EnvironmentKey {
     static let defaultValue: (SoundCloudUser) -> Void = { _ in }
 }
@@ -32,7 +30,6 @@ struct WaveformCommentsView: View {
             // Retain them on pause so resuming does not reload the avatars.
             if showsComments || hasShownComments {
                 markers
-                    .padding(.bottom, -waveformCommentHoverOverflow)
             }
         }
         .onChange(of: showsComments, initial: true) { _, visible in
@@ -153,7 +150,7 @@ private struct WaveformCommentMarkersContent: View {
         GeometryReader { proxy in
             let interactionID = (isHoverAllowed ? hoveredID : nil) ?? focusedID
             let width = proxy.size.width
-            let markerHeight = max(0, proxy.size.height - waveformCommentHoverOverflow)
+            let markerHeight = proxy.size.height
             let comments = index.visibleComments(duration: duration)
             let interactionX = comments.first { $0.id == interactionID }
                 .map { position(for: $0, width: width) }
@@ -201,7 +198,9 @@ private struct WaveformCommentMarkersContent: View {
                         .zIndex(comment.id == interactionID ? 2 : (comment.id == playbackID ? 1 : 0))
                 }
             }
-            .frame(width: width, height: proxy.size.height, alignment: .topLeading)
+            // Keep the tracking bounds on the avatar row. The bubble and its
+            // bridge extend the content shape without blocking controls below.
+            .frame(width: width, height: markerHeight, alignment: .topLeading)
             .coordinateSpace(name: hoverSpace)
             .onPreferenceChange(WaveformCommentBubbleFrames.self) { bubbleFrames = $0 }
             .contentShape(hoverRegion)
