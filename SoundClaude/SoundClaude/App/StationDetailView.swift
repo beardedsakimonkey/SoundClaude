@@ -9,7 +9,6 @@ struct StationDetailView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
-    @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var station: SoundCloudStation?
     @State private var isLoading = false
@@ -75,17 +74,10 @@ struct StationDetailView: View {
                 TrackCollectionPlaybackContent {
                     header
                 }
-                VStack(alignment: .leading, spacing: trackLayout == .list ? 4 : 12) {
-                    HStack {
-                        CountedSectionHeader(title: "Tracks", count: station?.trackCount ?? tracks.count)
-                        Spacer()
-                        TrackLayoutPicker(trackLayout: $trackLayout)
-                    }
-                    .modifier(FadeInOnAppear())
-                    if let message = model.errorMessage {
-                        Label(message, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(Color.accentColor)
-                    }
+                TrackCollectionSection(
+                    count: station?.trackCount ?? tracks.count,
+                    errorMessage: model.errorMessage
+                ) { trackLayout in
                     LazyVStack(alignment: .leading, spacing: 0) {
                         StationTrackList(
                             urn: urn, title: title, tracks: tracks, trackLayout: trackLayout, model: model,

@@ -18,7 +18,6 @@ struct PlaylistDetailView: View {
     private var hasLoadedTracks: Bool { contents?.hasLoadedPage == true }
     private var isLoading: Bool { playlists.loadingPlaylistURNs.contains(playlist.urn) }
     private var errorMessage: String? { playlists.playlistErrors[playlist.urn] }
-    @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isShowingArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
@@ -59,21 +58,11 @@ struct PlaylistDetailView: View {
         ScrollbarReservedScrollView { _ in
             VStack(alignment: .leading, spacing: 24) {
                 header
-                VStack(alignment: .leading, spacing: trackLayout == .list ? 4 : 12) {
-                    HStack {
-                        CountedSectionHeader(
-                            title: "Tracks",
-                            count: displayedPlaylist.trackCount ?? tracks.count
-                        )
-                        Spacer()
-                        TrackLayoutPicker(trackLayout: $trackLayout)
-                    }
-                    .modifier(FadeInOnAppear())
-                    if let message = model.errorMessage {
-                        Label(message, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    trackList
+                TrackCollectionSection(
+                    count: displayedPlaylist.trackCount ?? tracks.count,
+                    errorMessage: model.errorMessage
+                ) { trackLayout in
+                    trackList(trackLayout: trackLayout)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -481,7 +470,7 @@ struct PlaylistDetailView: View {
             : !playlists.hasLoadedLikes || playlists.updatingLikeURNs.contains(playlist.urn))
     }
 
-    private var trackList: some View {
+    private func trackList(trackLayout: TrackLayout) -> some View {
         LazyVStack(alignment: .leading, spacing: 0) {
             PlaylistTrackList(
                 playlist: displayedPlaylist, tracks: tracks, nextPageURL: nextPageURL,

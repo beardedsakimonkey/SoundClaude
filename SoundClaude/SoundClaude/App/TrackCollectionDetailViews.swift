@@ -33,6 +33,31 @@ struct TrackCollectionBackdrop: View {
     }
 }
 
+// Owns the track layout preference so toggling it re-renders only this section.
+struct TrackCollectionSection<Content: View>: View {
+    let count: Int
+    let errorMessage: String?
+    @ViewBuilder let content: (TrackLayout) -> Content
+
+    @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: trackLayout == .list ? 4 : 12) {
+            HStack {
+                CountedSectionHeader(title: "Tracks", count: count)
+                Spacer()
+                TrackLayoutPicker(trackLayout: $trackLayout)
+            }
+            .modifier(FadeInOnAppear())
+            if let errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(Color.accentColor)
+            }
+            content(trackLayout)
+        }
+    }
+}
+
 struct TrackCollectionTracks: View {
     let tracks: [SoundCloudTrack]
     let trackLayout: TrackLayout
