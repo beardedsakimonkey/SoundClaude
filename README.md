@@ -47,10 +47,10 @@ To build and run from the command line:
 make
 ```
 
-To build and run the app with the Release configuration:
+To build and run the app with the Debug configuration:
 
 ```sh
-make release
+make debug
 ```
 
 To run the regression suites:

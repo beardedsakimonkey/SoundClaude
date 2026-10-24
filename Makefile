@@ -1,13 +1,13 @@
 PROJECT := SoundClaude/SoundClaude.xcodeproj
 SCHEME := SoundClaude
-CONFIGURATION ?= Debug
+CONFIGURATION ?= Release
 DERIVED_DATA_PATH := SoundClaude/DerivedData
 APP := $(DERIVED_DATA_PATH)/Build/Products/$(CONFIGURATION)/SoundClaude.app
 LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
-.DEFAULT_GOAL := run
+.DEFAULT_GOAL := release
 
-.PHONY: api build release run lsp icon test test-focus test-queue-drag test-navigation test-playback-title test-now-playing test-detail-waveform test-detail-heading
+.PHONY: api build release debug run lsp icon test test-focus test-queue-drag test-navigation test-playback-title test-now-playing test-detail-waveform test-detail-heading
 
 api:
 	@set -eu; \
@@ -29,6 +29,9 @@ build:
 
 release:
 	$(MAKE) run CONFIGURATION=Release
+
+debug:
+	$(MAKE) run CONFIGURATION=Debug
 
 run: build
 	open "$(APP)"
