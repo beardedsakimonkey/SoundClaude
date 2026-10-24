@@ -212,6 +212,8 @@ struct PlaylistDetailView: View {
                             .fixedSize(horizontal: true, vertical: false)
                         playbackControls(iconOnly: true)
                             .labelStyle(.iconOnly)
+                        playbackControls(iconOnly: true, showsShuffle: false)
+                            .labelStyle(.iconOnly)
                     }
                     // Overflowing controls must not widen the column.
                     .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
@@ -311,10 +313,12 @@ struct PlaylistDetailView: View {
         ))
     }
 
-    private func playbackControls(iconOnly: Bool) -> some View {
+    private func playbackControls(iconOnly: Bool, showsShuffle: Bool = true) -> some View {
         HStack(spacing: 12) {
             playButton(iconOnly: iconOnly)
-            shuffleButton
+            if showsShuffle {
+                shuffleButton
+            }
             trackNavigationButtons
             if let track = displayedTrack {
                 DetailLikeButton(

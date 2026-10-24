@@ -250,12 +250,14 @@ struct StationDetailView: View {
                 .fixedSize(horizontal: true, vertical: false)
             playbackControls(iconOnly: true)
                 .labelStyle(.iconOnly)
+            playbackControls(iconOnly: true, showsShuffle: false)
+                .labelStyle(.iconOnly)
         }
         // Overflowing controls must not widen the column.
         .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
     }
 
-    private func playbackControls(iconOnly: Bool) -> some View {
+    private func playbackControls(iconOnly: Bool, showsShuffle: Bool = true) -> some View {
         let isStarting = currentStationTrack == nil
         return HStack(spacing: 12) {
             CollectionPlayButtonSlot(
@@ -275,7 +277,9 @@ struct StationDetailView: View {
                     Task { await playTrack(track) }
                 }
             }
-            shuffleButton
+            if showsShuffle {
+                shuffleButton
+            }
             Group {
                 Button {
                     navigateTrack(backward: true)
