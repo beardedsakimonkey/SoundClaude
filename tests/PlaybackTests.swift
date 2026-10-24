@@ -83,6 +83,8 @@ struct PlaybackTests {
 
         // Speed changes preserve pause intent and survive seeks and new items.
         do {
+            // Custom speeds snap to semitones.
+            func semitones(_ count: Int) -> Float { Float(pow(2.0, Double(count) / 12)) }
             let controller = PlaybackController(defaults: defaults)
             controller.isMuted = true
             controller.speedMode = .nightcore
@@ -98,21 +100,21 @@ struct PlaybackTests {
             controller.speedMode = .slowed
             precondition(controller.player.rate == 0.8)
             controller.setCustomSpeed(0.8)
-            precondition(controller.player.rate == 0.8)
+            precondition(controller.player.rate == semitones(-4))
             precondition(controller.player.currentItem?.audioTimePitchAlgorithm == .varispeed)
             controller.setCustomSpeed(1.5)
-            precondition(controller.player.rate == 1.5)
+            precondition(controller.player.rate == semitones(7))
             precondition(controller.player.currentItem?.audioTimePitchAlgorithm == .varispeed)
             controller.seek(to: 0.5)
-            try await until { !controller.isBuffering && controller.player.rate == 1.5 }
+            try await until { !controller.isBuffering && controller.player.rate == semitones(7) }
             controller.pause()
             controller.setCustomSpeed(0.75)
             precondition(controller.player.rate == 0)
             let restored = PlaybackController(defaults: defaults)
-            precondition(restored.speedMode == .custom && restored.customSpeed == 0.75)
+            precondition(restored.speedMode == .custom && restored.customSpeed == semitones(-5))
             precondition(restored.player.rate == 0)
             controller.setCustomSpeed(.nan)
-            precondition(controller.customSpeed == 0.75)
+            precondition(controller.customSpeed == semitones(-5))
             controller.setCustomSpeed(4)
             precondition(controller.customSpeed == 2)
             controller.setCustomSpeed(0)
