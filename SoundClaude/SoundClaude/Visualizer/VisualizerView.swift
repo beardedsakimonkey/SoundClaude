@@ -107,6 +107,7 @@ struct VisualizerView: View {
         }
         .overlay(alignment: .topTrailing) {
             HStack {
+                #if DEBUG
                 Button {
                     isShowingControls.toggle()
                 } label: {
@@ -123,6 +124,7 @@ struct VisualizerView: View {
                         clothControls
                     }
                 }
+                #endif
                 Button(action: onClose) {
                     Label("Close visualizer", systemImage: "xmark")
                         .labelStyle(.iconOnly)
@@ -165,6 +167,7 @@ struct VisualizerView: View {
         fluidTouch.sequence += 1
     }
 
+    #if DEBUG
     private var fluidControls: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -381,4 +384,5 @@ struct VisualizerView: View {
                 .labelsHidden()
         }
     }
+    #endif
 }
