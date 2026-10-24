@@ -122,7 +122,8 @@ struct DetailTrackHeadingOverlay: ViewModifier {
                     .frame(width: bounds.width, height: bounds.height)
                     .position(x: bounds.midX, y: bounds.midY)
                     .modifier(DetailNavigationAnimation(
-                        trackURN: source.track.urn, isCollection: source.isCollection
+                        trackURN: source.track.urn, isCollection: source.isCollection,
+                        bounds: bounds, in: geometry
                     ))
                     .modifier(DetailControlLifetime(
                         routeID: routeID, trackURN: source.track.urn

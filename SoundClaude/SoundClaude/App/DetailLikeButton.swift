@@ -95,7 +95,8 @@ struct DetailLikeButtonOverlay: ViewModifier {
                         .frame(width: bounds.width, height: bounds.height)
                         .position(x: bounds.midX, y: bounds.midY)
                         .modifier(DetailNavigationAnimation(
-                            trackURN: source.trackURN, isCollection: source.isCollection
+                            trackURN: source.trackURN, isCollection: source.isCollection,
+                            bounds: bounds, in: geometry
                         ))
                         .modifier(DetailControlLifetime(
                             routeID: routeID, trackURN: source.trackURN

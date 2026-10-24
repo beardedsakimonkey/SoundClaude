@@ -134,7 +134,8 @@ struct DetailPlayButtonOverlay: ViewModifier {
                         .position(x: bounds.midX, y: bounds.midY)
                         .modifier(DetailNavigationAnimation(
                             trackURN: source.configuration.trackURN,
-                            isCollection: source.configuration.isCollection
+                            isCollection: source.configuration.isCollection,
+                            bounds: bounds, in: geometry
                         ))
                         .modifier(DetailControlLifetime(
                             routeID: routeID, trackURN: source.configuration.trackURN
