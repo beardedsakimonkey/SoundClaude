@@ -91,12 +91,12 @@ struct WaveformCommentsView: View {
                                     urn: "same", waveformURL: route == 1
                                         ? URL(string: "https://example.com/waveform") : nil
                                 ),
-                                isStation: route == 1
+                                isCollection: route == 1
                             )
                         }
                     }
                 }
-                .modifier(DetailWaveformOverlay(model: model))
+                .modifier(DetailWaveformOverlay(model: model, routeID: AnyHashable(station ? 1 : 0)))
             }
         }
         let host = NSHostingView(rootView: page(station: true))
@@ -125,7 +125,7 @@ struct WaveformCommentsView: View {
                     Color.clear.frame(height: 1200)
                 }
             }
-            .modifier(DetailWaveformOverlay(model: model))
+            .modifier(DetailWaveformOverlay(model: model, routeID: 0))
         )
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),

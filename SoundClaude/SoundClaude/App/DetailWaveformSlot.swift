@@ -5,7 +5,7 @@ import SwiftUI
 struct DetailWaveformHeader: ViewModifier {
     let track: SoundCloudTrack?
     var showsWaveform = true
-    var isStation = false
+    var isCollection = false
     var onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
 
     func body(content: Content) -> some View {
@@ -18,7 +18,7 @@ struct DetailWaveformHeader: ViewModifier {
             )
             .overlay(alignment: .bottom) {
                 if showsWaveform {
-                    DetailWaveformSlot(track: track, isStation: isStation, onPlayTrack: onPlayTrack)
+                    DetailWaveformSlot(track: track, isCollection: isCollection, onPlayTrack: onPlayTrack)
                         .offset(y: -2)
                 }
             }
@@ -28,7 +28,7 @@ struct DetailWaveformHeader: ViewModifier {
 // Headers supply layout and playback behavior; the navigation host owns the view.
 struct DetailWaveformSlot: View {
     let track: SoundCloudTrack?
-    var isStation = false
+    var isCollection = false
     var onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
     @State private var scrollTarget = DetailWaveformScrollTarget()
 
@@ -40,7 +40,7 @@ struct DetailWaveformSlot: View {
             .accessibilityHidden(true)
             .anchorPreference(key: DetailWaveformPreferenceKey.self, value: .bounds) {
                 DetailWaveformSource(
-                    bounds: $0, track: track, isStation: isStation,
+                    bounds: $0, track: track, isCollection: isCollection,
                     onPlayTrack: onPlayTrack, scrollTarget: scrollTarget
                 )
             }
@@ -50,7 +50,7 @@ struct DetailWaveformSlot: View {
 struct DetailWaveformSource {
     let bounds: Anchor<CGRect>
     let track: SoundCloudTrack?
-    let isStation: Bool
+    let isCollection: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
     let scrollTarget: DetailWaveformScrollTarget
 }
@@ -126,7 +126,7 @@ struct DetailWaveformOverlay: ViewModifier {
                     DetailWaveformContent(
                         track: source.track, model: model,
                         routeID: routeID,
-                        isStation: source.isStation,
+                        isCollection: source.isCollection,
                         onPlayTrack: source.onPlayTrack
                     )
                     .overlay(DetailWaveformScrollForwarder(target: source.scrollTarget))
@@ -161,14 +161,14 @@ private struct DetailWaveformContent: View {
     let track: SoundCloudTrack?
     let model: AppModel
     let routeID: AnyHashable
-    let isStation: Bool
+    let isCollection: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
 
     var body: some View {
         TrackWaveformView(
             track: track, model: model, routeID: routeID,
-            invertsBarsOnTrackChange: isStation,
-            keepsBarsVisible: isStation,
+            invertsBarsOnTrackChange: isCollection,
+            keepsBarsVisible: isCollection,
             onPlayTrack: onPlayTrack
         )
     }

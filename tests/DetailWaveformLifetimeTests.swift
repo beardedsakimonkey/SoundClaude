@@ -77,7 +77,7 @@ struct TrackWaveformView: View {
                 VStack(spacing: 0) {
                     if showsSlot {
                         DetailWaveformSlot(
-                            track: SoundCloudTrack(urn: track), isStation: route == 1,
+                            track: SoundCloudTrack(urn: track), isCollection: route == 1,
                             onPlayTrack: route == 1 ? { playedURN = $0.urn } : nil
                         )
                     }
@@ -152,7 +152,7 @@ struct TrackWaveformView: View {
             VStack {
                 Color.clear.frame(height: metadataHeight)
                     .modifier(DetailWaveformHeader(
-                        track: SoundCloudTrack(urn: "same"), isStation: station
+                        track: SoundCloudTrack(urn: "same"), isCollection: station
                     ))
                 Spacer(minLength: 0)
             }

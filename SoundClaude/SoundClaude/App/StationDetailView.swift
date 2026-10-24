@@ -9,15 +9,12 @@ struct StationDetailView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var station: SoundCloudStation?
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var loadAttempt = 0
-    @State private var isShowingArtwork = false
     @State private var isOpeningSource = false
     @State private var sourceErrorMessage: String?
-    @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
     init(
         urn: String,
@@ -38,7 +35,6 @@ struct StationDetailView: View {
         _station = State(initialValue: model.cachedStation(urn: urn))
     }
 
-    private var seedTrackURN: String? { seedTrack?.urn }
     private var tracks: [SoundCloudTrack] { station?.tracks ?? [] }
     private var title: String { station?.title ?? seedTrack?.title ?? seedArtistName ?? "Station" }
     private var stationType: String {
@@ -47,55 +43,32 @@ struct StationDetailView: View {
         if components.contains("track-stations") { return "Track station" }
         return "Station"
     }
-    private var currentStationTrack: SoundCloudTrack? {
-        guard model.queue.source == .station(urn) else { return nil }
-        return model.playback.currentTrack
+    private var collection: TrackCollection {
+        TrackCollection(kind: .station, urn: urn, title: title, tracks: tracks, seedTrack: seedTrack)
     }
-    private var startingTrack: SoundCloudTrack? { tracks.first }
-
-    private var displayedTrack: SoundCloudTrack? {
-        if let currentStationTrack { return currentStationTrack }
-        if let seedTrackURN, let currentTrack = model.playback.currentTrack,
-           currentTrack.urn == seedTrackURN {
-            return currentTrack
-        }
-        return startingTrack ?? seedTrack
-    }
-    private var artworkURL: URL? {
-        artworkTrack?.displayArtworkURL
-    }
-    private var artworkTitle: String { artworkTrack?.title ?? title }
-
-    private var artworkTrack: SoundCloudTrack? { displayedTrack ?? seedTrack }
 
     var body: some View {
         ScrollbarReservedScrollView { _ in
             VStack(alignment: .leading, spacing: 24) {
-                TrackCollectionPlaybackContent {
-                    header
-                }
+                header
                 TrackCollectionSection(
                     count: station?.trackCount ?? tracks.count,
                     errorMessage: model.errorMessage
                 ) { trackLayout in
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        StationTrackList(
-                            urn: urn, title: title, tracks: tracks, trackLayout: trackLayout, model: model,
+                        TrackCollectionTrackList(
+                            collection: collection, trackLayout: trackLayout, model: model,
                             onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist
                         )
                         .equatable()
-                        if let errorMessage {
-                            Text(errorMessage).foregroundStyle(.secondary)
-                            Button("Try Again") { loadAttempt += 1 }
-                                .disabled(isLoading)
-                        }
-                        if isLoading {
-                            LoadingSpinner()
-                                .accessibilityLabel("Loading station")
-                                .frame(maxWidth: .infinity)
-                        } else if station != nil, tracks.isEmpty, errorMessage == nil {
-                            EmptyStateView("No playable tracks")
-                        }
+                        TrackCollectionLoadStatus(
+                            errorMessage: errorMessage,
+                            isLoading: isLoading,
+                            isEmpty: station != nil && tracks.isEmpty,
+                            loadingLabel: "Loading station",
+                            emptyMessage: "No playable tracks",
+                            onRetry: { loadAttempt += 1 }
+                        )
                     }
                 }
             }
@@ -104,7 +77,7 @@ struct StationDetailView: View {
         }
         .background(alignment: .top) {
             TrackCollectionPlaybackContent {
-                TrackCollectionBackdrop(artworkURL: artworkURL, loader: model.artworkLoader)
+                TrackCollectionBackdrop(artworkURL: collection.artworkURL(in: model), loader: model.artworkLoader)
                     .ignoresSafeArea(edges: .top)
             }
         }
@@ -148,207 +121,55 @@ struct StationDetailView: View {
         } message: {
             Text(sourceErrorMessage ?? "Please try again.")
         }
-        .sheet(isPresented: $isShowingArtwork) {
-            FullSizeArtworkView(
-                title: artworkTitle, artworkURL: artworkURL,
-                loader: model.artworkLoader, cachedArtwork: $cachedFullSizeArtwork
-            )
-        }
         #if DEBUG
         .debugViewUpdates("StationDetailView")
         #endif
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 24) {
-            ZStack {
-                DetailArtworkView(
-                    artworkURL: artworkURL, title: artworkTitle,
-                    loader: model.artworkLoader, size: 250,
-                    cornerRadius: 12,
-                    track: artworkTrack,
-                    likes: model.likes,
-                    onAddToQueue: model.addToQueue,
-                    onShowArtwork: { isShowingArtwork = true }
-                )
-                .id(artworkTrack?.urn)
-                .transition(DetailArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
-            }
-            .modifier(DetailArtworkTrackAnimation(trackURN: artworkTrack?.urn))
-            .modifier(DetailArtworkRotation(
-                isShowingArtwork: isShowingArtwork,
-                flattensOnHover: true
-            ))
-            VStack(alignment: .leading, spacing: 8) {
-                StationTitleRow(
-                    title: title,
-                    stationType: stationType,
-                    playback: model.playback,
-                    isCurrent: model.queue.source == .station(urn),
-                    isOpeningSource: isOpeningSource,
-                    isLiked: likes.likedStationURNs.contains(urn),
-                    isUpdating: likes.isLoadingStationLikes || likes.updatingStationURNs.contains(urn),
-                    onOpenSource: {
+        TrackCollectionHeader(
+            collection: collection,
+            model: model,
+            likes: likes,
+            showsControls: station != nil || seedTrack != nil,
+            titleSpacing: 8,
+            onSelectTrack: onSelectTrack,
+            onSelectArtist: onSelectArtist
+        ) {
+            TrackCollectionTitleRow {
+                Label {
+                    StationSourceButton(
+                        title: title,
+                        isArtistStation: stationType == "Artist station",
+                        isOpeningSource: isOpeningSource
+                    ) {
                         if let seedTrack {
                             onSelectTrack(seedTrack)
                         } else {
                             isOpeningSource = true
                         }
-                    },
-                    onToggleLike: {
-                        Task {
-                            do {
-                                try await likes.toggleStationLike(urn: urn, title: title)
-                            } catch {
-                                model.likeErrorMessage = error.localizedDescription
-                            }
-                        }
                     }
-                )
-                .modifier(FadeInOnAppear())
-                Group {
-                    if let displayedTrack {
-                        DetailTrackHeadingSlot(
-                            track: displayedTrack,
-                            isCollection: true,
-                            collectionURN: urn,
-                            artworkLoader: model.artworkLoader,
-                            onSelectTrack: onSelectTrack,
-                            onSelectArtist: onSelectArtist
-                        )
-                    } else {
-                        Color.clear
-                    }
+                } icon: {
+                    StationPlayingIcon(playback: model.playback, isCurrent: model.queue.source == .station(urn))
                 }
-                .frame(minHeight: 64, alignment: .leading)
-                if station != nil || currentStationTrack != nil || seedTrack != nil {
-                    playbackControls
-                        .padding(.top, 10)
-                        .modifier(FadeInOnAppear())
-                }
-            }
-            .modifier(DetailWaveformHeader(
-                track: displayedTrack,
-                isStation: true,
-                onPlayTrack: playTrack
-            ))
-        }
-    }
-
-    private var playbackControls: some View {
-        ViewThatFits(in: .horizontal) {
-            playbackControls(iconOnly: false)
-                .labelStyle(.titleAndIcon)
-                .fixedSize(horizontal: true, vertical: false)
-            playbackControls(iconOnly: true)
-                .labelStyle(.iconOnly)
-            playbackControls(iconOnly: true, showsShuffle: false)
-                .labelStyle(.iconOnly)
-        }
-        // Overflowing controls must not widen the column.
-        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func playbackControls(iconOnly: Bool, showsShuffle: Bool = true) -> some View {
-        let isStarting = currentStationTrack == nil
-        return HStack(spacing: 12) {
-            CollectionPlayButtonSlot(
-                playback: model.playback,
-                trackURN: displayedTrack?.urn,
-                isStarting: isStarting,
-                isEnabled: currentStationTrack != nil || !tracks.isEmpty,
-                iconOnly: iconOnly, subject: "station"
-            ) {
-                if currentStationTrack != nil {
-                    model.playback.togglePlayPause()
-                } else if let seedTrackURN, model.playback.currentTrack?.urn == seedTrackURN {
-                    model.continuePlaybackInStation(
-                        urn: urn, title: title, tracks: tracks, continuingTrackURN: seedTrackURN
-                    )
-                } else if let track = startingTrack {
-                    Task { await playTrack(track) }
-                }
-            }
-            if showsShuffle {
-                shuffleButton
-            }
-            Group {
-                Button {
-                    navigateTrack(backward: true)
-                } label: {
-                    Label("Previous track", systemImage: "backward.fill")
-                        .frame(width: 44, height: 24)
-                }
-                .contentHelp("Previous track")
-                Button {
-                    navigateTrack(backward: false)
-                } label: {
-                    Label("Next track", systemImage: "forward.fill")
-                        .frame(width: 44, height: 24)
-                }
-                .contentHelp("Next track")
-            }
-            .labelStyle(.iconOnly)
-            .disabled(currentStationTrack == nil && tracks.isEmpty)
-            if let track = displayedTrack {
-                DetailLikeButton(
-                    isLiked: likes.isLiked(track),
-                    isUpdating: likes.updatingTrackURNs.contains(track.urn),
-                    likeCount: likes.likeCount(for: track),
-                    iconOnly: iconOnly,
-                    subject: "track: \(track.title)"
+            } actions: {
+                TrackCollectionLikeButton(
+                    isLiked: likes.likedStationURNs.contains(urn),
+                    isUpdating: likes.isLoadingStationLikes || likes.updatingStationURNs.contains(urn),
+                    subject: "station: \(title)"
                 ) {
                     Task {
                         do {
-                            try await likes.toggleLike(track)
+                            try await likes.toggleStationLike(urn: urn, title: title)
                         } catch {
                             model.likeErrorMessage = error.localizedDescription
                         }
                     }
                 }
-                .detailSlot(trackURN: track.urn, isCollection: true)
             }
+        } controlsFooter: {
+            EmptyView()
         }
-        .font(.title3.weight(.semibold))
-        .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
-    }
-
-    private var shuffleButton: some View {
-        Button {
-            guard let track = tracks.randomElement() else { return }
-            if !model.playback.isShuffleEnabled {
-                model.toggleShuffle()
-            }
-            Task { await playTrack(track) }
-        } label: {
-            Label("Shuffle station", systemImage: "shuffle")
-                .frame(width: 44, height: 24)
-        }
-        .labelStyle(.iconOnly)
-        .buttonStyle(TrackActionButtonStyle(fill: .clear, hoverFill: .primary.opacity(0.12)))
-        .contentHelp("Shuffle this station")
-        .disabled(tracks.isEmpty)
-    }
-
-    private func navigateTrack(backward: Bool) {
-        if currentStationTrack != nil {
-            if backward {
-                model.playback.previous()
-                if !model.playback.isPlaybackActive {
-                    model.playback.togglePlayPause()
-                }
-            } else {
-                model.playback.next()
-            }
-        } else if let track = displayedTrack {
-            model.navigateTrack(from: track, offset: backward ? -1 : 1, queue: TrackQueue(
-                source: .station(urn), tracks: [track] + tracks, sourceTitle: title
-            ))
-        }
-    }
-
-    private func playTrack(_ track: SoundCloudTrack) async {
-        await model.play(track, queue: TrackQueue(source: .station(urn), tracks: tracks, sourceTitle: title))
     }
 
     private func load() async {
@@ -371,103 +192,26 @@ struct StationDetailView: View {
     }
 }
 
-// Starting playback invalidates the page header. Compare only the inputs the row
-// closures capture so the rows are not re-rendered with fresh closures.
-private struct StationTrackList: View, Equatable {
-    let urn: String
-    let title: String
-    let tracks: [SoundCloudTrack]
-    let trackLayout: TrackLayout
-    let model: AppModel
-    let onSelectTrack: (SoundCloudTrack) -> Void
-    let onSelectArtist: (SoundCloudUser) -> Void
-
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.urn == rhs.urn && lhs.title == rhs.title
-            && lhs.tracks == rhs.tracks && lhs.trackLayout == rhs.trackLayout
-    }
-
-    var body: some View {
-        TrackCollectionTracks(
-            tracks: tracks, trackLayout: trackLayout, model: model,
-            onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist,
-            onPlayTrack: playTrack,
-            fadesInTracks: true
-        )
-    }
-
-    private func playTrack(_ track: SoundCloudTrack) async {
-        await model.play(track, queue: TrackQueue(source: .station(urn), tracks: tracks, sourceTitle: title))
-    }
-}
-
 // Keep hover state local so pointer movement does not invalidate the detail header.
-private struct StationTitleRow: View {
+private struct StationSourceButton: View {
     let title: String
-    let stationType: String
-    let playback: PlaybackController
-    let isCurrent: Bool
+    let isArtistStation: Bool
     let isOpeningSource: Bool
-    let isLiked: Bool
-    let isUpdating: Bool
-    let onOpenSource: () -> Void
-    let onToggleLike: () -> Void
-
-    @State private var isHoveringStationTitle = false
-    @State private var isHoveringStationRow = false
+    let action: () -> Void
+    @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: 8) {
-            stationTitle
-            stationLikeButton
-                .opacity(isHoveringStationRow ? 1 : 0)
-                .animation(
-                    .easeInOut(duration: 0.2),
-                    value: isHoveringStationRow
-                )
-        }
-        .contentShape(Rectangle())
-        .onContentHover { isHoveringStationRow = $0 }
-    }
-
-    private var stationTitle: some View {
-        Label {
-            HStack(spacing: 4) {
-                Button(action: onOpenSource) {
-                    Text(title)
-                        .foregroundStyle(Color.primary)
-                        .opacity(0.9)
-                        .underline(isHoveringStationTitle)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .onContentHover { isHoveringStationTitle = $0 }
-                .disabled(isOpeningSource)
-                .contentHelp(stationType == "Artist station" ? "View station artist" : "View station track")
-                .accessibilityLabel("\(stationType == "Artist station" ? "View artist" : "View track"): \(title)")
-            }
-        } icon: {
-            StationPlayingIcon(playback: playback, isCurrent: isCurrent)
-        }
-        .labelStyle(.titleAndIcon)
-        .font(.body)
-        .lineLimit(1)
-        .foregroundStyle(.secondary)
-    }
-
-    private var stationLikeButton: some View {
-        let actionLabel = "\(isLiked ? "Unlike" : "Like") station: \(title)"
-        return Button(action: onToggleLike) {
-            Image(systemName: isLiked ? "heart.fill" : "heart")
-                .foregroundStyle(.secondary)
-                .padding(4)
+        Button(action: action) {
+            Text(title)
+                .foregroundStyle(Color.primary)
+                .opacity(0.9)
+                .underline(isHovered)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(isUpdating)
-        .contentHelp(actionLabel)
-        .accessibilityLabel(actionLabel)
-        .accessibilityValue(isUpdating ? "Updating" : (isLiked ? "Liked" : "Not liked"))
+        .onContentHover { isHovered = $0 }
+        .disabled(isOpeningSource)
+        .contentHelp(isArtistStation ? "View station artist" : "View station track")
+        .accessibilityLabel("\(isArtistStation ? "View artist" : "View track"): \(title)")
     }
-
 }
