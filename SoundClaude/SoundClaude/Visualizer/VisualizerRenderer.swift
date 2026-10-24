@@ -45,6 +45,11 @@ enum VisualizerShader: String, CaseIterable {
 
     var vertexFunction: String { functionPrefix + "Vertex" }
     var fragmentFunction: String { functionPrefix + "Fragment" }
+
+    // Pistons render at half-float precision for the final grade.
+    func pixelFormat(drawable: MTLPixelFormat) -> MTLPixelFormat {
+        self == .pistons ? .rgba16Float : drawable
+    }
 }
 
 final class VisualizerRenderer: NSObject, MTKViewDelegate {
@@ -79,6 +84,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private var pistonBloomCompositePipeline: MTLRenderPipelineState?
     private var pistonGlowPipeline: MTLRenderPipelineState?
     private var pistonRopeShadowPipeline: MTLRenderPipelineState?
+    private var gradeSource: MTLTexture?
+    private var gradeMultisample: MTLTexture?
+    private var sceneDepth: MTLTexture?
+    private var gradePipeline: MTLRenderPipelineState?
+    private var gradeFrame: UInt32 = 0
     private var pistons = PistonSimulation()
     private var lastPistonTime: Double?
     private var cloth = ClothSimulation()
@@ -120,12 +130,13 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             fluid = try FluidSimulation(device: device, library: library)
             for shader in VisualizerShader.allCases {
                 pipelines[shader] = try Self.makePipelines(
-                    device: device, library: library, pixelFormat: view.colorPixelFormat,
+                    device: device, library: library,
+                    pixelFormat: shader.pixelFormat(drawable: view.colorPixelFormat),
                     shader: shader, sampleCount: shader == .fluid ? 1 : sceneSampleCount
                 )
             }
             pistonGlowPipeline = try Self.makePipeline(
-                device: device, library: library, pixelFormat: view.colorPixelFormat,
+                device: device, library: library, pixelFormat: .rgba16Float,
                 shader: .pistons, sampleCount: sceneSampleCount, glowBlend: true)
             pistonBloomSourcePipeline = try Self.makePipeline(
                 device: device, library: library, pixelFormat: .rgba16Float,
@@ -135,7 +146,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             bloom.vertexFunction = library.makeFunction(name: "pistonBloomVertex")
             bloom.fragmentFunction = library.makeFunction(name: "pistonBloomFragment")
             let attachment = bloom.colorAttachments[0]!
-            attachment.pixelFormat = view.colorPixelFormat
+            attachment.pixelFormat = .rgba16Float
             // Screen blend with matching alpha keeps the transparent layer premultiplied.
             attachment.isBlendingEnabled = true
             attachment.sourceRGBBlendFactor = .one
@@ -143,6 +154,12 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             attachment.sourceAlphaBlendFactor = .one
             attachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
             pistonBloomCompositePipeline = try device.makeRenderPipelineState(descriptor: bloom)
+            let grade = MTLRenderPipelineDescriptor()
+            grade.label = "Visualizer color grade"
+            grade.vertexFunction = library.makeFunction(name: "visualizerGradeVertex")
+            grade.fragmentFunction = library.makeFunction(name: "visualizerGradeFragment")
+            grade.colorAttachments[0].pixelFormat = view.colorPixelFormat
+            gradePipeline = try device.makeRenderPipelineState(descriptor: grade)
         } catch {
             return nil
         }
@@ -176,7 +193,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 #if DEBUG
         for shader in VisualizerShader.allCases {
             shaderReloaders[shader] = VisualizerShaderReloader(
-                device: device, pixelFormat: view.colorPixelFormat, shader: shader,
+                device: device, pixelFormat: shader.pixelFormat(drawable: view.colorPixelFormat), shader: shader,
                 sampleCount: shader == .fluid ? 1 : sceneSampleCount
             )
         }
@@ -501,9 +518,10 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         let scale = min(1, maximumDimension / max(1, max(view.drawableSize.width, view.drawableSize.height)))
         let width = max(1, Int(view.drawableSize.width * scale))
         let height = max(1, Int(view.drawableSize.height * scale))
-        if shadowMask?.width != width || shadowMask?.height != height {
+        let pixelFormat = shader.pixelFormat(drawable: view.colorPixelFormat)
+        if shadowMask?.width != width || shadowMask?.height != height || shadowMask?.pixelFormat != pixelFormat {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-                pixelFormat: view.colorPixelFormat, width: width, height: height, mipmapped: false
+                pixelFormat: pixelFormat, width: width, height: height, mipmapped: false
             )
             descriptor.storageMode = .private
             descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
@@ -609,6 +627,74 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         composite.endEncoding()
     }
 
+    private func makeScenePass(in view: MTKView, size: MTLTexture) -> MTLRenderPassDescriptor? {
+        guard let device = view.device else { return nil }
+        let width = size.width, height = size.height
+        if gradeSource?.width != width || gradeSource?.height != height {
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: .rgba16Float, width: width, height: height, mipmapped: false)
+            descriptor.storageMode = .private
+            descriptor.usage = [.renderTarget, .shaderRead]
+            gradeSource = device.makeTexture(descriptor: descriptor)
+            descriptor.usage = .renderTarget
+            if sceneSampleCount > 1 {
+                descriptor.textureType = .type2DMultisample
+                descriptor.sampleCount = sceneSampleCount
+                gradeMultisample = device.makeTexture(descriptor: descriptor)
+            }
+            descriptor.pixelFormat = .depth32Float
+            sceneDepth = device.makeTexture(descriptor: descriptor)
+        }
+        guard let source = gradeSource, let depth = sceneDepth else { return nil }
+        let pass = MTLRenderPassDescriptor()
+        if sceneSampleCount > 1 {
+            guard let multisample = gradeMultisample else { return nil }
+            pass.colorAttachments[0].texture = multisample
+            pass.colorAttachments[0].resolveTexture = source
+            pass.colorAttachments[0].storeAction = .multisampleResolve
+        } else {
+            pass.colorAttachments[0].texture = source
+            pass.colorAttachments[0].storeAction = .store
+        }
+        pass.colorAttachments[0].loadAction = .clear
+        pass.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0)
+        pass.depthAttachment.texture = depth
+        pass.depthAttachment.loadAction = .clear
+        pass.depthAttachment.clearDepth = 1
+        // The piston bloom source pass reuses scene depth for occlusion.
+        pass.depthAttachment.storeAction = .store
+        return pass
+    }
+
+    private func encodeGrade(commandBuffer: MTLCommandBuffer, source: MTLTexture, destination: MTLTexture) {
+        guard let gradePipeline else { return }
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = destination
+        pass.colorAttachments[0].loadAction = .dontCare
+        pass.colorAttachments[0].storeAction = .store
+        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return }
+        encoder.label = "Visualizer color grade"
+        encoder.setRenderPipelineState(gradePipeline)
+        encoder.setFragmentTexture(source, index: 0)
+        // Match the SwiftUI backdrop in ArtworkVisualizerView, which the opaque grade covers.
+        let grade = pistonSettings.grade
+        let backdrop = VisualizerGrade.sRGBEncoded(pistonSettings.backgroundColor)
+        let glow = VisualizerGrade.sRGBEncoded(pistonSettings.glowColor(for: trackURN))
+        let glowRadius = Float(max(destination.width, destination.height)) * 0.6
+        gradeFrame = (gradeFrame + 1) % 256
+        var uniforms = [
+            SIMD4<Float>(Float(destination.width), Float(destination.height), glowRadius, Float(gradeFrame)),
+            SIMD4<Float>(backdrop, 0),
+            SIMD4<Float>(glow, 0),
+            SIMD4<Float>(grade.amount, grade.contrast, grade.saturation, grade.vignette),
+            SIMD4<Float>(grade.shadowTint, grade.grain),
+            SIMD4<Float>(grade.highlightTint, 0)
+        ]
+        encoder.setFragmentBytes(&uniforms, length: MemoryLayout<SIMD4<Float>>.stride * uniforms.count, index: 0)
+        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        encoder.endEncoding()
+    }
+
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
     private func updateAccent() {
@@ -642,10 +728,10 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             }
         }
 #endif
-        // MTKView creates matching multisample color/depth attachments and resolves
-        // the scene into the drawable before the single-sample bloom composite.
-        // Fluid is a fullscreen image and needs no multisample geometry attachments.
-        let sampleCount = shader == .fluid ? 1 : sceneSampleCount
+        // Fluid and cloth draw straight into the view's drawable; MTKView creates
+        // multisample attachments for cloth and resolves them into it. Pistons own
+        // their multisample attachments and reach the drawable through the grade.
+        let sampleCount = shader == .cloth ? sceneSampleCount : 1
         if view.sampleCount != sampleCount { view.sampleCount = sampleCount }
         guard let pipelines = pipelines[shader],
               let renderPassDescriptor = view.currentRenderPassDescriptor,
@@ -696,12 +782,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             encodePistonShadow(in: view, commandBuffer: commandBuffer,
                                pipeline: pipelines.shadow, frame: $0)
         }
-        if pistonFrame != nil {
-            renderPassDescriptor.depthAttachment.storeAction = .store
-        }
-        guard let encoder = commandBuffer.makeRenderCommandEncoder(
-                descriptor: renderPassDescriptor
-              ) else {
+        guard let scenePass = pistonFrame == nil
+                ? renderPassDescriptor : makeScenePass(in: view, size: drawable.texture),
+              let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: scenePass) else {
             return
         }
 
@@ -808,9 +891,12 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             }
         }
         encoder.endEncoding()
-        if let frame = pistonFrame, let depth = renderPassDescriptor.depthAttachment.texture {
+        if let frame = pistonFrame, let depth = sceneDepth, let source = gradeSource {
             encodePistonBloom(in: view, commandBuffer: commandBuffer, frame: frame,
-                              depth: depth, destination: drawable.texture)
+                              depth: depth, destination: source)
+        }
+        if pistonFrame != nil, let source = gradeSource {
+            encodeGrade(commandBuffer: commandBuffer, source: source, destination: drawable.texture)
         }
         commandBuffer.present(drawable)
         commandBuffer.commit()

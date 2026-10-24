@@ -263,6 +263,8 @@ struct VisualizerView: View {
                     tuningSlider("Metallic", value: $pistonSettings.metallic, range: 0...1)
                     tuningSlider("Reflections", value: $pistonSettings.reflectionStrength, range: 0...3)
                     tuningSlider("Edge softness", value: $pistonSettings.edgeSoftness, range: 0...0.05, format: "%.3f")
+                    Divider()
+                    gradeControls($pistonSettings.grade)
                 }
             }
             .frame(maxHeight: 520)
@@ -272,18 +274,37 @@ struct VisualizerView: View {
     }
 
     private func pistonColor(_ keyPath: WritableKeyPath<PistonSettings, SIMD3<Float>>) -> Binding<Color> {
+        linearColor($pistonSettings[dynamicMember: keyPath])
+    }
+
+    private func linearColor(_ value: Binding<SIMD3<Float>>) -> Binding<Color> {
         Binding(
             get: {
-                let rgb = pistonSettings[keyPath: keyPath]
+                let rgb = value.wrappedValue
                 return Color(.sRGBLinear, red: Double(rgb.x), green: Double(rgb.y), blue: Double(rgb.z))
             },
             set: { color in
                 guard let cgSpace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB),
                       let space = NSColorSpace(cgColorSpace: cgSpace),
                       let rgb = NSColor(color).usingColorSpace(space) else { return }
-                pistonSettings[keyPath: keyPath] = SIMD3(Float(rgb.redComponent), Float(rgb.greenComponent), Float(rgb.blueComponent))
+                value.wrappedValue = SIMD3(Float(rgb.redComponent), Float(rgb.greenComponent), Float(rgb.blueComponent))
             }
         )
+    }
+
+    @ViewBuilder
+    private func gradeControls(_ grade: Binding<VisualizerGrade>) -> some View {
+        Text("Color grading").font(.subheadline.bold())
+        tuningSlider("Amount", value: grade.amount, range: 0...1)
+            .help("Blend between the original and graded frame. 0 turns grading off.")
+        tuningSlider("Contrast", value: grade.contrast, range: 0.5...2)
+        tuningSlider("Saturation", value: grade.saturation, range: 0...2)
+        ColorPicker("Shadow tint", selection: linearColor(grade.shadowTint), supportsOpacity: false)
+            .help("Hue for dark areas. White is neutral; tints keep brightness unchanged.")
+        ColorPicker("Highlight tint", selection: linearColor(grade.highlightTint), supportsOpacity: false)
+            .help("Hue for bright areas. White is neutral; tints keep brightness unchanged.")
+        tuningSlider("Vignette", value: grade.vignette, range: 0...1)
+        tuningSlider("Grain", value: grade.grain, range: 0...0.2, format: "%.3f")
     }
 
     private var clothControls: some View {

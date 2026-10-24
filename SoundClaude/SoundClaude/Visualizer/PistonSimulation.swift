@@ -31,6 +31,7 @@ struct PistonSettings: Equatable {
     var metallic: Float = 0.20
     var reflectionStrength: Float = 0.42
     var edgeSoftness: Float = 0.05
+    var grade = VisualizerGrade.pistons
 
     /// Shifts the background glow's hue toward purple by a fixed amount per track.
     /// Without a track the glow keeps its configured color.
