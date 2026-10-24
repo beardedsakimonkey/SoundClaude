@@ -151,9 +151,10 @@ final class PlaybackController {
 
     private func applySpeed() {
         configureSpeed(for: player)
-        if let prepared = nextPreparation?.player {
+        for slot in preparations.keys {
+            guard let prepared = preparations[slot]?.player else { continue }
             prepared.cancelPendingPrerolls()
-            nextPreparation?.isPrerolled = false
+            preparations[slot]?.isPrerolled = false
             configureSpeed(for: prepared)
         }
         canStartImmediately = false
@@ -200,11 +201,19 @@ final class PlaybackController {
         let task: Task<AVPlayer, Error>
         var player: AVPlayer?
         var isPrerolled = false
+        var statusObservation: NSKeyValueObservation?
     }
 
-    @ObservationIgnored private var preparationObservation: NSKeyValueObservation?
+    /// Standby players are kept per purpose so browsing never evicts the next queue track.
+    enum PrefetchSlot {
+        /// The next queue track, or the saved track before playback resumes.
+        case next
+        /// The track whose detail page is open.
+        case viewed
+    }
+
     @ObservationIgnored private var restoredPrefetchTask: Task<Void, Never>?
-    @ObservationIgnored private var nextPreparation: Preparation?
+    @ObservationIgnored private var preparations: [PrefetchSlot: Preparation] = [:]
     @ObservationIgnored private var loadingPreparation: Preparation?
     @ObservationIgnored private var canStartImmediately = false
     private var shouldPlayWhenReady = false {
@@ -280,9 +289,11 @@ final class PlaybackController {
 
     deinit {
         restoredPrefetchTask?.cancel()
-        nextPreparation?.task.cancel()
+        for preparation in preparations.values {
+            preparation.task.cancel()
+            preparation.statusObservation?.invalidate()
+        }
         loadingPreparation?.task.cancel()
-        preparationObservation?.invalidate()
         itemStatusObservation?.invalidate()
         playerStatusObservation?.invalidate()
         if let timeObserver {
@@ -385,7 +396,8 @@ final class PlaybackController {
         restoredPrefetchTask?.cancel()
         restoredPrefetchTask = nil
         pause()
-        discardNextPreparation()
+        discardPreparation(in: .next)
+        discardPreparation(in: .viewed)
         loadingPreparation?.task.cancel()
         loadingPreparation = nil
         itemStatusObservation?.invalidate()
@@ -425,16 +437,16 @@ final class PlaybackController {
         itemStatusObservation = nil
         loadingPreparation?.task.cancel()
         loadingPreparation = nil
-        if let next = nextPreparation,
-           matches(next, track: track),
-           next.player?.currentItem?.status != .failed {
-            preparationObservation?.invalidate()
-            preparationObservation = nil
-            loadingPreparation = next
-            nextPreparation = nil
-        } else {
-            discardNextPreparation()
+        if let slot = [PrefetchSlot.next, .viewed].first(where: { slot in
+            preparations[slot].map { isUsable($0, for: track) } ?? false
+        }), var preparation = preparations.removeValue(forKey: slot) {
+            preparation.statusObservation?.invalidate()
+            preparation.statusObservation = nil
+            loadingPreparation = preparation
         }
+        // The queue's following track changes with the selection. A viewed
+        // track stays prepared while its page remains open.
+        discardPreparation(in: .next)
         player.replaceCurrentItem(with: nil)
         let requestID = UUID()
         loadingRequestID = requestID
@@ -481,15 +493,15 @@ final class PlaybackController {
         }
     }
 
-    /// Prepare one silent standby player, then reuse it when its track is selected.
+    /// Prepare one silent standby player per slot, then reuse it when its track is selected.
     func prefetch(
         _ track: SoundCloudTrack?,
         position: Double = 0,
+        slot: PrefetchSlot = .next,
         resolve: @escaping @MainActor () async throws -> PlaybackSource
     ) {
-        if let track, let next = nextPreparation,
-           matches(next, track: track), next.player?.currentItem?.status != .failed { return }
-        discardNextPreparation()
+        if let track, let existing = preparations[slot], isUsable(existing, for: track) { return }
+        discardPreparation(in: slot)
         guard let track else { return }
         let id = UUID()
         let makePlayer = makePrefetchPlayer
@@ -499,14 +511,20 @@ final class PlaybackController {
             let prepared = makePlayer(source.url)
             prepared.isMuted = true
             prepared.preventsDisplaySleepDuringVideoPlayback = false
-            if let self, nextPreparation?.id == id {
-                nextPreparation?.player = prepared
+            if let self, preparations[slot]?.id == id {
+                preparations[slot]?.player = prepared
                 configureSpeed(for: prepared)
-                prepareBuffer(for: prepared, id: id)
+                prepareBuffer(for: prepared, id: id, slot: slot)
             }
             return prepared
         }
-        nextPreparation = Preparation(id: id, track: track, position: position, task: task)
+        preparations[slot] = Preparation(id: id, track: track, position: position, task: task)
+    }
+
+    /// Release a slot's standby player, unless it now holds a different track.
+    func discardPrefetch(of track: SoundCloudTrack, in slot: PrefetchSlot) {
+        guard let preparation = preparations[slot], matches(preparation, track: track) else { return }
+        discardPreparation(in: slot)
     }
 
     /// Share an unfinished resolution with Next; failures fall back to a fresh request.
@@ -532,35 +550,38 @@ final class PlaybackController {
             && preparation.track.secretToken == track.secretToken
     }
 
-    private func discardNextPreparation() {
-        preparationObservation?.invalidate()
-        preparationObservation = nil
-        nextPreparation?.task.cancel()
-        nextPreparation?.player?.cancelPendingPrerolls()
-        nextPreparation?.player?.replaceCurrentItem(with: nil)
-        nextPreparation = nil
+    private func isUsable(_ preparation: Preparation, for track: SoundCloudTrack) -> Bool {
+        matches(preparation, track: track) && preparation.player?.currentItem?.status != .failed
     }
 
-    private func prepareBuffer(for prepared: AVPlayer, id: UUID) {
-        preparationObservation = prepared.currentItem?.observe(
+    private func discardPreparation(in slot: PrefetchSlot) {
+        guard let preparation = preparations.removeValue(forKey: slot) else { return }
+        preparation.statusObservation?.invalidate()
+        preparation.task.cancel()
+        preparation.player?.cancelPendingPrerolls()
+        preparation.player?.replaceCurrentItem(with: nil)
+    }
+
+    private func prepareBuffer(for prepared: AVPlayer, id: UUID, slot: PrefetchSlot) {
+        preparations[slot]?.statusObservation = prepared.currentItem?.observe(
             \.status, options: [.initial, .new]
         ) { [weak self, weak prepared] _, _ in
             Task { @MainActor [weak self, weak prepared] in
-                guard let self, let prepared, nextPreparation?.id == id,
+                guard let self, let prepared, preparations[slot]?.id == id,
                       prepared.currentItem?.status == .readyToPlay else { return }
-                preparationObservation?.invalidate()
-                preparationObservation = nil
-                if let position = nextPreparation?.position, position > 0 {
+                preparations[slot]?.statusObservation?.invalidate()
+                preparations[slot]?.statusObservation = nil
+                if let position = preparations[slot]?.position, position > 0 {
                     let finished = await prepared.seek(
                         to: CMTime(seconds: position, preferredTimescale: 600),
                         toleranceBefore: .zero, toleranceAfter: .zero
                     )
-                    guard finished, nextPreparation?.id == id else { return }
+                    guard finished, preparations[slot]?.id == id else { return }
                 }
                 prepared.preroll(atRate: playbackRate) { [weak self] finished in
                     Task { @MainActor [weak self] in
-                        guard let self, nextPreparation?.id == id else { return }
-                        nextPreparation?.isPrerolled = finished
+                        guard let self, preparations[slot]?.id == id else { return }
+                        preparations[slot]?.isPrerolled = finished
                     }
                 }
             }

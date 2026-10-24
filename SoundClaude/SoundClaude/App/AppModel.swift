@@ -977,6 +977,26 @@ final class AppModel {
         }
     }
 
+    /// Prepare a viewed track's stream after a short dwell, so Play can start without
+    /// resolving it. The standby player is released when the caller's task is cancelled.
+    func prefetchPlaybackWhileViewing(_ track: SoundCloudTrack) async {
+        do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
+        // The current track already has a player, or the restore prefetch covers it.
+        guard playback.currentTrack?.urn != track.urn else { return }
+        playback.prefetch(track, slot: .viewed) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            try Task.checkCancellation()
+            return try await LaunchMetrics.measureAsync("Viewed track stream resolution") {
+                try await client.resolvePlayback(track: track, accessToken: accessToken)
+            }
+        }
+        // Wait for the page to leave. A stale signed stream URL must not be reused later.
+        while !Task.isCancelled {
+            try? await Task.sleep(for: .seconds(3_600))
+        }
+        playback.discardPrefetch(of: track, in: .viewed)
+    }
+
     private func prefetchArtwork(for track: SoundCloudTrack) async {
         guard let url = track.displayArtworkURL else { return }
         async let thumbnail = try? artworkLoader.image(for: url, rendition: .square500)

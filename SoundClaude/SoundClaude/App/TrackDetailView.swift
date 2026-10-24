@@ -61,6 +61,9 @@ struct TrackDetailView: View {
         .task(id: track.urn) {
             await load()
         }
+        .task(id: track.urn) {
+            await model.prefetchPlaybackWhileViewing(track)
+        }
         .task {
             // Retry on click and show any error there.
             try? await reposts.load()

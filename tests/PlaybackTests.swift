@@ -541,6 +541,36 @@ struct PlaybackTests {
         precondition(playback.currentTrack == track(7))
         precondition(standbyAtEnd.rate == 0)
 
+        // A viewed track's standby player survives queue prefetches and other
+        // selections, then serves Play once its own track is selected.
+        let countBeforeViewed = preparedPlayers.count
+        playback.prefetch(track(12), slot: .viewed) { source }
+        try await until { preparedPlayers.count == countBeforeViewed + 1 }
+        let viewedPlayer = preparedPlayers.last!
+        playback.prefetch(track(13)) { source }
+        try await until { preparedPlayers.count == countBeforeViewed + 2 }
+        let queuedPlayer = preparedPlayers.last!
+        let otherSelection = playback.beginLoading(track: track(14), autoplay: false)
+        precondition(queuedPlayer.currentItem == nil, "Selection drops the queue's standby player")
+        precondition(viewedPlayer.currentItem != nil, "Selection keeps the viewed track's player")
+        playback.load(source: source, requestID: otherSelection)
+        try await until { !playback.isLoading }
+        let viewedSelection = playback.beginLoading(track: track(12), autoplay: false)
+        precondition(playback.player === viewedPlayer)
+        let viewedConsumed = await playback.loadPrefetched(requestID: viewedSelection)
+        precondition(viewedConsumed)
+        try await until { !playback.isLoading }
+        precondition(preparedPlayers.count == countBeforeViewed + 2)
+
+        // Leaving a page releases its player, but not one a newer page prepared.
+        playback.prefetch(track(15), slot: .viewed) { source }
+        try await until { preparedPlayers.count == countBeforeViewed + 3 }
+        let leftPagePlayer = preparedPlayers.last!
+        playback.discardPrefetch(of: track(16), in: .viewed)
+        precondition(leftPagePlayer.currentItem != nil)
+        playback.discardPrefetch(of: track(15), in: .viewed)
+        precondition(leftPagePlayer.currentItem == nil)
+
         // Sign-out invalidates an outstanding source and clears saved metadata.
         let pending = playback.beginLoading(track: track(2))
         playback.clearSession()
