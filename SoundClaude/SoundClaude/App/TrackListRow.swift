@@ -190,37 +190,45 @@ struct TrackListRow: View {
             let likeCount = showsMetadata ? likes.likeCount(for: track) : nil
             let showsLikeIndicator = showsMetadata && (likeCount != nil || isLiked)
             if showsArtist || showsLikeIndicator {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    if showsArtist {
-                        ArtistLink(artist: track.artist, onSelect: onSelectArtist)
-                            .onContentHover { isHoveringArtist = $0 }
-                    }
-                    if showsLikeIndicator {
-                        if showsArtist {
-                            Text("·")
-                                .accessibilityHidden(true)
-                        }
-                        HStack(alignment: .firstTextBaseline, spacing: 2) {
-                            Image(systemName: isLiked ? "heart.fill" : "heart")
-                            if let likeCount {
-                                Text(likeCount.formatted())
-                            }
-                        }
-                        .font(.system(size: 9))
-                        .fixedSize()
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(
-                            [isLiked ? "Liked" : nil, likeCount.map { "\($0.formatted()) likes" }]
-                                .compactMap { $0 }
-                                .joined(separator: ", ")
-                        )
-                    }
+                // Drop the like indicator before truncating the artist name.
+                ViewThatFits(in: .horizontal) {
+                    metadataLine(likeCount: likeCount, isLiked: isLiked, showsLikeIndicator: showsLikeIndicator)
+                    metadataLine(likeCount: likeCount, isLiked: isLiked, showsLikeIndicator: false)
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
         }
         .lineLimit(1)
+    }
+
+    private func metadataLine(likeCount: Int?, isLiked: Bool, showsLikeIndicator: Bool) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            if showsArtist {
+                ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                    .onContentHover { isHoveringArtist = $0 }
+            }
+            if showsLikeIndicator {
+                if showsArtist {
+                    Text("·")
+                        .accessibilityHidden(true)
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Image(systemName: isLiked ? "heart.fill" : "heart")
+                    if let likeCount {
+                        Text(likeCount.formatted())
+                    }
+                }
+                .font(.system(size: 9))
+                .fixedSize()
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(
+                    [isLiked ? "Liked" : nil, likeCount.map { "\($0.formatted()) likes" }]
+                        .compactMap { $0 }
+                        .joined(separator: ", ")
+                )
+            }
+        }
     }
 
     @ViewBuilder
