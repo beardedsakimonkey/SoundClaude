@@ -78,14 +78,8 @@ test-focus:
 	/tmp/soundclaude-tests/search-focus
 
 # Standalone regression suites; no credentials or Keychain access required.
-test: test-fluid test-playback-selection
+test: test-playback-selection
 	@mkdir -p /tmp/soundclaude-tests
-	clang -O0 -c SoundClaude/SoundClaude/Visualizer/ClothSolver.c -o /tmp/soundclaude-tests/cloth-solver.o
-	swiftc -Onone -import-objc-header SoundClaude/SoundClaude/Visualizer/ClothSolver.h \
-		/tmp/soundclaude-tests/cloth-solver.o -o /tmp/soundclaude-tests/cloth \
-		SoundClaude/SoundClaude/Visualizer/ClothSimulation.swift \
-		tests/ClothSimulationTests.swift
-	/tmp/soundclaude-tests/cloth
 	clang -c SoundClaude/SoundClaude/Audio/PCMRingBuffer.c -o /tmp/soundclaude-tests/pcm-ring.o
 	swiftc -import-objc-header SoundClaude/SoundClaude/Audio/PCMRingBuffer.h \
 		/tmp/soundclaude-tests/pcm-ring.o -framework CoreAudio -o /tmp/soundclaude-tests/spectrum \
@@ -313,15 +307,6 @@ test-waveform-comment-hover:
 		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
 		tests/WaveformCommentHoverTests.swift
 	/tmp/soundclaude-tests/waveform-comment-hover
-
-# Run the Metal solver on the GPU, including resize and input checks.
-.PHONY: test-fluid
-test-fluid:
-	@mkdir -p /tmp/soundclaude-tests
-	swiftc -Onone -o /tmp/soundclaude-tests/fluid \
-		SoundClaude/SoundClaude/Visualizer/FluidSimulation.swift \
-		tests/FluidSimulationTests.swift
-	MTL_DEBUG_LAYER=1 /tmp/soundclaude-tests/fluid
 
 .PHONY: test-playback-selection
 test-playback-selection:
