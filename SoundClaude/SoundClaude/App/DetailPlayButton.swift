@@ -18,7 +18,6 @@ struct DetailPlayButton: View {
     let action: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
-    @State private var isHovering = false
 
     private var foregroundColor: Color {
         guard configuration.isStarting else { return .primary }
@@ -46,15 +45,7 @@ struct DetailPlayButton: View {
             .frame(width: configuration.iconOnly ? 44 : nil)
             .frame(minHeight: 24)
         }
-        .labelStyle(DetailPlayButtonLabelStyle(
-            iconOnly: configuration.iconOnly,
-            nudgesIcon: configuration.isStarting && isHovering && configuration.isEnabled
-        ))
-        .animation(
-            reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.4),
-            value: configuration.isStarting && isHovering
-        )
-        .onContentHover { isHovering = $0 }
+        .labelStyle(DetailPlayButtonLabelStyle(iconOnly: configuration.iconOnly))
         .buttonStyle(TrackActionButtonStyle(
             fill: fillColor, dimsOnHover: configuration.isStarting
         ))
@@ -67,16 +58,13 @@ struct DetailPlayButton: View {
 
 private struct DetailPlayButtonLabelStyle: LabelStyle {
     let iconOnly: Bool
-    // Start pushes the play icon forward on hover as a "go" cue.
-    let nudgesIcon: Bool
 
     func makeBody(configuration: Configuration) -> some View {
-        let icon = configuration.icon.offset(x: nudgesIcon ? 3 : 0)
         if iconOnly {
-            icon
+            configuration.icon
         } else {
             HStack {
-                icon
+                configuration.icon
                 configuration.title
             }
         }
