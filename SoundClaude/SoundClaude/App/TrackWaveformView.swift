@@ -41,6 +41,10 @@ struct TrackWaveformView: View {
     @State private var waveform: SoundCloudWaveform?
     @State private var waveformTrackURN: String?
     @State private var barDirection: Double = 1
+    // Set while paused bars stay collapsed, so a track started from pause
+    // reveals its own waveform instead of flashing the previous one.
+    @State private var holdsCollapseUntilWaveform = false
+    @State private var revealsWaveformFromCollapse = false
     @State private var errorMessage: String?
     @State private var artworkAccent: ArtworkAccent?
     @State private var accentArtworkURL: URL?
@@ -149,6 +153,16 @@ struct TrackWaveformView: View {
         .onChange(of: track?.urn) { _, _ in
             pendingSeek = nil
         }
+        .onChange(of: pausesBars, initial: true) { _, pauses in
+            if pauses {
+                holdsCollapseUntilWaveform = true
+            } else if waveformTrackURN == track?.urn {
+                holdsCollapseUntilWaveform = false
+            }
+        }
+        .onChange(of: waveformTrackURN) { _, _ in
+            if !pausesBars { holdsCollapseUntilWaveform = false }
+        }
         .task(id: commentsAppearance) {
             let appearance = commentsAppearance
             commentsReadyAppearance = nil
@@ -201,6 +215,7 @@ struct TrackWaveformView: View {
                 let barCollapseAnimation = Animation(WaveformCollapseSpring(
                     maxBounceTravel: 16 / Double(layout.availableBarHeight(for: height))
                 ))
+                let barExpandAnimation = Animation.spring(duration: 0.44, bounce: 0.44)
                 let renderedProgress = progress
                 let renderedProgressColor = progressColor
                 let renderedHoverFraction = hoverFraction
@@ -290,7 +305,7 @@ struct TrackWaveformView: View {
                 // Resampling during window resizing must not start or extend a spring.
                 .animation(nil, value: waveformWidth)
                 .animation(
-                    trackChangeAnimation,
+                    revealsWaveformFromCollapse && !reduceMotion ? barExpandAnimation : trackChangeAnimation,
                     value: waveform
                 )
                 .animation(
@@ -300,7 +315,7 @@ struct TrackWaveformView: View {
                 .animation(
                     reduceMotion ? nil : (barsAreCollapsed && !showsHoverPreview
                         ? barCollapseAnimation
-                        : .spring(duration: 0.44, bounce: 0.44)),
+                        : barExpandAnimation),
                     value: showsHoverPreview
                 )
                 .animation(
@@ -310,7 +325,7 @@ struct TrackWaveformView: View {
                 .animation(
                     reduceMotion || !animatesBarTransitions ? nil : (barsAreCollapsed
                         ? barCollapseAnimation
-                        : .spring(duration: 0.44, bounce: 0.44)),
+                        : barExpandAnimation),
                     value: barsAreCollapsed
                 )
                 .modifier(WaveformLoadingOpacity(
@@ -584,8 +599,12 @@ struct TrackWaveformView: View {
     private var barsAreCollapsed: Bool {
         // Detail waveforms always show their full shape, regardless of playback.
         guard layout == .compact else { return false }
-        return track == nil || (keepsBarsVisible && waveform == nil)
-            || (collapsesBarsWhenPaused && (!isCurrentTrack || !playback.isPlaybackActive))
+        return track == nil || (keepsBarsVisible && waveform == nil) || pausesBars
+            || (invertsBarsOnTrackChange && holdsCollapseUntilWaveform && waveformTrackURN != track?.urn)
+    }
+
+    private var pausesBars: Bool {
+        layout == .compact && collapsesBarsWhenPaused && (!isCurrentTrack || !playback.isPlaybackActive)
     }
 
     private var showsHoverPreview: Bool {
@@ -733,7 +752,9 @@ struct TrackWaveformView: View {
 
     private func setWaveform(_ loadedWaveform: SoundCloudWaveform) {
         guard let track else { return }
-        if invertsBarsOnTrackChange,
+        // Collapsed bars expand into the new waveform as they do on resume.
+        revealsWaveformFromCollapse = barsAreCollapsed
+        if invertsBarsOnTrackChange, !barsAreCollapsed,
            let waveformTrackURN, waveformTrackURN != track.urn {
             barDirection *= -1
         }
