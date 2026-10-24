@@ -473,10 +473,6 @@ fragment PistonFragment pistonVisualizerFragment(
                 if (u.track.z > 0.5) {
                     constexpr sampler artSampler(filter::linear, mip_filter::linear, address::clamp_to_edge);
                     emission = artwork.sample(artSampler, uv).rgb * feather * 0.21;
-                } else {
-                    float radius = length(uv - 0.5);
-                    emission = float3(0.09, 0.102, 0.12) * feather
-                        * (1 - smoothstep(0.34, 0.35, radius)) * smoothstep(0.06, 0.07, radius);
                 }
             }
             // Project the progress rail along the near edge of the artwork.

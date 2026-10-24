@@ -39,7 +39,6 @@ struct VisualizerView: View {
             fluidTouch: fluidTouch,
             trackProgress: playback.duration > 0 ? playback.currentTime / playback.duration : 0,
             hasTrack: playback.currentTrack != nil,
-            trackURN: playback.currentTrack?.urn,
             isPlaying: playback.isPlaying,
             clothCamera: Binding(get: { camera }, set: { camera = $0 }),
             spectrumBuffer: spectrumBuffer,

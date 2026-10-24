@@ -68,7 +68,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var pistonSettings = PistonSettings()
     var trackProgress: Double = 0
     var hasTrack = false
-    var trackURN: String?
     var isPlaying = false
     var clothCamera = ClothCamera()
 
@@ -328,8 +327,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         let artworkAspect = artworkImage.map { Float($0.width) / Float($0.height) } ?? 1
         uniforms.append(SIMD4<Float>(progress, artworkAspect, artworkTexture == nil ? 0 : 1, hasTrack ? 1 : 0))
         uniforms.append(SIMD4<Float>(pistonSettings.groundColor, 0))
-        uniforms.append(SIMD4<Float>(pistonSettings.spotlightColor(for: trackURN), 0))
-        uniforms.append(SIMD4<Float>(pistonSettings.lightColor(for: trackURN), 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.spotlightColor(for: displayedArtworkAccent), 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.lightColor(for: displayedArtworkAccent), 0))
         return (buffer, uniforms, PistonSimulation.count *
             (32 * 12 * 3 + pistonSettings.stringsPerPiston * (PistonSimulation.segments * 6 + 12 * 8 * 6)))
     }
@@ -679,7 +678,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         // Match the SwiftUI backdrop in ArtworkVisualizerView, which the opaque grade covers.
         let grade = pistonSettings.grade
         let backdrop = VisualizerGrade.sRGBEncoded(pistonSettings.backgroundColor)
-        let glow = VisualizerGrade.sRGBEncoded(pistonSettings.glowColor(for: trackURN))
+        let glow = VisualizerGrade.sRGBEncoded(pistonSettings.glowColor(for: displayedArtworkAccent))
         let glowRadius = Float(max(destination.width, destination.height)) * 0.6
         gradeFrame = (gradeFrame + 1) % 256
         var uniforms = [
@@ -697,9 +696,15 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
+    private var displayedArtworkAccent: ArtworkAccent {
+        ArtworkAccent(red: Double(displayedAccent.x),
+                      green: Double(displayedAccent.y),
+                      blue: Double(displayedAccent.z))
+    }
+
     private func updateAccent() {
         let target = SIMD3<Float>(Float(accent.red), Float(accent.green), Float(accent.blue))
-        guard shader == .cloth else {
+        guard shader == .cloth || shader == .pistons else {
             displayedAccent = target
             accentTransitionTarget = target
             accentTransitionStart = nil

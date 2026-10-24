@@ -9,7 +9,7 @@ struct PistonSettings: Equatable {
     var neutralRopeGlow: Float = 1.0
     var restingRopeBrightness: Float = 0.5 // Rope brightness while a piston rests at the bottom.
     var restingRopeGlow: Float = 0.25 // Rope halo strength while a piston rests at the bottom.
-    var bloomStrength: Float = 1.5
+    var bloomStrength: Float = 1.25
     var spotlightStrength: Float = 0.5
     var spotlightSize: Float = 1.5
     var lightTint: Float = 0.5 // How strongly the background glow's hue tints the scene lighting.
@@ -33,57 +33,25 @@ struct PistonSettings: Equatable {
     var edgeSoftness: Float = 0.05
     var grade = VisualizerGrade.pistons
 
-    /// Shifts the background glow's hue toward purple by a fixed amount per track.
-    /// Without a track the glow keeps its configured color.
-    func glowColor(for trackURN: String?) -> SIMD3<Float> {
-        guard let trackURN else { return backgroundGlowColor }
-        // FNV-1a keeps each track's hue stable across launches, unlike Hasher.
-        var hash: UInt64 = 0xcbf29ce484222325
-        for byte in trackURN.utf8 { hash = (hash ^ UInt64(byte)) &* 0x100000001b3 }
-        // Rotate the OKLab hue so lightness and chroma stay perceptually constant.
-        // The default glow spans blue (hue 258°) to purple (310°).
-        let angle = Float(hash % 1000) / 999 * 52 * .pi / 180
-        let lab = Self.oklab(fromLinearSRGB: backgroundGlowColor)
-        let c = cos(angle), s = sin(angle)
-        let rotated = SIMD3(lab.x, lab.y * c - lab.z * s, lab.y * s + lab.z * c)
-        return simd_max(Self.linearSRGB(fromOKLab: rotated), .zero)
-    }
-
-    private static func oklab(fromLinearSRGB rgb: SIMD3<Float>) -> SIMD3<Float> {
-        let lms = simd_float3x3(rows: [
-            SIMD3(0.4122214708, 0.5363325363, 0.0514459929),
-            SIMD3(0.2119034982, 0.6806995451, 0.1073969566),
-            SIMD3(0.0883024619, 0.2817188376, 0.6299787005)
-        ]) * rgb
-        return simd_float3x3(rows: [
-            SIMD3(0.2104542553, 0.7936177850, -0.0040720468),
-            SIMD3(1.9779984951, -2.4285922050, 0.4505937099),
-            SIMD3(0.0259040371, 0.7827717662, -0.8086757660)
-        ]) * SIMD3(cbrt(lms.x), cbrt(lms.y), cbrt(lms.z))
-    }
-
-    private static func linearSRGB(fromOKLab lab: SIMD3<Float>) -> SIMD3<Float> {
-        let lms = simd_float3x3(rows: [
-            SIMD3(1, 0.3963377774, 0.2158037573),
-            SIMD3(1, -0.1055613458, -0.0638541728),
-            SIMD3(1, -0.0894841775, -1.2914855480)
-        ]) * lab
-        return simd_float3x3(rows: [
-            SIMD3(4.0767416621, -3.3077115913, 0.2309699292),
-            SIMD3(-1.2684380046, 2.6097574011, -0.3413193965),
-            SIMD3(-0.0041960863, -0.7034186147, 1.7076147010)
-        ]) * (lms * lms * lms)
+    /// Use the artwork accent while keeping the configured glow brightness.
+    func glowColor(for accent: ArtworkAccent) -> SIMD3<Float> {
+        func linear(_ value: Double) -> Float {
+            let c = Float(value)
+            return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        let color = SIMD3(linear(accent.red), linear(accent.green), linear(accent.blue))
+        return color / max(color.max(), 0.000001) * backgroundGlowColor.max()
     }
 
     /// The glow's hue at full brightness, used to tint the spotlights.
-    func spotlightColor(for trackURN: String?) -> SIMD3<Float> {
-        let glow = glowColor(for: trackURN)
+    func spotlightColor(for accent: ArtworkAccent) -> SIMD3<Float> {
+        let glow = glowColor(for: accent)
         return glow / max(glow.max(), 0.000001)
     }
 
     /// The glow's hue at unit luminance, blended toward white by the light tint.
-    func lightColor(for trackURN: String?) -> SIMD3<Float> {
-        let color = spotlightColor(for: trackURN)
+    func lightColor(for accent: ArtworkAccent) -> SIMD3<Float> {
+        let color = spotlightColor(for: accent)
         let luminance = simd_dot(color, SIMD3(0.2126, 0.7152, 0.0722))
         guard luminance > 0 else { return .one }
         return simd_mix(.one, color / luminance, SIMD3(repeating: lightTint))

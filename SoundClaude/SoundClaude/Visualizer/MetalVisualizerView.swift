@@ -23,7 +23,6 @@ struct ArtworkVisualizerView: View {
     let fluidTouch: FluidTouch
     let trackProgress: Double
     let hasTrack: Bool
-    let trackURN: String?
     let isPlaying: Bool
     @Binding var clothCamera: ClothCamera
     let spectrumBuffer: OpaquePointer
@@ -46,7 +45,6 @@ struct ArtworkVisualizerView: View {
             fluidTouch: fluidTouch,
             trackProgress: trackProgress,
             hasTrack: hasTrack,
-            trackURN: trackURN,
             isPlaying: isPlaying,
             clothCamera: $clothCamera,
             spectrumBuffer: spectrumBuffer,
@@ -90,7 +88,7 @@ struct ArtworkVisualizerView: View {
 
     private var visualizerBackdrop: some View {
         GeometryReader { geometry in
-            let glowRGB = pistonSettings.glowColor(for: trackURN)
+            let glowRGB = pistonSettings.glowColor(for: accent)
             let backgroundRGB = pistonSettings.backgroundColor
             let glow = Color(.sRGBLinear, red: Double(glowRGB.x), green: Double(glowRGB.y), blue: Double(glowRGB.z))
             RadialGradient(
@@ -111,7 +109,8 @@ struct ArtworkVisualizerView: View {
     }
 
     private var accent: ArtworkAccent {
-        sourceAccent.contrasted(
+        if shader == .pistons { return sourceAccent }
+        return sourceAccent.contrasted(
             isDark: colorScheme == .dark,
             increasedContrast: colorSchemeContrast == .increased
         )
@@ -126,7 +125,6 @@ struct MetalVisualizerView: NSViewRepresentable {
     let fluidTouch: FluidTouch
     let trackProgress: Double
     let hasTrack: Bool
-    let trackURN: String?
     let isPlaying: Bool
     @Binding var clothCamera: ClothCamera
     let spectrumBuffer: OpaquePointer
@@ -191,7 +189,6 @@ struct MetalVisualizerView: NSViewRepresentable {
         context.coordinator.renderer?.fluidTouch = fluidTouch
         context.coordinator.renderer?.trackProgress = trackProgress
         context.coordinator.renderer?.hasTrack = hasTrack
-        context.coordinator.renderer?.trackURN = trackURN
         context.coordinator.renderer?.isPlaying = isPlaying
         context.coordinator.renderer?.clothCamera = clothCamera
         context.coordinator.renderer?.accent = accent
