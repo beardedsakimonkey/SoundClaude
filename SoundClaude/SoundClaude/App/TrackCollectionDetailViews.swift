@@ -43,7 +43,7 @@ struct TrackCollectionSection<Content: View>: View {
     @AppStorage("playlistTrackLayout") private var trackLayout = TrackLayout.list
 
     var body: some View {
-        VStack(alignment: .leading, spacing: trackLayout == .list ? 4 : 12) {
+        VStack(alignment: .leading, spacing: trackLayout == .list ? 8 : 12) {
             HStack {
                 CountedSectionHeader(title: "Tracks", count: count)
                 Spacer()
