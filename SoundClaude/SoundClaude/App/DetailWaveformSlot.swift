@@ -115,6 +115,7 @@ struct DetailWaveformPreferenceKey: PreferenceKey {
 
 struct DetailWaveformOverlay: ViewModifier {
     let model: AppModel
+    let routeID: AnyHashable
 
     func body(content: Content) -> some View {
         content
@@ -124,6 +125,7 @@ struct DetailWaveformOverlay: ViewModifier {
                     // updates its placement without rebuilding its drawing content.
                     DetailWaveformContent(
                         track: source.track, model: model,
+                        routeID: routeID,
                         isStation: source.isStation,
                         onPlayTrack: source.onPlayTrack
                     )
@@ -158,12 +160,13 @@ private struct DetailWaveformPlacement: ViewModifier {
 private struct DetailWaveformContent: View {
     let track: SoundCloudTrack?
     let model: AppModel
+    let routeID: AnyHashable
     let isStation: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
 
     var body: some View {
         TrackWaveformView(
-            track: track, model: model,
+            track: track, model: model, routeID: routeID,
             invertsBarsOnTrackChange: isStation,
             keepsBarsVisible: isStation,
             onPlayTrack: onPlayTrack

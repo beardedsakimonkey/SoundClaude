@@ -23,6 +23,8 @@ struct TrackWaveformView: View {
 
     let track: SoundCloudTrack?
     let model: AppModel
+    // Track changes across routes are navigation, not playback changes.
+    let routeID: AnyHashable?
     let layout: Layout
     let height: CGFloat
     let animatesBarTransitions: Bool
@@ -41,6 +43,8 @@ struct TrackWaveformView: View {
     @State private var waveform: SoundCloudWaveform?
     @State private var waveformTrackURN: String?
     @State private var barDirection: Double = 1
+    @State private var waveformRouteID: AnyHashable?
+    @State private var waveformFollowsNavigation = false
     // Set while paused bars stay collapsed, so a track started from pause
     // reveals its own waveform instead of flashing the previous one.
     @State private var holdsCollapseUntilWaveform = false
@@ -67,6 +71,7 @@ struct TrackWaveformView: View {
     init(
         track: SoundCloudTrack?,
         model: AppModel,
+        routeID: AnyHashable? = nil,
         layout: Layout = .detail,
         height: CGFloat? = nil,
         animatesBarTransitions: Bool = true,
@@ -77,6 +82,7 @@ struct TrackWaveformView: View {
     ) {
         self.track = track
         self.model = model
+        self.routeID = routeID
         self.layout = layout
         self.height = height ?? layout.height
         self.animatesBarTransitions = animatesBarTransitions
@@ -88,6 +94,7 @@ struct TrackWaveformView: View {
         let cachedWaveform = track.flatMap { model.cachedWaveform(for: $0) }
         _waveform = State(initialValue: cachedWaveform)
         _waveformTrackURN = State(initialValue: cachedWaveform == nil ? nil : track?.urn)
+        _waveformRouteID = State(initialValue: routeID)
     }
 
     var body: some View {
@@ -206,7 +213,8 @@ struct TrackWaveformView: View {
                 let amplitudes = barAmplitudes(waveform, width: waveformWidth)
                 let trackChangeAnimation = reduceMotion || !animatesBarTransitions ? nil : Animation(
                     WaveformStaggeredSpring(
-                        reversesStagger: isCurrentTrack && playback.trackChangeDirection == .backward
+                        reversesStagger: !waveformFollowsNavigation && isCurrentTrack
+                            && playback.trackChangeDirection == .backward
                     )
                 )
                 // Read observed state before entering Canvas. Direct observation
@@ -754,10 +762,12 @@ struct TrackWaveformView: View {
         guard let track else { return }
         // Collapsed bars expand into the new waveform as they do on resume.
         revealsWaveformFromCollapse = barsAreCollapsed
-        if invertsBarsOnTrackChange, !barsAreCollapsed,
+        waveformFollowsNavigation = waveformRouteID != routeID
+        if invertsBarsOnTrackChange, !barsAreCollapsed, !waveformFollowsNavigation,
            let waveformTrackURN, waveformTrackURN != track.urn {
             barDirection *= -1
         }
+        waveformRouteID = routeID
         waveformTrackURN = track.urn
         waveform = loadedWaveform
     }

@@ -31,6 +31,7 @@ struct TrackWaveformView: View {
     }
     let track: SoundCloudTrack?
     let model: AppModel
+    let routeID: AnyHashable?
     let invertsBarsOnTrackChange: Bool
     let keepsBarsVisible: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
@@ -85,7 +86,7 @@ struct TrackWaveformView: View {
                 .padding(.horizontal, 24)
                 .offset(y: y)
             }
-            .modifier(DetailWaveformOverlay(model: model))
+            .modifier(DetailWaveformOverlay(model: model, routeID: 0))
             .coordinateSpace(name: "viewport")
         }
         let host = NSHostingView(rootView: page(station: false))
@@ -155,7 +156,7 @@ struct TrackWaveformView: View {
                     ))
                 Spacer(minLength: 0)
             }
-            .modifier(DetailWaveformOverlay(model: model))
+            .modifier(DetailWaveformOverlay(model: model, routeID: 0))
             .coordinateSpace(name: "viewport")
         }
         let headers = NSHostingView(rootView: header(metadataHeight: 140, station: false))
@@ -183,7 +184,7 @@ struct TrackWaveformView: View {
                     Color.clear.frame(height: 1200)
                 }
             }
-            .modifier(DetailWaveformOverlay(model: model))
+            .modifier(DetailWaveformOverlay(model: model, routeID: 0))
         )
         let scrollWindow = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),

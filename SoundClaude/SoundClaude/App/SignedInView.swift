@@ -366,7 +366,7 @@ struct SignedInView: View {
                         .ignoresSafeArea(edges: .top)
                 }
             }
-            .modifier(DetailWaveformOverlay(model: model))
+            .modifier(DetailWaveformOverlay(model: model, routeID: AnyHashable(path.last)))
             .modifier(DetailTrackHeadingOverlay(
                 artworkLoader: model.artworkLoader, routeID: AnyHashable(path.last)
             ))
