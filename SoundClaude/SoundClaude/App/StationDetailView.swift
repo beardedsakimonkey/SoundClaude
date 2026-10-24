@@ -251,6 +251,8 @@ struct StationDetailView: View {
             playbackControls(iconOnly: true)
                 .labelStyle(.iconOnly)
         }
+        // Overflowing controls must not widen the column.
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
     }
 
     private func playbackControls(iconOnly: Bool) -> some View {

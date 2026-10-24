@@ -102,6 +102,8 @@ struct TrackDetailView: View {
                     trackActions(for: displayedTrack, iconOnly: true)
                         .labelStyle(.iconOnly)
                 }
+                // Overflowing controls must not widen the column.
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 8)
                 .modifier(FadeInOnAppear())
             }

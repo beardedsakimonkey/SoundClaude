@@ -213,6 +213,8 @@ struct PlaylistDetailView: View {
                         playbackControls(iconOnly: true)
                             .labelStyle(.iconOnly)
                     }
+                    // Overflowing controls must not widen the column.
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                     if !playlist.isSystemPlaylist, !displayedPlaylist.isPrivate, let error = playlists.likesErrorMessage {
                         Text(error).font(.caption).foregroundStyle(.secondary)
                         Button("Retry likes") { Task { await playlists.loadLikes() } }
