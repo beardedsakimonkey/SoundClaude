@@ -195,7 +195,7 @@ struct TrackListRow: View {
                     metadataLine(likeCount: likeCount, isLiked: isLiked, showsLikeIndicator: showsLikeIndicator)
                     metadataLine(likeCount: likeCount, isLiked: isLiked, showsLikeIndicator: false)
                 }
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
             }
         }
