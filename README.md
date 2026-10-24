@@ -53,8 +53,6 @@ To build and run the app with the Debug configuration:
 make debug
 ```
 
-To run the regression suites:
-
 > [!NOTE]
 > macOS asks for System Audio Recording access when the process tap starts.
 
