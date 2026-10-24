@@ -76,10 +76,8 @@ struct StationDetailView: View {
             .padding(24)
         }
         .background(alignment: .top) {
-            TrackCollectionPlaybackContent {
-                TrackCollectionBackdrop(artworkURL: collection.artworkURL(in: model), loader: model.artworkLoader)
-                    .ignoresSafeArea(edges: .top)
-            }
+            TrackCollectionBackdrop(collection: collection, model: model)
+                .ignoresSafeArea(edges: .top)
         }
         .navigationTitle(title)
         .toolbar {

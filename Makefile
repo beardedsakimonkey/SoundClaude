@@ -356,11 +356,3 @@ test-network-activity:
 		SoundClaude/SoundClaude/App/NetworkActivity.swift \
 		tests/NetworkActivityTests.swift
 	/tmp/soundclaude-tests/network-activity
-
-.PHONY: test-collection-playback-content
-test-collection-playback-content:
-	@mkdir -p /tmp/soundclaude-tests
-	swiftc -o /tmp/soundclaude-tests/collection-playback-content \
-		SoundClaude/SoundClaude/App/TrackCollectionPlaybackContent.swift \
-		tests/TrackCollectionPlaybackContentTests.swift
-	/tmp/soundclaude-tests/collection-playback-content

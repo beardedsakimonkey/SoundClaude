@@ -1,13 +1,14 @@
 import SwiftUI
 
+// Reads playback state in its own body so track changes do not invalidate the page.
 struct TrackCollectionBackdrop: View {
-    let artworkURL: URL?
-    let loader: ArtworkLoader
+    let collection: TrackCollection
+    let model: AppModel
 
     var body: some View {
         let backdrop = TrackArtworkBackdropView(
-            artworkURL: artworkURL,
-            loader: loader,
+            artworkURL: collection.artworkURL(in: model),
+            loader: model.artworkLoader,
             fadesToBottom: false,
             animatesChanges: true
         )
