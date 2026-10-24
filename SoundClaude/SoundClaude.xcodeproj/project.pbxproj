@@ -170,7 +170,7 @@
 		A20000000000000000000014 /* SoundClaude.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SoundClaude.entitlements; sourceTree = "<group>"; };
 		A20000000000000000000015 /* SoundClaude-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SoundClaude-Bridging-Header.h"; sourceTree = "<group>"; };
 		A20000000000000000000016 /* Configuration.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configuration.xcconfig; sourceTree = "<group>"; };
-		A20000000000000000000017 /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig.example; sourceTree = "<group>"; };
+		A20000000000000000000017 /* Configuration.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configuration.xcconfig.example; sourceTree = "<group>"; };
 		A20000000000000000000018 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		A20000000000000000000019 /* SoundClaude.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SoundClaude.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000020 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -493,7 +493,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000016 /* Configuration.xcconfig */,
-				A20000000000000000000017 /* Local.xcconfig.example */,
+				A20000000000000000000017 /* Configuration.xcconfig.example */,
 			);
 			path = Config;
 			sourceTree = "<group>";

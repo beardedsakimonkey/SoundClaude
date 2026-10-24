@@ -50,7 +50,7 @@ enum SoundCloudError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .configuration:
-            return "Add SoundCloud credentials to Config/Local.xcconfig."
+            return "Add SoundCloud credentials to Config/Configuration.xcconfig."
         case .invalidResponse, .invalidData:
             return "SoundCloud returned invalid data"
         case .unauthorized:

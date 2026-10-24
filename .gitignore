@@ -1,7 +1,7 @@
 .DS_Store
-SoundClaude/Config/Local.xcconfig
 SoundClaude/DerivedData/
 SoundClaude/*.xcworkspace/xcuserdata/
 SoundClaude/SoundClaude.xcodeproj/xcuserdata/
 SoundClaude/SoundClaude.xcodeproj/project.xcworkspace/xcuserdata/
 SoundClaude/**/*.xcuserstate
+SoundClaude/Config/Configuration.xcconfig

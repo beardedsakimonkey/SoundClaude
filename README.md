@@ -35,8 +35,9 @@ Core Audio, Accelerate, and Metal. It features:
 
 ## Configure credentials
 
-Copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig`, then replace the
-placeholder values. The local file is ignored by Git.
+Copy `SoundClaude/Config/Configuration.xcconfig.example` to
+`SoundClaude/Config/Configuration.xcconfig`, then replace the placeholder values
+with your credentials.
 
 ## Run
 
@@ -53,24 +54,6 @@ make release
 ```
 
 To run the regression suites:
-
-```
-make test
-```
-
-To configure SourceKit-LSP and refresh its build data:
-
-```sh
-make lsp
-```
-
-To replace the local `api.yaml` with the latest specification from
-the [SoundCloud API repository](https://github.com/soundcloud/api/blob/master/openapi/api.yaml):
-
-```sh
-make api
-```
-
 
 > [!NOTE]
 > macOS asks for System Audio Recording access when the process tap starts.
