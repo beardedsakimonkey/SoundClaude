@@ -56,6 +56,9 @@ struct ArtworkVisualizerView: View {
                     Color.black
                 } else if shader == .cloth {
                     Color(.sRGB, red: 0.035, green: 0.045, blue: 0.06)
+                } else if shader == .pistons {
+                    let rgb = pistonSettings.backgroundColor
+                    Color(.sRGBLinear, red: Double(rgb.x), green: Double(rgb.y), blue: Double(rgb.z))
                 } else {
                     visualizerBackdrop
                 }

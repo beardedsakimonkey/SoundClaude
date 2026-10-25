@@ -329,6 +329,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         uniforms.append(SIMD4<Float>(pistonSettings.groundColor, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.spotlightColor(for: displayedArtworkAccent), 0))
         uniforms.append(SIMD4<Float>(pistonSettings.lightColor(for: displayedArtworkAccent), 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.groundHighlightStrength, pistonSettings.groundHighlightSoftness,
+                                     pistonSettings.groundFogStart, pistonSettings.groundFogDensity))
+        uniforms.append(SIMD4<Float>(VisualizerGrade.sRGBEncoded(pistonSettings.backgroundColor), 0))
         return (buffer, uniforms, PistonSimulation.count *
             (32 * 12 * 3 + pistonSettings.stringsPerPiston * (PistonSimulation.segments * 6 + 12 * 8 * 6)))
     }
@@ -678,8 +681,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         // Match the SwiftUI backdrop in ArtworkVisualizerView, which the opaque grade covers.
         let grade = pistonSettings.grade
         let backdrop = VisualizerGrade.sRGBEncoded(pistonSettings.backgroundColor)
-        let glow = VisualizerGrade.sRGBEncoded(pistonSettings.glowColor(for: displayedArtworkAccent))
-        let glowRadius = Float(max(destination.width, destination.height)) * 0.6
+        // A plain backdrop keeps the scene lighting without a background gradient.
+        let glow = SIMD3<Float>.zero
+        let glowRadius: Float = 0
         gradeFrame = (gradeFrame + 1) % 256
         var uniforms = [
             SIMD4<Float>(Float(destination.width), Float(destination.height), glowRadius, Float(gradeFrame)),

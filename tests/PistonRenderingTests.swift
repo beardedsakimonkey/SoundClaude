@@ -57,7 +57,7 @@ import Metal
             let buffer = points.withUnsafeBytes {
                 device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)!
             }
-            var uniforms = [SIMD4<Float>](repeating: .zero, count: 15)
+            var uniforms = [SIMD4<Float>](repeating: .zero, count: 17)
             uniforms[0] = SIMD4(1, 0.3, 0.4, 3)
             uniforms[1] = SIMD4(repeating: resting ? 0.8 : 1.1) // Raised enough for full rope glow.
             uniforms[2] = uniforms[1]
@@ -132,8 +132,16 @@ import Metal
             (0, 1, false, 3.5, 2.7), (1.56, 1, false, 0.8, 2.7),
             (0.5, 0, false, 0.8, 2.7), (0.5, 1, true, 0.8, 2.7)
         ]
-        for (pitch, strength, blocked, height, travel) in cases {
-            var uniforms = [SIMD4<Float>](repeating: .zero, count: 15)
+        // Horizontal views expose the floor/sky boundary. Compare fog on/off
+        // with a nonblack sky to catch mismatched color or alpha at the horizon.
+        let fogCases: [(Float, Float, Bool, Float, Float)] = [
+            (0, 0, false, 0.8, 2.7), (0, 0, false, 0.8, 2.7)
+        ]
+        var floorFrames: [[Float]] = []
+        for (index, fixture) in (cases + fogCases).enumerated() {
+            let (pitch, strength, blocked, height, travel) = fixture
+            let floorCase = index >= cases.count
+            var uniforms = [SIMD4<Float>](repeating: .zero, count: 17)
             uniforms[0] = SIMD4(1, 0.3, pitch, 20)
             uniforms[1] = SIMD4(repeating: height)
             uniforms[2] = SIMD4(repeating: height)
@@ -144,6 +152,12 @@ import Metal
             uniforms[9].w = 1
             uniforms[13] = SIMD4(0.52, 0.72, 1.0, 0)
             uniforms[14] = SIMD4(1, 1, 1, 0)
+            if floorCase {
+                uniforms[3].w = 2
+                uniforms[12] = SIMD4(0.23, 0.28, 0.31, 0)
+                uniforms[15] = SIMD4(0.08, 0.85, 35, index == cases.count ? 0.045 : 0)
+                uniforms[16] = SIMD4(0.02, 0.03, 0.04, 0)
+            }
             let pass = MTLRenderPassDescriptor()
             pass.colorAttachments[0].texture = multisampleColor
             pass.colorAttachments[0].resolveTexture = scene
@@ -166,7 +180,7 @@ import Metal
                 encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 4)
             }
             for i in 0..<3 { encoder.setFragmentTexture(fallback, index: i) }
-            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: floorCase ? 6 : 3)
             encoder.endEncoding()
             command.commit()
             command.waitUntilCompleted()
@@ -175,6 +189,10 @@ import Metal
             scene.getBytes(&pixels, bytesPerRow: 256 * 16,
                            from: MTLRegionMake2D(0, 0, 256, 256), mipmapLevel: 0)
             precondition(pixels.allSatisfy { $0.isFinite && $0 >= 0 && $0 <= 1 })
+            if floorCase {
+                floorFrames.append(pixels)
+                continue
+            }
             if pitch == 0.5 && strength == 1 && !blocked {
                 responseEnergy.append(pixels.reduce(0, +))
             }
@@ -200,6 +218,16 @@ import Metal
         }
         precondition(responseEnergy.allSatisfy { $0 == responseEnergy[0] },
                      "Spotlight brightness must not depend on piston height")
+        let horizonPixel = (129 * 256 + 128) * 4
+        let nearPixel = (250 * 256 + 128) * 4
+        for channel in 0..<4 {
+            let expected: Float = [0.02, 0.03, 0.04, 1][channel]
+            precondition(abs(floorFrames[0][horizonPixel + channel] - expected) < 0.0001,
+                         "Distant floor fog must converge to the sky color and full opacity")
+            precondition(floorFrames[0][nearPixel + channel] == floorFrames[1][nearPixel + channel],
+                         "Fog must preserve nearby ground")
+        }
+        precondition(floorFrames[0] != floorFrames[1], "Fog density must affect distant ground")
         print("Piston rendering tests passed (\(covered) rope pixels, plus foreground occlusion and sky spotlights)")
     }
 }

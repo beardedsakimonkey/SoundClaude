@@ -16,6 +16,8 @@ struct PistonUniforms {
     float4 groundColor; // linear RGB, unused
     float4 spotlightColor; // linear RGB matching the background glow's hue, unused
     float4 lightColor; // linear RGB scene light tint with unit luminance, unused
+    float4 groundAppearance; // highlight strength, softness, fog start, fog density
+    float4 fogColor; // encoded RGB matching the sky backdrop, unused
 };
 struct PistonVertex {
     float4 position [[position]];
@@ -435,11 +437,12 @@ fragment PistonFragment pistonVisualizerFragment(
         // Keep the broad light pool fixed on the floor as the camera orbits.
         float2 poolOffset = (floorPosition - float2(-2, 1.5)) / float2(11, 7);
         float pool = exp(-dot(poolOffset, poolOffset));
-        float specular = pow(max(0.0, dot(n, normalize(light + view))), 18.0);
+        float exponent = mix(64.0, 4.0, saturate(u.groundAppearance.y));
+        float specular = pow(max(0.0, dot(n, normalize(light + view))), exponent);
         float3 groundTint = u.groundColor.rgb / float3(0.19, 0.21, 0.24);
         float3 ambient = 0.032 * groundTint * u.lightColor.rgb;
         float3 diffuseColor = u.groundColor.rgb * diffuse * pool * u.lightColor.rgb;
-        float3 highlight = 0.258 * groundTint * specular * pool * u.lightColor.rgb;
+        float3 highlight = u.groundAppearance.x * groundTint * specular * pool * u.lightColor.rgb;
         // Approximate each cap's ambient occlusion with a soft footprint.
         // Raised caps cast a wider, weaker patch; low caps darken contact areas.
         float occlusion = 0;
@@ -498,12 +501,15 @@ fragment PistonFragment pistonVisualizerFragment(
             }
             floorColor += emission * 0.85 * mix(0.7, 1.0, visibility);
         }
-        // Fade into the artwork backdrop at the horizon. The transparent
-        // Metal view expects premultiplied color for its SwiftUI composite.
-        float horizonFade = smoothstep(0.015, 0.24, abs(dot(n, view)));
-        float distanceFade = exp(-dot(floorPosition, floorPosition) / 900.0);
-        float floorAlpha = 0.88 * horizonFade * distanceFade;
-        return {pistonWithAtmosphere(float4(floorColor * floorAlpha, floorAlpha), in.position.xy, depth, u), depth};
+        // Distance fog converges to the exact sky color, rather than fading the
+        // floor by viewing angle. A clear near region preserves its material.
+        float fogDistance = max(0.0, distance * length(ray) - u.groundAppearance.z);
+        float opticalDepth = fogDistance * max(0.0, u.groundAppearance.w);
+        float transmission = exp(-opticalDepth * opticalDepth);
+        const float floorAlpha = 0.88;
+        float4 clearFloor = float4(floorColor * floorAlpha, floorAlpha);
+        float4 foggedFloor = mix(float4(u.fogColor.rgb, 1), clearFloor, transmission);
+        return {pistonWithAtmosphere(foggedFloor, in.position.xy, depth, u), depth};
     }
     if (u.ropes.w > 0.5) return {float4(1), in.position.z};
 
