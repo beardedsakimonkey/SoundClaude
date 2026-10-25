@@ -7,6 +7,8 @@ final class FeedController: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
+    var isRefreshing: Bool { isLoading && retryRefresh }
+
     private let client: SoundCloudClient
     private let auth: AuthController
     private let store: FeedCacheStore
@@ -62,9 +64,9 @@ final class FeedController: ObservableObject {
         guard let accountID, !Task.isCancelled,
               refresh || !cache.hasLoadedPage || cache.nextPageURL != nil else { return }
         let session = sessionID
+        retryRefresh = refresh
         isLoading = true
         errorMessage = nil
-        retryRefresh = refresh
         let task = Task { @MainActor in
             defer {
                 if sessionID == session {

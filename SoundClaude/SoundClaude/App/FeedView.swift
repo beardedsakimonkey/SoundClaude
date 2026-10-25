@@ -40,6 +40,12 @@ struct FeedView: View {
 
                     Spacer()
 
+                    if feed.isRefreshing {
+                        LoadingSpinner()
+                            .accessibilityLabel("Refreshing feed")
+                            .controlSize(.small)
+                    }
+
                     RefreshButton(title: "Refresh feed", isLoading: feed.isLoading) {
                         Task { await feed.load() }
                     }
@@ -113,16 +119,16 @@ struct FeedView: View {
                     Button("Try Again") { Task { await feed.retry() } }
                         .disabled(feed.isLoading)
                 }
-                if feed.isLoading {
+                if feed.isLoading, !feed.isRefreshing {
                     LoadingSpinner()
                         .accessibilityLabel("Loading feed")
                         .frame(maxWidth: .infinity)
-                } else if nextPageURL != nil, feed.errorMessage == nil {
+                } else if !feed.isLoading, nextPageURL != nil, feed.errorMessage == nil {
                     LoadingSpinner()
                         .accessibilityLabel("Loading feed")
                         .frame(maxWidth: .infinity)
                         .task(id: nextPageURL) { await feed.loadMore() }
-                } else if items.isEmpty, feed.errorMessage == nil {
+                } else if !feed.isLoading, items.isEmpty, feed.errorMessage == nil {
                     EmptyStateView("Your feed is empty")
                     .frame(maxWidth: .infinity)
                 }
