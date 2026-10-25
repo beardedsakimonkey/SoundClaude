@@ -712,7 +712,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         }
         let now = ProcessInfo.processInfo.systemUptime
         if let start = accentTransitionStart {
-            let progress = Float(min(1, max(0, (now - start) / 0.6)))
+            let progress = Float(min(1, max(0, (now - start) / 1.2)))
             let eased = progress * progress * (3 - 2 * progress)
             displayedAccent = accentTransitionFrom + (accentTransitionTarget - accentTransitionFrom) * eased
             if progress == 1 { accentTransitionStart = nil }

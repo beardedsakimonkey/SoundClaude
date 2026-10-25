@@ -109,6 +109,9 @@ struct ArtworkVisualizerView: View {
     }
 
     private var accent: ArtworkAccent {
+        if accentArtworkURL != artworkURL || artworkAccent == nil {
+            return ArtworkAccent(red: 0, green: 0, blue: 0)
+        }
         if shader == .pistons { return sourceAccent }
         return sourceAccent.contrasted(
             isDark: colorScheme == .dark,

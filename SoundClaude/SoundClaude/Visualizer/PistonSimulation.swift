@@ -33,28 +33,34 @@ struct PistonSettings: Equatable {
     var edgeSoftness: Float = 0.05
     var grade = VisualizerGrade.pistons
 
-    /// Use the artwork accent while keeping the configured glow brightness.
+    // Extracted artwork accents have a maximum channel of at least 0.75.
+    // Preserve their brightness, but let transitions to the black fallback dim.
+    private func accentStrength(_ accent: ArtworkAccent) -> Float {
+        Float(min(1, max(0, max(accent.red, accent.green, accent.blue) / 0.75)))
+    }
+
+    /// Use the artwork accent at the configured glow brightness, fading with dark accents.
     func glowColor(for accent: ArtworkAccent) -> SIMD3<Float> {
         func linear(_ value: Double) -> Float {
             let c = Float(value)
             return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
         }
         let color = SIMD3(linear(accent.red), linear(accent.green), linear(accent.blue))
-        return color / max(color.max(), 0.000001) * backgroundGlowColor.max()
+        return color / max(color.max(), 0.000001) * backgroundGlowColor.max() * accentStrength(accent)
     }
 
-    /// The glow's hue at full brightness, used to tint the spotlights.
+    /// The glow's hue, with the same fade toward black as the background.
     func spotlightColor(for accent: ArtworkAccent) -> SIMD3<Float> {
         let glow = glowColor(for: accent)
-        return glow / max(glow.max(), 0.000001)
+        return glow / max(glow.max(), 0.000001) * accentStrength(accent)
     }
 
     /// The glow's hue at unit luminance, blended toward white by the light tint.
     func lightColor(for accent: ArtworkAccent) -> SIMD3<Float> {
         let color = spotlightColor(for: accent)
         let luminance = simd_dot(color, SIMD3(0.2126, 0.7152, 0.0722))
-        guard luminance > 0 else { return .one }
-        return simd_mix(.one, color / luminance, SIMD3(repeating: lightTint))
+        guard luminance > 0 else { return .zero }
+        return simd_mix(.one, color / luminance, SIMD3(repeating: lightTint)) * accentStrength(accent)
     }
 
     func twistAngle(height: Float) -> Float {
