@@ -405,31 +405,24 @@ private struct PlayerFooterWaveform: View {
     @State private var waveformHorizontalInset: CGFloat = 0
 
     var body: some View {
-        let canInteract = playback.errorMessage == nil
+        let canInteract = playback.currentTrack != nil && playback.errorMessage == nil
         let raisesTimestamps = playback.currentTrack != nil
             && !playback.isPlaybackActive && !isHoveringWaveform
 
         VStack(spacing: 4) {
-            if let track = playback.currentTrack {
-                TrackWaveformView(
-                    track: track,
-                    model: model,
-                    layout: .compact,
-                    height: waveformHeight,
-                    invertsBarsOnTrackChange: true,
-                    collapsesBarsWhenPaused: true
-                )
-                .onContentHover { isHoveringWaveform = $0 }
-                .environment(\.contentHoverEnabled, canInteract)
-                .disabled(!canInteract)
-                .allowsHitTesting(canInteract)
-            } else {
-                Text("Select a track to play")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: waveformHeight)
-            }
+            TrackWaveformView(
+                track: playback.currentTrack,
+                model: model,
+                layout: .compact,
+                height: waveformHeight,
+                invertsBarsOnTrackChange: true,
+                collapsesBarsWhenPaused: true
+            )
+            .onContentHover { isHoveringWaveform = $0 }
+            .environment(\.contentHoverEnabled, canInteract)
+            .disabled(!canInteract)
+            .allowsHitTesting(canInteract)
+            .accessibilityHidden(playback.currentTrack == nil)
 
             PlayerFooterTimestamps(playback: playback)
             .opacity(playback.currentTrack == nil ? 0 : 1)
