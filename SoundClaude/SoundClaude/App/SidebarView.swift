@@ -5,6 +5,7 @@ struct SidebarView: View {
     let onSelect: (SidebarDestination) -> Void
     let currentPlaylistURN: String?
     let currentStationURN: String?
+    let playbackSource: TrackQueue.Source
     let playback: PlaybackController
     @ObservedObject var playlists: PlaylistsController
     let likes: LikesController
@@ -261,7 +262,7 @@ struct SidebarView: View {
                         } icon: {
                             if station.isStation {
                                 StationPlayingIcon(
-                                    playback: playback, isCurrent: currentStationURN == station.urn
+                                    playback: playback, isCurrent: playbackSource == .station(station.urn)
                                 )
                                 .frame(width: 24, height: 24)
                             } else {

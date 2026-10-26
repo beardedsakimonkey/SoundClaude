@@ -228,6 +228,7 @@ struct SignedInView: View {
                 onSelect: selectDestination,
                 currentPlaylistURN: currentPlaylistURN,
                 currentStationURN: currentStationURN,
+                playbackSource: model.queue.source,
                 playback: model.playback,
                 playlists: model.playlists,
                 likes: model.likes,
