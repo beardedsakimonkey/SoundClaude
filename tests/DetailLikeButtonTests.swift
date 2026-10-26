@@ -1,6 +1,24 @@
 import AppKit
 import SwiftUI
 
+// Keep network and account state out of this UI lifetime test.
+struct SoundCloudTrack {
+    let urn: String
+}
+
+@MainActor
+@Observable
+final class LikesController {
+    var liked = false
+    var updatingTrackURNs: Set<String> = []
+    var onToggle: () -> Void = {}
+
+    func isUpdating(trackURN: String) -> Bool { updatingTrackURNs.contains(trackURN) }
+    func isLiked(_ track: SoundCloudTrack) -> Bool { liked }
+    func likeCount(for track: SoundCloudTrack) -> Int? { 42 }
+    func toggleLike(_ track: SoundCloudTrack) async throws { onToggle() }
+}
+
 private final class ButtonLifetime: ObservableObject {
     static var creations = 0
     init() { Self.creations += 1 }
@@ -34,14 +52,20 @@ extension View {
     @MainActor static func runTests() async {
         var selectedRoute: Int?
         func page(route: Int, trackURN: String = "same", enabled: Bool = true, iconOnly: Bool = false) -> some View {
-            CurrentNavigationPage(route: route) {
+            let likes = LikesController()
+            likes.liked = route != 0
+            likes.updatingTrackURNs = enabled ? [] : [trackURN]
+            likes.onToggle = { selectedRoute = route }
+            return CurrentNavigationPage(route: route) {
                 Color.clear
             } destination: { route in
                 VStack(alignment: .leading) {
                     DetailLikeButton(
-                        isLiked: route != 0, isUpdating: !enabled,
-                        likeCount: 42, iconOnly: iconOnly, subject: "track"
-                    ) { selectedRoute = route }
+                        track: SoundCloudTrack(urn: trackURN), likes: likes,
+                        iconOnly: iconOnly, subject: "track"
+                    ) { error in
+                        preconditionFailure("Unexpected like error: \(error)")
+                    }
                     .detailSlot(trackURN: trackURN, isCollection: route != 0)
                     Spacer()
                 }

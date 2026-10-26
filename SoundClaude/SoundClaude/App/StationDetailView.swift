@@ -5,7 +5,7 @@ struct StationDetailView: View {
     let seedTrack: SoundCloudTrack?
     let seedArtistName: String?
     let model: AppModel
-    @ObservedObject var likes: LikesController
+    let likes: LikesController
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 

@@ -5,7 +5,7 @@ struct TrackCardView: View {
     let track: SoundCloudTrack
     let model: AppModel
     @ObservedObject private var reposts: RepostsController
-    @ObservedObject private var likes: LikesController
+    private let likes: LikesController
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
@@ -25,7 +25,7 @@ struct TrackCardView: View {
         self.track = track
         self.model = model
         _reposts = ObservedObject(wrappedValue: model.reposts)
-        _likes = ObservedObject(wrappedValue: model.likes)
+        self.likes = model.likes
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
         self.onPlayTrack = onPlayTrack
@@ -225,7 +225,7 @@ struct TrackCardView: View {
             )
         }
         .buttonStyle(TrackStatisticButtonStyle(color: .accentColor, isSelected: isLiked))
-        .disabled(likes.updatingTrackURNs.contains(track.urn))
+        .disabled(likes.isUpdating(trackURN: track.urn))
         .contentHelp(isLiked ? "Unlike track" : "Like track")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
         .accessibilityValue(isLiked ? "Liked" : "Not liked")

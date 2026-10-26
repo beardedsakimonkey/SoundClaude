@@ -5,7 +5,7 @@ struct TrackListRow: View {
     let playback: PlaybackController
     let analyzer: SpectrumAnalyzer
     let artworkLoader: ArtworkLoader
-    @ObservedObject var likes: LikesController
+    let likes: LikesController
     var showsArtist = true
     var isCompact = false
     var showsMetadata = true

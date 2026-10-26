@@ -7,7 +7,7 @@ struct TrackQueueView: View {
     let onSelectSource: () -> Void
     let onDismiss: () -> Void
 
-    @ObservedObject private var likes: LikesController
+    private let likes: LikesController
 
     init(
         model: AppModel,
@@ -21,11 +21,13 @@ struct TrackQueueView: View {
         self.onSelectArtist = onSelectArtist
         self.onSelectSource = onSelectSource
         self.onDismiss = onDismiss
-        _likes = ObservedObject(wrappedValue: model.likes)
+        self.likes = model.likes
     }
 
     private var tracks: [SoundCloudTrack] {
-        model.queue.resolvedTracks(likes: likes.tracks)
+        model.queue.source == .likes
+            ? model.queue.resolvedTracks(likes: likes.tracks)
+            : model.queue.playbackTracks
     }
 
     private var canClear: Bool {

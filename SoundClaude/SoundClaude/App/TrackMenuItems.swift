@@ -42,7 +42,7 @@ private struct TrackContextMenu: ViewModifier {
 
 struct TrackMenuItems: View {
     let track: SoundCloudTrack
-    @ObservedObject var likes: LikesController
+    let likes: LikesController
     @Binding var likeErrorMessage: String?
     var onAddToQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
@@ -80,6 +80,6 @@ struct TrackMenuItems: View {
                 }
             }
         }
-        .disabled(likes.updatingTrackURNs.contains(track.urn))
+        .disabled(likes.isUpdating(trackURN: track.urn))
     }
 }

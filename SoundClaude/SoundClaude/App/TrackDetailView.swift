@@ -5,7 +5,6 @@ import SwiftUI
 struct TrackDetailView: View {
     let track: SoundCloudTrack
     let model: AppModel
-    @ObservedObject private var likes: LikesController
     @ObservedObject private var reposts: RepostsController
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
@@ -25,7 +24,6 @@ struct TrackDetailView: View {
     ) {
         self.track = track
         self.model = model
-        _likes = ObservedObject(wrappedValue: model.likes)
         _reposts = ObservedObject(wrappedValue: model.reposts)
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
@@ -214,20 +212,8 @@ struct TrackDetailView: View {
     }
 
     private func likeButton(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
-        DetailLikeButton(
-            isLiked: likes.isLiked(track),
-            isUpdating: likes.updatingTrackURNs.contains(track.urn),
-            likeCount: likes.likeCount(for: track),
-            iconOnly: iconOnly,
-            subject: "track"
-        ) {
-            Task {
-                do {
-                    try await likes.toggleLike(track)
-                } catch {
-                    model.likeErrorMessage = error.localizedDescription
-                }
-            }
+        DetailLikeButton(track: track, likes: model.likes, iconOnly: iconOnly, subject: "track") { error in
+            model.likeErrorMessage = error.localizedDescription
         }
         .detailSlot(trackURN: track.urn)
     }

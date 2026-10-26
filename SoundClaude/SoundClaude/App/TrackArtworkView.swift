@@ -589,7 +589,7 @@ struct DetailArtworkView: View {
     var isShowingArtwork = false
     var onImageHover: ((Bool) -> Void)? = nil
     var track: SoundCloudTrack? = nil
-    @ObservedObject var likes: LikesController
+    let likes: LikesController
     let onAddToQueue: (SoundCloudTrack) -> Void
     var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
     var isUpdatingPlaylist = false

@@ -167,7 +167,7 @@ final class AppModel {
         playback.onPrevious = { [weak self] in
             self?.selectRelativeTrack(offset: -1)
         }
-        likesObservation = likes.$tracks.dropFirst().sink { [weak self] tracks in
+        likesObservation = likes.tracksPublisher.dropFirst().sink { [weak self] tracks in
             guard let self, queue.source == .likes else { return }
             queue.replaceLikes(tracks, currentURN: playback.currentTrack?.urn)
             saveQueue()
@@ -922,7 +922,7 @@ final class AppModel {
 
     func toggleCurrentTrackLike() {
         guard let track = playback.currentTrack,
-              !likes.updatingTrackURNs.contains(track.urn) else { return }
+              !likes.isUpdating(trackURN: track.urn) else { return }
         Task {
             do {
                 try await likes.toggleLike(track)

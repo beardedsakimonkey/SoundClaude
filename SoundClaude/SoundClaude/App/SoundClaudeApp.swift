@@ -86,7 +86,7 @@ struct SoundClaudeApp: App {
 // Menu state must not invalidate the window content.
 private struct PlaybackCommands: Commands {
     let model: AppModel
-    @ObservedObject var likes: LikesController
+    let likes: LikesController
 
     var body: some Commands {
         CommandMenu("Playback") {
@@ -125,7 +125,7 @@ private struct PlaybackCommands: Commands {
             }
             .keyboardShortcut("l", modifiers: [])
             .disabled(model.playback.currentTrack.map {
-                likes.updatingTrackURNs.contains($0.urn)
+                likes.isUpdating(trackURN: $0.urn)
             } ?? true)
 
             Button("Seek Back 5 Seconds") {

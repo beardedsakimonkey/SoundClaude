@@ -1,4 +1,12 @@
 import Foundation
+import Observation
+
+private final class ObservationCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    var value: Int { lock.withLock { count } }
+    func increment() { lock.withLock { count += 1 } }
+}
 
 // Compile this suite with Models, TrackQueue, LikesCache, and LikesController.
 // These test doubles avoid Keychain access and make network waits deterministic.
@@ -490,7 +498,7 @@ struct QueueAndLikesTests {
         savedLikesQueue.setShuffle(true, currentURN: "track:2")
         queueStore.save(savedLikesQueue)
         var startupQueue = queueStore.restore(currentTrack: track(2), shuffleEnabled: true)
-        let startupObservation = likes.$tracks.dropFirst().sink { tracks in
+        let startupObservation = likes.tracksPublisher.dropFirst().sink { tracks in
             startupQueue.replaceLikes(tracks, currentURN: "track:2")
         }
         await likes.restoreCache()
@@ -600,6 +608,23 @@ struct QueueAndLikesTests {
         var countedTrack = track(20)
         countedTrack.likesCount = 1_234
         precondition(likes.likeCount(for: countedTrack) == 1_234)
+        let unrelatedUpdates = ObservationCount()
+        let selectedTrackUpdates = ObservationCount()
+        withObservationTracking {
+            _ = likes.isLiked(track(99))
+            _ = likes.isUpdating(trackURN: track(99).urn)
+            _ = likes.likeCount(for: track(99))
+            _ = likes.likedStations
+            _ = likes.updatingStationURNs
+        } onChange: {
+            unrelatedUpdates.increment()
+        }
+        withObservationTracking {
+            _ = likes.isLiked(countedTrack)
+            _ = likes.isUpdating(trackURN: countedTrack.urn)
+        } onChange: {
+            selectedTrackUpdates.increment()
+        }
         client.setLike = {
             precondition(likes.isLiked(countedTrack))
             precondition(likes.updatingTrackURNs.contains(countedTrack.urn))
@@ -629,6 +654,9 @@ struct QueueAndLikesTests {
         precondition(likes.updatingTrackURNs.isEmpty)
         precondition(!likes.isLiked(countedTrack) && likes.likeCount(for: countedTrack) == 1_234)
         client.setLike = {}
+
+        precondition(selectedTrackUpdates.value == 1, "The changed track must notify its observers")
+        precondition(unrelatedUpdates.value == 0, "Track likes must not invalidate other tracks or station controls")
 
         // Missing counts stay unknown; stale zero counts never become negative.
         try await likes.toggleLike(track(21))

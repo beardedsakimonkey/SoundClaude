@@ -1,26 +1,36 @@
 import Combine
+import Observation
 import Foundation
 
 @MainActor
-final class LikesController: ObservableObject {
-    @Published private(set) var tracks: [SoundCloudTrack] = [] {
-        didSet { likedTrackURNs = Set(tracks.map(\.urn)) }
+@Observable
+final class LikesController {
+    private(set) var tracks: [SoundCloudTrack] = [] {
+        didSet {
+            likedTrackURNs = Set(tracks.map(\.urn))
+            refreshTrackStates()
+            tracksSubject.send(tracks)
+        }
     }
     // Rows query this frequently; do not scan the full library for every row.
-    private var likedTrackURNs: Set<String> = []
-    @Published private(set) var isLoading = false
-    @Published private(set) var errorMessage: String?
-    @Published private var pendingLikes: [String: Bool] = [:]
-    @Published private var updatedLikeCounts: [String: Int] = [:]
+    @ObservationIgnored private var likedTrackURNs: Set<String> = []
+    private(set) var isLoading = false
+    private(set) var errorMessage: String?
+    @ObservationIgnored private var pendingLikes: [String: Bool] = [:] {
+        didSet { refreshTrackStates() }
+    }
+    @ObservationIgnored private var updatedLikeCounts: [String: Int] = [:] {
+        didSet { refreshTrackStates() }
+    }
 
-    @Published private(set) var likedStations: [SoundCloudStationLikePage.Station] = [] {
+    private(set) var likedStations: [SoundCloudStationLikePage.Station] = [] {
         didSet { likedStationURNs = Set(likedStations.map(\.urn)) }
     }
     private(set) var likedStationURNs: Set<String> = []
-    @Published private(set) var stationLikesErrorMessage: String?
-    @Published private(set) var updatingStationURNs: Set<String> = []
-    @Published private(set) var isLoadingStationLikes = false
-    @Published private(set) var hasLoadedStationLikes = false
+    private(set) var stationLikesErrorMessage: String?
+    private(set) var updatingStationURNs: Set<String> = []
+    private(set) var isLoadingStationLikes = false
+    private(set) var hasLoadedStationLikes = false
     private var stationLikesTask: Task<Void, Error>?
 
     private let client: SoundCloudClient
@@ -33,6 +43,39 @@ final class LikesController: ObservableObject {
     private var syncTask: Task<Void, Never>?
     private var localChanges: [String: SoundCloudTrack] = [:]
     private var unlikedTrackURNs: Set<String> = []
+
+    // Queue persistence still needs a stream of completed library changes.
+    @ObservationIgnored private let tracksSubject = CurrentValueSubject<[SoundCloudTrack], Never>([])
+    var tracksPublisher: AnyPublisher<[SoundCloudTrack], Never> { tracksSubject.eraseToAnyPublisher() }
+
+    // Each track has its own observation scope; dictionary reads would observe all tracks.
+    @Observable
+    final class TrackState {
+        var isLiked = false
+        var isUpdating = false
+        var updatedCount: Int?
+    }
+    @ObservationIgnored private var trackStates: [String: TrackState] = [:]
+
+    private func state(for urn: String) -> TrackState {
+        if let state = trackStates[urn] { return state }
+        let state = TrackState()
+        update(state, urn: urn)
+        trackStates[urn] = state
+        return state
+    }
+
+    private func update(_ state: TrackState, urn: String) {
+        state.isLiked = pendingLikes[urn] ?? likedTrackURNs.contains(urn)
+        state.isUpdating = pendingLikes[urn] != nil
+        state.updatedCount = updatedLikeCounts[urn]
+    }
+
+    private func refreshTrackStates() {
+        for (urn, state) in trackStates { update(state, urn: urn) }
+    }
+
+    func isUpdating(trackURN: String) -> Bool { state(for: trackURN).isUpdating }
 
     var canLoadMore: Bool { cache.nextPageURL != nil }
     var isLoadingMore: Bool { isLoading && !tracks.isEmpty }
@@ -82,7 +125,7 @@ final class LikesController: ObservableObject {
     }
 
     func isLiked(_ track: SoundCloudTrack) -> Bool {
-        pendingLikes[track.urn] ?? likedTrackURNs.contains(track.urn)
+        state(for: track.urn).isLiked
     }
 
     func loadStationLikes() async throws {
@@ -160,7 +203,7 @@ final class LikesController: ObservableObject {
     }
 
     func likeCount(for track: SoundCloudTrack) -> Int? {
-        updatedLikeCounts[track.urn] ?? track.likesCount
+        state(for: track.urn).updatedCount ?? track.likesCount
     }
 
     func toggleLike(_ track: SoundCloudTrack) async throws {

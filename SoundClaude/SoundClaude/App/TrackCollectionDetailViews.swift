@@ -171,7 +171,7 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
 
     let collection: TrackCollection
     let model: AppModel
-    @ObservedObject var likes: LikesController
+    let likes: LikesController
     // Controls also show while the collection is playing.
     var showsControls = true
     var titleSpacing: CGFloat = 10
@@ -313,19 +313,12 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
             .disabled(currentTrack == nil && collection.tracks.isEmpty)
             if let track = displayedTrack {
                 DetailLikeButton(
-                    isLiked: likes.isLiked(track),
-                    isUpdating: likes.updatingTrackURNs.contains(track.urn),
-                    likeCount: likes.likeCount(for: track),
+                    track: track,
+                    likes: likes,
                     iconOnly: iconOnly,
                     subject: "track: \(track.title)"
-                ) {
-                    Task {
-                        do {
-                            try await likes.toggleLike(track)
-                        } catch {
-                            model.likeErrorMessage = error.localizedDescription
-                        }
-                    }
+                ) { error in
+                    model.likeErrorMessage = error.localizedDescription
                 }
                 .detailSlot(trackURN: track.urn, isCollection: true)
             }

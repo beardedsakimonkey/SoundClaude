@@ -29,7 +29,8 @@ struct SoundCloudTrack: Identifiable, Equatable, Codable {
 }
 struct SoundCloudTrackPage { var tracks: [SoundCloudTrack]; var nextURL: URL? }
 enum SoundCloudError: Error { case invalidData }
-final class LikesController: ObservableObject { @Published var tracks: [SoundCloudTrack] = [] }
+@Observable
+final class LikesController { var tracks: [SoundCloudTrack] = [] }
 final class Playback: ObservableObject { var currentTrack: SoundCloudTrack? }
 @Observable
 final class AppModel {
@@ -54,7 +55,7 @@ struct TrackListRow: View {
     let playback: Playback
     let analyzer: Int
     let artworkLoader: Int
-    @ObservedObject var likes: LikesController
+    let likes: LikesController
     var showsMetadata = true
     var showsDuration = true
     var showsLikes = true

@@ -7,7 +7,7 @@ struct SidebarView: View {
     let currentStationURN: String?
     let playback: PlaybackController
     @ObservedObject var playlists: PlaylistsController
-    @ObservedObject var likes: LikesController
+    let likes: LikesController
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
     let onPlayLikes: () async -> Void

@@ -25,7 +25,7 @@ struct LikesView: View {
     let onAddToQueue: (SoundCloudTrack) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
 
-    @ObservedObject private var likes: LikesController
+    private let likes: LikesController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding private var searchText: String
     @AppStorage("likesTrackLayout") private var trackLayout = TrackLayout.list
@@ -56,7 +56,7 @@ struct LikesView: View {
         self.onSelectTrack = onSelectTrack
         self.onAddToQueue = onAddToQueue
         self.onPlayTrack = onPlayTrack
-        _likes = ObservedObject(wrappedValue: likes)
+        self.likes = likes
         self.playback = playback
         self.analyzer = analyzer
     }

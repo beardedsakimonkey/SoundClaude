@@ -8,7 +8,7 @@ struct PlaylistDetailView: View {
     let onDeletePlaylist: (SoundCloudPlaylist) -> Void
 
     @ObservedObject var playlists: PlaylistsController
-    @ObservedObject var likes: LikesController
+    let likes: LikesController
 
     private var contents: PlaylistContents? { playlists.cache.contents[playlist.urn] }
     private var tracks: [SoundCloudTrack] { contents?.tracks ?? [] }

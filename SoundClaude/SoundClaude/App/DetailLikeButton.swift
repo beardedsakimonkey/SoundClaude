@@ -3,12 +3,15 @@ import SwiftUI
 struct DetailLikeButton: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    let isLiked: Bool
-    var isUpdating = false
-    var likeCount: Int? = nil
+    let track: SoundCloudTrack
+    let likes: LikesController
     var iconOnly = false
     let subject: String
-    let action: () -> Void
+    let onError: (Error) -> Void
+
+    private var isLiked: Bool { likes.isLiked(track) }
+    private var isUpdating: Bool { likes.isUpdating(trackURN: track.urn) }
+    private var likeCount: Int? { likes.likeCount(for: track) }
 
     private var hasCount: Bool { !iconOnly && (likeCount ?? 0) != 0 }
     private var actionLabel: String { "\(isLiked ? "Unlike" : "Like") \(subject)" }
@@ -16,7 +19,13 @@ struct DetailLikeButton: View {
     var body: some View {
         Button {
             guard !isUpdating else { return }
-            action()
+            Task {
+                do {
+                    try await likes.toggleLike(track)
+                } catch {
+                    onError(error)
+                }
+            }
         } label: {
             ZStack {
                 label(systemImage: "heart")

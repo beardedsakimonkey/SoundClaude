@@ -166,7 +166,7 @@ struct TrackGridTile: View {
     let playback: PlaybackController
     let analyzer: SpectrumAnalyzer
     let artworkLoader: ArtworkLoader
-    @ObservedObject var likes: LikesController
+    let likes: LikesController
     let onAddToQueue: (SoundCloudTrack) -> Void
     var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
     var isUpdatingPlaylist = false

@@ -22,7 +22,6 @@ struct PlayerFooterView: View {
     @State private var footerWidth: CGFloat = 0
 
     @Bindable private var playback: PlaybackController
-    @ObservedObject private var likes: LikesController
 
     init(
         model: AppModel,
@@ -42,7 +41,6 @@ struct PlayerFooterView: View {
         self.onSelectStation = onSelectStation
         self.onSelectArtist = onSelectArtist
         self.playback = model.playback
-        _likes = ObservedObject(wrappedValue: model.likes)
     }
 
     var body: some View {
@@ -148,33 +146,7 @@ struct PlayerFooterView: View {
     private var stationTitle: String { model.queue.sourceTitle ?? "Station" }
 
     private var likeButton: some View {
-        let track = playback.currentTrack
-        let isLiked = playback.sessionToRestore?.isLiked ?? track.map { likes.isLiked($0) } ?? false
-        let isUpdating = track.map {
-            likes.updatingTrackURNs.contains($0.urn)
-        } ?? false
-
-        return Button {
-            model.toggleCurrentTrackLike()
-        } label: {
-            Image(systemName: isLiked ? "heart.fill" : "heart")
-                .contentTransition(.symbolEffect(.replace))
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(isLiked ? Color.accentColor : Color.primary)
-                .frame(width: 32, height: 32)
-                .modifier(PlayerFooterButtonBackground(color: .accentColor, isActive: isLiked))
-                .padding(.leading, 6)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .modifier(SpringPressEffect())
-        .disabled(track == nil)
-        .opacity(isUpdating ? 0.5 : 1)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
-        .contentHelp(isLiked ? "Unlike track (L)" : "Like track (L)")
-        .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
-        .accessibilityValue(isLiked ? "Liked" : "Not liked")
+        PlayerFooterLikeButton(model: model)
     }
 
     @ViewBuilder
@@ -830,4 +802,42 @@ private struct PlayerSpeedSlider: View {
             .frame(width: 44, height: 44)
             .allowsHitTesting(false)
     }
+}
+
+private struct PlayerFooterLikeButton: View {
+    let model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var playback: PlaybackController { model.playback }
+    private var likes: LikesController { model.likes }
+
+    var body: some View {
+        let track = playback.currentTrack
+        let isLiked = playback.sessionToRestore?.isLiked ?? track.map { likes.isLiked($0) } ?? false
+        let isUpdating = track.map {
+            likes.isUpdating(trackURN: $0.urn)
+        } ?? false
+
+        return Button {
+            model.toggleCurrentTrackLike()
+        } label: {
+            Image(systemName: isLiked ? "heart.fill" : "heart")
+                .contentTransition(.symbolEffect(.replace))
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(isLiked ? Color.accentColor : Color.primary)
+                .frame(width: 32, height: 32)
+                .modifier(PlayerFooterButtonBackground(color: .accentColor, isActive: isLiked))
+                .padding(.leading, 6)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .modifier(SpringPressEffect())
+        .disabled(track == nil)
+        .opacity(isUpdating ? 0.5 : 1)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
+        .contentHelp(isLiked ? "Unlike track (L)" : "Like track (L)")
+        .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
+        .accessibilityValue(isLiked ? "Liked" : "Not liked")
+    }
+
 }
