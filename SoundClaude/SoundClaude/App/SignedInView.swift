@@ -16,7 +16,6 @@ struct SignedInView: View {
     // Restoring Search at launch must not request keyboard focus.
     @State private var searchFocusRequest: UUID?
     @State private var isShowingVisualizer = false
-    @AppStorage("visualizerShader") private var visualizerShader: VisualizerShader = .pistons
     @State private var isShowingQueue = false
     @State private var isOpeningCurrentTrackStation = false
     @State private var stationErrorMessage: String?
@@ -97,7 +96,6 @@ struct SignedInView: View {
             if isShowingVisualizer {
                 VisualizerView(
                     playback: model.playback,
-                    shader: $visualizerShader,
                     spectrumBuffer: model.analyzer.spectrumBuffer,
                     artworkLoader: model.artworkLoader,
                     onClose: { isShowingVisualizer = false }
@@ -211,8 +209,6 @@ struct SignedInView: View {
     // The footer owns these shortcuts in normal mode. Keep them available when it is absent.
     private var visualizerShortcuts: some View {
         Group {
-            Button("Next visualizer shader") { visualizerShader = visualizerShader.next }
-                .keyboardShortcut(.return, modifiers: [])
             Button("Close visualizer") { isShowingVisualizer = false }
                 .keyboardShortcut("v", modifiers: [])
             Button("Play or Pause", action: model.playback.togglePlayPause)

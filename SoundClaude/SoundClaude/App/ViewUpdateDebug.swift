@@ -1,15 +1,24 @@
 #if DEBUG
+import Observation
 import SwiftUI
 
-/// The preference is observed only by the menu and overlays, not by app content.
+// Shared by the menu and overlays; outlines start disabled on each app launch.
+@MainActor
+@Observable
+private final class ViewUpdateDebugSettings {
+    static let shared = ViewUpdateDebugSettings()
+    var isEnabled = false
+}
+
+/// Debug state is observed only by the menu and overlays, not by app content.
 struct ViewUpdateDebugCommands: Commands {
     @Environment(\.openWindow) private var openWindow
-    @AppStorage("debug.highlightViewUpdates") private var isEnabled = false
+    @Bindable private var settings = ViewUpdateDebugSettings.shared
     @AppStorage("debug.showArtworkQueues") private var showsArtworkQueues = false
 
     var body: some Commands {
         CommandMenu("Debug") {
-            Toggle("Highlight View Updates", isOn: $isEnabled)
+            Toggle("Highlight View Updates", isOn: $settings.isEnabled)
                 .keyboardShortcut("u", modifiers: [.command, .option, .shift])
             Toggle("Artwork Prefetching", isOn: $showsArtworkQueues)
                 .keyboardShortcut("a", modifiers: [.command, .option, .shift])
@@ -35,10 +44,10 @@ extension View {
 private struct ViewUpdateDebugOverlay: View {
     let name: String
     let color: Color
-    @AppStorage("debug.highlightViewUpdates") private var isEnabled = false
+    private let settings = ViewUpdateDebugSettings.shared
 
     var body: some View {
-        if isEnabled {
+        if settings.isEnabled {
             Rectangle()
                 .strokeBorder(color, lineWidth: 2)
                 .overlay(alignment: .topLeading) {

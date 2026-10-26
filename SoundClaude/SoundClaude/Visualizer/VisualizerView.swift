@@ -2,7 +2,8 @@ import SwiftUI
 
 struct VisualizerView: View {
     let playback: PlaybackController
-    @Binding var shader: VisualizerShader
+    // Keep shader selection and its updates local to the visualizer.
+    @AppStorage("visualizerShader") private var shader: VisualizerShader = .pistons
     let spectrumBuffer: OpaquePointer
     let artworkLoader: ArtworkLoader
     let onClose: () -> Void
@@ -137,6 +138,10 @@ struct VisualizerView: View {
         .accessibilityLabel("Audio visualizer")
         .accessibilityValue(shader.title)
         .background {
+            Button("Next visualizer shader") { shader = shader.next }
+                .keyboardShortcut(.return, modifiers: [])
+                .hidden()
+                .accessibilityHidden(true)
             Button("Dismiss visualizer controls or close visualizer") {
                 if isShowingControls {
                     isShowingControls = false

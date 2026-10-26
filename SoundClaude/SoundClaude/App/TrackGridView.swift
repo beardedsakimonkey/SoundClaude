@@ -1,3 +1,4 @@
+import Observation
 import SwiftUI
 
 enum TrackLayout: String, CaseIterable {
@@ -60,7 +61,8 @@ struct TrackArtworkGrid<Content: View>: View {
     @State private var columnCount = 1
     @State private var prefetcher = TrackArtworkPrefetcher()
     #if DEBUG
-    @AppStorage("debug.artworkPrefetchEnabled") private var prefetchEnabled = true
+    private let prefetchSettings = ArtworkPrefetchDebugSettings.shared
+    private var prefetchEnabled: Bool { prefetchSettings.isEnabled }
     #else
     private let prefetchEnabled = true
     #endif
@@ -126,7 +128,8 @@ struct TrackArtworkList<Content: View>: View {
 
     @State private var coordinator = TrackListArtworkPrefetcher()
     #if DEBUG
-    @AppStorage("debug.artworkPrefetchEnabled") private var prefetchEnabled = true
+    private let prefetchSettings = ArtworkPrefetchDebugSettings.shared
+    private var prefetchEnabled: Bool { prefetchSettings.isEnabled }
     #else
     private let prefetchEnabled = true
     #endif
@@ -356,6 +359,14 @@ struct TrackGridTile: View {
 }
 
 #if DEBUG
+// Shared across lists, grids, and the debug panel; reset on each app launch.
+@MainActor
+@Observable
+private final class ArtworkPrefetchDebugSettings {
+    static let shared = ArtworkPrefetchDebugSettings()
+    var isEnabled = true
+}
+
 // Read counts only in this small overlay so artwork
 // completions do not cause the grid itself to rebuild.
 struct TrackArtworkQueueDebugKey: PreferenceKey {
@@ -369,7 +380,7 @@ struct TrackArtworkQueueDebugKey: PreferenceKey {
 struct TrackArtworkQueueDebugOverlay: View {
     let prefetcher: TrackArtworkPrefetcher
     @AppStorage("debug.showArtworkQueues") private var isVisible = false
-    @AppStorage("debug.artworkPrefetchEnabled") private var prefetchEnabled = true
+    @Bindable private var prefetchSettings = ArtworkPrefetchDebugSettings.shared
 
     private var scale: Int {
         max(24, prefetcher.visibleCount,
@@ -382,7 +393,7 @@ struct TrackArtworkQueueDebugOverlay: View {
 
     private var panel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Toggle("Prefetch", isOn: $prefetchEnabled)
+            Toggle("Prefetch", isOn: $prefetchSettings.isEnabled)
                 .toggleStyle(.switch)
                 .foregroundStyle(.white)
                 .frame(width: 240)
