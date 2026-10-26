@@ -16,12 +16,11 @@ struct SignedInView: View {
     // Restoring Search at launch must not request keyboard focus.
     @State private var searchFocusRequest: UUID?
     @State private var isShowingVisualizer = false
-    @State private var isShowingQueue = false
+    @State private var queuePresentation = QueuePresentation()
     @State private var isOpeningCurrentTrackStation = false
     @State private var stationErrorMessage: String?
     @State private var queueHoverSuppression = ContentHoverSuppression()
     @State private var footerHeight: CGFloat = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(user: SoundCloudUser, model: AppModel) {
         self.user = user
@@ -109,23 +108,21 @@ struct SignedInView: View {
         }
         .overlay(alignment: .bottom) {
             if !isShowingVisualizer {
-                PlayerFooterView(
-                    model: model,
-                    isShowingQueue: $isShowingQueue,
-                    isShowingVisualizer: $isShowingVisualizer,
-                    onSelectTrack: showTrack,
-                    onSelectArtist: showArtist,
-                    onSelectPlaylist: { playlist in
-                        isShowingQueue = false
-                        showPlaylist(playlist)
-                    },
-                    onSelectStation: { urn, title in
-                        isShowingQueue = false
-                        if case let .station(currentURN, _, _) = path.last,
-                           currentURN == urn { return }
-                        showStation(urn, seedArtistName: title)
-                    }
-                )
+                QueuePresentationReader(presentation: queuePresentation) { isShowingQueue in
+                    PlayerFooterView(
+                        model: model,
+                        isShowingQueue: isShowingQueue,
+                        isShowingVisualizer: $isShowingVisualizer,
+                        onSelectTrack: showTrack,
+                        onSelectArtist: showArtist,
+                        onSelectPlaylist: showPlaylist,
+                        onSelectStation: { urn, title in
+                            if case let .station(currentURN, _, _) = path.last,
+                               currentURN == urn { return }
+                            showStation(urn, seedArtistName: title)
+                        }
+                    )
+                }
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(8)
                 .onGeometryChange(for: CGFloat.self) { geometry in
@@ -136,26 +133,19 @@ struct SignedInView: View {
             }
         }
         .overlay {
-            GeometryReader { geometry in
-                let bounds = CGSize(
-                    width: geometry.size.width,
-                    height: max(0, geometry.size.height - footerHeight)
+            TrackQueueOverlay(
+                presentation: queuePresentation,
+                isShowingVisualizer: isShowingVisualizer,
+                footerHeight: footerHeight,
+                hoverSuppression: queueHoverSuppression,
+                content: TrackQueueView(
+                    model: model,
+                    onSelectTrack: showTrack,
+                    onSelectArtist: showArtist,
+                    onSelectSource: showQueueSource,
+                    onDismiss: { queuePresentation.isVisible = false }
                 )
-                QueuePanel(
-                    bounds: bounds,
-                    isVisible: isShowingQueue && !isShowingVisualizer,
-                    hoverSuppression: queueHoverSuppression,
-                    content: TrackQueueView(
-                        model: model,
-                        onSelectTrack: showTrack,
-                        onSelectArtist: showArtist,
-                        onSelectSource: showQueueSource,
-                        onDismiss: { isShowingQueue = false }
-                    )
-                )
-                .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85), value: isShowingQueue)
-            }
-            .clipped()
+            )
         }
         .environment(\.openTrackStation) { track in
             Task { await showTrackStation(track) }
@@ -223,7 +213,7 @@ struct SignedInView: View {
             .keyboardShortcut("a", modifiers: [])
             Button("Show track queue") {
                 isShowingVisualizer = false
-                isShowingQueue = true
+                queuePresentation.isVisible = true
             }
             .keyboardShortcut("q", modifiers: [])
         }
@@ -247,7 +237,6 @@ struct SignedInView: View {
                 onShuffleLikes: shuffleLikes,
                 onSelectStation: { station in
                     isShowingVisualizer = false
-                    isShowingQueue = false
                     if station.isStation {
                         guard currentStationURN != station.urn else { return }
                         showStation(station.urn, seedArtistName: station.displayTitle)
@@ -323,7 +312,6 @@ struct SignedInView: View {
 
     private func openDestination(_ destination: SidebarDestination) {
         isShowingVisualizer = false
-        isShowingQueue = false
         if selectedDestination == destination {
             navigationHistories[destination.id] = NavigationHistory()
             artistTabSelections.tabs[destination.id] = nil
@@ -598,7 +586,6 @@ struct SignedInView: View {
 
     private func showTrack(_ track: SoundCloudTrack) {
         isShowingVisualizer = false
-        isShowingQueue = false
         if case let .track(current) = path.last,
            current.urn == track.urn { return }
         forwardPath.removeAll()
@@ -647,7 +634,6 @@ struct SignedInView: View {
         switch model.queue.source {
         case let .station(urn):
             isShowingVisualizer = false
-            isShowingQueue = false
             if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
             showStation(urn, seedArtistName: model.queue.sourceTitle ?? "Station")
         default:
@@ -679,7 +665,6 @@ struct SignedInView: View {
                 return
             }
             isShowingVisualizer = false
-            isShowingQueue = false
             if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
             forwardPath.removeAll()
             path.append(.station(urn, seedTrack: seedTrack))
@@ -707,7 +692,6 @@ struct SignedInView: View {
                 return
             }
             isShowingVisualizer = false
-            isShowingQueue = false
             if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
             showStation(urn, seedArtistName: user.username)
         } catch is CancellationError {
@@ -734,7 +718,6 @@ struct SignedInView: View {
         case let .tag(tag):
             showQueueSourceRoute(.tag(tag))
         case let .playlist(urn):
-            isShowingQueue = false
             let title = model.queuePlaylist?.title ?? "Playlist"
             Task {
                 if let playlist = await model.playlistDetails(urn: urn, title: title) {
@@ -742,7 +725,6 @@ struct SignedInView: View {
                 }
             }
         case let .station(urn):
-            isShowingQueue = false
             if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
             showStation(urn, seedArtistName: queue.sourceTitle ?? "Station")
         case .related:
@@ -757,7 +739,6 @@ struct SignedInView: View {
     }
 
     private func showQueueSourceRoute(_ route: Route) {
-        isShowingQueue = false
         guard path.last != route else { return }
         forwardPath.removeAll()
         path.append(route)
@@ -776,7 +757,6 @@ struct SignedInView: View {
 
     private func showArtist(_ artist: SoundCloudUser) {
         isShowingVisualizer = false
-        isShowingQueue = false
         if case let .artist(current) = path.last,
            current.permalinkURL == artist.permalinkURL { return }
         forwardPath.removeAll()
@@ -879,5 +859,34 @@ private final class ArtistTabSelections {
         let selection = ArtistTabSelection()
         tabs[historyID, default: [:]][artistURL] = selection
         return selection
+    }
+}
+
+private struct TrackQueueOverlay<Content: View>: View {
+    let presentation: QueuePresentation
+    let isShowingVisualizer: Bool
+    let footerHeight: CGFloat
+    let hoverSuppression: ContentHoverSuppression
+    let content: Content
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        GeometryReader { geometry in
+            let bounds = CGSize(
+                width: geometry.size.width,
+                height: max(0, geometry.size.height - footerHeight)
+            )
+            QueuePanel(
+                bounds: bounds,
+                isVisible: presentation.isVisible && !isShowingVisualizer,
+                hoverSuppression: hoverSuppression,
+                content: content
+            )
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85),
+                value: presentation.isVisible
+            )
+        }
+        .clipped()
     }
 }

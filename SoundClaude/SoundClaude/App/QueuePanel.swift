@@ -1,3 +1,4 @@
+import Observation
 import SwiftUI
 
 struct QueuePanel<Content: View>: View {
@@ -53,5 +54,20 @@ private struct QueuePanelGlass: ViewModifier {
                 .opacity(colorScheme == .dark ? 0.4 : 0.6),
             in: shape
         )
+    }
+}
+
+// Keep visibility reads, including binding creation, outside the navigation body.
+@Observable
+final class QueuePresentation {
+    var isVisible = false
+}
+
+struct QueuePresentationReader<Content: View>: View {
+    @Bindable var presentation: QueuePresentation
+    @ViewBuilder let content: (Binding<Bool>) -> Content
+
+    var body: some View {
+        content($presentation.isVisible)
     }
 }

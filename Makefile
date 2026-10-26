@@ -335,3 +335,13 @@ test-network-activity:
 		SoundClaude/SoundClaude/App/NetworkActivity.swift \
 		tests/NetworkActivityTests.swift
 	/tmp/soundclaude-tests/network-activity
+
+# Queue visibility must update the footer without reevaluating pages (requires GUI).
+.PHONY: test-queue-presentation
+test-queue-presentation:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/queue-presentation \
+		SoundClaude/SoundClaude/App/QueuePanel.swift \
+		SoundClaude/SoundClaude/App/ContentHover.swift \
+		tests/QueuePresentationTests.swift
+	/tmp/soundclaude-tests/queue-presentation
