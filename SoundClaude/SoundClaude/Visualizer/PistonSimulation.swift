@@ -22,8 +22,8 @@ struct PistonSettings: Equatable {
     var stripeThickness: Float = 0.0192
     var stripeFrequency: Float = 1
     var stripeColor = SIMD3<Float>(0.144, 0.162, 0.189) // Linear RGB.
-    var metalColor = SIMD3<Float>(0.523, 0.788, 1.0) // Linear RGB.
-    var baseColor = SIMD3<Float>(0.279823, 0.353969, 0.415926) // Linear RGB.
+    var metalColor = SIMD3<Float>(0.852, 0.890, 0.982) // Linear RGB.
+    var baseColor = SIMD3<Float>(0.208480, 0.249791, 0.273287) // Linear RGB.
     var groundHighlightStrength: Float = 0.08
     var groundHighlightSoftness: Float = 0.85
     var groundFogStart: Float = 35
