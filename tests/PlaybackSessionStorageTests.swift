@@ -24,9 +24,12 @@ struct PlaybackSessionStorageTests {
         _ = NSApplication.shared
         let settingsName = "SoundClaude.SettingsTest.\(UUID().uuidString)"
         let sessionName = "SoundClaude.SessionTest.\(UUID().uuidString)"
+        let volumeName = "SoundClaude.VolumeTest.\(UUID().uuidString)"
+        let volumes = UserDefaults(suiteName: volumeName)!
         let settings = UserDefaults(suiteName: settingsName)!
         let sessions = UserDefaults(suiteName: sessionName)!
         defer {
+            volumes.removePersistentDomain(forName: volumeName)
             settings.removePersistentDomain(forName: settingsName)
             sessions.removePersistentDomain(forName: sessionName)
         }
@@ -40,7 +43,13 @@ struct PlaybackSessionStorageTests {
             permalinkURL: URL(string: "https://soundcloud.com/test/1")!,
             durationMilliseconds: 60_000, access: .playable, secretToken: nil
         )
-        let playback = PlaybackController(defaults: settings, sessionDefaults: sessions)
+        settings.set(Float(0.4), forKey: "playback.volume")
+        settings.set(true, forKey: "playback.isMuted")
+        let playback = PlaybackController(
+            defaults: settings, sessionDefaults: sessions, volumeDefaults: volumes)
+        precondition(playback.volume == 0.4 && playback.isMuted)
+        precondition(settings.persistentDomain(forName: settingsName)?["playback.volume"] == nil)
+        precondition(settings.persistentDomain(forName: settingsName)?["playback.isMuted"] == nil)
         playback.beginLoading(track: track)
         playback.seek(to: 12)
         playback.saveSession()
@@ -72,20 +81,40 @@ struct PlaybackSessionStorageTests {
             precondition(evaluations.count == initialCount,
                          "Session saves must not reevaluate views that observe UI settings")
         }
+        for volume: Float in [0.2, 0.7, 1] {
+            playback.volume = volume
+            playback.isMuted = false
+            settle()
+            precondition(evaluations.count == initialCount,
+                         "Volume changes must not reevaluate views that observe UI settings")
+            precondition(playback.player.volume == volume)
+        }
+        playback.toggleMute()
+        settle()
+        precondition(evaluations.count == initialCount,
+                     "Mute changes must not reevaluate views that observe UI settings")
+        precondition(playback.player.isMuted)
+        // Existing values in the separate store take precedence over legacy values.
+        settings.set(Float(0.1), forKey: "playback.volume")
+        let reopenedVolume = PlaybackController(
+            defaults: settings, sessionDefaults: sessions, volumeDefaults: volumes)
+        precondition(reopenedVolume.volume == 1 && reopenedVolume.isMuted)
+        settle()
+        let countAfterMigration = evaluations.count
         var queue = TrackQueue(source: .single, tracks: [track])
         let queueStore = TrackQueueStore(defaults: sessions)
         queueStore.save(queue)
         settle()
-        precondition(evaluations.count == initialCount,
+        precondition(evaluations.count == countAfterMigration,
                      "Queue saves must not reevaluate views that observe UI settings")
         queue.remove(track)
         queueStore.save(queue)
         settle()
-        precondition(evaluations.count == initialCount,
+        precondition(evaluations.count == countAfterMigration,
                      "Queue removal must not reevaluate views that observe UI settings")
         queueStore.clear()
         settle()
-        precondition(evaluations.count == initialCount,
+        precondition(evaluations.count == countAfterMigration,
                      "Queue clearing must not reevaluate views that observe UI settings")
 
         // Migrate existing queues, prefer an already migrated queue, and never resurrect a cleared queue.

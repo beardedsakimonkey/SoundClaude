@@ -97,9 +97,10 @@ final class AppModel {
         let client = SoundCloudClient(configuration: configuration)
         let audioTap = AudioTapController(analyzer: analyzer)
         let playback = LaunchMetrics.measure("Player setup and saved session") {
-            // Keep five-second position saves from invalidating @AppStorage views.
+            // Keep session saves and volume changes from invalidating @AppStorage views.
             PlaybackController(
-                sessionDefaults: UserDefaults(suiteName: "com.tim.soundclaude.playback-session")!
+                sessionDefaults: UserDefaults(suiteName: "com.tim.soundclaude.playback-session")!,
+                volumeDefaults: UserDefaults(suiteName: "com.tim.soundclaude.playback-volume")!
             )
         }
         let auth = LaunchMetrics.measure("Auth setup and Keychain read") { AuthController(client: client) }

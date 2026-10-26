@@ -96,13 +96,13 @@ final class PlaybackController {
     var volume: Float = 1 {
         didSet {
             player.volume = volume
-            defaults.set(volume, forKey: SettingsKey.volume)
+            volumeDefaults.set(volume, forKey: SettingsKey.volume)
         }
     }
     var isMuted = false {
         didSet {
             player.isMuted = isMuted
-            defaults.set(isMuted, forKey: SettingsKey.isMuted)
+            volumeDefaults.set(isMuted, forKey: SettingsKey.isMuted)
         }
     }
 
@@ -174,6 +174,7 @@ final class PlaybackController {
     }
 
     @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let volumeDefaults: UserDefaults
     @ObservationIgnored private let sessionDefaults: UserDefaults
     @ObservationIgnored private let makePrefetchPlayer: @MainActor (URL) -> AVPlayer
     @ObservationIgnored private(set) var player: AVPlayer
@@ -227,20 +228,35 @@ final class PlaybackController {
     init(
         defaults: UserDefaults = .standard,
         sessionDefaults: UserDefaults? = nil,
+        volumeDefaults: UserDefaults? = nil,
         makePrefetchPlayer: @escaping @MainActor (URL) -> AVPlayer = { AVPlayer(url: $0) }
     ) {
         self.defaults = defaults
+        let volumeDefaults = volumeDefaults ?? defaults
+        self.volumeDefaults = volumeDefaults
+        // Migrate before registering defaults so saved values take precedence.
+        if volumeDefaults !== defaults {
+            for key in [SettingsKey.volume, SettingsKey.isMuted] {
+                if volumeDefaults.object(forKey: key) == nil,
+                   let value = defaults.object(forKey: key) {
+                    volumeDefaults.set(value, forKey: key)
+                }
+                defaults.removeObject(forKey: key)
+            }
+        }
+        volumeDefaults.register(defaults: [
+            SettingsKey.volume: Float(1),
+            SettingsKey.isMuted: false,
+        ])
         self.sessionDefaults = sessionDefaults ?? defaults
         self.makePrefetchPlayer = makePrefetchPlayer
         defaults.register(defaults: [
             SettingsKey.customSpeed: Float(1),
-            SettingsKey.volume: Float(1),
-            SettingsKey.isMuted: false,
             SettingsKey.isShuffleEnabled: false,
         ])
-        let savedVolume = defaults.float(forKey: SettingsKey.volume)
+        let savedVolume = volumeDefaults.float(forKey: SettingsKey.volume)
         volume = savedVolume.isFinite ? min(max(savedVolume, 0), 1) : 1
-        isMuted = defaults.bool(forKey: SettingsKey.isMuted)
+        isMuted = volumeDefaults.bool(forKey: SettingsKey.isMuted)
         isShuffleEnabled = defaults.bool(forKey: SettingsKey.isShuffleEnabled)
         repeatMode = RepeatMode(rawValue: defaults.string(forKey: SettingsKey.repeatMode) ?? "") ?? .off
         speedMode = SpeedMode(rawValue: defaults.string(forKey: SettingsKey.speedMode) ?? "") ?? .normal
