@@ -62,9 +62,9 @@ private struct PlaybackIndicatorBars: Shape {
             let end = levels[(step + 1) % levels.count]
             let level = animated ? (start + (end - start) * blend) * 7 : (index == 1 ? 7 : 3)
             let height = 2 + level * growth
-            path.addRoundedRect(
-                in: CGRect(x: rect.minX + CGFloat(index) * 4, y: rect.maxY - height, width: 2, height: height),
-                cornerSize: CGSize(width: 1, height: 1)
+            path.addPath(
+                UnevenRoundedRectangle(topLeadingRadius: 1, topTrailingRadius: 1)
+                    .path(in: CGRect(x: rect.minX + CGFloat(index) * 4, y: rect.maxY - height, width: 2, height: height))
             )
         }
         return path
