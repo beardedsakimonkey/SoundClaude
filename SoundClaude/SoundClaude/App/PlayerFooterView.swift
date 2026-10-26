@@ -430,15 +430,19 @@ private struct PlayerFooterWaveform: View {
             .padding(.horizontal, playback.currentTrack == nil ? 0 : waveformHorizontalInset)
             .font(.caption.monospacedDigit())
             .foregroundStyle(playback.isPlaybackActive || isHoveringWaveform ? .secondary : .tertiary)
-            .overlay {
+            .overlay(alignment: .top) {
                 if let playbackError = playback.errorMessage {
                     Label(playbackError, systemImage: "exclamationmark.triangle")
                         .font(.caption)
                         .foregroundStyle(.orange)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                        // The overlay is one timestamp line tall; let a second line hang below it.
+                        .fixedSize(horizontal: false, vertical: true)
+                        // Clear the timestamps on either side.
+                        .padding(.horizontal, 44)
+                        .frame(maxWidth: .infinity, alignment: .top)
                         .contentHelp(playbackError)
-                        .offset(y: -8)
                 }
             }
             // Follow the lower edge as centered bars collapse.
