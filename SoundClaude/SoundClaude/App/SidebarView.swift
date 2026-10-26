@@ -651,12 +651,13 @@ struct StationPlayingIcon: View {
     let playback: PlaybackController
     let isCurrent: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
 
     var body: some View {
         Image(systemName: "dot.radiowaves.left.and.right")
             .symbolEffect(
                 .variableColor.iterative,
-                isActive: isCurrent && playback.isPlaybackActive && !reduceMotion
+                isActive: isCurrent && playback.isPlaybackActive && !reduceMotion && !contentAnimationsPaused
             )
     }
 }
