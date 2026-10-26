@@ -1,19 +1,21 @@
 import AppKit
 import SwiftUI
 
+private final class FilterRenderCounter {
+    var count = 0
+}
+
 private struct FilterFixture: View {
+    let renders: FilterRenderCounter
     @State private var text = "Keep this query"
-    @FocusState private var focused: Bool
 
     var body: some View {
+        let _ = renders.count += 1
         VStack {
-            SearchTextField(
-                placeholder: "Filter",
+            TrackFilterField(
                 text: $text,
-                isFocused: $focused,
-                accessibilityLabel: "Search liked tracks",
-                style: .compact,
-                preventsAutomaticFocus: true
+                isActive: true,
+                accessibilityLabel: "Search liked tracks"
             )
             Color.gray.frame(height: 200)
         }
@@ -30,7 +32,8 @@ private struct SearchFocusTests {
             contentRect: NSRect(x: 100, y: 100, width: 500, height: 300),
             styleMask: [.titled], backing: .buffered, defer: false
         )
-        let host = NSHostingView(rootView: FilterFixture())
+        let renders = FilterRenderCounter()
+        let host = NSHostingView(rootView: FilterFixture(renders: renders))
         window.contentView = host
         window.makeKeyAndOrderFront(nil)
 
@@ -59,16 +62,19 @@ private struct SearchFocusTests {
             let field = descendant(NSTextField.self, in: host)!
             precondition(field.currentEditor() == nil, "Filter must start without focus")
             precondition(field.isEnabled, "Filter must allow input after appearing")
+            let initialRenders = renders.count
             precondition(window.makeFirstResponder(field))
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                 let monitor = descendant(SearchOutsideClickView.MonitorView.self, in: host)!
                 precondition(monitor.isFocused, "Fixture must focus the filter")
+                precondition(renders.count == initialRenders, "Focusing the filter must not update its parent")
                 click(field.convert(NSPoint(x: field.bounds.midX, y: field.bounds.midY), to: nil))
                 precondition(field.currentEditor() != nil, "Inside click must keep editing")
                 click(NSPoint(x: 250, y: 100))
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     precondition(field.currentEditor() == nil, "Outside click must end editing")
                     precondition(!monitor.isFocused, "Outside click must clear SwiftUI focus")
+                    precondition(renders.count == initialRenders, "Dismissing filter focus must not update its parent")
                     precondition(field.stringValue == "Keep this query", "Dismissal must retain the query")
                     let user = SoundCloudUser(
                         urn: "soundcloud:users:focus-test", username: "Focus test",

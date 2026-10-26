@@ -30,7 +30,6 @@ struct LikesView: View {
     @Binding private var searchText: String
     @AppStorage("likesTrackLayout") private var trackLayout = TrackLayout.list
     @AppStorage("likesSortOrder") private var sortOrder = LikesSortOrder.newest
-    @FocusState private var isSearchFocused: Bool
     private let playback: PlaybackController
     private let analyzer: SpectrumAnalyzer
 
@@ -84,9 +83,6 @@ struct LikesView: View {
             guard isActive else { return }
             await likes.loadLikedTracks()
         }
-        .onChange(of: isActive) { _, active in
-            if !active { isSearchFocused = false }
-        }
         #if DEBUG
         .debugViewUpdates("LikesView")
         #endif
@@ -130,13 +126,10 @@ struct LikesView: View {
     }
 
     private var searchBar: some View {
-        SearchTextField(
-            placeholder: "Filter",
+        TrackFilterField(
             text: $searchText,
-            isFocused: $isSearchFocused,
-            accessibilityLabel: "Search liked tracks",
-            style: .compact,
-            preventsAutomaticFocus: true
+            isActive: isActive,
+            accessibilityLabel: "Search liked tracks"
         )
     }
 
@@ -145,13 +138,7 @@ struct LikesView: View {
     }
 
     private var filteredTracks: [SoundCloudTrack] {
-        // Normalize styled Unicode letters to their plain equivalents for matching.
-        let query = searchQuery.precomposedStringWithCompatibilityMapping
-        guard !query.isEmpty else { return likes.tracks }
-        return likes.tracks.filter {
-            $0.title.precomposedStringWithCompatibilityMapping.localizedStandardContains(query)
-                || $0.artist.username.precomposedStringWithCompatibilityMapping.localizedStandardContains(query)
-        }
+        likes.tracks.filtered(by: searchText)
     }
 
     private var sortedTracks: [SoundCloudTrack] {

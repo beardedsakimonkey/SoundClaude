@@ -135,6 +135,19 @@ struct SoundCloudTrack: Codable, Identifiable, Sendable, Hashable {
     }
 }
 
+extension Array where Element == SoundCloudTrack {
+    func filtered(by searchText: String) -> [SoundCloudTrack] {
+        // Normalize styled Unicode letters to their plain equivalents for matching.
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            .precomposedStringWithCompatibilityMapping
+        guard !query.isEmpty else { return self }
+        return filter {
+            $0.title.precomposedStringWithCompatibilityMapping.localizedStandardContains(query)
+                || $0.artist.username.precomposedStringWithCompatibilityMapping.localizedStandardContains(query)
+        }
+    }
+}
+
 struct SoundCloudTrackPage: Sendable {
     let tracks: [SoundCloudTrack]
     let nextURL: URL?

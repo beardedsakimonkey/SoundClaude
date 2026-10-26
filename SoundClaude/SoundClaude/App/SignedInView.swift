@@ -12,6 +12,7 @@ struct SignedInView: View {
     @State private var playlistTrack: SoundCloudTrack?
     @State private var searchText = ""
     @State private var likesSearchText = ""
+    @State private var historySearchText = ""
     // Restoring Search at launch must not request keyboard focus.
     @State private var searchFocusRequest: UUID?
     @State private var isShowingVisualizer = false
@@ -533,6 +534,8 @@ struct SignedInView: View {
         case .history:
             HistoryView(
                 model: model,
+                searchText: $historySearchText,
+                isActive: isActive,
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist
             )

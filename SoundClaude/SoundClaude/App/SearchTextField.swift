@@ -85,3 +85,27 @@ struct SearchTextField: View {
         }
     }
 }
+
+// Own focus here so entering or leaving the filter does not update its parent page.
+struct TrackFilterField: View {
+    @Binding var text: String
+    let isActive: Bool
+    let accessibilityLabel: String
+
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        SearchTextField(
+            placeholder: "Filter",
+            text: $text,
+            isFocused: $isFocused,
+            accessibilityLabel: accessibilityLabel,
+            style: .compact,
+            preventsAutomaticFocus: true
+        )
+        .onChange(of: isActive) { _, active in
+            if !active { isFocused = false }
+        }
+        .onDisappear { isFocused = false }
+    }
+}

@@ -2,6 +2,8 @@ import SwiftUI
 
 struct HistoryView: View {
     let model: AppModel
+    @Binding var searchText: String
+    let isActive: Bool
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
@@ -23,7 +25,8 @@ struct HistoryView: View {
     }
 
     private var historyContent: some View {
-        ScrollView {
+        let filteredTracks = tracks.filtered(by: searchText)
+        return ScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
                 HStack {
                     Text("History")
@@ -31,17 +34,25 @@ struct HistoryView: View {
 
                     Spacer()
 
+                    TrackFilterField(
+                        text: $searchText,
+                        isActive: isActive,
+                        accessibilityLabel: "Search listening history"
+                    )
+                    .frame(maxWidth: 200)
+                    .padding(.leading, 8)
+
                     TrackLayoutPicker(trackLayout: $trackLayout)
                 }
 
-                trackList
+                trackList(tracks: filteredTracks)
                     .animation(
                         reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85),
                         value: tracks.map(\.id)
                     )
 
-                if tracks.isEmpty {
-                    EmptyStateView("No listening history")
+                if filteredTracks.isEmpty {
+                    EmptyStateView(tracks.isEmpty ? "No listening history" : "No matching tracks")
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -51,7 +62,7 @@ struct HistoryView: View {
     }
 
     @ViewBuilder
-    private var trackList: some View {
+    private func trackList(tracks: [SoundCloudTrack]) -> some View {
         if trackLayout == .grid {
             TrackArtworkGrid(tracks: tracks, loader: model.artworkLoader) { track in
                 TrackGridTile(
