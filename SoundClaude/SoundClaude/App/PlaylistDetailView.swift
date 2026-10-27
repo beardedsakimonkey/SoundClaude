@@ -158,7 +158,11 @@ struct PlaylistDetailView: View {
                 .textSelection(.enabled)
                 .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
             } actions: {
-                if !displayedPlaylist.isPrivate {
+                // Private playlists cannot be liked; reserve the button's height so the
+                // header lines up with stations.
+                if displayedPlaylist.isPrivate {
+                    likeButton.hidden()
+                } else {
                     likeButton
                 }
             }

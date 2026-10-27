@@ -174,7 +174,6 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
     let likes: LikesController
     // Controls also show while the collection is playing.
     var showsControls = true
-    var titleSpacing: CGFloat = 10
     var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
     var isUpdatingPlaylist = false
     let onSelectTrack: (SoundCloudTrack) -> Void
@@ -234,7 +233,7 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
                     }
                 }
                 .frame(minHeight: 64, alignment: .leading)
-                .padding(.top, titleSpacing)
+                .padding(.top, 10)
                 if showsControls || currentTrack != nil {
                     VStack(alignment: .leading, spacing: 16) {
                         ViewThatFits(in: .horizontal) {

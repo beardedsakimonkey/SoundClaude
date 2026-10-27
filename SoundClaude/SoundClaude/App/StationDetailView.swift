@@ -130,7 +130,6 @@ struct StationDetailView: View {
             model: model,
             likes: likes,
             showsControls: station != nil || seedTrack != nil,
-            titleSpacing: 8,
             onSelectTrack: onSelectTrack,
             onSelectArtist: onSelectArtist
         ) {
