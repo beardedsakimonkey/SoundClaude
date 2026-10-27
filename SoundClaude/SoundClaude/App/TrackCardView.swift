@@ -96,6 +96,7 @@ struct TrackCardView: View {
                         onPlayTrack: onPlayTrack
                     )
                     .frame(maxWidth: .infinity)
+                    .disabled(track.access == .protected)
                 }
                 .opacity(track.access == .protected ? protectedTrackOpacity : 1)
 
@@ -163,7 +164,9 @@ struct TrackCardView: View {
             .buttonStyle(.plain)
             .onContentHover { isHoveringTitle = $0 }
             .contentHelp(track.title)
-            TrackAccessBadge(access: track.access)
+            if track.access == .preview {
+                TrackPreviewBadge()
+            }
         }
         .modifier(TrackPlaybackTitleInset(inset: showsPlaybackIndicator ? 16 : 0))
         .overlay(alignment: .leading) {
@@ -205,6 +208,7 @@ struct TrackCardView: View {
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.circle)
+        .disabled(track.access == .protected)
         .contentHelp(isPlaying ? "Pause" : "Play")
         .accessibilityLabel("\(isPlaying ? "Pause" : "Play") \(track.title)")
     }

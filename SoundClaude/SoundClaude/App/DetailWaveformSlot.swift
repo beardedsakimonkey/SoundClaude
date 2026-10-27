@@ -171,5 +171,6 @@ private struct DetailWaveformContent: View {
             keepsBarsVisible: isCollection,
             onPlayTrack: onPlayTrack
         )
+        .disabled(track?.access == .protected)
     }
 }

@@ -125,6 +125,7 @@ struct AddToPlaylistView: View {
             }
             .lineLimit(1)
         }
+        .opacity(track.access == .protected ? protectedTrackOpacity : 1)
         .accessibilityElement(children: .combine)
     }
 

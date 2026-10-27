@@ -286,6 +286,7 @@ final class AppModel {
     }
 
     func play(_ track: SoundCloudTrack, position: Double = 0) async {
+        guard track.access != .protected else { return }
         // Detail and waveform controls retain an existing list when possible.
         if !queue.tracks.contains(where: { $0.urn == track.urn }),
            !(queue.source == .likes && likes.isLiked(track)) {
@@ -303,11 +304,15 @@ final class AppModel {
     }
 
     func play(_ track: SoundCloudTrack, queue: TrackQueue, loadRemainingTracks: Bool = false) async {
+        var queue = queue
+        queue.replaceLikes(likes.tracks, currentURN: playback.currentTrack?.urn)
+        queue.setShuffle(playback.isShuffleEnabled, currentURN: track.urn)
+        // A station's seed or a collection's first track may be copy-protected; start after it.
+        guard let track = track.access == .protected
+            ? queue.relativeTrack(to: track.urn, offset: 1, wraps: false) : track else { return }
         shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
         self.queue = queue
-        self.queue.replaceLikes(likes.tracks, currentURN: playback.currentTrack?.urn)
-        self.queue.setShuffle(playback.isShuffleEnabled, currentURN: track.urn)
         saveQueue()
         if loadRemainingTracks {
             loadRemainingShuffleTracks()

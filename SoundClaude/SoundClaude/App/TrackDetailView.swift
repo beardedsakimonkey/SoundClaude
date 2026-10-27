@@ -87,7 +87,9 @@ struct TrackDetailView: View {
             TrackDetailArtwork(track: displayedTrack, model: model)
 
             VStack(alignment: .leading, spacing: 10) {
-                TrackAccessBadge(access: displayedTrack.access, font: .callout)
+                if displayedTrack.access == .preview {
+                    TrackPreviewBadge(font: .callout)
+                }
                 DetailTrackHeadingSlot(
                     track: displayedTrack,
                     artworkLoader: model.artworkLoader,
@@ -367,7 +369,8 @@ private struct TrackDetailPlayButton: View {
         let isPlaying = isCurrentTrack && playback.isPlaybackActive
 
         DetailPlayButtonSlot(configuration: DetailPlayButtonConfiguration(
-            trackURN: track.urn, isPlaying: isPlaying, iconOnly: iconOnly
+            trackURN: track.urn, isPlaying: isPlaying,
+            isEnabled: track.access != .protected, iconOnly: iconOnly
         )) {
             if playback.currentTrack?.urn == track.urn {
                 playback.togglePlayPause()

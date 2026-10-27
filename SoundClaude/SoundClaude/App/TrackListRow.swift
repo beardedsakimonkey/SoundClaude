@@ -56,12 +56,13 @@ struct TrackListRow: View {
                             value: isPlaybackActive
                         )
                     }
-                    .opacity(isHovering ? 1 : 0)
+                    .opacity(isHovering && track.access != .protected ? 1 : 0)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
                 }
             }
             .buttonStyle(.plain)
+            .disabled(track.access == .protected)
             .opacity(track.access == .protected ? protectedTrackOpacity : 1)
             .onContentHover { isHoveringArtwork = $0 }
             .contentHelp(isPlaybackActive ? "Pause" : "Play")
@@ -171,7 +172,9 @@ struct TrackListRow: View {
                 .buttonStyle(.plain)
                 .opacity(0.95)
                 .onContentHover { isHoveringTitle = $0 }
-                TrackAccessBadge(access: track.access)
+                if track.access == .preview {
+                    TrackPreviewBadge()
+                }
             }
             .modifier(TrackPlaybackTitleInset(inset: showsPlaybackIndicator ? 16 : 0))
             .overlay(alignment: .leading) {
@@ -274,6 +277,7 @@ struct TrackListRow: View {
     }
 
     private func playOrPauseTrack() {
+        guard track.access != .protected else { return }
         if playback[isCurrentTrack: track.urn] {
             playback.togglePlayPause()
         } else {
@@ -303,27 +307,11 @@ struct TrackListRow: View {
 /// Opacity for tracks whose streams only play in SoundCloud's own player.
 let protectedTrackOpacity = 0.55
 
-struct TrackAccessBadge: View {
-    let access: SoundCloudTrack.Access
+struct TrackPreviewBadge: View {
     var font: Font = .caption
 
     var body: some View {
-        switch access {
-        case .preview:
-            badge("Preview", help: "Only a preview of this track is available.", label: "Preview only")
-        case .protected:
-            badge(
-                "Protected",
-                help: "Copy-protected by the label. Open it in SoundCloud to play it.",
-                label: "Copy-protected"
-            )
-        case .playable, .blocked:
-            EmptyView()
-        }
-    }
-
-    private func badge(_ text: String, help: String, label: String) -> some View {
-        Text(text)
+        Text("Preview")
             .font(font.weight(.medium))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 7)
@@ -333,7 +321,7 @@ struct TrackAccessBadge: View {
                     .strokeBorder(.secondary.opacity(0.35), lineWidth: 1)
             }
             .fixedSize()
-            .contentHelp(help)
-            .accessibilityLabel(label)
+            .contentHelp("Only a preview of this track is available.")
+            .accessibilityLabel("Preview only")
     }
 }

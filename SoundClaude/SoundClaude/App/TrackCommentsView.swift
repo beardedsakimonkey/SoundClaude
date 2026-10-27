@@ -428,22 +428,30 @@ private struct TrackCommentRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize()
-                Button {
-                    let position = Double(timestamp) / 1_000
-                    if model.playback.currentTrack?.urn == track.urn {
-                        model.playback.seek(to: position)
-                    } else {
-                        Task { await model.play(track, position: position) }
-                    }
-                } label: {
+                if track.access == .protected {
                     Text(timeLabel)
+                        .font(.caption.monospacedDigit())
+                        .fixedSize()
+                        .foregroundStyle(timestampColor)
+                        .opacity(protectedTrackOpacity)
+                } else {
+                    Button {
+                        let position = Double(timestamp) / 1_000
+                        if model.playback.currentTrack?.urn == track.urn {
+                            model.playback.seek(to: position)
+                        } else {
+                            Task { await model.play(track, position: position) }
+                        }
+                    } label: {
+                        Text(timeLabel)
+                    }
+                    .buttonStyle(CommentTimestampButtonStyle(color: timestampColor))
+                    .font(.caption.monospacedDigit())
+                    .fixedSize()
+                    .foregroundStyle(timestampColor)
+                    .contentHelp("Jump to \(timeLabel)")
+                    .accessibilityLabel("Jump to \(timeLabel) in \(track.title)")
                 }
-                .buttonStyle(CommentTimestampButtonStyle(color: timestampColor))
-                .font(.caption.monospacedDigit())
-                .fixedSize()
-                .foregroundStyle(timestampColor)
-                .contentHelp("Jump to \(timeLabel)")
-                .accessibilityLabel("Jump to \(timeLabel) in \(track.title)")
             }
             if showsRelativeAge, let createdAt = comment.createdAt {
                 RelativeTimestampView(

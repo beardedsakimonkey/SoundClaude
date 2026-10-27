@@ -220,7 +220,7 @@ struct TrackGridTile: View {
                             .foregroundStyle(.white)
                             .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
                             .scaleEffect(reduceMotion || isHoveringArtwork || isCurrentTrack ? 1 : 0.8)
-                            .opacity(isHoveringArtwork || isCurrentTrack ? 1 : 0)
+                            .opacity((isHoveringArtwork || isCurrentTrack) && track.access != .protected ? 1 : 0)
                             .animation(
                                 reduceMotion ? nil : .easeInOut(duration: 0.15),
                                 value: isHoveringArtwork || isCurrentTrack
@@ -230,6 +230,7 @@ struct TrackGridTile: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .disabled(track.access == .protected)
                 .opacity(track.access == .protected ? protectedTrackOpacity : 1)
                 .contentHelp(isPlaybackActive ? "Pause" : "Play")
                 .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
@@ -265,7 +266,9 @@ struct TrackGridTile: View {
                     .buttonStyle(.plain)
                     .onContentHover { isHoveringTitle = $0 }
                     .contentHelp(track.title)
-                    TrackAccessBadge(access: track.access)
+                    if track.access == .preview {
+                        TrackPreviewBadge()
+                    }
                 }
                 .modifier(TrackPlaybackTitleInset(inset: isCurrentTrack ? 16 : 0))
                 .overlay(alignment: .leading) {
