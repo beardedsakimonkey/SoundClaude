@@ -5,3 +5,4 @@ SoundClaude/SoundClaude.xcodeproj/xcuserdata/
 SoundClaude/SoundClaude.xcodeproj/project.xcworkspace/xcuserdata/
 SoundClaude/**/*.xcuserstate
 SoundClaude/Config/Configuration.xcconfig
+build/

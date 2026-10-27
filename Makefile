@@ -7,7 +7,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := release
 
-.PHONY: api build release debug run lsp icon test test-focus test-queue-drag test-navigation test-playback-title test-now-playing test-detail-waveform test-detail-heading
+.PHONY: api build release debug run dist lsp icon test test-focus test-queue-drag test-navigation test-playback-title test-now-playing test-detail-waveform test-detail-heading
 
 api:
 	@set -eu; \
@@ -35,6 +35,29 @@ debug:
 
 run: build
 	open "$(APP)"
+
+# Universal, ad-hoc-signed build for sharing. Ad-hoc keeps the developer
+# certificate (and its email address) out of the shipped signature.
+DIST_DERIVED_DATA_PATH := build/DerivedData
+DIST_APP := $(DIST_DERIVED_DATA_PATH)/Build/Products/Release/SoundClaude.app
+DIST_ZIP := build/SoundClaude.zip
+
+dist:
+	rm -rf "$(DIST_DERIVED_DATA_PATH)" "$(DIST_ZIP)"
+	xcodebuild \
+		-project $(PROJECT) \
+		-scheme $(SCHEME) \
+		-configuration Release \
+		-derivedDataPath $(DIST_DERIVED_DATA_PATH) \
+		ARCHS="arm64 x86_64" \
+		ONLY_ACTIVE_ARCH=NO \
+		CODE_SIGN_STYLE=Manual \
+		CODE_SIGN_IDENTITY=- \
+		DEVELOPMENT_TEAM= \
+		build
+	codesign --verify --deep --strict "$(DIST_APP)"
+	ditto -c -k --sequesterRsrc --keepParent "$(DIST_APP)" "$(DIST_ZIP)"
+	@echo "$(DIST_ZIP)"
 
 lsp:
 	xcode-build-server config \

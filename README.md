@@ -45,6 +45,17 @@ again when SoundCloud rotates it.
 - macOS 14.2 or later
 - Xcode with the macOS SDK
 
+## Install
+
+Download `SoundClaude.zip` from Releases, unzip it, and move `SoundClaude.app` to
+`/Applications`. The app isn't notarized, so macOS blocks the first launch: open it
+once, then choose **Open Anyway** in **System Settings → Privacy & Security**. Or
+run:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/SoundClaude.app
+```
+
 ## Run
 
 To build and run from the command line:
