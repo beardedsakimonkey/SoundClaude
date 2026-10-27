@@ -8,41 +8,33 @@ struct KeyboardShortcutsView: View {
         Color(white: colorScheme == .dark ? 0.3 : 0.7)
     }
 
-    private let shortcutGroups = [
+    private let leftShortcuts = [
         // Playback
-        [
-            Shortcut(title: "Play or pause", keys: ["Space"]),
-            Shortcut(title: "Mute or unmute", keys: ["M"]),
-            Shortcut(title: "Increase volume", keys: ["⇧", "↑"]),
-            Shortcut(title: "Decrease volume", keys: ["⇧", "↓"]),
-            Shortcut(title: "Show or hide playback speed", keys: ["D"]),
-            Shortcut(title: "Toggle shuffle", keys: ["⇧", "S"]),
-            Shortcut(title: "Cycle repeat", keys: ["R"]),
-            Shortcut(title: "Seek back 5 seconds", keys: ["←"]),
-            Shortcut(title: "Seek forward 5 seconds", keys: ["→"]),
-            Shortcut(title: "Seek back 30 seconds", keys: ["⌥", "←"]),
-            Shortcut(title: "Seek forward 30 seconds", keys: ["⌥", "→"]),
-            Shortcut(title: "Previous track", keys: ["⇧", "←"]),
-            Shortcut(title: "Next track", keys: ["⇧", "→"])
-        ],
-        // Track actions and views
-        [
-            Shortcut(title: "Like or unlike current track", keys: ["L"]),
-            Shortcut(title: "Toggle track queue", keys: ["Q"]),
-            Shortcut(title: "Toggle visualizer", keys: ["V"]),
-            Shortcut(title: "Focus current track", keys: ["F"]),
-            Shortcut(title: "Focus current artist", keys: ["A"]),
-            Shortcut(title: "Open active station or current track station", keys: ["S"]),
-            Shortcut(title: "Focus search", keys: ["/"])
-        ],
-        // Number shortcuts / help
-        [
-            Shortcut(title: "Open search", keys: ["1"]),
-            Shortcut(title: "Open feed", keys: ["2"]),
-            Shortcut(title: "Open likes", keys: ["3"]),
-            Shortcut(title: "Open history", keys: ["4"]),
-            Shortcut(title: "Show or hide keyboard shortcuts", keys: ["?"])
-        ]
+        Shortcut(title: "Play or pause", keys: ["Space"]),
+        Shortcut(title: "Previous track", keys: ["⇧", "←"]),
+        Shortcut(title: "Next track", keys: ["⇧", "→"]),
+        Shortcut(title: "Seek back 5 seconds", keys: ["←"]),
+        Shortcut(title: "Seek forward 5 seconds", keys: ["→"]),
+        Shortcut(title: "Seek back 30 seconds", keys: ["⌥", "←"]),
+        Shortcut(title: "Seek forward 30 seconds", keys: ["⌥", "→"]),
+        Shortcut(title: "Mute or unmute", keys: ["M"]),
+        Shortcut(title: "Increase volume", keys: ["⇧", "↑"]),
+        Shortcut(title: "Decrease volume", keys: ["⇧", "↓"]),
+        Shortcut(title: "Like or unlike current track", keys: ["L"])
+    ]
+
+    private let rightShortcuts = [
+        Shortcut(title: "Toggle shuffle", keys: ["⇧", "S"]),
+        Shortcut(title: "Cycle repeat", keys: ["R"]),
+        Shortcut(title: "Show or hide playback speed", keys: ["D"]),
+        Shortcut(title: "Show or hide track queue", keys: ["Q"]),
+        Shortcut(title: "Show or hide visualizer", keys: ["V"]),
+        Shortcut(title: "Next visualizer effect", keys: ["Enter"]),
+        Shortcut(title: "Focus current track", keys: ["F"]),
+        Shortcut(title: "Focus current artist", keys: ["A"]),
+        Shortcut(title: "Focus current station", keys: ["S"]),
+        Shortcut(title: "Search", keys: ["/"]),
+        Shortcut(title: "Show or hide keyboard shortcuts", keys: ["?"])
     ]
 
     var body: some View {
@@ -52,8 +44,8 @@ struct KeyboardShortcutsView: View {
 
             ScrollView {
                 HStack(alignment: .top, spacing: 32) {
-                    shortcutColumn(groups: [shortcutGroups[0]])
-                    shortcutColumn(groups: Array(shortcutGroups.dropFirst()))
+                    shortcutColumn(leftShortcuts)
+                    shortcutColumn(rightShortcuts)
                 }
                 .padding(.trailing, 12)
                 .padding(.bottom, 2)
@@ -81,20 +73,18 @@ struct KeyboardShortcutsView: View {
         .dismissOnOutsideClick()
     }
 
-    private func shortcutColumn(groups: [[Shortcut]]) -> some View {
+    private func shortcutColumn(_ shortcuts: [Shortcut]) -> some View {
         Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
-            ForEach(groups.indices, id: \.self) { groupIndex in
-                ForEach(groups[groupIndex]) { shortcut in
-                    GridRow {
-                        Text(shortcut.title)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+            ForEach(shortcuts) { shortcut in
+                GridRow {
+                    Text(shortcut.title)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                        HStack(spacing: 4) {
-                            keyCaps(shortcut.keys)
-                        }
-                        .fixedSize()
-                        .gridColumnAlignment(.trailing)
+                    HStack(spacing: 4) {
+                        keyCaps(shortcut.keys)
                     }
+                    .fixedSize()
+                    .gridColumnAlignment(.trailing)
                 }
             }
         }
