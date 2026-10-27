@@ -229,7 +229,7 @@ struct TrackWaveformView: View {
                 let renderedHoverFraction = hoverFraction
                 WaveformAnimatedCanvas(
                     amplitudes: amplitudes,
-                    hoverOpacity: showsHoverPreview ? 0.3 : 0
+                    hoverOpacity: showsHoverPreview ? (colorScheme == .light ? 0.35 : 0.3) : 0
                 ) { context, size, amplitudes, hoverOpacity in
                     guard size.width > 0, size.height > 0 else { return }
                     let geometry = renderCache.geometry(
@@ -252,9 +252,12 @@ struct TrackWaveformView: View {
                     let background = backgroundColor.cgColor
                     let color = renderedProgressColor
                         .resolve(in: context.environment).cgColor
-                    let highlight = Color(white: layout == .compact ? 0.75 : 1).opacity(0.9)
-                        .resolve(in: context.environment).cgColor
-                    let shadow = Color.black.opacity(0.9)
+                    // A white wash disappears against light-mode bars; show the
+                    // accent tint alone there.
+                    let highlight = colorScheme == .light ? nil
+                        : Color(white: layout == .compact ? 0.75 : 1).opacity(0.9)
+                            .resolve(in: context.environment).cgColor
+                    let shadow = Color.black.opacity(colorScheme == .light ? 0.75 : 0.9)
                         .resolve(in: context.environment).cgColor
                     let progress = renderedProgress
 
@@ -287,7 +290,9 @@ struct TrackWaveformView: View {
                                         )
                                     } else {
                                         fillBars(color, in: preview, bars: bars, rect: hoverRegion)
-                                        fillBars(highlight, in: preview, bars: bars, rect: hoverRegion)
+                                        if let highlight {
+                                            fillBars(highlight, in: preview, bars: bars, rect: hoverRegion)
+                                        }
                                     }
                                 }
                             }
@@ -507,9 +512,8 @@ struct TrackWaveformView: View {
             )
             return
         }
-        guard let shading = shadingCache.image(
-            for: color, isDark: colorScheme == .dark
-        ) else { return }
+        let style = colorScheme == .dark ? WaveformShadingStyle.dark : .light
+        guard let shading = shadingCache.image(for: color, style: style) else { return }
 
         var drawing = context
         drawing.clip(to: Path(rect), style: FillStyle(antialiased: false))

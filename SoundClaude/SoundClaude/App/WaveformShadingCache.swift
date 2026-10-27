@@ -1,15 +1,28 @@
 import AppKit
 
-// Each view retains a small palette across animation frames. Key by resolved
-// CGColor and appearance so color and highlight changes get fresh shading.
-final class WaveformShadingCache {
-    private var entries: [(color: CGColor, isDark: Bool, image: CGImage)] = []
+struct WaveformShadingStyle: Equatable {
+    // Scales how far the profile darkens toward the bar base.
+    var depth: Double
+    // Scales the white crest near the bar top.
+    var crest: Double
+    // Darken lightness only, so the base stays a deeper accent instead of
+    // turning muddy against light backgrounds.
+    var preservesChroma: Bool
 
-    func image(for color: CGColor, isDark: Bool) -> CGImage? {
-        if let entry = entries.first(where: { $0.color == color && $0.isDark == isDark }) {
+    static let dark = WaveformShadingStyle(depth: 1, crest: 1, preservesChroma: false)
+    static let light = WaveformShadingStyle(depth: 0.4, crest: 0.8, preservesChroma: true)
+}
+
+// Each view retains a small palette across animation frames. Key by resolved
+// CGColor and style so color and highlight changes get fresh shading.
+final class WaveformShadingCache {
+    private var entries: [(color: CGColor, style: WaveformShadingStyle, image: CGImage)] = []
+
+    func image(for color: CGColor, style: WaveformShadingStyle) -> CGImage? {
+        if let entry = entries.first(where: { $0.color == color && $0.style == style }) {
             return entry.image
         }
-        guard let gradient = makeGradient(for: color, isDark: isDark),
+        guard let gradient = makeGradient(for: color, style: style),
               let context = CGContext(
                 data: nil, width: 1, height: 256,
                 bitsPerComponent: 8, bytesPerRow: 0,
@@ -28,11 +41,11 @@ final class WaveformShadingCache {
         if entries.count == 8 {
             entries.removeFirst()
         }
-        entries.append((color, isDark, image))
+        entries.append((color, style, image))
         return image
     }
 
-    private func makeGradient(for color: CGColor, isDark: Bool) -> CGGradient? {
+    private func makeGradient(for color: CGColor, style: WaveformShadingStyle) -> CGGradient? {
         let colorSpace = CGColorSpace(name: CGColorSpace.linearSRGB)!
         guard let components = color.converted(
             to: colorSpace, intent: .relativeColorimetric, options: nil
@@ -51,10 +64,12 @@ final class WaveformShadingCache {
             (1,    0.82, 0)
         ]
         let stops = profile.map { stop in
-            // Keep a subtle crest on light backgrounds without a white stripe.
-            let highlight = stop.highlight * (isDark ? 1 : 0.25)
-            return base * Double(stop.brightness * (1 - highlight))
-                + SIMD3<Double>(Double(highlight), 0, 0)
+            let highlight = Double(stop.highlight) * style.crest
+            let brightness = 1 - (1 - Double(stop.brightness)) * style.depth
+            let shaded = style.preservesChroma
+                ? SIMD3(base.x * brightness, base.y, base.z)
+                : base * brightness
+            return shaded * (1 - highlight) + SIMD3<Double>(highlight, 0, 0)
         }
         // Core Graphics interpolates in RGB. Sample the OKLab curve densely
         // and include the exact profile stops to preserve each crest.
