@@ -12,12 +12,13 @@ struct PistonUniforms {
     float4 baseColor; // linear RGB, unused
     float4 material; // roughness, metallic, spotlight strength, spotlight size
     float4 finish; // reflection strength, edge softness, neutral rope glow, bloom strength
-    float4 track; // progress, artwork aspect, has artwork, has track
+    float4 track; // progress, artwork aspect, has artwork, shows ground controls
     float4 groundColor; // linear RGB, unused
     float4 spotlightColor; // linear RGB matching the background glow's hue, unused
     float4 lightColor; // linear RGB scene light tint with unit luminance, unused
     float4 groundAppearance; // highlight strength, softness, fog start, fog density
     float4 fogColor; // encoded RGB matching the sky backdrop, unused
+    float4 lightDirection; // world-space direction toward the scene light, unused
 };
 struct PistonVertex {
     float4 position [[position]];
@@ -41,9 +42,11 @@ static float pistonRopeLift(uint piston, constant PistonUniforms &u) {
 static float pistonRopeBrightness(uint piston, constant PistonUniforms &u) {
     return mix(u.viewport.z, 1.0, pistonRopeLift(piston, u));
 }
-static float3 pistonLightPosition(float3 p) {
-    float3 light = normalize(float3(-0.4, 0.8, 1));
-    float3 right = normalize(cross(float3(0, 1, 0), light));
+static float3 pistonLightPosition(float3 p, constant PistonUniforms &u) {
+    float3 light = normalize(u.lightDirection.xyz);
+    float3 right = cross(float3(0, 1, 0), light);
+    // A light straight overhead has no horizontal heading; pick one.
+    right = length(right) > 0.0001 ? normalize(right) : float3(1, 0, 0);
     float3 up = cross(light, right);
     return float3(dot(p, right), dot(p, up), dot(p, light));
 }
@@ -123,7 +126,7 @@ static float4 pistonWithAtmosphere(float4 surface, float2 pixel, float depth,
 static float3 pistonGroundShadow(float3 p, constant PistonUniforms &u) {
     // Cast along the world-space light onto the simulation floor.
     float gap = max(0.0, p.y - u.ropes.z);
-    p.xz -= float2(-0.4, 1.0) * (gap / 0.8);
+    p.xz -= u.lightDirection.xz * (gap / u.lightDirection.y);
     p.y = u.ropes.z;
     return p;
 }
@@ -153,8 +156,8 @@ vertex PistonVertex pistonVisualizerVertex(
         uint v = local - solidVertices;
         uint segment = v / 6;
         uint index = (piston * uint(u.ropes.y) + segment / 20) * 21 + segment % 20;
-        float3 a = pistonLightPosition(points[index].xyz);
-        float3 b = pistonLightPosition(points[index + 1].xyz);
+        float3 a = pistonLightPosition(points[index].xyz, u);
+        float3 b = pistonLightPosition(points[index + 1].xyz, u);
         float2 tangent = b.xy - a.xy;
         float2 side = float2(-tangent.y, tangent.x) / max(length(tangent), 0.00001) * u.ropes.x;
         const uint ends[6] = {0, 1, 0, 0, 1, 1};
@@ -291,7 +294,7 @@ vertex PistonVertex pistonVisualizerVertex(
     if (local < solidVertices || (isBob && !glowPass)) {
         if (lightPass) {
             // Use the same cap geometry for the scene and its cylinder shadow.
-            float3 lightPosition = pistonLightPosition(p);
+            float3 lightPosition = pistonLightPosition(p, u);
             PistonVertex out = {};
             out.position = float4(lightPosition.xy / 12, (12 - lightPosition.z) / 24, 1);
             return out;
@@ -431,11 +434,13 @@ fragment PistonFragment pistonVisualizerFragment(
         // Preserve scene occlusion, while keeping the floor beyond the far clip.
         float depth = min((distance - 0.1) * 100 / (99.9 * distance), 0.999999);
         float opacity = shadowMask.sample(shadowFilter, uv).r * 0.48;
-        float3 light = normalize(pistonRotate(float3(-0.4, 0.8, 1), u.camera.y, u.camera.z));
+        float3 light = normalize(pistonRotate(u.lightDirection.xyz, u.camera.y, u.camera.z));
         float3 view = normalize(-ray);
         float diffuse = max(0.0, dot(n, light));
-        // Keep the broad light pool fixed on the floor as the camera orbits.
-        float2 poolOffset = (floorPosition - float2(-2, 1.5)) / float2(11, 7);
+        // Keep the broad light pool fixed on the floor as the camera orbits,
+        // shifted toward the light's side of the scene.
+        float2 poolCenter = u.lightDirection.xz / u.lightDirection.y * 1.2;
+        float2 poolOffset = (floorPosition - poolCenter) / float2(11, 7);
         float pool = exp(-dot(poolOffset, poolOffset));
         float exponent = mix(64.0, 4.0, saturate(u.groundAppearance.y));
         float specular = pow(max(0.0, dot(n, normalize(light + view))), exponent);
@@ -462,8 +467,9 @@ fragment PistonFragment pistonVisualizerFragment(
             // Project light directly onto the floor. Dark image areas leave the
             // ground visible; the projection has no frame, thickness or shadow.
             // World-space floor coordinates keep both position and orientation
-            // fixed as the camera orbits.
-            float2 projected = floorPosition - float2(0, 3.4);
+            // fixed as the camera orbits. The whole layout is scaled about its
+            // center; PistonGroundControls uses the same center and scale.
+            float2 projected = (floorPosition - float2(0, 3.4)) / 0.7;
             float2 artUV = projected / 3.2 + 0.5;
             float2 fit = float2(min(u.track.y, 1.0), min(1.0 / max(u.track.y, 0.001), 1.0));
             float2 uv = (artUV - 0.5) / fit + 0.5;
@@ -527,7 +533,7 @@ fragment PistonFragment pistonVisualizerFragment(
         float across = clamp(in.uv.x, -1.0, 1.0);
         n = normalize(side * across + front * sqrt(max(0.0, 1.0 - across * across)));
     }
-    float3 light = normalize(pistonRotate(float3(-0.4,0.8,1), u.camera.y, u.camera.z));
+    float3 light = normalize(pistonRotate(u.lightDirection.xyz, u.camera.y, u.camera.z));
     float diffuse = max(0.0,dot(n,light));
     float specular = pow(max(0.0,dot(n,normalize(light+lightingView))), isRope ? 24.0 : 48.0);
     float stripe = 0;
@@ -547,7 +553,7 @@ fragment PistonFragment pistonVisualizerFragment(
     specular *= mix(1.0, 0.35, stripe);
     float visibility = 1;
     if (in.receiver.w > 0.5 && diffuse > 0) {
-        float3 p = pistonLightPosition(in.receiver.xyz);
+        float3 p = pistonLightPosition(in.receiver.xyz, u);
         float2 uv = float2(p.x / 24 + 0.5, 0.5 - p.y / 24);
         float depth = (12 - p.z) / 24 - 0.00015;
         constexpr sampler comparison(filter::nearest, address::clamp_to_edge);

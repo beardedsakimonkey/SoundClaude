@@ -10,7 +10,7 @@ struct PistonSettings: Equatable {
     var restingRopeBrightness: Float = 0.5 // Rope brightness while a piston rests at the bottom.
     var restingRopeGlow: Float = 0.25 // Rope halo strength while a piston rests at the bottom.
     var bloomStrength: Float = 1.25
-    var spotlightStrength: Float = 0.5
+    var spotlightStrength: Float = 0
     var spotlightSize: Float = 1.5
     var lightTint: Float = 0.5 // How strongly the background glow's hue tints the scene lighting.
     var damping: Float = 0.04
@@ -36,6 +36,13 @@ struct PistonSettings: Equatable {
     var reflectionStrength: Float = 0.42
     var edgeSoftness: Float = 0.05
     var grade = VisualizerGrade.pistons
+    var showsGroundControls = false // Artwork, progress rail and skip buttons on the floor.
+    var lightYOffset: Float = 0
+    var lightZOffset: Float = 0
+
+    // World-space direction toward the scene light: above and directly behind
+    // the pistons by default, so the front view sees them rim-lit.
+    var lightDirection: SIMD3<Float> { SIMD3(0, 0.8 + lightYOffset, -1 + lightZOffset) }
 
     // Extracted artwork accents have a maximum channel of at least 0.75.
     // Preserve their brightness, but let transitions to the black fallback dim.

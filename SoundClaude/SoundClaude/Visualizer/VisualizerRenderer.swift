@@ -325,13 +325,15 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                                      pistonSettings.neutralRopeGlow, pistonSettings.bloomStrength))
         let progress = trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0
         let artworkAspect = artworkImage.map { Float($0.width) / Float($0.height) } ?? 1
-        uniforms.append(SIMD4<Float>(progress, artworkAspect, artworkTexture == nil ? 0 : 1, hasTrack ? 1 : 0))
+        let showsGroundControls = hasTrack && pistonSettings.showsGroundControls
+        uniforms.append(SIMD4<Float>(progress, artworkAspect, artworkTexture == nil ? 0 : 1, showsGroundControls ? 1 : 0))
         uniforms.append(SIMD4<Float>(pistonSettings.groundColor, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.spotlightColor(for: displayedArtworkAccent), 0))
         uniforms.append(SIMD4<Float>(pistonSettings.lightColor(for: displayedArtworkAccent), 0))
         uniforms.append(SIMD4<Float>(pistonSettings.groundHighlightStrength, pistonSettings.groundHighlightSoftness,
                                      pistonSettings.groundFogStart, pistonSettings.groundFogDensity))
         uniforms.append(SIMD4<Float>(VisualizerGrade.sRGBEncoded(pistonSettings.backgroundColor), 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.lightDirection, 0))
         return (buffer, uniforms, PistonSimulation.count *
             (32 * 12 * 3 + pistonSettings.stringsPerPiston * (PistonSimulation.segments * 6 + 12 * 8 * 6)))
     }
@@ -991,7 +993,11 @@ private final class VisualizerShaderReloader {
 // Shared camera projection keeps ground controls aligned with the Metal scene.
 enum PistonGroundControls {
     static let pitchRange: ClosedRange<Float> = -1.8...1.2
-    static let defaultCamera = ClothCamera(pitch: -0.35, zoom: 0.55)
+    // Start at the lowest tilt; camera(size:yaw:pitch:zoom:) raises it to the floor clearance.
+    static let defaultCamera = ClothCamera(pitch: pitchRange.lowerBound, zoom: 0.55)
+    // Floor position and scale of the artwork, rail and buttons layout.
+    static let layoutCenter = SIMD2<Float>(0, 3.4)
+    static let layoutScale: Float = 0.7
 
     enum Hit {
         case playPause
@@ -1033,23 +1039,25 @@ enum PistonGroundControls {
         let distance = (-2.65 - origin.y) / ray.y
         guard distance >= 0.1, distance < 100 else { return nil }
         let floor = origin + ray * distance
+        let local = (SIMD2(floor.x, floor.z) - layoutCenter) / layoutScale
         // Match the aspect-fitted artwork projection in PistonVisualizer.metal.
         let fit = SIMD2(min(artworkAspect, 1), min(1 / max(artworkAspect, 0.001), 1))
-        if abs(floor.x) <= 1.6 * fit.x, abs(floor.z - 3.4) <= 1.6 * fit.y {
+        if abs(local.x) <= 1.6 * fit.x, abs(local.y) <= 1.6 * fit.y {
             return .playPause
         }
         // Match the circular projected buttons centered beside the artwork.
         for direction in [-1, 1] {
-            let offset = SIMD2(floor.x - Float(direction) * 2.15, floor.z - 3.4)
+            let offset = SIMD2(local.x - Float(direction) * 2.15, local.y)
             if simd_length_squared(offset) <= 0.4 * 0.4 {
                 return direction < 0 ? .previous : .next
             }
         }
         // Match the rail at the near edge of the artwork, with extra click
         // tolerance around its thin stroke. Clamp clicks at the rounded ends.
-        let rail = SIMD2(floor.x + 1.6, floor.z - 5.25)
+        let rail = SIMD2(local.x + 1.6, local.y - 1.85)
         let offset = SIMD2(rail.x - min(3.15, max(0.05, rail.x)), rail.y)
-        if simd_length_squared(offset) <= 0.15 * 0.15 {
+        let tolerance = 0.15 / layoutScale // Keep the click target from shrinking with the layout.
+        if simd_length_squared(offset) <= tolerance * tolerance {
             return .seek(Double(min(1, max(0, rail.x / 3.2))))
         }
         return nil

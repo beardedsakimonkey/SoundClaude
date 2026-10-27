@@ -84,6 +84,8 @@ struct VisualizerView: View {
                                                                     artworkAspect: artworkAspect)
                         hit = ClothGroundControls.hit(at: value.location, size: viewportSize,
                             camera: projection, height: clothSettings.width / max(1, artworkAspect))
+                    } else if !pistonSettings.showsGroundControls {
+                        hit = nil
                     } else {
                         let projection = PistonGroundControls.camera(size: viewportSize, yaw: camera.yaw,
                                                                      pitch: camera.pitch, zoom: camera.zoom)
@@ -228,6 +230,7 @@ struct VisualizerView: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Show artwork and controls", isOn: $pistonSettings.showsGroundControls)
                     tuningSlider("Ropes per piston", value: $pistonSettings.stringsPerPiston, range: 4...64, step: 2)
                     tuningSlider("Rope length", value: $pistonSettings.ropeLength, range: 0.5...5)
                     tuningSlider("Rope stretchiness", value: $pistonSettings.ropeStretchiness, range: 0...1)
@@ -243,6 +246,10 @@ struct VisualizerView: View {
                     tuningSlider("Spotlight size", value: $pistonSettings.spotlightSize, range: 0.1...3, format: "%.2f×")
                     tuningSlider("Light tint", value: $pistonSettings.lightTint, range: 0...1)
                         .help("How strongly the background glow's color tints the scene lighting. 0 keeps it white.")
+                    tuningSlider("Light Y offset", value: $pistonSettings.lightYOffset, range: -0.6...3)
+                        .help("Raises or lowers the scene light. Lower lights rake across the pistons and cast longer shadows.")
+                    tuningSlider("Light Z offset", value: $pistonSettings.lightZOffset, range: -3...3)
+                        .help("Moves the scene light toward the default view (positive) or further behind the pistons (negative).")
                     tuningSlider("Damping", value: $pistonSettings.damping, range: 0.001...0.08, format: "%.3f")
                     tuningSlider("Gravity", value: $pistonSettings.gravity, range: 0...20)
                     Divider()

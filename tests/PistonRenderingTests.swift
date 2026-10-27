@@ -57,7 +57,8 @@ import Metal
             let buffer = points.withUnsafeBytes {
                 device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)!
             }
-            var uniforms = [SIMD4<Float>](repeating: .zero, count: 17)
+            var uniforms = [SIMD4<Float>](repeating: .zero, count: 18)
+            uniforms[17] = SIMD4(0, 0.8, -1, 0) // Light direction.
             uniforms[0] = SIMD4(1, 0.3, 0.4, 3)
             uniforms[1] = SIMD4(repeating: resting ? 0.8 : 1.1) // Raised enough for full rope glow.
             uniforms[2] = uniforms[1]
@@ -141,7 +142,8 @@ import Metal
         for (index, fixture) in (cases + fogCases).enumerated() {
             let (pitch, strength, blocked, height, travel) = fixture
             let floorCase = index >= cases.count
-            var uniforms = [SIMD4<Float>](repeating: .zero, count: 17)
+            var uniforms = [SIMD4<Float>](repeating: .zero, count: 18)
+            uniforms[17] = SIMD4(0, 0.8, -1, 0) // Light direction.
             uniforms[0] = SIMD4(1, 0.3, pitch, 20)
             uniforms[1] = SIMD4(repeating: height)
             uniforms[2] = SIMD4(repeating: height)
