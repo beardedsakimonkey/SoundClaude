@@ -129,7 +129,7 @@ struct SearchTests {
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
             let parameters = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value!) })
-            precondition(parameters["filter.genre_or_tag"] == genre, "Genre must survive URL encoding")
+            precondition(parameters["filter.genre_or_tag"] == genre.lowercased(), "Genre must survive URL encoding, lowercased")
             precondition(parameters["q"] == "*", "Genre search must not also filter by text")
             precondition(parameters["limit"] == "25" && parameters["linked_partitioning"] == "1")
             return (200, "{\"collection\":[\(track(1))],\"next_href\":\"\(genreNextURL)\"}")
@@ -155,7 +155,7 @@ struct SearchTests {
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
             let parameters = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value!) })
-            precondition(parameters["filter.genre_or_tag"] == tag, "Tag must survive URL encoding")
+            precondition(parameters["filter.genre_or_tag"] == tag.lowercased(), "Tag must survive URL encoding, lowercased")
             precondition(parameters["q"] == "*", "Tag search must not also filter by text")
             precondition(parameters["limit"] == "25" && parameters["linked_partitioning"] == "1")
             return (200, "{\"collection\":[\(track(1))],\"next_href\":\"\(tagNextURL)\"}")

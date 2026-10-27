@@ -240,8 +240,9 @@ actor SoundCloudClient {
         query: String? = nil, genres: String? = nil, tags: String? = nil,
         accessToken: String, pageURL: URL? = nil
     ) async throws -> SoundCloudTrackPage {
+        // The genre/tag filter only matches lowercase values; "House" returns nothing.
         let url = pageURL ?? searchURL(path: "tracks", query: query ?? "*", extra: [
-            "filter.genre_or_tag": genres ?? tags,
+            "filter.genre_or_tag": (genres ?? tags)?.lowercased(),
         ])
         return try await trackPage(at: url, accessToken: accessToken)
     }
