@@ -3,6 +3,7 @@ import SwiftUI
 struct TrackPlaybackIndicator: View {
     let isPlaying: Bool
     let isLoading: Bool
+    var speed: Float = 1
     var color: Color = .accentColor
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -14,7 +15,7 @@ struct TrackPlaybackIndicator: View {
         return TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !shouldAnimate)) { context in
             PlaybackIndicatorBars(
                 growth: showsBars ? 1 : 0,
-                date: context.date,
+                cycle: PlaybackIndicatorClock.cycle(at: context.date, speed: Double(speed)),
                 animated: shouldAnimate
             )
             .fill(color)
@@ -31,6 +32,30 @@ struct TrackPlaybackIndicator: View {
     }
 }
 
+/// Shared so every indicator stays in step, and rebased on speed changes so
+/// the bars keep their current position instead of jumping.
+private enum PlaybackIndicatorClock {
+    private static let duration = 1.5
+    private static var anchorDate = Date(timeIntervalSinceReferenceDate: 0)
+    private static var anchorCycle = 0.0
+    private static var speed = 1.0
+
+    static func cycle(at date: Date, speed newSpeed: Double) -> Double {
+        if newSpeed != speed {
+            anchorCycle = cycle(at: date)
+            anchorDate = date
+            speed = newSpeed
+        }
+        return cycle(at: date)
+    }
+
+    private static func cycle(at date: Date) -> Double {
+        let cycle = (anchorCycle + date.timeIntervalSince(anchorDate) * speed / duration)
+            .truncatingRemainder(dividingBy: 1)
+        return cycle < 0 ? cycle + 1 : cycle
+    }
+}
+
 private struct PlaybackIndicatorBars: Shape {
     private static let levels: [[CGFloat]] = [
         [0.12, 1.00, 0.30, 0.55],
@@ -39,7 +64,7 @@ private struct PlaybackIndicatorBars: Shape {
     ]
 
     var growth: CGFloat
-    let date: Date
+    let cycle: Double
     let animated: Bool
 
     var animatableData: CGFloat {
@@ -49,9 +74,6 @@ private struct PlaybackIndicatorBars: Shape {
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let duration = 1.5
-        let time = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: duration)
-        let cycle = (time < 0 ? time + duration : time) / duration
         for index in 0..<3 {
             let levels = Self.levels[index]
             let phase = (cycle + Double(index) / 3).truncatingRemainder(dividingBy: 1)
