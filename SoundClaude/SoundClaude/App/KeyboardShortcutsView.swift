@@ -15,6 +15,7 @@ struct KeyboardShortcutsView: View {
             Shortcut(title: "Mute or unmute", keys: ["M"]),
             Shortcut(title: "Increase volume", keys: ["⇧", "↑"]),
             Shortcut(title: "Decrease volume", keys: ["⇧", "↓"]),
+            Shortcut(title: "Show or hide playback speed", keys: ["D"]),
             Shortcut(title: "Toggle shuffle", keys: ["⇧", "S"]),
             Shortcut(title: "Cycle repeat", keys: ["R"]),
             Shortcut(title: "Seek back 5 seconds", keys: ["←"]),

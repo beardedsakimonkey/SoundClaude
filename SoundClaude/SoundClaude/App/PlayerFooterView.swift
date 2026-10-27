@@ -587,7 +587,8 @@ private struct PlayerSpeedControl: View {
         }
         .buttonStyle(.plain)
         .modifier(PlayerSpeedHoverFeedback(color: .orange, isActive: isShowingSpeed))
-        .contentHelp("Playback speed and pitch")
+        .keyboardShortcut("d", modifiers: [])
+        .contentHelp("Playback speed and pitch (D)")
         .accessibilityLabel("Playback speed and pitch")
         .accessibilityValue(rateLabel)
         .popover(isPresented: $isShowingSpeed, arrowEdge: .top) {
@@ -609,6 +610,13 @@ private struct PlayerSpeedControl: View {
             }
             .padding(20)
             .frame(width: 340)
+            // The popover is its own key window, so the footer button's shortcut can't close it.
+            .background {
+                Button("Close speed") { isShowingSpeed = false }
+                    .keyboardShortcut("d", modifiers: [])
+                    .hidden()
+                    .accessibilityHidden(true)
+            }
             // Matches the queue panel's tint behind the glass.
             .background {
                 (colorScheme == .dark ? Color.black : Color.white)
@@ -732,6 +740,16 @@ private struct PlayerSpeedSlider: View {
                     }
                 }
             }
+            .overlay(alignment: .topLeading) {
+                Text(value.formatted(.number.precision(.fractionLength(0...2))) + "×")
+                    .font(.system(size: 11, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.accentColor)
+                    .fixedSize()
+                    .position(x: inset + length * fraction(value), y: -9)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
             // The marker labels and end margins are interactive too; speed(at:) clamps to the endpoints.
             .contentShape(Rectangle())
             .gesture(
@@ -769,6 +787,8 @@ private struct PlayerSpeedSlider: View {
             }
         }
         .frame(height: trackHeight + 32)
+        // Room for the current value label.
+        .padding(.top, 10)
     }
 
     private func track(width: CGFloat, length: CGFloat, previewSpeed: Float?) -> some View {
