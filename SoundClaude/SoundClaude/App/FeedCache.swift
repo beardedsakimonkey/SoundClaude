@@ -38,7 +38,7 @@ actor FeedCacheStore {
     private let directory: URL
 
     init(directory: URL = URL.applicationSupportDirectory
-        .appending(path: "SoundClaude/Feed", directoryHint: .isDirectory)) {
+        .appending(path: "SoundClaude/v2/Feed", directoryHint: .isDirectory)) {
         self.directory = directory
     }
 

@@ -1,39 +1,12 @@
 import Foundation
 
+// SoundCloud's website API (api-v2). It is undocumented, so ./api.yaml does not describe it.
+// Requests carry the website's public client ID and the signed-in user's website token.
 struct SoundCloudConfiguration: Sendable {
-    static let redirectURI = URL(
-        string: "http://127.0.0.1:32148/callback"
-    )!
-
-    let clientID: String
-    let clientSecret: String
-    let apiBaseURL = URL(string: "https://api.soundcloud.com/")!
-    let authorizationURL = URL(
-        string: "https://secure.soundcloud.com/authorize"
-    )!
-    let tokenURL = URL(
-        string: "https://secure.soundcloud.com/oauth/token"
-    )!
-    let signOutURL = URL(
-        string: "https://secure.soundcloud.com/sign-out"
-    )!
-
-    static func bundled() throws -> SoundCloudConfiguration {
-        let clientID = Bundle.main.object(
-            forInfoDictionaryKey: "SoundCloudClientID"
-        ) as? String ?? ""
-        let clientSecret = Bundle.main.object(
-            forInfoDictionaryKey: "SoundCloudClientSecret"
-        ) as? String ?? ""
-        guard !clientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              !clientSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw SoundCloudError.configuration
-        }
-        return SoundCloudConfiguration(
-            clientID: clientID,
-            clientSecret: clientSecret
-        )
-    }
+    /// Pins the website client ID. When nil, the client discovers it from soundcloud.com.
+    var clientID: String? = nil
+    let apiBaseURL = URL(string: "https://api-v2.soundcloud.com/")!
+    let websiteURL = URL(string: "https://soundcloud.com/")!
 }
 
 enum SoundCloudError: LocalizedError {
@@ -50,7 +23,7 @@ enum SoundCloudError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .configuration:
-            return "Add SoundCloud credentials to Config/Configuration.xcconfig."
+            return "SoundClaude could not find SoundCloud’s website client ID. Try again later."
         case .invalidResponse, .invalidData:
             return "SoundCloud returned invalid data"
         case .unauthorized:
@@ -60,7 +33,7 @@ enum SoundCloudError: LocalizedError {
         case let .api(message):
             return message
         case .playbackUnavailable:
-            return "This track is not available for off-platform playback."
+            return "This track has no supported stream. It may require SoundCloud’s own player."
         case .unexpectedURL:
             return "SoundCloud returned an unexpected URL"
         case .network:
@@ -69,6 +42,7 @@ enum SoundCloudError: LocalizedError {
     }
 }
 
+// Website tokens must not follow redirects to other hosts.
 private final class RedirectBlocker: NSObject, URLSessionTaskDelegate {
     func urlSession(
         _ session: URLSession,
@@ -83,131 +57,53 @@ private final class RedirectBlocker: NSObject, URLSessionTaskDelegate {
 
 actor SoundCloudClient {
     private static let likedTracksPageSize = 25
+    private static let clientIDDefaultsKey = "SoundCloudWebsiteClientID"
+    private static let trackBatchSize = 50
 
     private let configuration: SoundCloudConfiguration
     private let session: URLSession
-    private let noRedirectSession: URLSession
     private let decoder = JSONDecoder()
+    private var clientID: String?
+    private var clientIDTask: Task<String, Error>?
+    private var currentUserID: (accessToken: String, id: String)?
 
     init(
         configuration: SoundCloudConfiguration,
         sessionConfiguration: URLSessionConfiguration = .ephemeral
     ) {
         self.configuration = configuration
+        clientID = configuration.clientID
+            ?? UserDefaults.standard.string(forKey: Self.clientIDDefaultsKey)
 
         sessionConfiguration.timeoutIntervalForRequest = 30
         sessionConfiguration.timeoutIntervalForResource = 60
-        session = URLSession(configuration: sessionConfiguration)
-
-        let redirectConfiguration = URLSessionConfiguration.ephemeral
-        redirectConfiguration.timeoutIntervalForRequest = 30
-        redirectConfiguration.timeoutIntervalForResource = 60
-        noRedirectSession = URLSession(
-            configuration: redirectConfiguration,
+        sessionConfiguration.httpCookieStorage = nil
+        session = URLSession(
+            configuration: sessionConfiguration,
             delegate: RedirectBlocker(),
             delegateQueue: nil
         )
     }
 
-    func authorizationURL(state: String, challenge: String) throws -> URL {
-        var components = URLComponents(
-            url: configuration.authorizationURL,
-            resolvingAgainstBaseURL: false
-        )
-        components?.queryItems = [
-            URLQueryItem(name: "client_id", value: configuration.clientID),
-            URLQueryItem(
-                name: "redirect_uri",
-                value: SoundCloudConfiguration.redirectURI.absoluteString
-            ),
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "code_challenge", value: challenge),
-            URLQueryItem(name: "code_challenge_method", value: "S256"),
-            URLQueryItem(name: "state", value: state),
-        ]
-        guard let url = components?.url else {
-            throw SoundCloudError.unexpectedURL
-        }
-        return url
-    }
-
-    func exchangeCode(_ code: String, verifier: String) async throws
-        -> OAuthTokenResponse {
-        try await tokenRequest([
-            "grant_type": "authorization_code",
-            "client_id": configuration.clientID,
-            "client_secret": configuration.clientSecret,
-            "redirect_uri": SoundCloudConfiguration.redirectURI.absoluteString,
-            "code_verifier": verifier,
-            "code": code,
-        ], isRefresh: false)
-    }
-
-    func refreshToken(_ refreshToken: String) async throws
-        -> OAuthTokenResponse {
-        try await tokenRequest([
-            "grant_type": "refresh_token",
-            "client_id": configuration.clientID,
-            "client_secret": configuration.clientSecret,
-            "refresh_token": refreshToken,
-        ], isRefresh: true)
-    }
-
     func currentUser(accessToken: String) async throws -> SoundCloudUser {
-        let url = configuration.apiBaseURL.appending(path: "me")
-        let (data, response) = try await authenticatedRequest(
-            url: url,
-            accessToken: accessToken
-        )
-        try validate(response: response, data: data)
-        guard let user = try decoder.decode(RawUser.self, from: data).normalized() else {
+        let user = try await get(RawUser.self, endpoint("me"), accessToken: accessToken)
+        guard let normalized = user.normalized(), let urn = normalized.urn else {
             throw SoundCloudError.invalidData
         }
-        return user
+        currentUserID = (accessToken, try Self.id(urn))
+        return normalized
     }
 
     func feed(accessToken: String, pageURL: URL? = nil) async throws -> SoundCloudFeedPage {
-        let url = pageURL ?? configuration.apiBaseURL.appending(path: "me/feed")
-            .appending(queryItems: [
-                URLQueryItem(name: "limit", value: "10"),
-                URLQueryItem(name: "access", value: "playable,preview"),
-            ])
-        try validateAPIURL(url)
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
-        let page = try decoder.decode(RawFeedPage.self, from: data)
-        if let nextURL = page.nextURL {
-            try validateAPIURL(nextURL)
-            guard nextURL != url else { throw SoundCloudError.invalidData }
-        }
-
-        var users: [String: SoundCloudUser] = [:]
-        var items: [SoundCloudFeedItem] = []
-        for activity in page.collection {
-            try Task.checkCancellation()
-            guard let content = activity.content, let createdAt = activity.createdAt else { continue }
-            let user: SoundCloudUser
-            if activity.isRepost {
-                guard let urn = activity.reposterURN else { throw SoundCloudError.invalidData }
-                if let cached = users[urn] {
-                    user = cached
-                } else {
-                    let userURL = configuration.apiBaseURL.appending(path: "users").appending(path: urn)
-                    let (userData, userResponse) = try await authenticatedRequest(
-                        url: userURL, accessToken: accessToken
-                    )
-                    try validate(response: userResponse, data: userData)
-                    guard let resolved = try decoder.decode(RawUser.self, from: userData).normalized()
-                    else { throw SoundCloudError.invalidData }
-                    users[urn] = resolved
-                    user = resolved
-                }
-            } else {
-                user = content.owner
-            }
-            items.append(SoundCloudFeedItem(
+        let url = pageURL ?? endpoint("stream", query: ["limit": "10"])
+        let page = try await get(RawFeedPage.self, url, accessToken: accessToken)
+        try validateNextURL(page.nextURL, after: url)
+        let items = page.collection.compactMap { activity -> SoundCloudFeedItem? in
+            guard let content = activity.content, let createdAt = activity.createdAt,
+                  let user = activity.isRepost ? activity.user : content.owner else { return nil }
+            return SoundCloudFeedItem(
                 content: content, user: user, isRepost: activity.isRepost, createdAt: createdAt
-            ))
+            )
         }
         return SoundCloudFeedPage(items: items, nextURL: page.nextURL)
     }
@@ -234,84 +130,24 @@ actor SoundCloudClient {
                 url = pageURL
             }
         } else {
-            var components = URLComponents(
-                url: configuration.apiBaseURL
-                    .appending(path: "me")
-                    .appending(path: "likes")
-                    .appending(path: "tracks"),
-                resolvingAgainstBaseURL: false
-            )
-            components?.queryItems = [
-                URLQueryItem(
-                    name: "limit",
-                    value: String(pageSize ?? Self.likedTracksPageSize)
-                ),
-                URLQueryItem(name: "linked_partitioning", value: "true"),
-                URLQueryItem(name: "access", value: "playable,preview"),
-            ]
-            guard let initialURL = components?.url else {
-                throw SoundCloudError.unexpectedURL
-            }
-            url = initialURL
+            let userID = try await myID(accessToken: accessToken)
+            url = endpoint("users/\(userID)/track_likes", query: [
+                "limit": String(pageSize ?? Self.likedTracksPageSize),
+            ])
         }
-
-        try validateAPIURL(url)
-        let (data, response) = try await authenticatedRequest(
-            url: url,
-            accessToken: accessToken
-        )
-        try validate(response: response, data: data)
-        let page = try decoder.decode(RawTrackPage.self, from: data)
-        if let nextURL = page.nextURL {
-            try validateAPIURL(nextURL)
-            guard nextURL != url else {
-                throw SoundCloudError.invalidData
-            }
-        }
-        return SoundCloudTrackPage(
-            tracks: page.collection.compactMap { $0.normalized() },
-            nextURL: page.nextURL
-        )
+        return try await trackPage(at: url, accessToken: accessToken)
     }
 
     func artist(
         _ artist: SoundCloudUser,
         accessToken: String
     ) async throws -> SoundCloudArtistDetails {
-        let url: URL
         if let urn = artist.urn {
-            url = configuration.apiBaseURL.appending(path: "users")
-                .appending(path: urn)
-        } else {
-            // Older or partial user objects can still be opened by permalink.
-            var components = URLComponents(
-                url: configuration.apiBaseURL.appending(path: "resolve"),
-                resolvingAgainstBaseURL: false
-            )!
-            components.queryItems = [
-                URLQueryItem(name: "url", value: artist.permalinkURL.absoluteString),
-            ]
-            guard let resolveURL = components.url else {
-                throw SoundCloudError.unexpectedURL
-            }
-            var request = URLRequest(url: resolveURL)
-            request.setValue("OAuth \(accessToken)", forHTTPHeaderField: "Authorization")
-            let (data, response) = try await send(request, using: noRedirectSession)
-            guard response.statusCode == 302,
-                  let location = response.value(forHTTPHeaderField: "Location"),
-                  let resolvedURL = URL(string: location, relativeTo: resolveURL)?.absoluteURL else {
-                try validate(response: response, data: data)
-                throw SoundCloudError.invalidData
-            }
-            try validateAPIURL(resolvedURL)
-            url = resolvedURL
+            return try await self.artist(urn: urn, accessToken: accessToken)
         }
-        let (data, response) = try await authenticatedRequest(
-            url: url,
-            accessToken: accessToken
-        )
-        try validate(response: response, data: data)
-        guard let details = try decoder.decode(RawUser.self, from: data)
+        // Older or partial user objects can still be opened by permalink.
+        let url = endpoint("resolve", query: ["url": artist.permalinkURL.absoluteString])
+        guard let details = try await get(RawUser.self, url, accessToken: accessToken)
             .normalizedArtistDetails() else {
             throw SoundCloudError.invalidData
         }
@@ -319,10 +155,8 @@ actor SoundCloudClient {
     }
 
     func artist(urn: String, accessToken: String) async throws -> SoundCloudArtistDetails {
-        let url = configuration.apiBaseURL.appending(path: "users").appending(path: urn)
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
-        guard let details = try decoder.decode(RawUser.self, from: data)
+        let url = endpoint("users/\(try Self.id(urn))")
+        guard let details = try await get(RawUser.self, url, accessToken: accessToken)
             .normalizedArtistDetails() else {
             throw SoundCloudError.invalidData
         }
@@ -330,27 +164,16 @@ actor SoundCloudClient {
     }
 
     func artistWebProfiles(urn: String, accessToken: String) async throws -> [SoundCloudWebProfile] {
-        let url = configuration.apiBaseURL.appending(path: "users")
-            .appending(path: urn).appending(path: "web-profiles")
-            .appending(queryItems: [URLQueryItem(name: "limit", value: "200")])
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
+        let url = endpoint("users/\(urn)/web-profiles")
         var seen: Set<URL> = []
-        return try decoder.decode([RawWebProfile].self, from: data)
+        return try await get([RawWebProfile].self, url, accessToken: accessToken)
             .compactMap { $0.normalized() }
             .filter { seen.insert($0.url).inserted }
     }
 
     func relatedArtists(urn: String, accessToken: String) async throws -> [SoundCloudUser] {
-        let url = configuration.apiBaseURL.appending(path: "users")
-            .appending(path: urn).appending(path: "related")
-            .appending(queryItems: [
-                URLQueryItem(name: "limit", value: "12"),
-                URLQueryItem(name: "linked_partitioning", value: "true"),
-            ])
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
-        let page = try decoder.decode(RawUserPage.self, from: data)
+        let url = endpoint("users/\(try Self.id(urn))/relatedartists", query: ["limit": "12"])
+        let page = try await get(RawUserPage.self, url, accessToken: accessToken)
         var seen: Set<URL> = []
         return Array(page.collection.compactMap { $0.normalized() }
             .filter { $0.urn != urn && seen.insert($0.permalinkURL).inserted }
@@ -358,48 +181,37 @@ actor SoundCloudClient {
     }
 
     func followedArtistURNs(accessToken: String) async throws -> Set<String> {
-        struct Page: Decodable {
-            let collection: [RawUser]
-            let next_href: URL?
-        }
-
-        var nextURL: URL? = configuration.apiBaseURL.appending(path: "me/followings")
-            .appending(queryItems: [URLQueryItem(name: "limit", value: "200")])
+        let userID = try await myID(accessToken: accessToken)
+        var nextURL: URL? = endpoint("users/\(userID)/followings", query: ["limit": "200"])
         var visited: Set<URL> = []
         var urns: Set<String> = []
         while let url = nextURL {
             try Task.checkCancellation()
-            try validateAPIURL(url)
             guard visited.insert(url).inserted else { throw SoundCloudError.invalidData }
-            let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-            try validate(response: response, data: data)
-            let page = try decoder.decode(Page.self, from: data)
+            let page = try await get(RawUserPage.self, url, accessToken: accessToken)
             for user in page.collection {
                 guard let urn = user.urn else { throw SoundCloudError.invalidData }
                 urns.insert(urn)
             }
-            nextURL = page.next_href
+            nextURL = page.nextURL
         }
         return urns
     }
 
     func setArtistFollowed(urn: String, isFollowed: Bool, accessToken: String) async throws {
-        let url = configuration.apiBaseURL.appending(path: "me/followings")
-            .appending(path: urn)
-        let (data, response) = try await authenticatedRequest(
-            url: url,
-            accessToken: accessToken,
-            method: isFollowed ? "PUT" : "DELETE"
+        try await send(
+            isFollowed ? "POST" : "DELETE",
+            endpoint("me/followings/\(try Self.id(urn))"),
+            accessToken: accessToken
         )
-        try validate(response: response, data: data)
     }
 
     func artistHeaderURL(for artist: SoundCloudUser) async throws -> URL? {
         guard let url = SoundCloudProfileHeader.profileURL(artist.permalinkURL)
         else { throw SoundCloudError.unexpectedURL }
-        // Public HTML only: do not attach the API access token.
+        // Public HTML only: do not attach the website token.
         let request = URLRequest(url: url, timeoutInterval: 8)
-        let (data, response) = try await perform(request, using: session)
+        let (data, response) = try await perform(request)
         guard let response = response as? HTTPURLResponse,
               response.statusCode == 200,
               let html = String(data: data, encoding: .utf8) else { throw SoundCloudError.invalidData }
@@ -412,44 +224,26 @@ actor SoundCloudClient {
         accessToken: String,
         pageURL: URL? = nil
     ) async throws -> SoundCloudUserPage {
-        var components = URLComponents(
-            url: configuration.apiBaseURL.appending(path: "users")
-                .appending(path: urn).appending(path: list.rawValue),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [URLQueryItem(name: "limit", value: "50")]
-        guard let url = pageURL ?? components.url else {
-            throw SoundCloudError.unexpectedURL
-        }
-        try validateAPIURL(url)
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
-        let page = try decoder.decode(RawUserPage.self, from: data)
-        if let nextURL = page.nextURL { try validateAPIURL(nextURL) }
-        return SoundCloudUserPage(
-            users: page.collection.compactMap { $0.normalized() },
-            nextURL: page.nextURL
+        let url = try pageURL ?? endpoint(
+            "users/\(try Self.id(urn))/\(list.rawValue)", query: ["limit": "50"]
         )
+        return try await userPage(at: url, accessToken: accessToken)
     }
 
     func searchTracks(
         query: String? = nil, genres: String? = nil, tags: String? = nil,
         accessToken: String, pageURL: URL? = nil
     ) async throws -> SoundCloudTrackPage {
-        let url = pageURL ?? searchURL(path: "tracks", query: query).appending(queryItems: [
-            URLQueryItem(name: "genres", value: genres),
-            URLQueryItem(name: "tags", value: tags),
-            URLQueryItem(name: "access", value: "playable,preview"),
-        ].filter { $0.value != nil })
+        let url = pageURL ?? searchURL(path: "tracks", query: query ?? "*", extra: [
+            "filter.genre_or_tag": genres ?? tags,
+        ])
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
     func searchPlaylists(
         query: String, accessToken: String, pageURL: URL? = nil
     ) async throws -> SoundCloudPlaylistPage {
-        let url = pageURL ?? searchURL(path: "playlists", query: query).appending(queryItems: [
-            URLQueryItem(name: "show_tracks", value: "false"),
-        ])
+        let url = pageURL ?? searchURL(path: "playlists_without_albums", query: query)
         return try await playlistPage(at: url, accessToken: accessToken)
     }
 
@@ -457,25 +251,11 @@ actor SoundCloudClient {
         query: String, accessToken: String, pageURL: URL? = nil
     ) async throws -> SoundCloudUserPage {
         let url = pageURL ?? searchURL(path: "users", query: query)
-        try validateAPIURL(url)
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
-        let page = try decoder.decode(RawUserPage.self, from: data)
-        if let nextURL = page.nextURL {
-            try validateAPIURL(nextURL)
-            guard nextURL != url else { throw SoundCloudError.invalidData }
-        }
-        return SoundCloudUserPage(
-            users: page.collection.compactMap { $0.normalized() }, nextURL: page.nextURL
-        )
+        return try await userPage(at: url, accessToken: accessToken)
     }
 
-    private func searchURL(path: String, query: String?) -> URL {
-        configuration.apiBaseURL.appending(path: path).appending(queryItems: [
-            URLQueryItem(name: "q", value: query),
-            URLQueryItem(name: "limit", value: "25"),
-            URLQueryItem(name: "linked_partitioning", value: "true"),
-        ].filter { $0.value != nil })
+    private func searchURL(path: String, query: String, extra: [String: String?] = [:]) -> URL {
+        endpoint("search/\(path)", query: ["q": query, "limit": "25"].merging(extra) { $1 })
     }
 
     func artistTracks(
@@ -483,55 +263,31 @@ actor SoundCloudClient {
         accessToken: String,
         pageURL: URL? = nil
     ) async throws -> SoundCloudTrackPage {
-        var components = URLComponents(
-            url: configuration.apiBaseURL.appending(path: "users")
-                .appending(path: urn).appending(path: "tracks"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [
-            URLQueryItem(name: "limit", value: "25"),
-            URLQueryItem(name: "linked_partitioning", value: "true"),
-            URLQueryItem(name: "access", value: "playable,preview"),
-        ]
-        guard let url = pageURL ?? components.url else {
-            throw SoundCloudError.unexpectedURL
-        }
+        let url = try pageURL ?? endpoint("users/\(try Self.id(urn))/tracks", query: ["limit": "25"])
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
+    /// Reposts mix tracks and playlists; this page keeps only the tracks.
     func artistReposts(
         urn: String,
         accessToken: String,
         pageURL: URL? = nil
     ) async throws -> SoundCloudTrackPage {
-        var components = URLComponents(
-            url: configuration.apiBaseURL.appending(path: "users")
-                .appending(path: urn).appending(path: "reposts")
-                .appending(path: "tracks"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [
-            URLQueryItem(name: "limit", value: "25"),
-            URLQueryItem(name: "linked_partitioning", value: "true"),
-            URLQueryItem(name: "access", value: "playable,preview"),
-        ]
-        guard let url = pageURL ?? components.url else {
-            throw SoundCloudError.unexpectedURL
-        }
+        let url = try pageURL ?? endpoint(
+            "stream/users/\(try Self.id(urn))/reposts", query: ["limit": "25"]
+        )
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
+    /// Reposts mix tracks and playlists; this page keeps only the playlists.
     func artistPlaylistReposts(
         urn: String,
         accessToken: String,
         pageURL: URL? = nil
     ) async throws -> SoundCloudPlaylistPage {
-        let url = pageURL ?? configuration.apiBaseURL.appending(path: "users")
-            .appending(path: urn).appending(path: "reposts/playlists")
-            .appending(queryItems: [
-                URLQueryItem(name: "limit", value: "25"),
-                URLQueryItem(name: "linked_partitioning", value: "true"),
-            ])
+        let url = try pageURL ?? endpoint(
+            "stream/users/\(try Self.id(urn))/reposts", query: ["limit": "25"]
+        )
         return try await playlistPage(at: url, accessToken: accessToken)
     }
 
@@ -540,12 +296,9 @@ actor SoundCloudClient {
         accessToken: String,
         pageURL: URL? = nil
     ) async throws -> SoundCloudPlaylistPage {
-        let url = pageURL ?? configuration.apiBaseURL.appending(path: "users")
-            .appending(path: urn).appending(path: "likes/playlists")
-            .appending(queryItems: [
-                URLQueryItem(name: "limit", value: "25"),
-                URLQueryItem(name: "linked_partitioning", value: "true"),
-            ])
+        let url = try pageURL ?? endpoint(
+            "users/\(try Self.id(urn))/playlist_likes", query: ["limit": "25"]
+        )
         return try await playlistPage(at: url, accessToken: accessToken)
     }
 
@@ -554,20 +307,9 @@ actor SoundCloudClient {
         accessToken: String,
         pageURL: URL? = nil
     ) async throws -> SoundCloudTrackPage {
-        var components = URLComponents(
-            url: configuration.apiBaseURL.appending(path: "users")
-                .appending(path: urn).appending(path: "likes")
-                .appending(path: "tracks"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [
-            URLQueryItem(name: "limit", value: "25"),
-            URLQueryItem(name: "linked_partitioning", value: "true"),
-            URLQueryItem(name: "access", value: "playable,preview"),
-        ]
-        guard let url = pageURL ?? components.url else {
-            throw SoundCloudError.unexpectedURL
-        }
+        let url = try pageURL ?? endpoint(
+            "users/\(try Self.id(urn))/track_likes", query: ["limit": "25"]
+        )
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
@@ -576,13 +318,9 @@ actor SoundCloudClient {
         accessToken: String,
         pageURL: URL? = nil
     ) async throws -> SoundCloudPlaylistPage {
-        let url = pageURL ?? configuration.apiBaseURL.appending(path: "users")
-            .appending(path: urn).appending(path: "playlists")
-            .appending(queryItems: [
-                URLQueryItem(name: "limit", value: "25"),
-                URLQueryItem(name: "linked_partitioning", value: "true"),
-                URLQueryItem(name: "show_tracks", value: "false"),
-            ])
+        let url = try pageURL ?? endpoint(
+            "users/\(try Self.id(urn))/playlists_without_albums", query: ["limit": "25"]
+        )
         return try await playlistPage(at: url, accessToken: accessToken)
     }
 
@@ -591,102 +329,47 @@ actor SoundCloudClient {
         accessToken: String,
         pageURL: URL? = nil
     ) async throws -> SoundCloudTrackPage {
-        var components = URLComponents(
-            url: configuration.apiBaseURL.appending(path: "tracks")
-                .appending(path: urn).appending(path: "related"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [
-            URLQueryItem(name: "limit", value: "10"),
-            URLQueryItem(name: "linked_partitioning", value: "true"),
-            URLQueryItem(name: "access", value: "playable,preview"),
-        ]
-        guard let url = pageURL ?? components.url else {
-            throw SoundCloudError.unexpectedURL
-        }
+        let url = try pageURL ?? endpoint("tracks/\(try Self.id(urn))/related", query: ["limit": "10"])
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
     func playlists(accessToken: String, pageURL: URL? = nil) async throws
         -> SoundCloudPlaylistPage {
-        var components = URLComponents(
-            url: configuration.apiBaseURL.appending(path: "me/playlists"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [
-            URLQueryItem(name: "limit", value: "200"),
-            URLQueryItem(name: "linked_partitioning", value: "true"),
-            URLQueryItem(name: "show_tracks", value: "false"),
-        ]
-        guard let url = pageURL ?? components.url else {
-            throw SoundCloudError.unexpectedURL
-        }
+        let userID = try await myID(accessToken: accessToken)
+        let url = pageURL ?? endpoint(
+            "users/\(userID)/playlists_without_albums", query: ["limit": "200"]
+        )
         return try await playlistPage(at: url, accessToken: accessToken)
     }
 
-    private func playlistPage(at url: URL, accessToken: String) async throws -> SoundCloudPlaylistPage {
-        try validateAPIURL(url)
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
-        let page = try decoder.decode(RawPlaylistPage.self, from: data)
-        if let nextURL = page.nextURL {
-            try validateAPIURL(nextURL)
-            guard nextURL != url else { throw SoundCloudError.invalidData }
-        }
-        return SoundCloudPlaylistPage(
-            playlists: page.collection.compactMap { $0.normalized() },
-            nextURL: page.nextURL
-        )
-    }
-
+    // TODO: Unverified. Mirrors the website's request shape; artwork upload is not ported.
     func createPlaylist(
         title: String, description: String, isPrivate: Bool,
         artwork: PlaylistArtwork? = nil, accessToken: String
     ) async throws -> SoundCloudPlaylist {
-        let boundary = "SoundClaude-\(UUID().uuidString)"
-        var body = Data()
-        func append(_ text: String) { body.append(contentsOf: text.utf8) }
-        for (name, value) in [
-            ("title", title), ("description", description),
-            ("sharing", isPrivate ? "private" : "public")
-        ] {
-            append("--\(boundary)\r\n")
-            append("Content-Disposition: form-data; name=\"playlist[\(name)]\"\r\n\r\n")
-            append("\(value)\r\n")
+        guard artwork == nil else {
+            throw SoundCloudError.api("Playlist artwork upload is not supported yet. Create the playlist without artwork.")
         }
-        if let artwork {
-            append("--\(boundary)\r\n")
-            append("Content-Disposition: form-data; name=\"playlist[artwork_data]\"; filename=\"artwork.\(artwork.format.rawValue)\"\r\n")
-            append("Content-Type: \(artwork.format.mimeType)\r\n\r\n")
-            body.append(artwork.data)
-            append("\r\n")
-        }
-        append("--\(boundary)--\r\n")
-        let (data, response) = try await authenticatedRequest(
-            url: configuration.apiBaseURL.appending(path: "playlists"),
-            accessToken: accessToken, method: "POST", body: body,
-            contentType: "multipart/form-data; boundary=\(boundary)"
-        )
-        try validate(response: response, data: data)
+        let data = try await send("POST", endpoint("playlists"), accessToken: accessToken, json: [
+            "playlist": ["title": title, "description": description,
+                         "sharing": isPrivate ? "private" : "public", "tracks": [Int]()],
+        ])
         guard let playlist = try decoder.decode(RawPlaylist.self, from: data).normalized() else {
             throw SoundCloudError.invalidData
         }
         return playlist
     }
 
+    // TODO: Unverified. Mirrors the website's request shape.
     func updatePlaylist(
         urn: String, title: String, description: String, isPrivate: Bool, accessToken: String
     ) async throws -> SoundCloudPlaylist {
         // Omit tracks so metadata edits preserve every track and its order.
-        let body = try JSONSerialization.data(withJSONObject: [
-            "playlist": ["title": title, "description": description,
-                         "sharing": isPrivate ? "private" : "public"]
-        ])
-        let (data, response) = try await authenticatedRequest(
-            url: configuration.apiBaseURL.appending(path: "playlists").appending(path: urn),
-            accessToken: accessToken, method: "PUT", body: body
+        let data = try await send(
+            "PUT", endpoint("playlists/\(try Self.id(urn))"), accessToken: accessToken,
+            json: ["playlist": ["title": title, "description": description,
+                                "sharing": isPrivate ? "private" : "public"]]
         )
-        try validate(response: response, data: data)
         guard let playlist = try decoder.decode(RawPlaylist.self, from: data).normalized(),
               playlist.urn == urn else { throw SoundCloudError.invalidData }
         return playlist
@@ -702,50 +385,31 @@ actor SoundCloudClient {
                                       removing: true, accessToken: accessToken)
     }
 
+    // TODO: Unverified. Mirrors the website, which replaces the whole track list.
     private func updatePlaylistTrack(
         trackURN: String, playlistURN: String, removing: Bool, accessToken: String
     ) async throws {
-        let playlistURL = configuration.apiBaseURL.appending(path: "playlists").appending(path: playlistURN)
-        var nextURL: URL? = playlistURL.appending(path: "tracks").appending(queryItems: [
-            URLQueryItem(name: "linked_partitioning", value: "true"),
-            URLQueryItem(name: "access", value: "playable,preview,blocked"),
-        ])
-        var visited: Set<URL> = []
-        var trackURNs: [String] = []
-        while let url = nextURL {
-            try validateAPIURL(url)
-            guard visited.insert(url).inserted else { throw SoundCloudError.invalidData }
-            let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-            try validate(response: response, data: data)
-            let page = try decoder.decode(RawTrackPage.self, from: data)
-            for track in page.collection {
-                guard let urn = track.urn, !urn.isEmpty else { throw SoundCloudError.invalidData }
-                trackURNs.append(urn)
+        let playlistURL = endpoint("playlists/\(try Self.id(playlistURN))")
+        let trackID = Int(try Self.id(trackURN))!
+        var trackIDs = try await get(RawPlaylistTracks.self, playlistURL, accessToken: accessToken)
+            .tracks.map { track in
+                guard let id = track.id else { throw SoundCloudError.invalidData }
+                return id
             }
-            nextURL = page.nextURL
-        }
         if removing {
-            guard trackURNs.contains(trackURN) else { return }
-            trackURNs.removeAll { $0 == trackURN }
+            guard trackIDs.contains(trackID) else { return }
+            trackIDs.removeAll { $0 == trackID }
         } else {
-            guard !trackURNs.contains(trackURN) else { return }
-            trackURNs.append(trackURN)
+            guard !trackIDs.contains(trackID) else { return }
+            trackIDs.append(trackID)
         }
-        let body = try JSONSerialization.data(withJSONObject: [
-            "playlist": ["tracks": trackURNs.map { ["urn": $0] }]
-        ])
-        let (data, response) = try await authenticatedRequest(
-            url: playlistURL, accessToken: accessToken, method: "PUT", body: body
-        )
-        try validate(response: response, data: data)
+        try await send("PUT", playlistURL, accessToken: accessToken,
+                       json: ["playlist": ["tracks": trackIDs]])
     }
 
+    // TODO: Unverified.
     func deletePlaylist(urn: String, accessToken: String) async throws {
-        let url = configuration.apiBaseURL.appending(path: "playlists").appending(path: urn)
-        let (data, response) = try await authenticatedRequest(
-            url: url, accessToken: accessToken, method: "DELETE"
-        )
-        try validate(response: response, data: data)
+        try await send("DELETE", endpoint("playlists/\(try Self.id(urn))"), accessToken: accessToken)
     }
 
     func stationTracks(urn: String, accessToken: String) async throws -> [SoundCloudTrack] {
@@ -753,124 +417,106 @@ actor SoundCloudClient {
     }
 
     func station(urn: String, accessToken: String) async throws -> SoundCloudStation {
-        let url = configuration.apiBaseURL.appending(path: "system-playlists")
-            .appending(path: urn)
-            .appending(queryItems: [URLQueryItem(name: "access", value: "playable,preview")])
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
-        let playlist = try decoder.decode(RawSystemPlaylist.self, from: data)
-        return playlist.normalized()
+        let station = try await get(
+            RawSystemPlaylist.self, endpoint("system-playlists/\(urn)"), accessToken: accessToken
+        )
+        return station.normalized(
+            tracks: try await hydrated(station.tracks, accessToken: accessToken)
+        )
     }
 
     func playlist(urn: String, accessToken: String) async throws -> SoundCloudPlaylist {
-        let url = configuration.apiBaseURL.appending(path: "playlists")
-            .appending(path: urn)
-            .appending(queryItems: [URLQueryItem(name: "show_tracks", value: "false")])
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
-        guard let playlist = try decoder.decode(RawPlaylist.self, from: data).normalized() else {
+        let url = endpoint("playlists/\(try Self.id(urn))")
+        guard let playlist = try await get(RawPlaylist.self, url, accessToken: accessToken)
+            .normalized() else {
             throw SoundCloudError.invalidData
         }
         return playlist
     }
 
+    /// api-v2 returns a playlist's tracks with the playlist, so this always returns one page.
     func playlistTracks(
         urn: String,
         accessToken: String,
         pageURL: URL? = nil
     ) async throws -> SoundCloudTrackPage {
-        let url = pageURL ?? configuration.apiBaseURL.appending(path: "playlists")
-            .appending(path: urn).appending(path: "tracks")
-            .appending(queryItems: [
-                URLQueryItem(name: "linked_partitioning", value: "true"),
-                URLQueryItem(name: "access", value: "playable,preview"),
-            ])
-        return try await trackPage(at: url, accessToken: accessToken)
-    }
-
-    private func trackPage(at url: URL, accessToken: String) async throws -> SoundCloudTrackPage {
-        try validateAPIURL(url)
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
-        let page = try decoder.decode(RawTrackPage.self, from: data)
-        if let nextURL = page.nextURL {
-            try validateAPIURL(nextURL)
-            guard nextURL != url else { throw SoundCloudError.invalidData }
-        }
+        guard pageURL == nil else { return SoundCloudTrackPage(tracks: [], nextURL: nil) }
+        let playlist = try await get(
+            RawPlaylistTracks.self, endpoint("playlists/\(try Self.id(urn))"),
+            accessToken: accessToken
+        )
         return SoundCloudTrackPage(
-            tracks: page.collection.compactMap { $0.normalized() },
-            nextURL: page.nextURL
+            tracks: try await hydrated(playlist.tracks, accessToken: accessToken), nextURL: nil
         )
     }
 
     func likedPlaylists(accessToken: String, pageURL: URL? = nil) async throws -> SoundCloudPlaylistPage {
-        let url = pageURL ?? configuration.apiBaseURL.appending(path: "me/likes/playlists")
-            .appending(queryItems: [
-                URLQueryItem(name: "limit", value: "200"),
-                URLQueryItem(name: "linked_partitioning", value: "true"),
-            ])
+        let userID = try await myID(accessToken: accessToken)
+        let url = pageURL ?? endpoint("users/\(userID)/playlist_likes", query: ["limit": "200"])
         return try await playlistPage(at: url, accessToken: accessToken)
     }
 
+    /// Station likes appear among the library's playlist entries.
     func likedStations(accessToken: String, pageURL: URL? = nil) async throws -> SoundCloudStationLikePage {
-        let url = pageURL ?? configuration.apiBaseURL.appending(path: "me/likes/system-playlists")
-            .appending(queryItems: [
-                URLQueryItem(name: "limit", value: "200"),
-                URLQueryItem(name: "linked_partitioning", value: "true"),
-            ])
-        try validateAPIURL(url)
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
-        let page = try decoder.decode(SoundCloudStationLikePage.self, from: data)
-        if let nextURL = page.nextURL {
-            try validateAPIURL(nextURL)
-            guard nextURL != url else { throw SoundCloudError.invalidData }
+        struct Page: Decodable {
+            struct Entry: Decodable {
+                let type: String
+                let system_playlist: SoundCloudStationLikePage.Station?
+            }
+            let collection: [Entry]
+            let next_href: URL?
         }
-        return page
+        let url = pageURL ?? endpoint("me/library/all", query: ["limit": "200"])
+        let page = try await get(Page.self, url, accessToken: accessToken)
+        try validateNextURL(page.next_href, after: url)
+        return SoundCloudStationLikePage(
+            collection: page.collection.compactMap {
+                $0.type == "system-playlist-like" ? $0.system_playlist : nil
+            },
+            nextURL: page.next_href
+        )
     }
 
+    // TODO: Unverified.
     func setPlaylistLiked(urn: String, isLiked: Bool, accessToken: String) async throws {
-        let url = configuration.apiBaseURL.appending(path: "likes/playlists").appending(path: urn)
-        let (data, response) = try await authenticatedRequest(
-            url: url, accessToken: accessToken, method: isLiked ? "POST" : "DELETE"
+        let userID = try await myID(accessToken: accessToken)
+        try await send(
+            isLiked ? "PUT" : "DELETE",
+            endpoint("users/\(userID)/playlist_likes/\(try Self.id(urn))"),
+            accessToken: accessToken
         )
-        try validate(response: response, data: data)
     }
 
     func repostedTracks(accessToken: String, pageURL: URL? = nil) async throws -> SoundCloudTrackPage {
-        let url = pageURL ?? configuration.apiBaseURL.appending(path: "me/reposts/tracks")
-            .appending(queryItems: [
-                URLQueryItem(name: "limit", value: "200"),
-                URLQueryItem(name: "linked_partitioning", value: "true"),
-            ])
+        let userID = try await myID(accessToken: accessToken)
+        let url = pageURL ?? endpoint("stream/users/\(userID)/reposts", query: ["limit": "200"])
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
+    // TODO: Unverified.
     func setTrackReposted(urn: String, isReposted: Bool, accessToken: String) async throws {
-        let url = configuration.apiBaseURL.appending(path: "reposts/tracks").appending(path: urn)
-        let (data, response) = try await authenticatedRequest(
-            url: url, accessToken: accessToken, method: isReposted ? "POST" : "DELETE"
+        try await send(
+            isReposted ? "PUT" : "DELETE",
+            endpoint("me/track_reposts/\(try Self.id(urn))"),
+            accessToken: accessToken
         )
-        try validate(response: response, data: data)
     }
 
+    // TODO: Unverified.
     func setTrackLiked(
         urn: String,
         isLiked: Bool,
         accessToken: String
     ) async throws {
-        let url = configuration.apiBaseURL
-            .appending(path: "likes")
-            .appending(path: "tracks")
-            .appending(path: urn)
-        let (data, response) = try await authenticatedRequest(
-            url: url,
-            accessToken: accessToken,
-            method: isLiked ? "POST" : "DELETE"
+        let userID = try await myID(accessToken: accessToken)
+        try await send(
+            isLiked ? "PUT" : "DELETE",
+            endpoint("users/\(userID)/track_likes/\(try Self.id(urn))"),
+            accessToken: accessToken
         )
-        try validate(response: response, data: data)
     }
 
+    // TODO: Unverified.
     func addTrackComment(
         urn: String,
         body: String,
@@ -880,17 +526,14 @@ actor SoundCloudClient {
         guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw SoundCloudError.api("Enter a comment before posting.")
         }
-        let url = configuration.apiBaseURL.appending(path: "tracks")
-            .appending(path: urn).appending(path: "comments")
         var comment: [String: Any] = ["body": body]
         if let timestampMilliseconds {
             comment["timestamp"] = timestampMilliseconds
         }
-        let payload = try JSONSerialization.data(withJSONObject: ["comment": comment])
-        let (data, response) = try await authenticatedRequest(
-            url: url, accessToken: accessToken, method: "POST", body: payload
+        let data = try await send(
+            "POST", endpoint("tracks/\(try Self.id(urn))/comments"),
+            accessToken: accessToken, json: ["comment": comment]
         )
-        try validate(response: response, data: data)
         return try decoder.decode(SoundCloudComment.self, from: data)
     }
 
@@ -901,21 +544,14 @@ actor SoundCloudClient {
         pageURL: URL? = nil,
         limit: Int = 50
     ) async throws -> SoundCloudCommentPage {
-        let url = pageURL ?? configuration.apiBaseURL.appending(path: "tracks")
-            .appending(path: urn).appending(path: "comments")
-            .appending(queryItems: [
-                URLQueryItem(name: "limit", value: String(limit)),
-                URLQueryItem(name: "linked_partitioning", value: "true"),
-                URLQueryItem(name: "secret_token", value: secretToken),
-            ].filter { $0.value != nil })
-        try validateAPIURL(url)
-        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
-        try validate(response: response, data: data)
-        let page = try decoder.decode(SoundCloudCommentPage.self, from: data)
-        if let nextURL = page.nextURL {
-            try validateAPIURL(nextURL)
-            guard nextURL != url else { throw SoundCloudError.invalidData }
-        }
+        let url = try pageURL ?? endpoint("tracks/\(try Self.id(urn))/comments", query: [
+            "threaded": "0",
+            "filter_replies": "0",
+            "limit": String(limit),
+            "secret_token": secretToken,
+        ])
+        let page = try await get(SoundCloudCommentPage.self, url, accessToken: accessToken)
+        try validateNextURL(page.nextURL, after: url)
         return page
     }
 
@@ -924,27 +560,8 @@ actor SoundCloudClient {
         secretToken: String?,
         accessToken: String
     ) async throws -> SoundCloudTrackDetails {
-        var components = URLComponents(
-            url: configuration.apiBaseURL
-                .appending(path: "tracks")
-                .appending(path: urn),
-            resolvingAgainstBaseURL: false
-        )
-        if let secretToken {
-            components?.queryItems = [
-                URLQueryItem(name: "secret_token", value: secretToken),
-            ]
-        }
-        guard let url = components?.url else {
-            throw SoundCloudError.unexpectedURL
-        }
-        let (data, response) = try await authenticatedRequest(
-            url: url,
-            accessToken: accessToken
-        )
-        try validate(response: response, data: data)
-        guard let details = try decoder
-            .decode(RawTrack.self, from: data)
+        let url = endpoint("tracks/\(try Self.id(urn))", query: ["secret_token": secretToken])
+        guard let details = try await get(RawTrack.self, url, accessToken: accessToken)
             .normalizedDetails() else {
             throw SoundCloudError.invalidData
         }
@@ -955,46 +572,30 @@ actor SoundCloudClient {
         track: SoundCloudTrack,
         accessToken: String
     ) async throws -> PlaybackSource {
-        var components = URLComponents(
-            url: configuration.apiBaseURL
-                .appending(path: "tracks")
-                .appending(path: track.urn)
-                .appending(path: "streams"),
-            resolvingAgainstBaseURL: false
+        // Track authorizations expire, so always fetch them with a fresh track.
+        let trackURL = endpoint(
+            "tracks/\(try Self.id(track.urn))", query: ["secret_token": track.secretToken]
         )
-        if let secretToken = track.secretToken {
-            components?.queryItems = [
-                URLQueryItem(name: "secret_token", value: secretToken),
-            ]
-        }
-        guard let url = components?.url else {
-            throw SoundCloudError.unexpectedURL
-        }
-        let (data, response) = try await authenticatedRequest(
-            url: url,
-            accessToken: accessToken
-        )
-        try validate(response: response, data: data)
-        let streams = try decoder.decode(StreamResponse.self, from: data)
-        let candidates: [(URL?, PlaybackSource.Kind, PlaybackSource.Codec, Int, Bool)] = [
-            (streams.hlsAAC160URL, .hls, .aac, 160, false),
-            (streams.hlsMP3128URL, .hls, .mp3, 128, false),
-            (streams.previewMP3128URL, .mp3, .mp3, 128, true),
-        ]
+        let streams = try await get(StreamResponse.self, trackURL, accessToken: accessToken)
+        struct Stream: Decodable { let url: URL }
 
-        for (streamURL, kind, codec, bitrate, isPreview) in candidates {
-            guard let streamURL else { continue }
+        for (transcoding, source) in streams.candidates {
             do {
-                let finalURL = try await streamRedirect(
-                    streamURL,
-                    accessToken: accessToken
-                )
+                try validateAPIURL(transcoding.url)
+                var url = transcoding.url
+                if let authorization = streams.trackAuthorization {
+                    url = url.appending(queryItems: [
+                        URLQueryItem(name: "track_authorization", value: authorization),
+                    ])
+                }
+                let stream = try await get(Stream.self, url, accessToken: accessToken)
+                try validatePlaybackURL(stream.url)
                 return PlaybackSource(
-                    url: finalURL,
-                    kind: kind,
-                    codec: codec,
-                    bitrateKilobitsPerSecond: bitrate,
-                    isPreview: isPreview
+                    url: stream.url,
+                    kind: source.kind,
+                    codec: source.codec,
+                    bitrateKilobitsPerSecond: source.bitrateKilobitsPerSecond,
+                    isPreview: source.isPreview
                 )
             } catch SoundCloudError.unauthorized {
                 throw SoundCloudError.unauthorized
@@ -1002,6 +603,8 @@ actor SoundCloudClient {
                 throw SoundCloudError.rateLimited
             } catch SoundCloudError.network {
                 throw SoundCloudError.network
+            } catch is CancellationError {
+                throw CancellationError()
             } catch {
                 continue
             }
@@ -1013,7 +616,7 @@ actor SoundCloudClient {
         try validateArtworkURL(artworkURL)
         var request = URLRequest(url: artworkURL)
         request.setValue("image/jpeg, image/png", forHTTPHeaderField: "Accept")
-        let (data, response) = try await send(request, using: session)
+        let (data, response) = try await send(request)
         try validate(response: response, data: data)
         // Original uploads can be PNGs even when their thumbnails are JPEGs.
         guard let mimeType = response.mimeType?.lowercased(),
@@ -1032,7 +635,7 @@ actor SoundCloudClient {
             "application/json; charset=utf-8",
             forHTTPHeaderField: "Accept"
         )
-        let (data, response) = try await send(request, using: session)
+        let (data, response) = try await send(request)
         try validate(response: response, data: data)
         guard response.mimeType?.lowercased() == "application/json",
               !data.isEmpty,
@@ -1051,44 +654,154 @@ actor SoundCloudClient {
         return waveform
     }
 
-    func signOut(accessToken: String) async throws {
-        var request = URLRequest(url: configuration.signOutURL)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(
-            withJSONObject: ["access_token": accessToken]
+    // MARK: - Website client ID
+
+    /// Finds the client ID that soundcloud.com's own scripts use.
+    func discoverClientID() async throws -> String {
+        var request = URLRequest(url: configuration.websiteURL)
+        request.setValue("text/html", forHTTPHeaderField: "Accept")
+        let html = try await text(request)
+        let scripts = Self.matches(
+            #"<script[^>]+src="(https://[a-zA-Z0-9-]+\.sndcdn\.com/[^"]+\.js)""#, in: html
         )
-        let (data, response) = try await send(request, using: session)
-        if response.statusCode == 401 { return }
-        try validate(response: response, data: data)
+        // The ID is defined in one of the last bundles.
+        for script in scripts.reversed() {
+            try Task.checkCancellation()
+            guard let url = URL(string: script) else { continue }
+            do {
+                if let id = Self.matches(
+                    #"client_id\s*[:=]\s*"([a-zA-Z0-9]{32})""#, in: try await text(URLRequest(url: url))
+                ).first {
+                    return id
+                }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                continue
+            }
+        }
+        throw SoundCloudError.configuration
     }
 
-    private func tokenRequest(
-        _ fields: [String: String],
-        isRefresh: Bool
-    ) async throws -> OAuthTokenResponse {
-        var form = URLComponents()
-        form.queryItems = fields.sorted(by: { $0.key < $1.key }).map {
-            URLQueryItem(name: $0.key, value: $0.value)
+    private func currentClientID() async throws -> String {
+        if let clientID { return clientID }
+        return try await refreshClientID()
+    }
+
+    private func refreshClientID() async throws -> String {
+        if let clientIDTask { return try await clientIDTask.value }
+        let task = Task { try await discoverClientID() }
+        clientIDTask = task
+        defer { clientIDTask = nil }
+        let id = try await task.value
+        clientID = id
+        UserDefaults.standard.set(id, forKey: Self.clientIDDefaultsKey)
+        return id
+    }
+
+    private func text(_ request: URLRequest) async throws -> String {
+        let (data, response) = try await send(request)
+        guard response.statusCode == 200 else { throw SoundCloudError.invalidResponse }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    private static func matches(_ pattern: String, in text: String) -> [String] {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let string = text as NSString
+        return regex.matches(in: text, range: NSRange(location: 0, length: string.length)).map {
+            string.substring(with: $0.range(at: 1))
         }
-        var request = URLRequest(url: configuration.tokenURL)
-        request.httpMethod = "POST"
-        request.setValue(
-            "application/x-www-form-urlencoded",
-            forHTTPHeaderField: "Content-Type"
-        )
-        request.setValue(
-            "application/json; charset=utf-8",
-            forHTTPHeaderField: "Accept"
-        )
-        request.httpBody = form.percentEncodedQuery?.data(using: .utf8)
-        let (data, response) = try await send(request, using: session)
-        if isRefresh,
-           [400, 401, 403].contains(response.statusCode) {
-            throw SoundCloudError.unauthorized
+    }
+
+    // MARK: - Requests
+
+    /// api-v2 paths take numeric IDs, while app models keep URNs.
+    private static func id(_ urn: String) throws -> String {
+        let id = urn.split(separator: ":").last.map(String.init) ?? ""
+        guard !id.isEmpty, id.allSatisfy(\.isASCII), id.allSatisfy(\.isNumber) else {
+            throw SoundCloudError.unexpectedURL
         }
+        return id
+    }
+
+    private func myID(accessToken: String) async throws -> String {
+        if let currentUserID, currentUserID.accessToken == accessToken {
+            return currentUserID.id
+        }
+        _ = try await currentUser(accessToken: accessToken)
+        return currentUserID!.id
+    }
+
+    private func endpoint(_ path: String, query: [String: String?] = [:]) -> URL {
+        var items = query.compactMap { name, value in
+            value.map { URLQueryItem(name: name, value: $0) }
+        }.sorted { $0.name < $1.name }
+        // Paged endpoints take a limit; linked partitioning makes them return next_href.
+        if query["limit"] != nil {
+            items.append(URLQueryItem(name: "linked_partitioning", value: "1"))
+        }
+        return configuration.apiBaseURL.appending(path: path).appending(queryItems: items)
+    }
+
+    private func get<T: Decodable>(_ type: T.Type, _ url: URL, accessToken: String) async throws -> T {
+        let (data, response) = try await authenticatedRequest(url: url, accessToken: accessToken)
         try validate(response: response, data: data)
-        return try decoder.decode(OAuthTokenResponse.self, from: data)
+        return try decoder.decode(T.self, from: data)
+    }
+
+    @discardableResult
+    private func send(
+        _ method: String, _ url: URL, accessToken: String, json: [String: Any]? = nil
+    ) async throws -> Data {
+        let body = try json.map { try JSONSerialization.data(withJSONObject: $0) }
+        let (data, response) = try await authenticatedRequest(
+            url: url, accessToken: accessToken, method: method, body: body
+        )
+        try validate(response: response, data: data)
+        return data
+    }
+
+    private func trackPage(at url: URL, accessToken: String) async throws -> SoundCloudTrackPage {
+        let page = try await get(RawTrackPage.self, url, accessToken: accessToken)
+        try validateNextURL(page.nextURL, after: url)
+        return SoundCloudTrackPage(
+            tracks: page.collection.compactMap { $0.normalized() },
+            nextURL: page.nextURL
+        )
+    }
+
+    private func playlistPage(at url: URL, accessToken: String) async throws -> SoundCloudPlaylistPage {
+        let page = try await get(RawPlaylistPage.self, url, accessToken: accessToken)
+        try validateNextURL(page.nextURL, after: url)
+        return SoundCloudPlaylistPage(
+            playlists: page.collection.compactMap { $0.normalized() },
+            nextURL: page.nextURL
+        )
+    }
+
+    private func userPage(at url: URL, accessToken: String) async throws -> SoundCloudUserPage {
+        let page = try await get(RawUserPage.self, url, accessToken: accessToken)
+        try validateNextURL(page.nextURL, after: url)
+        return SoundCloudUserPage(
+            users: page.collection.compactMap { $0.normalized() }, nextURL: page.nextURL
+        )
+    }
+
+    /// Playlists and stations list later tracks as ID-only stubs.
+    private func hydrated(_ tracks: [RawTrack], accessToken: String) async throws -> [SoundCloudTrack] {
+        let missing = tracks.filter { $0.title == nil }.compactMap(\.id)
+        var loaded: [Int: RawTrack] = [:]
+        for start in stride(from: 0, to: missing.count, by: Self.trackBatchSize) {
+            try Task.checkCancellation()
+            let batch = missing[start..<min(start + Self.trackBatchSize, missing.count)]
+            let url = endpoint("tracks", query: ["ids": batch.map(String.init).joined(separator: ",")])
+            for track in try await get([RawTrack].self, url, accessToken: accessToken) {
+                if let id = track.id { loaded[id] = track }
+            }
+        }
+        return tracks.compactMap { track in
+            (track.title == nil ? track.id.flatMap { loaded[$0] } : track)?.normalized()
+        }
     }
 
     private func authenticatedRequest(
@@ -1096,55 +809,41 @@ actor SoundCloudClient {
         accessToken: String,
         method: String = "GET",
         body: Data? = nil,
-        contentType: String = "application/json; charset=utf-8"
+        isRetry: Bool = false
     ) async throws -> (Data, HTTPURLResponse) {
-        var request = URLRequest(url: url)
+        try validateAPIURL(url)
+        let clientID = try await currentClientID()
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            throw SoundCloudError.unexpectedURL
+        }
+        var queryItems = (components.queryItems ?? []).filter { $0.name != "client_id" }
+        queryItems.append(URLQueryItem(name: "client_id", value: clientID))
+        components.queryItems = queryItems
+        guard let requestURL = components.url else { throw SoundCloudError.unexpectedURL }
+
+        var request = URLRequest(url: requestURL)
         request.httpMethod = method
         if let body {
             request.httpBody = body
-            request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+            request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
         }
-        request.setValue(
-            "application/json; charset=utf-8",
-            forHTTPHeaderField: "Accept"
-        )
-        request.setValue(
-            "OAuth \(accessToken)",
-            forHTTPHeaderField: "Authorization"
-        )
-        return try await send(request, using: session)
+        request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
+        request.setValue("OAuth \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("https://soundcloud.com", forHTTPHeaderField: "Origin")
+        request.setValue("https://soundcloud.com/", forHTTPHeaderField: "Referer")
+        let (data, response) = try await send(request)
+
+        // SoundCloud rotates the website client ID; retry once with a fresh one.
+        if [401, 403].contains(response.statusCode), !isRetry, configuration.clientID == nil,
+           try await refreshClientID() != clientID {
+            return try await authenticatedRequest(
+                url: url, accessToken: accessToken, method: method, body: body, isRetry: true
+            )
+        }
+        return (data, response)
     }
 
-    private func streamRedirect(
-        _ streamURL: URL,
-        accessToken: String
-    ) async throws -> URL {
-        try validateAPIURL(streamURL)
-        var request = URLRequest(url: streamURL)
-        request.httpMethod = "HEAD"
-        request.setValue(
-            "OAuth \(accessToken)",
-            forHTTPHeaderField: "Authorization"
-        )
-        let (data, response) = try await send(
-            request,
-            using: noRedirectSession
-        )
-        if response.statusCode == 401 { throw SoundCloudError.unauthorized }
-        if response.statusCode == 429 { throw SoundCloudError.rateLimited }
-        guard (300..<400).contains(response.statusCode),
-              let location = response.value(forHTTPHeaderField: "Location"),
-              let redirectURL = URL(string: location, relativeTo: streamURL)?.absoluteURL else {
-            try validate(response: response, data: data)
-            throw SoundCloudError.playbackUnavailable
-        }
-        try validatePlaybackURL(redirectURL)
-        return redirectURL
-    }
-
-    private func perform(
-        _ request: URLRequest, using session: URLSession, attempt: Int = 1
-    ) async throws -> (Data, URLResponse) {
+    private func perform(_ request: URLRequest, attempt: Int = 1) async throws -> (Data, URLResponse) {
         #if DEBUG
         let id = await NetworkActivityStore.shared.begin(request, attempt: attempt)
         let start = ProcessInfo.processInfo.systemUptime
@@ -1170,13 +869,10 @@ actor SoundCloudClient {
         #endif
     }
 
-    private func send(
-        _ request: URLRequest,
-        using session: URLSession
-    ) async throws -> (Data, HTTPURLResponse) {
+    private func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         for attempt in 0..<3 {
             do {
-                let (data, response) = try await perform(request, using: session, attempt: attempt + 1)
+                let (data, response) = try await perform(request, attempt: attempt + 1)
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw SoundCloudError.invalidResponse
                 }
@@ -1185,6 +881,8 @@ actor SoundCloudClient {
                 }
             } catch let error as SoundCloudError {
                 throw error
+            } catch is CancellationError {
+                throw CancellationError()
             } catch {
                 throw SoundCloudError.network
             }
@@ -1209,8 +907,15 @@ actor SoundCloudClient {
         )
     }
 
+    private func validateNextURL(_ nextURL: URL?, after url: URL) throws {
+        guard let nextURL else { return }
+        try validateAPIURL(nextURL)
+        guard nextURL != url else { throw SoundCloudError.invalidData }
+    }
+
     private func validateAPIURL(_ url: URL) throws {
-        guard url.scheme == "https", url.host == "api.soundcloud.com" else {
+        guard url.scheme == "https", url.host == configuration.apiBaseURL.host,
+              url.user == nil, url.password == nil, url.port == nil || url.port == 443 else {
             throw SoundCloudError.unexpectedURL
         }
     }
@@ -1254,4 +959,9 @@ actor SoundCloudClient {
         }
         return jsonURL
     }
+}
+
+/// A playlist's track list, where later entries are ID-only stubs.
+private struct RawPlaylistTracks: Decodable {
+    let tracks: [RawTrack]
 }

@@ -35,7 +35,7 @@ actor PlaylistsCacheStore {
     private let directory: URL
 
     init(directory: URL = URL.applicationSupportDirectory
-        .appending(path: "SoundClaude/Playlists", directoryHint: .isDirectory)) {
+        .appending(path: "SoundClaude/v2/Playlists", directoryHint: .isDirectory)) {
         self.directory = directory
     }
 

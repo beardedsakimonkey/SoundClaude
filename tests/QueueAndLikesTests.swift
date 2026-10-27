@@ -59,7 +59,7 @@ func track(_ id: Int) -> SoundCloudTrack {
 struct QueueAndLikesTests {
     @MainActor
     static func main() async throws {
-        let next = URL(string: "https://api.soundcloud.com/tracks?cursor=next")!
+        let next = URL(string: "https://api-v2.soundcloud.com/tracks?cursor=next")!
         let suite = "QueuePersistenceTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -104,6 +104,15 @@ struct QueueAndLikesTests {
                 }
             }
         }
+
+        // Queues saved before the website API migration cannot continue from official-API pages.
+        let officialAPISuite = "soundclaude.tests.legacy-queue.\(UUID().uuidString)"
+        let officialAPIStore = TrackQueueStore(defaults: UserDefaults(suiteName: officialAPISuite)!)
+        defer { UserDefaults().removePersistentDomain(forName: officialAPISuite) }
+        officialAPIStore.save(TrackQueue(source: .feed, tracks: (1...2).map(track),
+                                    nextPageURL: URL(string: "https://api.soundcloud.com/me/feed?cursor=next")!))
+        let officialAPIQueue = officialAPIStore.restore(currentTrack: track(1), shuffleEnabled: false)
+        precondition(officialAPIQueue.tracks == (1...2).map(track) && officialAPIQueue.nextPageURL == nil)
 
         // Unliking the playing track preserves navigation in the active playback order.
         for shuffled in [false, true] {

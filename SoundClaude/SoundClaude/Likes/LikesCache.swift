@@ -34,7 +34,7 @@ actor LikesCacheStore {
     private let directory: URL
 
     init(directory: URL = URL.applicationSupportDirectory
-        .appending(path: "SoundClaude/Likes", directoryHint: .isDirectory)) {
+        .appending(path: "SoundClaude/v2/Likes", directoryHint: .isDirectory)) {
         self.directory = directory
     }
 

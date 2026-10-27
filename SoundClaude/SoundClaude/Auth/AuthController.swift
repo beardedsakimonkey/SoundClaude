@@ -1,7 +1,4 @@
-import AppKit
-import CryptoKit
 import Foundation
-import Security
 
 @MainActor
 final class AuthController: ObservableObject {
@@ -18,9 +15,7 @@ final class AuthController: ObservableObject {
     private let client: SoundCloudClient
     private let tokenStore: KeychainTokenStore
     private var token: TokenRecord?
-    private var refreshTask: Task<String, Error>?
     private var restoreTask: Task<Void, Never>?
-    private var callbackServer: OAuthCallbackServer?
 
     init(
         client: SoundCloudClient,
@@ -80,58 +75,18 @@ final class AuthController: ObservableObject {
         }
     }
 
-    func signIn() async {
-        guard callbackServer == nil else { return }
+    /// Validates a website session token and saves it only once SoundCloud accepts it.
+    func signIn(token accessToken: String) async {
         restoreTask?.cancel()
         restoreTask = nil
         state = .signingIn
-
         do {
-            let verifier = try randomURLSafeValue(byteCount: 64)
-            let stateValue = try randomURLSafeValue(byteCount: 32)
-            let challenge = Self.base64URL(
-                Data(SHA256.hash(data: Data(verifier.utf8)))
-            )
-            let server = OAuthCallbackServer(expectedState: stateValue)
-            callbackServer = server
-            try await server.start()
-
-            let authorizationURL = try await client.authorizationURL(
-                state: stateValue,
-                challenge: challenge
-            )
-            guard NSWorkspace.shared.open(authorizationURL) else {
-                throw SoundCloudError.api(
-                    "The system browser could not open SoundCloud sign-in."
-                )
-            }
-
-            let code = try await server.waitForCode()
-            callbackServer = nil
-            let response = try await client.exchangeCode(
-                code,
-                verifier: verifier
-            )
-            guard let refreshToken = response.refreshToken, !refreshToken.isEmpty else {
-                throw SoundCloudError.invalidData
-            }
-            let record = TokenRecord(
-                accessToken: response.accessToken,
-                refreshToken: refreshToken,
-                expiresAt: Date().addingTimeInterval(response.expiresIn),
-                user: nil
-            )
-            token = record
+            let user = try await client.currentUser(accessToken: accessToken)
+            let record = TokenRecord(accessToken: accessToken, user: user)
             try tokenStore.save(record)
-
-            let user = try await client.currentUser(
-                accessToken: response.accessToken
-            )
-            try saveUser(user)
+            token = record
             state = .signedIn(user)
         } catch {
-            callbackServer?.cancel()
-            callbackServer = nil
             state = .failed(error.localizedDescription)
         }
     }
@@ -139,56 +94,17 @@ final class AuthController: ObservableObject {
     func signOut() async {
         restoreTask?.cancel()
         restoreTask = nil
-        refreshTask?.cancel()
-        refreshTask = nil
-        callbackServer?.cancel()
-        callbackServer = nil
-        let accessToken = token?.accessToken
         token = nil
         try? tokenStore.delete()
         state = .signedOut
-        if let accessToken {
-            try? await client.signOut(accessToken: accessToken)
-        }
     }
 
+    /// Website sessions do not expire on a schedule; a 401 means the user must sign in again.
     func validAccessToken() async throws -> String {
-        if let refreshTask {
-            return try await refreshTask.value
-        }
         guard let record = token else {
             throw SoundCloudError.unauthorized
         }
-        guard record.expiresAt.timeIntervalSinceNow <= 60 else {
-            return record.accessToken
-        }
-
-        let task = Task { @MainActor in
-            defer {
-                // Sign-out clears cancelled tasks. They must not clear a newer task.
-                if !Task.isCancelled {
-                    refreshTask = nil
-                }
-            }
-            try Task.checkCancellation()
-            let response = try await client.refreshToken(record.refreshToken)
-            try Task.checkCancellation()
-            guard let refreshToken = response.refreshToken,
-                  !refreshToken.isEmpty else {
-                throw SoundCloudError.invalidData
-            }
-            let refreshedRecord = TokenRecord(
-                accessToken: response.accessToken,
-                refreshToken: refreshToken,
-                expiresAt: Date().addingTimeInterval(response.expiresIn),
-                user: record.user
-            )
-            token = refreshedRecord
-            try tokenStore.save(refreshedRecord)
-            return refreshedRecord.accessToken
-        }
-        refreshTask = task
-        return try await task.value
+        return record.accessToken
     }
 
     private func saveUser(_ user: SoundCloudUser) throws {
@@ -196,25 +112,5 @@ final class AuthController: ObservableObject {
         record.user = user
         token = record
         try tokenStore.save(record)
-    }
-
-    private func randomURLSafeValue(byteCount: Int) throws -> String {
-        var bytes = [UInt8](repeating: 0, count: byteCount)
-        let status = SecRandomCopyBytes(
-            kSecRandomDefault,
-            byteCount,
-            &bytes
-        )
-        guard status == errSecSuccess else {
-            throw SoundCloudError.api("Secure random data is unavailable.")
-        }
-        return Self.base64URL(Data(bytes))
-    }
-
-    private static func base64URL(_ data: Data) -> String {
-        data.base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
     }
 }

@@ -17,7 +17,7 @@ enum KeychainError: LocalizedError {
 
 struct KeychainTokenStore: Sendable {
     private let service: String
-    private let account = "oauth-token"
+    private let account = "website-token"
 
     init(service: String = "com.tim.soundclaude.native") {
         self.service = service

@@ -3,8 +3,9 @@
 https://github.com/user-attachments/assets/c4c8524f-6f96-49e1-a15f-4f4fc52a87a8
 
 > [!NOTE]
-> This app requires a SoundCloud client ID and secret, which require an
-> Artist Pro account. [Get an API Key](https://developers.soundcloud.com/docs/api/register-app#2-artist-pro-subscription-required)
+> SoundClaude uses SoundCloud's website API with your own soundcloud.com sign-in,
+> so it needs no API key. That API is undocumented, and SoundCloud can change it
+> without notice.
 
 SoundClaude is a native macOS SoundCloud client built with SwiftUI, AVPlayer,
 Core Audio, Accelerate, and Metal. It features:
@@ -26,18 +27,23 @@ Core Audio, Accelerate, and Metal. It features:
 - Expandable track artwork and artist photos
 
 
+## Sign in
+
+Choose **Sign in with SoundCloud** and sign in on the embedded soundcloud.com page.
+SoundClaude keeps only the resulting website session token, in macOS Keychain;
+**Sign Out** removes it.
+
+If embedded sign-in does not work, expand **Use an existing browser session** and
+import a copied `oauth_token` cookie value from a signed-in soundcloud.com tab. The
+import clears the clipboard.
+
+SoundClaude finds the website's public client ID on soundcloud.com and finds it
+again when SoundCloud rotates it.
+
 ## Requirements
 
 - macOS 14.2 or later
 - Xcode with the macOS SDK
-- This SoundCloud application callback URL:
-  `http://127.0.0.1:32148/callback`
-
-## Configure credentials
-
-Copy `SoundClaude/Config/Configuration.xcconfig.example` to
-`SoundClaude/Config/Configuration.xcconfig`, then replace the placeholder values
-with your credentials.
 
 ## Run
 

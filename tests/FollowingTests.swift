@@ -6,15 +6,15 @@ struct FollowingTests {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FollowingURLProtocol.self]
         let client = SoundCloudClient(
-            configuration: SoundCloudConfiguration(clientID: "test", clientSecret: "test"),
+            configuration: APITestSupport.configuration,
             sessionConfiguration: configuration
         )
         FollowingURLProtocol.respond { request in
-            precondition(request.url?.path == "/users/soundcloud:users:1/related")
+            precondition(request.url?.path == "/users/1/relatedartists")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems
             precondition(query?.contains(URLQueryItem(name: "limit", value: "12")) == true)
-            precondition(query?.contains(URLQueryItem(name: "linked_partitioning", value: "true")) == true)
+            precondition(query?.contains(URLQueryItem(name: "linked_partitioning", value: "1")) == true)
             return (200, """
                 {"collection":[
                     {"urn":"soundcloud:users:2","username":"Artist","full_name":"Full Name","avatar_url":"https://example.com/avatar.jpg","permalink_url":"https://soundcloud.com/artist"},
@@ -47,8 +47,8 @@ struct FollowingTests {
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             return (200, """
                 [
-                    {"service":"youtube","url":"https://youtube.com/artist","title":"  "},
-                    {"service":"personal","url":"https://example.com","title":"My site"},
+                    {"network":"youtube","url":"https://youtube.com/artist","title":"  "},
+                    {"network":"personal","url":"https://example.com","title":"My site"},
                     {"service":"youtube","url":"https://youtube.com/artist"},
                     {"url":"javascript:alert(1)"},
                     {"url":"/relative"},
@@ -72,9 +72,9 @@ struct FollowingTests {
         FollowingURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
-            precondition(request.url?.path == "/me/followings")
-            if request.url?.query == "limit=200" {
-                return (200, #"{"collection":[{"urn":"soundcloud:users:1"}],"next_href":"https://api.soundcloud.com/me/followings?cursor=next"}"#)
+            precondition(request.url?.path == "/users/42/followings")
+            if request.url?.query == "limit=200&linked_partitioning=1" {
+                return (200, #"{"collection":[{"urn":"soundcloud:users:1"}],"next_href":"https://api-v2.soundcloud.com/users/42/followings?cursor=next"}"#)
             }
             precondition(request.url?.query == "cursor=next")
             return (200, #"{"collection":[{"urn":"soundcloud:users:2"}],"next_href":null}"#)
@@ -89,8 +89,8 @@ struct FollowingTests {
 
         for isFollowed in [true, false] {
             FollowingURLProtocol.respond { request in
-                precondition(request.httpMethod == (isFollowed ? "PUT" : "DELETE"))
-                precondition(request.url?.path == "/me/followings/soundcloud:users:1")
+                precondition(request.httpMethod == (isFollowed ? "POST" : "DELETE"))
+                precondition(request.url?.path == "/me/followings/1")
                 precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
                 return (isFollowed ? 201 : 200, "")
             }
@@ -133,15 +133,15 @@ struct FollowingTests {
             fatalError("Missing user URN was ignored")
         } catch SoundCloudError.invalidData {}
         for list in ArtistUserList.allCases {
-            let nextURL = URL(string: "https://api.soundcloud.com/users/soundcloud:users:1/\(list.rawValue)?cursor=next")!
+            let nextURL = URL(string: "https://api-v2.soundcloud.com/users/1/\(list.rawValue)?cursor=next")!
             FollowingURLProtocol.respond { request in
                 precondition(request.httpMethod == "GET")
                 precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
-                precondition(request.url?.path == "/users/soundcloud:users:1/\(list.rawValue)")
+                precondition(request.url?.path == "/users/1/\(list.rawValue)")
                 if request.url == nextURL {
                     return (200, #"{"collection":[{"urn":"soundcloud:users:3","username":"Second","permalink_url":"https://soundcloud.com/second"}],"next_href":null}"#)
                 }
-                precondition(request.url?.query == "limit=50")
+                precondition(request.url?.query == "limit=50&linked_partitioning=1")
                 return (200, """
                     {"collection":[
                         {"urn":"soundcloud:users:2","username":"First","permalink_url":"https://soundcloud.com/first","avatar_url":"https://i1.sndcdn.com/avatar-large.jpg"},
@@ -190,7 +190,8 @@ private final class FollowingURLProtocol: URLProtocol {
         Self.lock.lock()
         let handler = Self.handler!
         Self.lock.unlock()
-        let (status, body) = handler(request)
+        let (request, me) = APITestSupport.prepare(self.request)
+        let (status, body) = me ?? handler(request)
         let response = HTTPURLResponse(
             url: request.url!, statusCode: status, httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]

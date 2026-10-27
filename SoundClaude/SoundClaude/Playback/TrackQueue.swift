@@ -34,6 +34,7 @@ struct TrackQueueStore {
         // The current track may have been removed, or the queue deliberately cleared.
         // Use playback as a fallback only when no valid queue was saved.
         var queue = saved ?? TrackQueue(source: .single, tracks: currentTrack.map { [$0] } ?? [])
+        queue.discardOfficialAPIPageURL()
         // Before the library loads, retain its saved ordering as well as its source.
         if let likes { queue.replaceLikes(likes, currentURN: currentTrack?.urn) }
         queue.setShuffle(shuffleEnabled, currentURN: currentTrack?.urn)
@@ -103,6 +104,11 @@ struct TrackQueue: Codable {
         var known = Set<String>()
         self.tracks = tracks.filter { known.insert($0.urn).inserted }
         self.nextPageURL = nextPageURL
+    }
+
+    /// Queues saved before the website API migration continue from official-API pages.
+    mutating func discardOfficialAPIPageURL() {
+        if nextPageURL?.host == "api.soundcloud.com" { nextPageURL = nil }
     }
 
     @discardableResult

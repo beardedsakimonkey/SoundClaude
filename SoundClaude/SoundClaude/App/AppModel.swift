@@ -23,6 +23,8 @@ final class AppModel {
 
     private(set) var errorMessage: String?
     var likeErrorMessage: String?
+    /// The embedded soundcloud.com sign-in page, while it is open.
+    private(set) var websiteLogin: WebsiteLogin?
 
     // Do not broadcast deferred history writes to every AppModel observer.
     private let history = HistoryState()
@@ -31,7 +33,6 @@ final class AppModel {
     @ObservationIgnored private var historyAccountObservation: AnyCancellable?
 
     private let client: SoundCloudClient
-    private let configurationError: Error?
     @ObservationIgnored private var playbackTask: Task<Void, Never>?
     @ObservationIgnored private var playbackRequestID: UUID?
     @ObservationIgnored private var trackSelectionTask: Task<Void, Never>?
@@ -79,22 +80,10 @@ final class AppModel {
     init() {
         let initialization = LaunchMetrics.begin("Model initialization")
         defer { LaunchMetrics.end(initialization) }
-        let configuration: SoundCloudConfiguration
-        do {
-            configuration = try .bundled()
-            configurationError = nil
-        } catch {
-            configuration = SoundCloudConfiguration(
-                clientID: "",
-                clientSecret: ""
-            )
-            configurationError = error
-        }
-
         guard let analyzer = LaunchMetrics.measure("Spectrum analyzer setup", { SpectrumAnalyzer() }) else {
             fatalError("The fixed audio buffers could not be created.")
         }
-        let client = SoundCloudClient(configuration: configuration)
+        let client = SoundCloudClient(configuration: SoundCloudConfiguration())
         let audioTap = AudioTapController(analyzer: analyzer)
         let playback = LaunchMetrics.measure("Player setup and saved session") {
             // Keep session saves and volume changes from invalidating @AppStorage views.
@@ -191,10 +180,6 @@ final class AppModel {
             LaunchMetrics.end(startup)
             LaunchMetrics.markOnce("Startup task finished")
         }
-        if let configurationError {
-            errorMessage = configurationError.localizedDescription
-            return
-        }
         await auth.restore()
         if case .signedIn = auth.state {
             await likes.restoreCache()
@@ -208,13 +193,42 @@ final class AppModel {
         }
     }
 
-    func signIn() async {
-        guard configurationError == nil else {
-            errorMessage = configurationError?.localizedDescription
+    func beginSignIn() {
+        guard websiteLogin == nil else { return }
+        errorMessage = nil
+        websiteLogin = WebsiteLogin { [weak self] token in
+            guard let self else { return }
+            websiteLogin = nil
+            Task { await self.signIn(token: token) }
+        }
+    }
+
+    func cancelSignIn() {
+        websiteLogin?.stop()
+        websiteLogin = nil
+    }
+
+    /// Signs in with an oauth_token cookie value copied from a signed-in browser.
+    func importCopiedSession() async {
+        guard let copied = NSPasteboard.general.string(forType: .string) else {
+            errorMessage = "Copy the oauth_token cookie value from your SoundCloud browser session first."
             return
         }
+        let token = copied.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (20...512).contains(token.count),
+              token.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
+              !token.contains(";") else {
+            errorMessage = "Copy only the oauth_token cookie value, then try again."
+            return
+        }
+        NSPasteboard.general.clearContents()
+        await signIn(token: token)
+    }
+
+    private func signIn(token: String) async {
+        cancelSignIn()
         errorMessage = nil
-        await auth.signIn()
+        await auth.signIn(token: token)
         if case .signedIn = auth.state {
             await likes.restoreCache()
         }

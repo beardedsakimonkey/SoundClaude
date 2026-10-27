@@ -12,32 +12,35 @@ struct RepostsTests {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RepostsURLProtocol.self]
         let client = SoundCloudClient(
-            configuration: SoundCloudConfiguration(clientID: "test", clientSecret: "test"),
+            configuration: APITestSupport.configuration,
             sessionConfiguration: configuration
         )
         let artistURN = "soundcloud:users:1"
         RepostsURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
-            precondition(request.url?.path == "/users/\(artistURN)/reposts/tracks")
-            return (200, #"{"collection":[{"urn":"soundcloud:tracks:1","title":"Reposted track","permalink_url":"https://soundcloud.com/test/track","access":"playable","user":{"username":"Test","permalink_url":"https://soundcloud.com/test"}}],"next_href":null}"#)
+            precondition(request.url?.path == "/stream/users/1/reposts")
+            // Repost streams mix tracks and playlists; the track page keeps only tracks.
+            return (200, #"{"collection":[{"type":"track-repost","user":{"username":"Test","permalink_url":"https://soundcloud.com/test"},"track":{"urn":"soundcloud:tracks:1","title":"Reposted track","permalink_url":"https://soundcloud.com/test/track","policy":"ALLOW","user":{"username":"Test","permalink_url":"https://soundcloud.com/test"}}},{"type":"playlist-repost","playlist":{"id":2,"title":"Playlist","permalink_url":"https://soundcloud.com/test/sets/repost","user":{"username":"Test","permalink_url":"https://soundcloud.com/test"}}}],"next_href":null}"#)
         }
         let tracks = try await client.artistReposts(urn: artistURN, accessToken: "test-token")
         precondition(tracks.tracks.map(\.urn) == ["soundcloud:tracks:1"])
 
-        let playlistNextURL = URL(string: "https://api.soundcloud.com/users/\(artistURN)/reposts/playlists?cursor=next")!
+        let playlistNextURL = URL(string: "https://api-v2.soundcloud.com/stream/users/1/reposts?cursor=next")!
         RepostsURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
-            precondition(request.url?.path == "/users/\(artistURN)/reposts/playlists")
+            precondition(request.url?.path == "/stream/users/1/reposts")
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
             precondition(query.contains(URLQueryItem(name: "limit", value: "25")))
-            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "true")))
-            precondition(!query.contains { $0.name == "access" || $0.name == "show_tracks" })
+            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "1")))
             return (200, """
-                {"collection":[{"urn":"soundcloud:playlists:2","title":"Reposted playlist",
+                {"collection":[{"type":"track-repost","track":{"id":9,"title":"Track",
+                "permalink_url":"https://soundcloud.com/test/track","policy":"ALLOW",
+                "user":{"username":"Test","permalink_url":"https://soundcloud.com/test"}}},
+                {"type":"playlist-repost","playlist":{"id":2,"title":"Reposted playlist",
                 "permalink_url":"https://soundcloud.com/test/sets/repost","track_count":0,"created_at":"2026-09-19T12:00:00.000Z",
-                "user":{"username":"Test","permalink_url":"https://soundcloud.com/test"}}],
+                "user":{"username":"Test","permalink_url":"https://soundcloud.com/test"}}}],
                 "next_href":"\(playlistNextURL.absoluteString)"}
                 """)
         }
@@ -85,26 +88,26 @@ struct RepostsTests {
         RepostsURLProtocol.respond { request in
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             precondition(request.httpMethod == "GET")
-            precondition(request.url?.path == "/me/reposts/tracks")
+            precondition(request.url?.path == "/stream/users/42/reposts")
             if request.url?.query?.contains("cursor=next") == true {
-                return (200, #"{"collection":[{"urn":"soundcloud:tracks:1","title":"Test","permalink_url":"https://soundcloud.com/test/track","access":"playable","user":{"username":"Test","permalink_url":"https://soundcloud.com/test"}}],"next_href":null}"#)
+                return (200, #"{"collection":[{"type":"track-repost","track":{"id":1,"title":"Test","permalink_url":"https://soundcloud.com/test/track","policy":"MONETIZE","user":{"username":"Test","permalink_url":"https://soundcloud.com/test"}}}],"next_href":null}"#)
             }
-            return (200, #"{"collection":[],"next_href":"https://api.soundcloud.com/me/reposts/tracks?cursor=next"}"#)
+            return (200, #"{"collection":[],"next_href":"https://api-v2.soundcloud.com/stream/users/42/reposts?cursor=next"}"#)
         }
         try await controller.load()
         precondition(controller.isReposted(track))
         precondition(!controller.isLoading)
         RepostsURLProtocol.respond { request in
             precondition(request.httpMethod == "DELETE")
-            precondition(request.url?.path == "/reposts/tracks/soundcloud:tracks:1")
+            precondition(request.url?.path == "/me/track_reposts/1")
             return (200, "")
         }
         try await controller.toggleRepost(track)
         precondition(!controller.isReposted(track))
         precondition(controller.repostCount(for: track) == 4)
         RepostsURLProtocol.respond { request in
-            precondition(request.httpMethod == "POST")
-            precondition(request.url?.path == "/reposts/tracks/soundcloud:tracks:1")
+            precondition(request.httpMethod == "PUT")
+            precondition(request.url?.path == "/me/track_reposts/1")
             return (201, "")
         }
         try await controller.toggleRepost(track)
@@ -126,7 +129,7 @@ struct RepostsTests {
         } catch SoundCloudError.unauthorized {}
         precondition(!controller.isLoading && controller.updatingTrackURNs.isEmpty)
         RepostsURLProtocol.respond { _ in
-            (200, #"{"collection":[],"next_href":"https://api.soundcloud.com/me/reposts/tracks?cursor=loop"}"#)
+            (200, #"{"collection":[],"next_href":"https://api-v2.soundcloud.com/stream/users/42/reposts?cursor=loop"}"#)
         }
         do {
             try await controller.load()
@@ -156,7 +159,8 @@ private final class RepostsURLProtocol: URLProtocol {
         Self.lock.lock()
         let handler = Self.handler!
         Self.lock.unlock()
-        let (status, body) = handler(request)
+        let (request, me) = APITestSupport.prepare(self.request)
+        let (status, body) = me ?? handler(request)
         let response = HTTPURLResponse(
             url: request.url!, statusCode: status, httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]

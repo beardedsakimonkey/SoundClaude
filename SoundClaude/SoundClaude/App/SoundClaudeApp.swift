@@ -57,19 +57,32 @@ struct SoundClaudeApp: App {
 
     @ViewBuilder
     private var mainView: some View {
+        if let login = model.websiteLogin {
+            WebsiteSignInView(login: login, cancel: model.cancelSignIn)
+        } else {
+            authStateView
+        }
+    }
+
+    @ViewBuilder
+    private var authStateView: some View {
         switch auth.state {
         case .signedOut:
-            SignedOutView(message: model.errorMessage) {
-                Task { await model.signIn() }
-            }
+            SignedOutView(
+                message: model.errorMessage,
+                onSignIn: model.beginSignIn,
+                onImportSession: { Task { await model.importCopiedSession() } }
+            )
         case let .failed(message):
-            SignedOutView(message: message) {
-                Task { await model.signIn() }
-            }
+            SignedOutView(
+                message: model.errorMessage ?? message,
+                onSignIn: model.beginSignIn,
+                onImportSession: { Task { await model.importCopiedSession() } }
+            )
         case .restoring:
             progressView(label: "Restoring SoundCloud session")
         case .signingIn:
-            progressView(label: "Waiting for SoundCloud sign-in")
+            progressView(label: "Signing in to SoundCloud")
         case let .signedIn(user):
             SignedInView(user: user, model: model)
                 .onAppear { LaunchMetrics.markOnce("Signed-in view appeared") }

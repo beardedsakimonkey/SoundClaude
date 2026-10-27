@@ -6,13 +6,13 @@ struct CommentsTests {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [CommentsURLProtocol.self]
         let client = SoundCloudClient(
-            configuration: SoundCloudConfiguration(clientID: "test", clientSecret: "test"),
+            configuration: APITestSupport.configuration,
             sessionConfiguration: configuration
         )
         let decoder = JSONDecoder()
         func comment(timestamp: String, date: String = "2007/09/11 15:40:24 +0000") -> String {
             """
-            {"urn":"soundcloud:comments:1234","body":"Great track!\\nSecond line.",
+            {"id":1234,"body":"Great track!\\nSecond line.",
              "created_at":"\(date)","timestamp":\(timestamp),
              "user":{"urn":"soundcloud:users:1","username":"Listener",
                      "permalink_url":"https://soundcloud.com/listener"}}
@@ -35,6 +35,7 @@ struct CommentsTests {
             precondition(decoded.createdAt != nil)
             precondition(decoded.timestampMilliseconds == 0)
         }
+        // api-v2 comments carry numeric IDs; URNs still decode.
         // Deleted or partial users must not hide their comments.
         for user in ["null", "{}"] {
             let decoded = try decoder.decode(SoundCloudComment.self, from: Data("""
@@ -47,7 +48,7 @@ struct CommentsTests {
         for timestamp: Int? in [nil, 0, 83_456] {
             CommentsURLProtocol.respond { request in
                 precondition(request.httpMethod == "POST")
-                precondition(request.url?.path == "/tracks/soundcloud:tracks:1/comments")
+                precondition(request.url?.path == "/tracks/1/comments")
                 precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
                 precondition(request.value(forHTTPHeaderField: "Content-Type") == "application/json; charset=utf-8")
                 var body = request.httpBody ?? Data()
@@ -95,14 +96,15 @@ struct CommentsTests {
             fatalError("Malformed posted comment was accepted")
         } catch is DecodingError {}
 
-        let nextURL = URL(string: "https://api.soundcloud.com/tracks/soundcloud:tracks:1/comments?cursor=next")!
+        let nextURL = URL(string: "https://api-v2.soundcloud.com/tracks/1/comments?cursor=next")!
         CommentsURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")
-            precondition(request.url?.path == "/tracks/soundcloud:tracks:1/comments")
+            precondition(request.url?.path == "/tracks/1/comments")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
             precondition(query.contains(URLQueryItem(name: "limit", value: "50")))
-            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "true")))
+            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "1")))
+            precondition(query.contains(URLQueryItem(name: "threaded", value: "0")))
             precondition(query.contains(URLQueryItem(name: "secret_token", value: "s-private")))
             return (200, """
                 {"collection":[\(comment(timestamp: "4960"))],"next_href":"\(nextURL.absoluteString)"}
@@ -139,7 +141,7 @@ struct CommentsTests {
                 pageURL: URL(string: "https://example.com/comments")!)
             fatalError("Untrusted page URL was accepted")
         } catch SoundCloudError.unexpectedURL {}
-        for href in ["https://example.com/comments", "http://api.soundcloud.com/comments"] {
+        for href in ["https://example.com/comments", "http://api-v2.soundcloud.com/comments"] {
             CommentsURLProtocol.respond { _ in (200, "{\"collection\":[],\"next_href\":\"\(href)\"}") }
             do {
                 _ = try await client.trackComments(urn: "soundcloud:tracks:1", accessToken: "test-token")
@@ -174,7 +176,8 @@ private final class CommentsURLProtocol: URLProtocol {
         Self.lock.lock()
         let handler = Self.handler!
         Self.lock.unlock()
-        let (status, body) = handler(request)
+        let (request, me) = APITestSupport.prepare(self.request)
+        let (status, body) = me ?? handler(request)
         let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil,
             headerFields: ["Content-Type": "application/json"])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)

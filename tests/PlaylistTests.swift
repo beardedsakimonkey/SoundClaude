@@ -5,7 +5,7 @@ struct PlaylistTests {
     static func main() async throws {
         let decoder = JSONDecoder()
         let playlist = """
-            {"urn":"soundcloud:playlists:42","title":"My playlist",
+            {"id":42,"title":"My playlist",
              "permalink_url":"https://soundcloud.com/owner/sets/my-playlist",
              "artwork_url":"","description":null,"track_count":0,
              "duration":0,"sharing":"private",
@@ -25,7 +25,7 @@ struct PlaylistTests {
             let cached = try decoder.decode(SoundCloudPlaylist.self, from: JSONEncoder().encode(normalized))
             precondition(cached.tags == expected)
         }
-        let nextURL = "https://api.soundcloud.com/me/playlists?cursor=next"
+        let nextURL = "https://api-v2.soundcloud.com/users/42/playlists_without_albums?cursor=next"
         for (json, count, next) in [
             ("[\(playlist)]", 1, nil),
             ("[]", 0, nil),
@@ -75,19 +75,41 @@ struct PlaylistTests {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [PlaylistURLProtocol.self]
         let client = SoundCloudClient(
-            configuration: SoundCloudConfiguration(clientID: "test", clientSecret: "test"),
+            configuration: APITestSupport.configuration,
             sessionConfiguration: configuration
         )
+        func body(of request: URLRequest) -> Data {
+            var body = request.httpBody ?? Data()
+            if let stream = request.httpBodyStream {
+                stream.open()
+                defer { stream.close() }
+                var buffer = [UInt8](repeating: 0, count: 1024)
+                while stream.hasBytesAvailable {
+                    let count = stream.read(&buffer, maxLength: buffer.count)
+                    precondition(count >= 0)
+                    if count == 0 { break }
+                    body.append(contentsOf: buffer.prefix(count))
+                }
+            }
+            return body
+        }
+        func playlistPayload(_ request: URLRequest) -> [String: Any] {
+            precondition(request.value(forHTTPHeaderField: "Content-Type") == "application/json; charset=utf-8")
+            let json = try! JSONSerialization.jsonObject(with: body(of: request)) as! [String: [String: Any]]
+            return json["playlist"]!
+        }
+
         PlaylistURLProtocol.respond { request in
-            precondition(request.url?.path == "/me/playlists")
+            precondition(request.url?.path == "/users/42/playlists_without_albums")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
-            precondition(query.contains(URLQueryItem(name: "show_tracks", value: "false")))
-            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "true")))
+            precondition(query.contains(URLQueryItem(name: "limit", value: "200")))
+            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "1")))
             return (200, "{\"collection\":[\(playlist)],\"next_href\":\"\(nextURL)\"}")
         }
         let page = try await client.playlists(accessToken: "test-token")
         precondition(page.playlists.count == 1 && page.nextURL?.absoluteString == nextURL)
+        precondition(page.playlists[0].urn == "soundcloud:playlists:42")
 
         PlaylistURLProtocol.respond { request in
             precondition(request.url?.absoluteString == nextURL)
@@ -96,10 +118,15 @@ struct PlaylistTests {
         let lastPage = try await client.playlists(accessToken: "test-token", pageURL: page.nextURL)
         precondition(lastPage.playlists.isEmpty && lastPage.nextURL == nil)
 
+        // Playlist likes wrap each playlist in a like entry.
         PlaylistURLProtocol.respond { request in
-            precondition(request.url?.path == "/me/likes/playlists")
+            precondition(request.url?.path == "/users/42/playlist_likes")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
-            return (200, "{\"collection\":[\(playlist)],\"next_href\":\"\(nextURL)\"}")
+            return (200, """
+                {"collection":[{"created_at":"2026-09-01T00:00:00Z","kind":"like","playlist":\(playlist)},
+                 {"created_at":"2026-09-01T00:00:00Z","kind":"like","playlist":null}],
+                 "next_href":"\(nextURL)"}
+                """)
         }
         let likedPage = try await client.likedPlaylists(accessToken: "test-token")
         precondition(likedPage.playlists == page.playlists && likedPage.nextURL == page.nextURL)
@@ -109,17 +136,16 @@ struct PlaylistTests {
         }
         _ = try await client.likedPlaylists(accessToken: "test-token", pageURL: likedPage.nextURL)
         let likedArtistURN = "soundcloud:users:1"
-        let artistLikesNextURL = URL(string: "https://api.soundcloud.com/users/\(likedArtistURN)/likes/playlists?cursor=next")!
+        let artistLikesNextURL = URL(string: "https://api-v2.soundcloud.com/users/1/playlist_likes?cursor=next")!
         PlaylistURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")
-            precondition(request.url?.path == "/users/\(likedArtistURN)/likes/playlists")
+            precondition(request.url?.path == "/users/1/playlist_likes")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
             precondition(query.contains(URLQueryItem(name: "limit", value: "25")))
-            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "true")))
-            precondition(!query.contains { $0.name == "access" || $0.name == "show_tracks" })
+            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "1")))
             return (200, """
-                {"collection":[\(playlist)],"next_href":"\(artistLikesNextURL.absoluteString)"}
+                {"collection":[{"kind":"like","playlist":\(playlist)}],"next_href":"\(artistLikesNextURL.absoluteString)"}
                 """)
         }
         let artistLikes = try await client.artistPlaylistLikes(urn: likedArtistURN, accessToken: "test-token")
@@ -136,8 +162,8 @@ struct PlaylistTests {
 
         for isLiked in [true, false] {
             PlaylistURLProtocol.respond { request in
-                precondition(request.url?.path == "/likes/playlists/soundcloud:playlists:42")
-                precondition(request.httpMethod == (isLiked ? "POST" : "DELETE"))
+                precondition(request.url?.path == "/users/42/playlist_likes/42")
+                precondition(request.httpMethod == (isLiked ? "PUT" : "DELETE"))
                 precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
                 return (200, "")
             }
@@ -146,50 +172,31 @@ struct PlaylistTests {
         }
 
         for isPrivate in [true, false] {
-            for format in [nil, PlaylistArtwork.Format.gif, .jpeg, .png] {
-                let artwork = format.map { PlaylistArtwork(data: Data([0, 255, 13, 10, 128]), format: $0) }
-                PlaylistURLProtocol.respond { request in
-                    precondition(request.url?.path == "/playlists")
-                    precondition(request.httpMethod == "POST")
-                    precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
-                    let contentType = request.value(forHTTPHeaderField: "Content-Type")!
-                    precondition(contentType.hasPrefix("multipart/form-data; boundary="))
-                    let boundary = String(contentType.dropFirst("multipart/form-data; boundary=".count))
-                    precondition(!boundary.isEmpty)
-                    var body = request.httpBody ?? Data()
-                    if let stream = request.httpBodyStream {
-                        stream.open()
-                        defer { stream.close() }
-                        var buffer = [UInt8](repeating: 0, count: 1024)
-                        while stream.hasBytesAvailable {
-                            let count = stream.read(&buffer, maxLength: buffer.count)
-                            precondition(count >= 0)
-                            if count == 0 { break }
-                            body.append(contentsOf: buffer.prefix(count))
-                        }
-                    }
-                    var expected = Data()
-                    func append(_ value: String) { expected.append(contentsOf: value.utf8) }
-                    for (name, value) in [("title", "Mix 🎶 & friends"), ("description", "A new mix\r\nSecond line"),
-                                          ("sharing", isPrivate ? "private" : "public")] {
-                        append("--\(boundary)\r\nContent-Disposition: form-data; name=\"playlist[\(name)]\"\r\n\r\n\(value)\r\n")
-                    }
-                    if let artwork {
-                        append("--\(boundary)\r\nContent-Disposition: form-data; name=\"playlist[artwork_data]\"; filename=\"artwork.\(artwork.format.rawValue)\"\r\n")
-                        append("Content-Type: \(artwork.format.mimeType)\r\n\r\n")
-                        expected.append(artwork.data)
-                        append("\r\n")
-                    }
-                    append("--\(boundary)--\r\n")
-                    precondition(body == expected)
-                    return (201, playlist)
-                }
-                let created = try await client.createPlaylist(
-                    title: "Mix 🎶 & friends", description: "A new mix\r\nSecond line", isPrivate: isPrivate, artwork: artwork, accessToken: "test-token"
-                )
-                precondition(created.urn == "soundcloud:playlists:42")
+            PlaylistURLProtocol.respond { request in
+                precondition(request.url?.path == "/playlists")
+                precondition(request.httpMethod == "POST")
+                precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+                let payload = playlistPayload(request)
+                precondition(payload["title"] as? String == "Mix 🎶 & friends")
+                precondition(payload["description"] as? String == "A new mix\r\nSecond line")
+                precondition(payload["sharing"] as? String == (isPrivate ? "private" : "public"))
+                precondition((payload["tracks"] as? [Int])?.isEmpty == true)
+                return (201, playlist)
             }
+            let created = try await client.createPlaylist(
+                title: "Mix 🎶 & friends", description: "A new mix\r\nSecond line", isPrivate: isPrivate, accessToken: "test-token"
+            )
+            precondition(created.urn == "soundcloud:playlists:42")
         }
+        // Artwork upload is not ported; refuse before creating a playlist without it.
+        PlaylistURLProtocol.respond { _ in fatalError("Playlist with artwork was sent") }
+        do {
+            _ = try await client.createPlaylist(
+                title: "Mix", description: "", isPrivate: true,
+                artwork: PlaylistArtwork(data: Data([0, 255]), format: .png), accessToken: "test-token"
+            )
+            fatalError("Artwork upload was accepted")
+        } catch SoundCloudError.api {}
         PlaylistURLProtocol.respond { _ in (401, "{}") }
         do {
             _ = try await client.createPlaylist(title: "Mix", description: "", isPrivate: true, accessToken: "test-token")
@@ -198,26 +205,14 @@ struct PlaylistTests {
 
         for isPrivate in [true, false] {
             PlaylistURLProtocol.respond { request in
-                precondition(request.url?.path == "/playlists/soundcloud:playlists:42")
+                precondition(request.url?.path == "/playlists/42")
                 precondition(request.httpMethod == "PUT")
                 precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
-                var body = request.httpBody ?? Data()
-                if let stream = request.httpBodyStream {
-                    stream.open()
-                    defer { stream.close() }
-                    var buffer = [UInt8](repeating: 0, count: 1024)
-                    while stream.hasBytesAvailable {
-                        let count = stream.read(&buffer, maxLength: buffer.count)
-                        precondition(count >= 0)
-                        if count == 0 { break }
-                        body.append(contentsOf: buffer.prefix(count))
-                    }
-                }
-                let payload = try! JSONSerialization.jsonObject(with: body) as! [String: [String: Any]]
-                precondition(payload["playlist"]?["title"] as? String == "Edited 🎶")
-                precondition(payload["playlist"]?["description"] as? String == "")
-                precondition(payload["playlist"]?["sharing"] as? String == (isPrivate ? "private" : "public"))
-                precondition(payload["playlist"]?["tracks"] == nil)
+                let payload = playlistPayload(request)
+                precondition(payload["title"] as? String == "Edited 🎶")
+                precondition(payload["description"] as? String == "")
+                precondition(payload["sharing"] as? String == (isPrivate ? "private" : "public"))
+                precondition(payload["tracks"] == nil)
                 return (200, playlist)
             }
             let updated = try await client.updatePlaylist(
@@ -236,13 +231,12 @@ struct PlaylistTests {
         } catch SoundCloudError.unauthorized {}
 
         let artistURN = "soundcloud:users:7"
-        let artistNextURL = "https://api.soundcloud.com/users/\(artistURN)/playlists?cursor=next"
+        let artistNextURL = "https://api-v2.soundcloud.com/users/7/playlists_without_albums?cursor=next"
         PlaylistURLProtocol.respond { request in
-            precondition(request.url?.path == "/users/\(artistURN)/playlists")
+            precondition(request.url?.path == "/users/7/playlists_without_albums")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
-            precondition(query.contains(URLQueryItem(name: "show_tracks", value: "false")))
-            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "true")))
+            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "1")))
             return (200, "{\"collection\":[\(playlist)],\"next_href\":\"\(artistNextURL)\"}")
         }
         let artistPage = try await client.artistPlaylists(urn: artistURN, accessToken: "test-token")
@@ -258,64 +252,53 @@ struct PlaylistTests {
         precondition(lastArtistPage.playlists.isEmpty && lastArtistPage.nextURL == nil)
 
         PlaylistURLProtocol.respond { request in
-            precondition(request.url?.path == "/playlists/soundcloud:playlists:42")
+            precondition(request.url?.path == "/playlists/42")
             return (200, playlist)
         }
         let details = try await client.playlist(urn: "soundcloud:playlists:42", accessToken: "test-token")
         precondition(details == page.playlists.first)
 
-        let track = """
-            {"urn":"soundcloud:tracks:1","title":"First",
-             "permalink_url":"https://soundcloud.com/owner/track","access":"playable",
+        func track(_ id: Int, policy: String = "ALLOW") -> String {
+            """
+            {"id":\(id),"urn":"soundcloud:tracks:\(id)","title":"Track \(id)",
+             "permalink_url":"https://soundcloud.com/owner/track-\(id)","policy":"\(policy)",
              "user":{"username":"Owner","permalink_url":"https://soundcloud.com/owner"}}
             """
-        let updateNext = "https://api.soundcloud.com/playlists/soundcloud:playlists:42/tracks?cursor=update"
+        }
+        // Playlists list their first tracks in full and later ones as ID-only stubs.
+        func playlistTracks(_ ids: [Int]) -> String {
+            let tracks = ids.enumerated().map { index, id in
+                index == 0 ? track(id) : #"{"id":\#(id),"kind":"track","policy":"BLOCK"}"#
+            }
+            return "{\"tracks\":[\(tracks.joined(separator: ","))]}"
+        }
+
+        // Adding replaces the whole track list, keeping blocked tracks and their order.
         var updateRequests = 0
         PlaylistURLProtocol.respond { request in
             updateRequests += 1
+            precondition(request.url?.path == "/playlists/42")
             if request.httpMethod == "PUT" {
-                precondition(updateRequests == 3)
-                precondition(request.url?.path == "/playlists/soundcloud:playlists:42")
-                var body = request.httpBody ?? Data()
-                if let stream = request.httpBodyStream {
-                    stream.open()
-                    defer { stream.close() }
-                    var buffer = [UInt8](repeating: 0, count: 1024)
-                    while stream.hasBytesAvailable {
-                        let count = stream.read(&buffer, maxLength: buffer.count)
-                        precondition(count >= 0)
-                        if count == 0 { break }
-                        body.append(contentsOf: buffer.prefix(count))
-                    }
-                }
-                let payload = try! JSONSerialization.jsonObject(with: body) as! [String: [String: [[String: String]]]]
-                precondition(payload["playlist"]?["tracks"]?.compactMap { $0["urn"] } == [
-                    "soundcloud:tracks:1", "soundcloud:tracks:2", "soundcloud:tracks:3"
-                ])
+                precondition(updateRequests == 2)
+                precondition(playlistPayload(request)["tracks"] as? [Int] == [1, 2, 3])
                 return (200, playlist)
             }
-            if updateRequests == 1 {
-                let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
-                precondition(query.contains(URLQueryItem(name: "access", value: "playable,preview,blocked")))
-                return (200, "{\"collection\":[\(track)],\"next_href\":\"\(updateNext)\"}")
-            }
-            precondition(request.url?.absoluteString == updateNext)
-            return (200, "[{\"urn\":\"soundcloud:tracks:2\",\"access\":\"blocked\"}]")
+            return (200, playlistTracks([1, 2]))
         }
         try await client.addTrackToPlaylist(
             trackURN: "soundcloud:tracks:3", playlistURN: details.urn, accessToken: "test-token"
         )
-        precondition(updateRequests == 3)
+        precondition(updateRequests == 2)
         PlaylistURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")
-            return (200, "[\(track)]")
+            return (200, playlistTracks([1]))
         }
         try await client.addTrackToPlaylist(
             trackURN: "soundcloud:tracks:1", playlistURN: details.urn, accessToken: "test-token"
         )
         PlaylistURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")
-            return (200, "[{}]")
+            return (200, "{\"tracks\":[{}]}")
         }
         do {
             try await client.addTrackToPlaylist(
@@ -324,55 +307,34 @@ struct PlaylistTests {
             fatalError("Incomplete track identities must not overwrite a playlist")
         } catch SoundCloudError.invalidData {}
 
-        // Removal reads every page and preserves blocked tracks and their order.
-        for remaining in [["soundcloud:tracks:2", "soundcloud:tracks:3"], []] {
+        for remaining in [[2, 3], []] {
             var requests = 0
             PlaylistURLProtocol.respond { request in
                 requests += 1
                 precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+                precondition(request.url?.path == "/playlists/42")
                 if request.httpMethod == "PUT" {
-                    precondition(requests == 3)
-                    precondition(request.url?.path == "/playlists/soundcloud:playlists:42")
-                    var body = request.httpBody ?? Data()
-                    if let stream = request.httpBodyStream {
-                        stream.open()
-                        defer { stream.close() }
-                        var buffer = [UInt8](repeating: 0, count: 1024)
-                        while stream.hasBytesAvailable {
-                            let count = stream.read(&buffer, maxLength: buffer.count)
-                            precondition(count >= 0)
-                            if count == 0 { break }
-                            body.append(contentsOf: buffer.prefix(count))
-                        }
-                    }
-                    let payload = try! JSONSerialization.jsonObject(with: body) as! [String: [String: [[String: String]]]]
-                    precondition(payload["playlist"]?["tracks"]?.compactMap { $0["urn"] } == remaining)
+                    precondition(requests == 2)
+                    precondition(playlistPayload(request)["tracks"] as? [Int] == remaining)
                     return (200, playlist)
                 }
-                if requests == 1 {
-                    let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
-                    precondition(query.contains(URLQueryItem(name: "access", value: "playable,preview,blocked")))
-                    return (200, "{\"collection\":[\(track)],\"next_href\":\"\(updateNext)\"}")
-                }
-                precondition(request.url?.absoluteString == updateNext)
-                let tracks = remaining.map { ["urn": $0, "access": "blocked"] }
-                return (200, String(data: try! JSONSerialization.data(withJSONObject: tracks), encoding: .utf8)!)
+                return (200, playlistTracks([1] + remaining))
             }
             try await client.removeTrackFromPlaylist(
                 trackURN: "soundcloud:tracks:1", playlistURN: details.urn, accessToken: "test-token"
             )
-            precondition(requests == 3)
+            precondition(requests == 2)
         }
         PlaylistURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")
-            return (200, "[\(track)]")
+            return (200, playlistTracks([1]))
         }
         try await client.removeTrackFromPlaylist(
-            trackURN: "soundcloud:tracks:missing", playlistURN: details.urn, accessToken: "test-token"
+            trackURN: "soundcloud:tracks:99", playlistURN: details.urn, accessToken: "test-token"
         )
         PlaylistURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")
-            return (200, "[{}]")
+            return (200, "{\"tracks\":[{}]}")
         }
         do {
             try await client.removeTrackFromPlaylist(
@@ -381,7 +343,7 @@ struct PlaylistTests {
             fatalError("Incomplete identities must not overwrite a playlist during removal")
         } catch SoundCloudError.invalidData {}
         PlaylistURLProtocol.respond { request in
-            request.httpMethod == "PUT" ? (403, "{}") : (200, "[\(track)]")
+            request.httpMethod == "PUT" ? (403, "{}") : (200, playlistTracks([1]))
         }
         do {
             try await client.removeTrackFromPlaylist(
@@ -400,24 +362,26 @@ struct PlaylistTests {
             let direct = try decoder.decode(SoundCloudUser.self, from: Data(json.utf8))
             precondition(direct.stationURN == user.stationURN)
         }
+        // Stations list ID-only stubs, which load in one batch and keep their order.
         PlaylistURLProtocol.respond { request in
             precondition(request.httpMethod == "GET")
-            precondition(request.url?.path == "/system-playlists/\(stationURN)")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
-            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
-            precondition(query.contains(URLQueryItem(name: "access", value: "playable,preview")))
-            let preview = track.replacingOccurrences(of: "tracks:1", with: "tracks:2")
-                .replacingOccurrences(of: "playable", with: "preview")
-            let blocked = track.replacingOccurrences(of: "playable", with: "blocked")
-            return (200, "{\"tracks\":[\(track),\(preview),\(blocked),{}]}")
+            if request.url?.path == "/tracks" {
+                let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+                precondition(query == [URLQueryItem(name: "ids", value: "3,2")])
+                return (200, "[\(track(2, policy: "SNIP")),\(track(3, policy: "BLOCK"))]")
+            }
+            precondition(request.url?.path == "/system-playlists/\(stationURN)")
+            return (200, #"{"tracks":[\#(track(1)),{"id":3},{"id":2},{}]}"#)
         }
         let stationTracks = try await client.stationTracks(urn: stationURN, accessToken: "test-token")
         precondition(stationTracks.map(\.urn) == ["soundcloud:tracks:1", "soundcloud:tracks:2"])
+        precondition(stationTracks.last?.access == .preview)
         PlaylistURLProtocol.respond { _ in
             (200, """
             {"title":"Artist station","description":"Similar tracks",
              "permalink_url":"https://soundcloud.com/discover/sets/artist-stations:42",
-             "last_updated":"2026-09-17T12:00:00Z","track_count":1,"tracks":[\(track)]}
+             "last_updated":"2026-09-17T12:00:00Z","tracks":[\(track(1))]}
             """)
         }
         let station = try await client.station(urn: stationURN, accessToken: "test-token")
@@ -435,26 +399,26 @@ struct PlaylistTests {
             fatalError("Missing station was accepted")
         } catch SoundCloudError.api {}
 
-        let tracksURL = "https://api.soundcloud.com/playlists/soundcloud:playlists:42/tracks?cursor=next"
+        // Playlist tracks arrive with the playlist; stubs load in batches of 50.
+        let manyIDs = Array(1...120)
+        var batches: [[String]] = []
         PlaylistURLProtocol.respond { request in
-            precondition(request.url?.path == "/playlists/soundcloud:playlists:42/tracks")
-            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
-            precondition(query.contains(URLQueryItem(name: "access", value: "playable,preview")))
-            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "true")))
-            let preview = track.replacingOccurrences(of: "tracks:1", with: "tracks:2")
-                .replacingOccurrences(of: "playable", with: "preview")
-            let blocked = track.replacingOccurrences(of: "playable", with: "blocked")
-            return (200, "{\"collection\":[\(track),\(preview),\(blocked)],\"next_href\":\"\(tracksURL)\"}")
+            if request.url?.path == "/tracks" {
+                let ids = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!
+                    .queryItems!.first { $0.name == "ids" }!.value!.split(separator: ",").map(String.init)
+                batches.append(ids)
+                return (200, "[\(ids.map { track(Int($0)!, policy: $0 == "2" ? "SNIP" : $0 == "3" ? "BLOCK" : "ALLOW") }.joined(separator: ","))]")
+            }
+            precondition(request.url?.path == "/playlists/42")
+            return (200, playlistTracks(manyIDs))
         }
         let tracks = try await client.playlistTracks(urn: details.urn, accessToken: "test-token")
-        precondition(tracks.tracks.map(\.urn) == ["soundcloud:tracks:1", "soundcloud:tracks:2"])
-        precondition(tracks.tracks.last?.access == .preview)
-        PlaylistURLProtocol.respond { request in
-            precondition(request.url?.absoluteString == tracksURL)
-            return (200, "[]")
-        }
+        precondition(batches.map(\.count) == [50, 50, 19])
+        precondition(tracks.tracks.map(\.urn) == manyIDs.filter { $0 != 3 }.map { "soundcloud:tracks:\($0)" })
+        precondition(tracks.tracks[1].access == .preview && tracks.nextURL == nil)
+        PlaylistURLProtocol.respond { _ in fatalError("Playlist tracks have no later pages") }
         let lastTracks = try await client.playlistTracks(
-            urn: details.urn, accessToken: "test-token", pageURL: tracks.nextURL
+            urn: details.urn, accessToken: "test-token", pageURL: URL(string: nextURL)
         )
         precondition(lastTracks.tracks.isEmpty && lastTracks.nextURL == nil)
 
@@ -478,7 +442,7 @@ struct PlaylistTests {
             fatalError("Unauthorized response was accepted")
         } catch SoundCloudError.unauthorized {}
         PlaylistURLProtocol.respond { request in
-            precondition(request.url?.path == "/playlists/soundcloud:playlists:42")
+            precondition(request.url?.path == "/playlists/42")
             precondition(request.httpMethod == "DELETE")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             return (200, "")
@@ -510,7 +474,8 @@ private final class PlaylistURLProtocol: URLProtocol {
         Self.lock.lock()
         let handler = Self.handler!
         Self.lock.unlock()
-        let (status, body) = handler(request)
+        let (request, me) = APITestSupport.prepare(self.request)
+        let (status, body) = me ?? handler(request)
         let response = HTTPURLResponse(
             url: request.url!, statusCode: status, httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]

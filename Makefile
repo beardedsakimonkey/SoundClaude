@@ -96,6 +96,7 @@ test: test-playback-selection
 		tests/ArtworkCacheTests.swift
 	/tmp/soundclaude-tests/artwork-cache
 	swiftc -o /tmp/soundclaude-tests/reposts \
+		tests/APITestSupport.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
 		SoundClaude/SoundClaude/App/RepostsController.swift \
@@ -103,6 +104,7 @@ test: test-playback-selection
 	/tmp/soundclaude-tests/reposts
 	@mkdir -p /tmp/soundclaude-tests
 	swiftc -o /tmp/soundclaude-tests/comments \
+		tests/APITestSupport.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
 		tests/CommentsTests.swift
@@ -121,10 +123,10 @@ test: test-playback-selection
 		SoundClaude/SoundClaude/App/LaunchMetrics.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Auth/AuthController.swift \
-		SoundClaude/SoundClaude/Auth/OAuthCallbackServer.swift \
 		tests/AuthRestoreTests.swift
 	/tmp/soundclaude-tests/auth-restore
 	swiftc -o /tmp/soundclaude-tests/search \
+		tests/APITestSupport.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
@@ -153,6 +155,7 @@ test: test-playback-selection
 		tests/TrackPageDecodingTests.swift
 	/tmp/soundclaude-tests/track-pages
 	swiftc -o /tmp/soundclaude-tests/feed \
+		tests/APITestSupport.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
@@ -166,6 +169,7 @@ test: test-playback-selection
 		tests/FeedCacheTests.swift
 	/tmp/soundclaude-tests/feed-cache
 	swiftc -o /tmp/soundclaude-tests/playlists \
+		tests/APITestSupport.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
 		tests/PlaylistTests.swift
@@ -178,10 +182,17 @@ test: test-playback-selection
 		tests/PlaylistsCacheTests.swift
 	/tmp/soundclaude-tests/playlists-cache
 	swiftc -o /tmp/soundclaude-tests/following \
+		tests/APITestSupport.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
 		tests/FollowingTests.swift
 	/tmp/soundclaude-tests/following
+	swiftc -o /tmp/soundclaude-tests/website-api \
+		tests/APITestSupport.swift \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
+		tests/WebsiteAPITests.swift
+	/tmp/soundclaude-tests/website-api
 	swiftc -o /tmp/soundclaude-tests/history \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/App/HistoryStore.swift \

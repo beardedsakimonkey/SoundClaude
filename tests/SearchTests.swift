@@ -6,7 +6,7 @@ struct SearchTests {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [SearchURLProtocol.self]
         let client = SoundCloudClient(
-            configuration: SoundCloudConfiguration(clientID: "test", clientSecret: "test"),
+            configuration: APITestSupport.configuration,
             sessionConfiguration: configuration
         )
         let query = "ambient & jazz + café/夜?"
@@ -14,38 +14,36 @@ struct SearchTests {
         {"urn":"soundcloud:users:1","username":"Artist",
          "permalink_url":"https://soundcloud.com/artist","followers_count":12}
         """
-        func track(_ id: Int, access: String = "playable") -> String {
+        func track(_ id: Int, policy: String = "ALLOW") -> String {
             """
-            {"urn":"soundcloud:tracks:\(id)","title":"Track \(id)",
+            {"id":\(id),"urn":"soundcloud:tracks:\(id)","title":"Track \(id)",
              "permalink_url":"https://soundcloud.com/artist/track-\(id)",
-             "duration":120000,"access":"\(access)","user":\(user)}
+             "duration":120000,"policy":"\(policy)","user":\(user)}
             """
         }
         let playlist = """
-        {"urn":"soundcloud:playlists:1","title":"Mix","track_count":3,
+        {"id":1,"title":"Mix","track_count":3,
          "permalink_url":"https://soundcloud.com/artist/sets/mix","user":\(user)}
         """
 
-        for endpoint in ["tracks", "playlists", "users"] {
-            let nextURL = URL(string: "https://api.soundcloud.com/\(endpoint)?cursor=next&q=ambient")!
+        for endpoint in ["tracks", "playlists_without_albums", "users"] {
+            let nextURL = URL(string: "https://api-v2.soundcloud.com/search/\(endpoint)?cursor=next&q=ambient")!
             let collection: String
             switch endpoint {
-            case "tracks": collection = "[\(track(1)),\(track(2, access: "blocked")),\(track(3, access: "preview"))]"
-            case "playlists": collection = "[\(playlist)]"
+            case "tracks": collection = "[\(track(1)),\(track(2, policy: "BLOCK")),\(track(3, policy: "SNIP"))]"
+            case "playlists_without_albums": collection = "[\(playlist)]"
             default: collection = "[\(user)]"
             }
             SearchURLProtocol.respond { request in
                 precondition(request.httpMethod == "GET")
-                precondition(request.url?.path == "/\(endpoint)")
+                precondition(request.url?.path == "/search/\(endpoint)")
                 precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
                 let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
                 let parameters = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value!) })
                 precondition(parameters["q"] == query, "Search text must survive URL encoding")
-                precondition(parameters["genres"] == nil)
-                precondition(parameters["linked_partitioning"] == "true")
+                precondition(parameters["filter.genre_or_tag"] == nil)
+                precondition(parameters["linked_partitioning"] == "1")
                 precondition(parameters["limit"] == "25")
-                if endpoint == "tracks" { precondition(parameters["access"] == "playable,preview") }
-                if endpoint == "playlists" { precondition(parameters["show_tracks"] == "false") }
                 return (200, "{\"collection\":\(collection),\"next_href\":\"\(nextURL)\"}")
             }
             switch endpoint {
@@ -59,7 +57,7 @@ struct SearchTests {
                 precondition(restored.source == .search(query) && restored.nextPageURL == nextURL)
                 try queue.append(SoundCloudTrackPage(tracks: page.tracks, nextURL: nil))
                 precondition(queue.tracks.count == 2 && queue.nextPageURL == nil)
-            case "playlists":
+            case "playlists_without_albums":
                 let page = try await client.searchPlaylists(query: query, accessToken: "test-token")
                 precondition(page.playlists.first?.title == "Mix" && page.nextURL == nextURL)
             default:
@@ -70,7 +68,7 @@ struct SearchTests {
             func fetch(_ url: URL? = nil) async throws -> URL? {
                 switch endpoint {
                 case "tracks": return try await client.searchTracks(query: query, accessToken: "test-token", pageURL: url).nextURL
-                case "playlists": return try await client.searchPlaylists(query: query, accessToken: "test-token", pageURL: url).nextURL
+                case "playlists_without_albums": return try await client.searchPlaylists(query: query, accessToken: "test-token", pageURL: url).nextURL
                 default: return try await client.searchUsers(query: query, accessToken: "test-token", pageURL: url).nextURL
                 }
             }
@@ -122,19 +120,18 @@ struct SearchTests {
             } catch SoundCloudError.unexpectedURL {}
         }
         let genre = "R&B + café/夜?"
-        let genreNextURL = URL(string: "https://api.soundcloud.com/tracks")!.appending(queryItems: [
-            URLQueryItem(name: "genres", value: genre),
+        let genreNextURL = URL(string: "https://api-v2.soundcloud.com/search/tracks")!.appending(queryItems: [
+            URLQueryItem(name: "filter.genre_or_tag", value: genre),
             URLQueryItem(name: "cursor", value: "next"),
         ])
         SearchURLProtocol.respond { request in
-            precondition(request.url?.path == "/tracks")
+            precondition(request.url?.path == "/search/tracks")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
             let parameters = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value!) })
-            precondition(parameters["genres"] == genre, "Genre must survive URL encoding")
-            precondition(parameters["q"] == nil, "Genre search must not also filter by text")
-            precondition(parameters["limit"] == "25" && parameters["linked_partitioning"] == "true")
-            precondition(parameters["access"] == "playable,preview")
+            precondition(parameters["filter.genre_or_tag"] == genre, "Genre must survive URL encoding")
+            precondition(parameters["q"] == "*", "Genre search must not also filter by text")
+            precondition(parameters["limit"] == "25" && parameters["linked_partitioning"] == "1")
             return (200, "{\"collection\":[\(track(1))],\"next_href\":\"\(genreNextURL)\"}")
         }
         let genrePage = try await client.searchTracks(genres: genre, accessToken: "test-token")
@@ -149,19 +146,18 @@ struct SearchTests {
         let genreEnd = try await client.searchTracks(genres: genre, accessToken: "test-token", pageURL: genrePage.nextURL)
         precondition(genreEnd.nextURL == nil)
         let tag = "R&B + café/夜?"
-        let tagNextURL = URL(string: "https://api.soundcloud.com/tracks")!.appending(queryItems: [
-            URLQueryItem(name: "tags", value: tag),
+        let tagNextURL = URL(string: "https://api-v2.soundcloud.com/search/tracks")!.appending(queryItems: [
+            URLQueryItem(name: "filter.genre_or_tag", value: tag),
             URLQueryItem(name: "cursor", value: "next"),
         ])
         SearchURLProtocol.respond { request in
-            precondition(request.url?.path == "/tracks")
+            precondition(request.url?.path == "/search/tracks")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
             let parameters = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value!) })
-            precondition(parameters["tags"] == tag, "Tag must survive URL encoding")
-            precondition(parameters["genres"] == nil && parameters["q"] == nil, "Tag search must not also filter by text")
-            precondition(parameters["limit"] == "25" && parameters["linked_partitioning"] == "true")
-            precondition(parameters["access"] == "playable,preview")
+            precondition(parameters["filter.genre_or_tag"] == tag, "Tag must survive URL encoding")
+            precondition(parameters["q"] == "*", "Tag search must not also filter by text")
+            precondition(parameters["limit"] == "25" && parameters["linked_partitioning"] == "1")
             return (200, "{\"collection\":[\(track(1))],\"next_href\":\"\(tagNextURL)\"}")
         }
         let tagPage = try await client.searchTracks(tags: tag, accessToken: "test-token")
@@ -196,7 +192,8 @@ private final class SearchURLProtocol: URLProtocol {
         Self.lock.lock()
         let handler = Self.handler!
         Self.lock.unlock()
-        let (status, body) = handler(request)
+        let (request, me) = APITestSupport.prepare(self.request)
+        let (status, body) = me ?? handler(request)
         let response = HTTPURLResponse(
             url: request.url!, statusCode: status, httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]

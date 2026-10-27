@@ -4,23 +4,30 @@ import Foundation
 struct FeedTests {
     static func main() async throws {
         let track = """
-            {"urn":"soundcloud:tracks:1","title":"Track","access":"playable",
+            {"id":1,"urn":"soundcloud:tracks:1","title":"Track","policy":"ALLOW",
              "created_at":"2020/01/01 00:00:00 +0000",
-             "favoritings_count":1234,"reposts_count":56,"comment_count":7,
+             "likes_count":1234,"reposts_count":56,"comment_count":7,
              "permalink_url":"https://soundcloud.com/artist/track",
              "user":{"urn":"soundcloud:users:1","username":"Artist",
              "permalink_url":"https://soundcloud.com/artist"}}
             """
         let playlist = """
-            {"urn":"soundcloud:playlists:42","title":"Playlist","track_count":8,
+            {"id":42,"title":"Playlist","track_count":8,
              "permalink_url":"https://soundcloud.com/artist/sets/playlist",
              "user":{"urn":"soundcloud:users:1","username":"Artist",
              "permalink_url":"https://soundcloud.com/artist"}}
             """
-        func activity(_ type: String, date: String = "2026-09-08T12:00:00Z", origin: String? = nil) -> String {
+        let artist = #"{"urn":"soundcloud:users:1","username":"Artist","permalink_url":"https://soundcloud.com/artist"}"#
+        let reposter = """
+            {"urn":"soundcloud:users:2","username":"Reposter",
+             "avatar_url":"https://i1.sndcdn.com/reposter.jpg",
+             "permalink_url":"https://soundcloud.com/reposter"}
             """
+        func activity(_ type: String, date: String = "2026-09-08T12:00:00Z", origin: String? = nil) -> String {
+            let key = type.hasPrefix("playlist") ? "playlist" : "track"
+            return """
             {"type":"\(type)","created_at":"\(date)",
-             "reposter":"soundcloud:users:2","origin":\(origin ?? track)}
+             "user":\(type.hasSuffix("-repost") ? reposter : artist),"\(key)":\(origin ?? track)}
             """
         }
         let decoder = JSONDecoder()
@@ -29,11 +36,11 @@ struct FeedTests {
             precondition(decoded.createdAt == ISO8601DateFormatter().date(from: "2026-09-08T12:00:00Z"))
             precondition(decoded.content?.track?.urn == "soundcloud:tracks:1")
         }
-        for type in ["playlist", "playlist:repost", "unknown"] {
+        for type in ["playlist", "playlist-repost", "unknown"] {
             let decoded = try decoder.decode(RawFeedActivity.self, from: Data(activity(type, origin: "{}").utf8))
             precondition(decoded.content?.track == nil)
         }
-        for type in ["playlist", "playlist:repost"] {
+        for type in ["playlist", "playlist-repost"] {
             let decoded = try decoder.decode(
                 RawFeedActivity.self, from: Data(activity(type, origin: playlist).utf8)
             )
@@ -41,7 +48,7 @@ struct FeedTests {
                 fatalError("Playlist activity was not decoded")
             }
             precondition(value.urn == "soundcloud:playlists:42" && value.trackCount == 8)
-            precondition(decoded.isRepost == (type == "playlist:repost"))
+            precondition(decoded.isRepost == (type == "playlist-repost"))
             precondition(decoded.createdAt != nil)
         }
         for json in ["{}", "{\"collection\":[123]}", activity("track", date: "invalid"),
@@ -59,29 +66,23 @@ struct FeedTests {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [FeedURLProtocol.self]
         let client = SoundCloudClient(
-            configuration: SoundCloudConfiguration(clientID: "test", clientSecret: "test"),
+            configuration: APITestSupport.configuration,
             sessionConfiguration: configuration
         )
-        let nextURL = "https://api.soundcloud.com/me/feed?cursor=next"
-        let blocked = track.replacingOccurrences(of: "playable", with: "blocked")
-        let preview = track.replacingOccurrences(of: "playable", with: "preview")
+        let nextURL = "https://api-v2.soundcloud.com/stream?cursor=next"
+        let blocked = track.replacingOccurrences(of: "ALLOW", with: "BLOCK")
+        let preview = track.replacingOccurrences(of: "ALLOW", with: "SNIP")
         FeedURLProtocol.respond { request in
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
-            if request.url?.path == "/users/soundcloud:users:2" {
-                return (200, """
-                    {"urn":"soundcloud:users:2","username":"Reposter",
-                     "avatar_url":"https://i1.sndcdn.com/reposter.jpg",
-                     "permalink_url":"https://soundcloud.com/reposter"}
-                    """)
-            }
-            precondition(request.url?.path == "/me/feed")
+            precondition(request.url?.path == "/stream")
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
-            precondition(query.contains(URLQueryItem(name: "access", value: "playable,preview")))
+            precondition(query.contains(URLQueryItem(name: "limit", value: "10")))
+            precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "1")))
             return (200, """
                 {"collection":[\(activity("track")),\(activity("playlist", origin: "{}")),
-                 \(activity("track:repost")),\(activity("track:repost", date: "2026-09-07T12:00:00Z")),
+                 \(activity("track-repost")),\(activity("track-repost", date: "2026-09-07T12:00:00Z")),
                  \(activity("track", origin: blocked)),\(activity("track", origin: preview)),
-                 \(activity("playlist", origin: playlist)),\(activity("playlist:repost", origin: playlist))],
+                 \(activity("playlist", origin: playlist)),\(activity("playlist-repost", origin: playlist))],
                  "next_href":"\(nextURL)"}
                 """)
         }
@@ -108,13 +109,14 @@ struct FeedTests {
         precondition(page.items[4].id != page.items[5].id)
         precondition(page.items.compactMap(\.content.track).count == 4)
         precondition(page.nextURL?.absoluteString == nextURL)
-        precondition(FeedURLProtocol.paths.filter { $0 == "/users/soundcloud:users:2" }.count == 1)
+        // Reposters arrive inline, so the feed needs no per-user requests.
+        precondition(FeedURLProtocol.paths == ["/stream"])
 
         FeedURLProtocol.respond { request in
             precondition(request.url?.absoluteString == nextURL)
             return (200, """
                 {"collection":[\(activity("playlist", origin: playlist))],
-                 "next_href":"https://api.soundcloud.com/me/feed?cursor=last"}
+                 "next_href":"https://api-v2.soundcloud.com/stream?cursor=last"}
                 """)
         }
         let emptyPage = try await client.feed(accessToken: "test-token", pageURL: page.nextURL)
@@ -176,11 +178,12 @@ private final class FeedURLProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        let (request, me) = APITestSupport.prepare(self.request)
         Self.lock.lock()
+        if me == nil { Self.requestedPaths.append(request.url!.path) }
         let handler = Self.handler!
-        Self.requestedPaths.append(request.url!.path)
         Self.lock.unlock()
-        let (status, body) = handler(request)
+        let (status, body) = me ?? handler(request)
         let response = HTTPURLResponse(
             url: request.url!, statusCode: status, httpVersion: nil,
             headerFields: ["Content-Type": "application/json"]

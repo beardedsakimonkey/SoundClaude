@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E72000000000000000000002 /* WebsiteLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71000000000000000000002 /* WebsiteLogin.swift */; };
 		F18C43A92B0549E7AD013801 /* LaunchMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18C43A92B0549E7AD013802 /* LaunchMetrics.swift */; };
 		C91010000000000000000003 /* Fluid-LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = C91000000000000000000003; };
 		C91010000000000000000002 /* FluidVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = C91000000000000000000002; };
@@ -30,7 +31,6 @@
 		A10000000000000000000002 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* AppModel.swift */; };
 		A10000000000000000000004 /* AuthController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* AuthController.swift */; };
 		A10000000000000000000005 /* KeychainTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* KeychainTokenStore.swift */; };
-		A10000000000000000000006 /* OAuthCallbackServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* OAuthCallbackServer.swift */; };
 		A10000000000000000000007 /* SoundCloudClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* SoundCloudClient.swift */; };
 		A10000000000000000000008 /* SoundCloudModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* SoundCloudModels.swift */; };
 		A10000000000000000000009 /* LikesController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* LikesController.swift */; };
@@ -132,6 +132,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		E71000000000000000000002 /* WebsiteLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteLogin.swift; sourceTree = "<group>"; };
 		F18C43A92B0549E7AD013802 /* LaunchMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchMetrics.swift; sourceTree = "<group>"; };
 		C91000000000000000000003 /* Fluid-LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Fluid-LICENSE.txt"; sourceTree = "<group>"; };
 		C91000000000000000000002 /* FluidVisualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = "FluidVisualizer.metal"; sourceTree = "<group>"; };
@@ -157,7 +158,6 @@
 		A20000000000000000000002 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		A20000000000000000000004 /* AuthController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthController.swift; sourceTree = "<group>"; };
 		A20000000000000000000005 /* KeychainTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainTokenStore.swift; sourceTree = "<group>"; };
-		A20000000000000000000006 /* OAuthCallbackServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthCallbackServer.swift; sourceTree = "<group>"; };
 		A20000000000000000000007 /* SoundCloudClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundCloudClient.swift; sourceTree = "<group>"; };
 		A20000000000000000000008 /* SoundCloudModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundCloudModels.swift; sourceTree = "<group>"; };
 		A20000000000000000000009 /* LikesController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LikesController.swift; sourceTree = "<group>"; };
@@ -172,8 +172,6 @@
 		A20000000000000000000013 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000000000000000000014 /* SoundClaude.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SoundClaude.entitlements; sourceTree = "<group>"; };
 		A20000000000000000000015 /* SoundClaude-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SoundClaude-Bridging-Header.h"; sourceTree = "<group>"; };
-		A20000000000000000000016 /* Configuration.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configuration.xcconfig; sourceTree = "<group>"; };
-		A20000000000000000000017 /* Configuration.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configuration.xcconfig.example; sourceTree = "<group>"; };
 		A20000000000000000000018 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		A20000000000000000000019 /* SoundClaude.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SoundClaude.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000020 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -291,7 +289,6 @@
 			isa = PBXGroup;
 			children = (
 				A40000000000000000000002 /* SoundClaude */,
-				A4000000000000000000000C /* Config */,
 				A4000000000000000000000D /* Frameworks */,
 				A4000000000000000000000E /* Products */,
 				A20000000000000000000018 /* README.md */,
@@ -408,7 +405,7 @@
 			children = (
 				A20000000000000000000004 /* AuthController.swift */,
 				A20000000000000000000005 /* KeychainTokenStore.swift */,
-				A20000000000000000000006 /* OAuthCallbackServer.swift */,
+				E71000000000000000000002 /* WebsiteLogin.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -490,15 +487,6 @@
 				8D06FA75D610477E98EECAA2 /* PlayerArtworkGlass.metal */,
 			);
 			path = Shaders;
-			sourceTree = "<group>";
-		};
-		A4000000000000000000000C /* Config */ = {
-			isa = PBXGroup;
-			children = (
-				A20000000000000000000016 /* Configuration.xcconfig */,
-				A20000000000000000000017 /* Configuration.xcconfig.example */,
-			);
-			path = Config;
 			sourceTree = "<group>";
 		};
 		A4000000000000000000000D /* Frameworks */ = {
@@ -625,6 +613,7 @@
 				C92A10000000000000000001 /* VisualizerGrade.swift in Sources */,
 				C92A10000000000000000002 /* VisualizerGrade.metal in Sources */,
 				C92810000000000000000003 /* PistonSolver.c in Sources */,
+				E72000000000000000000002 /* WebsiteLogin.swift in Sources */,
 				A10000000000000000000001 /* SoundClaudeApp.swift in Sources */,
 				A10000000000000000000013 /* KeyboardShortcutsView.swift in Sources */,
 				A10000000000000000000002 /* AppModel.swift in Sources */,
@@ -707,7 +696,6 @@
 				A1000000000000000000001F /* MemoryCache.swift in Sources */,
 				A10000000000000000000004 /* AuthController.swift in Sources */,
 				A10000000000000000000005 /* KeychainTokenStore.swift in Sources */,
-				A10000000000000000000006 /* OAuthCallbackServer.swift in Sources */,
 				A10000000000000000000007 /* SoundCloudClient.swift in Sources */,
 				A10000000000000000000012 /* ArtworkLoader.swift in Sources */,
 				A10000000000000000000008 /* SoundCloudModels.swift in Sources */,
@@ -733,7 +721,6 @@
 /* Begin XCBuildConfiguration section */
 		A70000000000000000000001 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A20000000000000000000016 /* Configuration.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -790,7 +777,6 @@
 		};
 		A70000000000000000000002 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A20000000000000000000016 /* Configuration.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -839,7 +825,6 @@
 		};
 		A70000000000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A20000000000000000000016 /* Configuration.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -868,7 +853,6 @@
 		};
 		A70000000000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A20000000000000000000016 /* Configuration.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
