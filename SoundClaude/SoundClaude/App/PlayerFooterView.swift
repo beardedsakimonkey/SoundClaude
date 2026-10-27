@@ -257,9 +257,9 @@ struct PlayerFooterView: View {
             Button(action: model.toggleShuffle) {
                 Image(systemName: "shuffle")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(playback.isShuffleEnabled ? Color.accentColor : Color.primary)
+                    .foregroundStyle(playback.isShuffleEnabled ? Color.green : Color.primary)
                     .frame(width: 32, height: 32)
-                    .modifier(PlayerFooterButtonBackground(color: .accentColor, isActive: playback.isShuffleEnabled))
+                    .modifier(PlayerFooterButtonBackground(color: .green, isActive: playback.isShuffleEnabled))
                     .contentShape(Circle())
             }
             .contentHelp(playback.isShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
@@ -269,9 +269,9 @@ struct PlayerFooterView: View {
             Button(action: playback.cycleRepeatMode) {
                 Image(systemName: playback.repeatMode == .one ? "repeat.1" : "repeat")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(playback.repeatMode != .off ? Color.accentColor : Color.primary)
+                    .foregroundStyle(playback.repeatMode != .off ? Color.cyan : Color.primary)
                     .frame(width: 32, height: 32)
-                    .modifier(PlayerFooterButtonBackground(color: .accentColor, isActive: playback.repeatMode != .off))
+                    .modifier(PlayerFooterButtonBackground(color: .cyan, isActive: playback.repeatMode != .off))
                     .contentShape(Circle())
             }
             .contentHelp("\(playback.repeatMode.nextAction) (R)")
