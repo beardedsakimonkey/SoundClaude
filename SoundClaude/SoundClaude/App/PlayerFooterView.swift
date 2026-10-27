@@ -592,12 +592,19 @@ private struct PlayerSpeedControl: View {
         .accessibilityValue(rateLabel)
         .popover(isPresented: $isShowingSpeed, arrowEdge: .top) {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Speed")
-                    .font(.headline)
-                    .accessibilityAddTraits(.isHeader)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Speed")
+                        .font(.headline)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer()
+                    HStack(spacing: 2) {
+                        presetButton("Slower", semitones: -4)
+                        presetButton("Faster", semitones: 3)
+                    }
+                }
                 PlayerSpeedSlider(value: Binding(
                     get: { playback.playbackRate },
-                    set: { playback.setCustomSpeed($0) }
+                    set: { playback.setPlaybackRate($0) }
                 ))
             }
             .padding(20)
@@ -611,6 +618,26 @@ private struct PlayerSpeedControl: View {
         }
     }
 
+    private func presetButton(_ title: String, semitones: Int) -> some View {
+        let presetRate = Float(pow(2.0, Double(semitones) / 12))
+        let isActive = playback.playbackRate == presetRate
+        let rate = presetRate.formatted(.number.precision(.fractionLength(0...2))) + "×"
+        return Button {
+            // Clicking the active preset returns to normal speed.
+            playback.setPlaybackRate(isActive ? 1 : presetRate)
+        } label: {
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(isActive ? Color.orange : Color.secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
+        .modifier(PlayerSpeedHoverFeedback(color: .orange, isActive: isActive))
+        .contentHelp(rate)
+        .accessibilityValue(rate)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
 }
 
 private struct PlayerSpeedHoverFeedback: ViewModifier {

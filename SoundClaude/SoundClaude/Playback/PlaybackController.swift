@@ -106,42 +106,15 @@ final class PlaybackController {
         }
     }
 
-    enum SpeedMode: String, CaseIterable {
-        case normal, nightcore, slowed, custom
+    private(set) var playbackRate: Float = 1
 
-        var label: String {
-            switch self {
-            case .normal: "Normal"
-            case .nightcore: "Nightcore"
-            case .slowed: "Slowed"
-            case .custom: "Custom"
-            }
-        }
-    }
-
-    var speedMode: SpeedMode = .normal {
-        didSet {
-            defaults.set(speedMode.rawValue, forKey: SettingsKey.speedMode)
-            applySpeed()
-        }
-    }
-    private(set) var customSpeed: Float = 1
-    var playbackRate: Float {
-        switch speedMode {
-        case .normal: 1
-        case .nightcore: 1.25
-        case .slowed: 0.8
-        case .custom: customSpeed
-        }
-    }
-
-    func setCustomSpeed(_ speed: Float) {
-        guard speed.isFinite else { return }
+    func setPlaybackRate(_ rate: Float) {
+        guard rate.isFinite else { return }
         // Snap to semitones, since varispeed shifts pitch with speed.
-        let semitones = min(max((12 * log2(speed)).rounded(), -12), 12)
-        customSpeed = Float(pow(2.0, Double(semitones) / 12))
-        defaults.set(customSpeed, forKey: SettingsKey.customSpeed)
-        speedMode = .custom
+        let semitones = min(max((12 * log2(rate)).rounded(), -12), 12)
+        playbackRate = Float(pow(2.0, Double(semitones) / 12))
+        defaults.set(playbackRate, forKey: SettingsKey.playbackRate)
+        applySpeed()
     }
 
     private func configureSpeed(for player: AVPlayer) {
@@ -164,8 +137,7 @@ final class PlaybackController {
     }
 
     private enum SettingsKey {
-        static let speedMode = "playback.speedMode"
-        static let customSpeed = "playback.customSpeed"
+        static let playbackRate = "playback.rate"
         static let volume = "playback.volume"
         static let isMuted = "playback.isMuted"
         static let isShuffleEnabled = "playback.isShuffleEnabled"
@@ -251,7 +223,7 @@ final class PlaybackController {
         self.sessionDefaults = sessionDefaults ?? defaults
         self.makePrefetchPlayer = makePrefetchPlayer
         defaults.register(defaults: [
-            SettingsKey.customSpeed: Float(1),
+            SettingsKey.playbackRate: Float(1),
             SettingsKey.isShuffleEnabled: false,
         ])
         let savedVolume = volumeDefaults.float(forKey: SettingsKey.volume)
@@ -259,9 +231,8 @@ final class PlaybackController {
         isMuted = volumeDefaults.bool(forKey: SettingsKey.isMuted)
         isShuffleEnabled = defaults.bool(forKey: SettingsKey.isShuffleEnabled)
         repeatMode = RepeatMode(rawValue: defaults.string(forKey: SettingsKey.repeatMode) ?? "") ?? .off
-        speedMode = SpeedMode(rawValue: defaults.string(forKey: SettingsKey.speedMode) ?? "") ?? .normal
-        let savedSpeed = defaults.float(forKey: SettingsKey.customSpeed)
-        customSpeed = savedSpeed.isFinite ? min(max(savedSpeed, 0.5), 2) : 1
+        let savedRate = defaults.float(forKey: SettingsKey.playbackRate)
+        playbackRate = savedRate.isFinite ? min(max(savedRate, 0.5), 2) : 1
         player = AVPlayer()
         configureSpeed(for: player)
         player.automaticallyWaitsToMinimizeStalling = true

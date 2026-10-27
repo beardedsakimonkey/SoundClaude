@@ -83,53 +83,53 @@ struct PlaybackTests {
 
         // Speed changes preserve pause intent and survive seeks and new items.
         do {
-            // Custom speeds snap to semitones.
+            // Speeds snap to semitones.
             func semitones(_ count: Int) -> Float { Float(pow(2.0, Double(count) / 12)) }
             let controller = PlaybackController(defaults: defaults)
             controller.isMuted = true
-            controller.speedMode = .nightcore
+            controller.setPlaybackRate(semitones(3))
             let request = controller.beginLoading(track: track(1), autoplay: false)
             controller.load(source: source, requestID: request)
             try await until { !controller.isLoading && !controller.isBuffering }
             precondition(controller.player.rate == 0)
-            precondition(controller.player.defaultRate == 1.25)
+            precondition(controller.player.defaultRate == semitones(3))
             precondition(controller.player.currentItem?.audioTimePitchAlgorithm == .varispeed)
             controller.togglePlayPause()
             try await until { controller.isPlaying }
-            precondition(controller.player.rate == 1.25)
-            controller.speedMode = .slowed
-            precondition(controller.player.rate == 0.8)
-            controller.setCustomSpeed(0.8)
+            precondition(controller.player.rate == semitones(3))
+            controller.setPlaybackRate(semitones(-4))
+            precondition(controller.player.rate == semitones(-4))
+            controller.setPlaybackRate(0.8)
             precondition(controller.player.rate == semitones(-4))
             precondition(controller.player.currentItem?.audioTimePitchAlgorithm == .varispeed)
-            controller.setCustomSpeed(1.5)
+            controller.setPlaybackRate(1.5)
             precondition(controller.player.rate == semitones(7))
             precondition(controller.player.currentItem?.audioTimePitchAlgorithm == .varispeed)
             controller.seek(to: 0.5)
             try await until { !controller.isBuffering && controller.player.rate == semitones(7) }
             controller.pause()
-            controller.setCustomSpeed(0.75)
+            controller.setPlaybackRate(0.75)
             precondition(controller.player.rate == 0)
             let restored = PlaybackController(defaults: defaults)
-            precondition(restored.speedMode == .custom && restored.customSpeed == semitones(-5))
+            precondition(restored.playbackRate == semitones(-5))
             precondition(restored.player.rate == 0)
-            controller.setCustomSpeed(.nan)
-            precondition(controller.customSpeed == semitones(-5))
-            controller.setCustomSpeed(4)
-            precondition(controller.customSpeed == 2)
-            controller.setCustomSpeed(0)
-            precondition(controller.customSpeed == 0.5)
+            controller.setPlaybackRate(.nan)
+            precondition(controller.playbackRate == semitones(-5))
+            controller.setPlaybackRate(4)
+            precondition(controller.playbackRate == 2)
+            controller.setPlaybackRate(0)
+            precondition(controller.playbackRate == 0.5)
             controller.prefetch(track(2)) { source }
             try await Task.sleep(for: .milliseconds(100))
-            controller.speedMode = .nightcore
+            controller.setPlaybackRate(semitones(3))
             let nextRequest = controller.beginLoading(track: track(2))
             let consumed = await controller.loadPrefetched(requestID: nextRequest)
             precondition(consumed)
             try await until { controller.isPlaying }
-            precondition(controller.player.rate == 1.25)
+            precondition(controller.player.rate == semitones(3))
             precondition(controller.player.currentItem?.audioTimePitchAlgorithm == .varispeed)
             controller.clearSession()
-            for key in ["playback.speedMode", "playback.customSpeed", "playback.isMuted"] {
+            for key in ["playback.rate", "playback.isMuted"] {
                 defaults.removeObject(forKey: key)
             }
         }
