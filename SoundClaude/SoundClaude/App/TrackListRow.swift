@@ -92,7 +92,7 @@ struct TrackListRow: View {
                         .foregroundStyle(.secondary)
                         .fixedSize()
                         // Keep the duration's width so hover does not change text truncation.
-                        .opacity(isHovering ? 0 : 1)
+                        .opacity(isHovering ? 0 : track.access == .protected ? protectedTrackOpacity : 1)
                 } else {
                     // Without metadata, reserve only the hover button's width.
                     Color.clear.frame(width: 28, height: 28)
