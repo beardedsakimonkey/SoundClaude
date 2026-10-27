@@ -348,7 +348,7 @@ actor SoundCloudClient {
         return try await playlistPage(at: url, accessToken: accessToken)
     }
 
-    // TODO: Unverified. Mirrors the website's request shape; artwork upload is not ported.
+    // Artwork upload is not ported.
     func createPlaylist(
         title: String, description: String, isPrivate: Bool,
         artwork: PlaylistArtwork? = nil, accessToken: String
@@ -366,7 +366,6 @@ actor SoundCloudClient {
         return playlist
     }
 
-    // TODO: Unverified. Mirrors the website's request shape.
     func updatePlaylist(
         urn: String, title: String, description: String, isPrivate: Bool, accessToken: String
     ) async throws -> SoundCloudPlaylist {
@@ -376,8 +375,12 @@ actor SoundCloudClient {
             json: ["playlist": ["title": title, "description": description,
                                 "sharing": isPrivate ? "private" : "public"]]
         )
-        guard let playlist = try decoder.decode(RawPlaylist.self, from: data).normalized(),
-              playlist.urn == urn else { throw SoundCloudError.invalidData }
+        // The reply can omit the owner and permalink; load the full playlist when it does.
+        var playlist = try? decoder.decode(RawPlaylist.self, from: data).normalized()
+        if playlist == nil {
+            playlist = try await self.playlist(urn: urn, accessToken: accessToken)
+        }
+        guard let playlist, playlist.urn == urn else { throw SoundCloudError.invalidData }
         return playlist
     }
 
@@ -391,7 +394,7 @@ actor SoundCloudClient {
                                       removing: true, accessToken: accessToken)
     }
 
-    // TODO: Unverified. Mirrors the website, which replaces the whole track list.
+    // Mirrors the website, which replaces the whole track list.
     private func updatePlaylistTrack(
         trackURN: String, playlistURN: String, removing: Bool, accessToken: String
     ) async throws {
@@ -413,7 +416,6 @@ actor SoundCloudClient {
                        json: ["playlist": ["tracks": trackIDs]])
     }
 
-    // TODO: Unverified.
     func deletePlaylist(urn: String, accessToken: String) async throws {
         try await send("DELETE", endpoint("playlists/\(try Self.id(urn))"), accessToken: accessToken)
     }
@@ -483,7 +485,6 @@ actor SoundCloudClient {
         )
     }
 
-    // TODO: Unverified.
     func setPlaylistLiked(urn: String, isLiked: Bool, accessToken: String) async throws {
         let userID = try await myID(accessToken: accessToken)
         try await send(
@@ -499,7 +500,6 @@ actor SoundCloudClient {
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
-    // TODO: Unverified.
     func setTrackReposted(urn: String, isReposted: Bool, accessToken: String) async throws {
         try await send(
             isReposted ? "PUT" : "DELETE",
@@ -508,7 +508,6 @@ actor SoundCloudClient {
         )
     }
 
-    // TODO: Unverified.
     func setTrackLiked(
         urn: String,
         isLiked: Bool,
@@ -522,7 +521,7 @@ actor SoundCloudClient {
         )
     }
 
-    // TODO: Unverified.
+    // The website posts comments as form fields, not JSON.
     func addTrackComment(
         urn: String,
         body: String,
@@ -532,13 +531,13 @@ actor SoundCloudClient {
         guard !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw SoundCloudError.api("Enter a comment before posting.")
         }
-        var comment: [String: Any] = ["body": body]
+        var fields = [("body", body)]
         if let timestampMilliseconds {
-            comment["timestamp"] = timestampMilliseconds
+            fields.append(("timestamp", String(timestampMilliseconds)))
         }
         let data = try await send(
             "POST", endpoint("tracks/\(try Self.id(urn))/comments"),
-            accessToken: accessToken, json: ["comment": comment]
+            accessToken: accessToken, form: fields
         )
         return try decoder.decode(SoundCloudComment.self, from: data)
     }
@@ -721,6 +720,18 @@ actor SoundCloudClient {
 
     // MARK: - Requests
 
+    /// Encodes fields like jQuery's $.param, which the website uses for form posts.
+    private static func formEncoded(_ fields: [(String, String)]) -> String {
+        let unreserved = CharacterSet(
+            charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.!~*'()"
+        )
+        func encode(_ text: String) -> String {
+            text.addingPercentEncoding(withAllowedCharacters: unreserved)!
+                .replacingOccurrences(of: "%20", with: "+")
+        }
+        return fields.map { "\(encode($0.0))=\(encode($0.1))" }.joined(separator: "&")
+    }
+
     /// api-v2 paths take numeric IDs, while app models keep URNs.
     private static func id(_ urn: String) throws -> String {
         let id = urn.split(separator: ":").last.map(String.init) ?? ""
@@ -757,9 +768,15 @@ actor SoundCloudClient {
 
     @discardableResult
     private func send(
-        _ method: String, _ url: URL, accessToken: String, json: [String: Any]? = nil
+        _ method: String, _ url: URL, accessToken: String,
+        json: [String: Any]? = nil, form: [(String, String)]? = nil
     ) async throws -> Data {
-        let body = try json.map { try JSONSerialization.data(withJSONObject: $0) }
+        var body: (data: Data, type: String)?
+        if let json {
+            body = (try JSONSerialization.data(withJSONObject: json), "application/json; charset=utf-8")
+        } else if let form {
+            body = (Data(Self.formEncoded(form).utf8), "application/x-www-form-urlencoded; charset=UTF-8")
+        }
         let (data, response) = try await authenticatedRequest(
             url: url, accessToken: accessToken, method: method, body: body
         )
@@ -814,7 +831,7 @@ actor SoundCloudClient {
         url: URL,
         accessToken: String,
         method: String = "GET",
-        body: Data? = nil,
+        body: (data: Data, type: String)? = nil,
         isRetry: Bool = false
     ) async throws -> (Data, HTTPURLResponse) {
         try validateAPIURL(url)
@@ -830,8 +847,8 @@ actor SoundCloudClient {
         var request = URLRequest(url: requestURL)
         request.httpMethod = method
         if let body {
-            request.httpBody = body
-            request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
+            request.httpBody = body.data
+            request.setValue(body.type, forHTTPHeaderField: "Content-Type")
         }
         request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Accept")
         request.setValue("OAuth \(accessToken)", forHTTPHeaderField: "Authorization")

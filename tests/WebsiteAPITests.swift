@@ -6,6 +6,13 @@ struct WebsiteAPITests {
         let decoder = JSONDecoder()
         let user = #"{"urn":"soundcloud:users:3","username":"Artist","permalink_url":"https://soundcloud.com/artist","country_code":"DE","likes_count":12}"#
 
+        // api-v2 error bodies come in several shapes.
+        for (json, message) in [(#"{"message":"A"}"#, "A"), (#"{"error":"B"}"#, "B"),
+                                (#"{"errors":[{"error_message":"C"}]}"#, "C"), (#"{"errors":[]}"#, nil)] {
+            let body = try decoder.decode(APIErrorBody.self, from: Data(json.utf8))
+            precondition(body.message == message)
+        }
+
         // api-v2 tracks use policy, likes_count, and secret_token.
         for (policy, access) in [("ALLOW", SoundCloudTrack.Access.playable), ("MONETIZE", .playable),
                                  ("SNIP", .preview), ("BLOCK", nil), ("UNKNOWN", nil)] {

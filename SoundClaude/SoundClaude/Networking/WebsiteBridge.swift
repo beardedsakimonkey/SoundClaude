@@ -5,16 +5,21 @@ import WebKit
 // writes made with URLSession, even with its cookie and the page's user agent, but passes
 // requests made from the page where its script runs.
 @MainActor
-final class WebsiteBridge: NSObject, WKNavigationDelegate {
+final class WebsiteBridge: NSObject, WKNavigationDelegate, WKScriptMessageHandler, NSWindowDelegate {
     private static let pageURL = URL(string: "https://soundcloud.com/discover")!
     private static let script = """
         const response = await fetch(url, {method, headers, body, redirect: 'error'});
         return {status: response.status, type: response.headers.get('Content-Type') ?? '', body: await response.text()};
         """
+    // DataDome's script fires this once its captcha is solved.
+    private static let passedScript = """
+        addEventListener('dd_response_passed', () => webkit.messageHandlers.datadome.postMessage(true));
+        """
 
     private var page: Task<WKWebView, Error>?
     private var window: NSWindow?
     private var loadContinuation: CheckedContinuation<Void, Error>?
+    private var verifications: [CheckedContinuation<Bool, Never>] = []
 
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         guard let url = request.url else { throw SoundCloudError.unexpectedURL }
@@ -23,16 +28,31 @@ final class WebsiteBridge: NSObject, WKNavigationDelegate {
         // `Accept: application/json; charset=utf-8`, and the page supplies the rest itself.
         var headers = ["Authorization": request.value(forHTTPHeaderField: "Authorization") ?? ""]
         if request.httpBody != nil {
-            headers["Content-Type"] = "application/json"
+            // The website sends JSON without a charset, and forms with jQuery's default type.
+            let type = request.value(forHTTPHeaderField: "Content-Type") ?? ""
+            headers["Content-Type"] = type.hasPrefix("application/json") ? "application/json" : type
         }
+        let arguments: [String: Any] = [
+            "url": url.absoluteString,
+            "method": request.httpMethod ?? "GET",
+            "headers": headers,
+            "body": request.httpBody.map { String(decoding: $0, as: UTF8.self) } ?? NSNull(),
+        ]
+        var (data, response) = try await fetch(url, arguments, in: webView)
+        // Some writes, such as comments, need a captcha. DataDome draws it over the page.
+        if response.statusCode == 403, String(decoding: data, as: UTF8.self).contains("captcha-delivery.com"),
+           await verify() {
+            (data, response) = try await fetch(url, arguments, in: webView)
+        }
+        return (data, response)
+    }
+
+    private func fetch(
+        _ url: URL, _ arguments: [String: Any], in webView: WKWebView
+    ) async throws -> (Data, HTTPURLResponse) {
         let result: Any?
         do {
-            result = try await webView.callAsyncJavaScript(Self.script, arguments: [
-                "url": url.absoluteString,
-                "method": request.httpMethod ?? "GET",
-                "headers": headers,
-                "body": request.httpBody.map { String(decoding: $0, as: UTF8.self) } ?? NSNull(),
-            ], contentWorld: .page)
+            result = try await webView.callAsyncJavaScript(Self.script, arguments: arguments, contentWorld: .page)
         } catch {
             // The page may have crashed or navigated away; load a fresh one next time.
             reset()
@@ -46,6 +66,24 @@ final class WebsiteBridge: NSObject, WKNavigationDelegate {
             throw SoundCloudError.invalidResponse
         }
         return (Data((result["body"] as? String ?? "").utf8), response)
+    }
+
+    /// Shows the page until its captcha passes (true) or the window closes (false).
+    private func verify() async -> Bool {
+        guard let window else { return false }
+        if !window.isVisible {
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate()
+        }
+        return await withCheckedContinuation { verifications.append($0) }
+    }
+
+    private func finishVerification(passed: Bool) {
+        window?.orderOut(nil)
+        let waiting = verifications
+        verifications = []
+        for continuation in waiting { continuation.resume(returning: passed) }
     }
 
     private func loadedPage() async throws -> WKWebView {
@@ -64,11 +102,18 @@ final class WebsiteBridge: NSObject, WKNavigationDelegate {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.mediaTypesRequiringUserActionForPlayback = .all
-        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 1024, height: 768), configuration: configuration)
+        configuration.userContentController.add(self, contentWorld: .page, name: "datadome")
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: Self.passedScript, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page
+        ))
+        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 640, height: 720), configuration: configuration)
         webView.navigationDelegate = self
-        // Never shown.
-        let window = NSWindow(contentRect: webView.frame, styleMask: [.borderless], backing: .buffered, defer: true)
+        // Hidden unless a captcha needs solving.
+        let window = NSWindow(contentRect: webView.frame, styleMask: [.titled, .closable, .resizable],
+                              backing: .buffered, defer: true)
+        window.title = "SoundCloud verification"
         window.isReleasedWhenClosed = false
+        window.delegate = self
         window.contentView = webView
         self.window = window
 
@@ -87,6 +132,9 @@ final class WebsiteBridge: NSObject, WKNavigationDelegate {
 
     private func reset() {
         page = nil
+        finishVerification(passed: false)
+        (window?.contentView as? WKWebView)?.configuration.userContentController
+            .removeScriptMessageHandler(forName: "datadome", contentWorld: .page)
         window?.contentView = nil
         window = nil
         finishLoad(throwing: SoundCloudError.network)
@@ -96,6 +144,16 @@ final class WebsiteBridge: NSObject, WKNavigationDelegate {
         guard let continuation = loadContinuation else { return }
         loadContinuation = nil
         if let error { continuation.resume(throwing: error) } else { continuation.resume() }
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        finishVerification(passed: true)
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        // Keep the page for later writes; closing only cancels the captcha.
+        finishVerification(passed: false)
+        return false
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { finishLoad() }

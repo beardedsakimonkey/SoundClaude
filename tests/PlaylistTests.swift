@@ -221,6 +221,18 @@ struct PlaylistTests {
             )
             precondition(updated.urn == "soundcloud:playlists:42")
         }
+        // A reply without the owner falls back to loading the playlist.
+        PlaylistURLProtocol.respond { request in
+            precondition(request.url?.path == "/playlists/42")
+            return request.httpMethod == "PUT"
+                ? (200, #"{"id":42,"title":"Edited","sharing":"private"}"#)
+                : (200, playlist)
+        }
+        let reloaded = try await client.updatePlaylist(
+            urn: "soundcloud:playlists:42", title: "Edited", description: "",
+            isPrivate: true, accessToken: "test-token"
+        )
+        precondition(reloaded.urn == "soundcloud:playlists:42")
         PlaylistURLProtocol.respond { _ in (401, "{}") }
         do {
             _ = try await client.updatePlaylist(

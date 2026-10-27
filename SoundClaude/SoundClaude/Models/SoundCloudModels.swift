@@ -449,8 +449,24 @@ struct TokenRecord: Codable, Sendable, Equatable {
     var user: SoundCloudUser?
 }
 
+/// api-v2 reports errors as `message`, `error`, or `errors: [{error_message}]`.
 struct APIErrorBody: Decodable {
     let message: String?
+
+    private struct Item: Decodable {
+        let error_message: String?
+        let message: String?
+    }
+
+    private enum CodingKeys: String, CodingKey { case message, error, errors }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let items = (try? container.decode([Item].self, forKey: .errors)) ?? []
+        message = (try? container.decode(String.self, forKey: .message))
+            ?? (try? container.decode(String.self, forKey: .error))
+            ?? items.lazy.compactMap { $0.error_message ?? $0.message }.first
+    }
 }
 
 struct RawTrackPage: Decodable {

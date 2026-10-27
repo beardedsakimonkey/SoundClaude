@@ -50,7 +50,6 @@ struct CommentsTests {
                 precondition(request.httpMethod == "POST")
                 precondition(request.url?.path == "/tracks/1/comments")
                 precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
-                precondition(request.value(forHTTPHeaderField: "Content-Type") == "application/json; charset=utf-8")
                 var body = request.httpBody ?? Data()
                 if let stream = request.httpBodyStream {
                     stream.open()
@@ -63,9 +62,14 @@ struct CommentsTests {
                         body.append(contentsOf: buffer.prefix(count))
                     }
                 }
-                let payload = try! JSONSerialization.jsonObject(with: body) as! [String: [String: Any]]
-                precondition(payload["comment"]?["body"] as? String == draft)
-                precondition(payload["comment"]?["timestamp"] as? Int == timestamp)
+                precondition(request.value(forHTTPHeaderField: "Content-Type")
+                    == "application/x-www-form-urlencoded; charset=UTF-8")
+                var form = URLComponents()
+                form.percentEncodedQuery = String(decoding: body, as: UTF8.self)
+                    .replacingOccurrences(of: "+", with: "%20")
+                let fields = Dictionary(uniqueKeysWithValues: form.queryItems!.map { ($0.name, $0.value) })
+                precondition(fields["body"] == draft)
+                precondition(fields["timestamp"] == timestamp.map(String.init))
                 return (201, comment(timestamp: timestamp.map(String.init) ?? "null"))
             }
             let posted = try await client.addTrackComment(
