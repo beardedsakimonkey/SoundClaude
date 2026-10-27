@@ -55,6 +55,9 @@ private final class RedirectBlocker: NSObject, URLSessionTaskDelegate {
     }
 }
 
+/// Sends an api-v2 request from a soundcloud.com page rather than URLSession.
+typealias SoundCloudWebsiteTransport = @Sendable (URLRequest) async throws -> (Data, HTTPURLResponse)
+
 actor SoundCloudClient {
     private static let likedTracksPageSize = 25
     private static let clientIDDefaultsKey = "SoundCloudWebsiteClientID"
@@ -62,6 +65,7 @@ actor SoundCloudClient {
 
     private let configuration: SoundCloudConfiguration
     private let session: URLSession
+    private let websiteTransport: SoundCloudWebsiteTransport?
     private let decoder = JSONDecoder()
     private var clientID: String?
     private var clientIDTask: Task<String, Error>?
@@ -69,9 +73,11 @@ actor SoundCloudClient {
 
     init(
         configuration: SoundCloudConfiguration,
-        sessionConfiguration: URLSessionConfiguration = .ephemeral
+        sessionConfiguration: URLSessionConfiguration = .ephemeral,
+        websiteTransport: SoundCloudWebsiteTransport? = nil
     ) {
         self.configuration = configuration
+        self.websiteTransport = websiteTransport
         clientID = configuration.clientID
             ?? UserDefaults.standard.string(forKey: Self.clientIDDefaultsKey)
 
@@ -831,7 +837,12 @@ actor SoundCloudClient {
         request.setValue("OAuth \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("https://soundcloud.com", forHTTPHeaderField: "Origin")
         request.setValue("https://soundcloud.com/", forHTTPHeaderField: "Referer")
-        let (data, response) = try await send(request)
+        // DataDome blocks api-v2 writes that don't come from a soundcloud.com page.
+        let (data, response) = if method != "GET", let websiteTransport {
+            try await websiteTransport(request)
+        } else {
+            try await send(request)
+        }
 
         // SoundCloud rotates the website client ID; retry once with a fresh one.
         if [401, 403].contains(response.statusCode), !isRetry, configuration.clientID == nil,

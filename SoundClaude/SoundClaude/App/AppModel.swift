@@ -83,7 +83,11 @@ final class AppModel {
         guard let analyzer = LaunchMetrics.measure("Spectrum analyzer setup", { SpectrumAnalyzer() }) else {
             fatalError("The fixed audio buffers could not be created.")
         }
-        let client = SoundCloudClient(configuration: SoundCloudConfiguration())
+        let websiteBridge = WebsiteBridge()
+        let client = SoundCloudClient(
+            configuration: SoundCloudConfiguration(),
+            websiteTransport: { request in try await websiteBridge.send(request) }
+        )
         let audioTap = AudioTapController(analyzer: analyzer)
         let playback = LaunchMetrics.measure("Player setup and saved session") {
             // Keep session saves and volume changes from invalidating @AppStorage views.

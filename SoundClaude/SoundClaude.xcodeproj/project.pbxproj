@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		E72000000000000000000002 /* WebsiteLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71000000000000000000002 /* WebsiteLogin.swift */; };
+		E72000000000000000000003 /* WebsiteBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71000000000000000000003 /* WebsiteBridge.swift */; };
 		F18C43A92B0549E7AD013801 /* LaunchMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18C43A92B0549E7AD013802 /* LaunchMetrics.swift */; };
 		C91010000000000000000003 /* Fluid-LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = C91000000000000000000003; };
 		C91010000000000000000002 /* FluidVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = C91000000000000000000002; };
@@ -133,6 +134,7 @@
 
 /* Begin PBXFileReference section */
 		E71000000000000000000002 /* WebsiteLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteLogin.swift; sourceTree = "<group>"; };
+		E71000000000000000000003 /* WebsiteBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteBridge.swift; sourceTree = "<group>"; };
 		F18C43A92B0549E7AD013802 /* LaunchMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchMetrics.swift; sourceTree = "<group>"; };
 		C91000000000000000000003 /* Fluid-LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Fluid-LICENSE.txt"; sourceTree = "<group>"; };
 		C91000000000000000000002 /* FluidVisualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = "FluidVisualizer.metal"; sourceTree = "<group>"; };
@@ -415,6 +417,7 @@
 			children = (
 				A20000000000000000000007 /* SoundCloudClient.swift */,
 				A20000000000000000000029 /* ArtworkLoader.swift */,
+				E71000000000000000000003 /* WebsiteBridge.swift */,
 			);
 			path = Networking;
 			sourceTree = "<group>";
@@ -698,6 +701,7 @@
 				A10000000000000000000005 /* KeychainTokenStore.swift in Sources */,
 				A10000000000000000000007 /* SoundCloudClient.swift in Sources */,
 				A10000000000000000000012 /* ArtworkLoader.swift in Sources */,
+				E72000000000000000000003 /* WebsiteBridge.swift in Sources */,
 				A10000000000000000000008 /* SoundCloudModels.swift in Sources */,
 				A10000000000000000000009 /* LikesController.swift in Sources */,
 				A10000000000000000000040 /* LikesCache.swift in Sources */,
