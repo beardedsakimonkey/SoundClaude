@@ -48,11 +48,12 @@ enum SoundCloudError: Error { case invalidData }
 
 let user = SoundCloudUser(urn: "user:1", username: "Test", avatarURL: nil,
                           permalinkURL: URL(string: "https://soundcloud.com/test")!)
-func track(_ id: Int) -> SoundCloudTrack {
+func track(_ id: Int) -> SoundCloudTrack { track(id, access: .playable) }
+func track(_ id: Int, access: SoundCloudTrack.Access) -> SoundCloudTrack {
     SoundCloudTrack(urn: "track:\(id)", title: "Track \(id)", artist: user,
                     artworkURL: nil, waveformURL: nil,
                     permalinkURL: URL(string: "https://soundcloud.com/test/\(id)")!,
-                    durationMilliseconds: 1000, access: .playable, secretToken: nil)
+                    durationMilliseconds: 1000, access: access, secretToken: nil)
 }
 
 @main
@@ -328,6 +329,21 @@ struct QueueAndLikesTests {
         let single = TrackQueue(source: .single, tracks: [track(1)])
         precondition(single.relativeTrack(to: "track:1", offset: 1, wraps: false) == nil)
         precondition(single.relativeTrack(to: "track:1", offset: 1, wraps: true) == track(1))
+        // Next and previous step past copy-protected tracks.
+        var protectedQueue = TrackQueue(
+            source: .artist("user:1"),
+            tracks: [track(1), track(2, access: .protected), track(3), track(4, access: .protected)],
+            nextPageURL: next
+        )
+        precondition(protectedQueue.relativeTrack(to: "track:1", offset: 1) == track(3))
+        precondition(protectedQueue.relativeTrack(to: "track:3", offset: -1) == track(1))
+        precondition(protectedQueue.relativeTrack(to: "track:3", offset: 1, wraps: false) == nil)
+        precondition(protectedQueue.relativeTrack(to: "track:3", offset: 1) == track(1))
+        precondition(protectedQueue.relativeTrack(to: "track:2", offset: 1) == track(3))
+        precondition(protectedQueue.needsNextPage(after: "track:3"))
+        precondition(!protectedQueue.needsNextPage(after: "track:1"))
+        protectedQueue = TrackQueue(source: .single, tracks: [track(1, access: .protected)])
+        precondition(protectedQueue.relativeTrack(to: "track:1", offset: 1) == nil)
         let restored = try JSONDecoder().decode(TrackQueue.self, from: JSONEncoder().encode(queue))
         precondition(restored.source == .artist("user:1"))
         precondition(restored.relativeTrack(to: "track:2", offset: 1) == track(3))

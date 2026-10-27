@@ -230,6 +230,7 @@ struct TrackGridTile: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .opacity(track.access == .protected ? protectedTrackOpacity : 1)
                 .contentHelp(isPlaybackActive ? "Pause" : "Play")
                 .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
             }
@@ -264,9 +265,7 @@ struct TrackGridTile: View {
                     .buttonStyle(.plain)
                     .onContentHover { isHoveringTitle = $0 }
                     .contentHelp(track.title)
-                    if track.access == .preview {
-                        TrackPreviewBadge()
-                    }
+                    TrackAccessBadge(access: track.access)
                 }
                 .modifier(TrackPlaybackTitleInset(inset: isCurrentTrack ? 16 : 0))
                 .overlay(alignment: .leading) {
@@ -308,6 +307,7 @@ struct TrackGridTile: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             }
+            .opacity(track.access == .protected ? protectedTrackOpacity : 1)
         }
         .contentShape(Rectangle())
         .trackDraggable(track)

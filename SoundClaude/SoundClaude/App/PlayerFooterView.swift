@@ -93,7 +93,7 @@ struct PlayerFooterView: View {
                         .id(playlist.urn)
                     }
                     if showsPreviewBadge {
-                        TrackPreviewBadge(font: .caption2)
+                        TrackAccessBadge(access: .preview, font: .caption2)
                     }
                     PlayerFooterTrackTitleButton(
                         title: track.title,

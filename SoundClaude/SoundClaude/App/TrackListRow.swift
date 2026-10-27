@@ -62,6 +62,7 @@ struct TrackListRow: View {
                 }
             }
             .buttonStyle(.plain)
+            .opacity(track.access == .protected ? protectedTrackOpacity : 1)
             .onContentHover { isHoveringArtwork = $0 }
             .contentHelp(isPlaybackActive ? "Pause" : "Play")
             .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
@@ -78,6 +79,7 @@ struct TrackListRow: View {
                 }
                 trackDetails
             }
+            .opacity(track.access == .protected ? protectedTrackOpacity : 1)
             .frame(maxWidth: .infinity, alignment: .leading)
             if showsMetadata {
                 Spacer()
@@ -169,9 +171,7 @@ struct TrackListRow: View {
                 .buttonStyle(.plain)
                 .opacity(0.95)
                 .onContentHover { isHoveringTitle = $0 }
-                if track.access == .preview {
-                    TrackPreviewBadge()
-                }
+                TrackAccessBadge(access: track.access)
             }
             .modifier(TrackPlaybackTitleInset(inset: showsPlaybackIndicator ? 16 : 0))
             .overlay(alignment: .leading) {
@@ -300,11 +300,30 @@ struct TrackListRow: View {
     }
 }
 
-struct TrackPreviewBadge: View {
+/// Opacity for tracks whose streams only play in SoundCloud's own player.
+let protectedTrackOpacity = 0.55
+
+struct TrackAccessBadge: View {
+    let access: SoundCloudTrack.Access
     var font: Font = .caption
 
     var body: some View {
-        Text("Preview")
+        switch access {
+        case .preview:
+            badge("Preview", help: "Only a preview of this track is available.", label: "Preview only")
+        case .protected:
+            badge(
+                "Protected",
+                help: "Copy-protected by the label. Open it in SoundCloud to play it.",
+                label: "Copy-protected"
+            )
+        case .playable, .blocked:
+            EmptyView()
+        }
+    }
+
+    private func badge(_ text: String, help: String, label: String) -> some View {
+        Text(text)
             .font(font.weight(.medium))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 7)
@@ -314,7 +333,7 @@ struct TrackPreviewBadge: View {
                     .strokeBorder(.secondary.opacity(0.35), lineWidth: 1)
             }
             .fixedSize()
-            .contentHelp("Only a preview of this track is available.")
-            .accessibilityLabel("Preview only")
+            .contentHelp(help)
+            .accessibilityLabel(label)
     }
 }

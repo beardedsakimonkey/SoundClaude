@@ -28,6 +28,17 @@ struct WebsiteAPITests {
                 precondition(track.artist.publicFavoritesCount == 12)
             }
         }
+        // Tracks that only offer encrypted streams are marked protected.
+        for (protocols, access) in [(["ctr-encrypted-hls", "cbc-encrypted-hls"], SoundCloudTrack.Access.protected),
+                                    (["ctr-encrypted-hls", "hls"], .playable), ([], .playable)] {
+            let transcodings = protocols.map { #"{"format":{"protocol":"\#($0)"}}"# }.joined(separator: ",")
+            let json = """
+                {"id":2,"title":"Track","permalink_url":"https://soundcloud.com/artist/track",
+                 "policy":"ALLOW","media":{"transcodings":[\(transcodings)]},"user":\(user)}
+                """
+            let track = try decoder.decode(RawTrack.self, from: Data(json.utf8)).normalized()
+            precondition(track?.access == access)
+        }
         let details = try decoder.decode(RawUser.self, from: Data(user.utf8)).normalizedArtistDetails()
         precondition(details?.country == Locale.current.localizedString(forRegionCode: "DE"))
 

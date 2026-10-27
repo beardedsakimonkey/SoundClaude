@@ -259,7 +259,8 @@ struct TrackQueue: Codable {
            !tracks.contains(where: { $0.urn == urn }) {
             return relativeTrack(to: urn, offset: 1, wraps: false) == nil
         }
-        return tracks.isEmpty || tracks.last?.urn == urn
+        guard let index = tracks.firstIndex(where: { $0.urn == urn }) else { return tracks.isEmpty }
+        return tracks[(index + 1)...].allSatisfy { $0.access == .protected }
     }
 
     func relativeTrack(to urn: String?, offset: Int, wraps: Bool = true) -> SoundCloudTrack? {
@@ -282,7 +283,15 @@ struct TrackQueue: Codable {
         } else {
             destination = (offset > 0 ? -1 : 0) + offset
         }
-        guard wraps || ordered.indices.contains(destination) else { return nil }
-        return ordered[((destination % ordered.count) + ordered.count) % ordered.count]
+        // Step past copy-protected tracks, which cannot play here.
+        let step = offset < 0 ? -1 : 1
+        var candidate = destination
+        for _ in ordered.indices {
+            guard wraps || ordered.indices.contains(candidate) else { return nil }
+            let track = ordered[((candidate % ordered.count) + ordered.count) % ordered.count]
+            if track.access != .protected { return track }
+            candidate += step
+        }
+        return nil
     }
 }

@@ -132,6 +132,8 @@ struct SoundCloudTrack: Codable, Identifiable, Sendable, Hashable {
     enum Access: String, Codable, Sendable {
         case playable
         case preview
+        /// Only DRM-encrypted streams, which play in SoundCloud's own player.
+        case protected
         case blocked
 
         /// Maps api-v2 track policies. MONETIZE tracks play in full with ads on the website.
@@ -707,6 +709,22 @@ struct RawTrack: WrappableItem {
     let repostsCount: Int?
     let commentCount: Int?
     let stationURN: String?
+    let media: Media?
+
+    struct Media: Decodable {
+        struct Transcoding: Decodable {
+            struct Format: Decodable { let `protocol`: String? }
+            let format: Format?
+        }
+        let transcodings: [Transcoding]?
+
+        /// api-v2 lists transcodings on every track; label tracks may offer only encrypted ones.
+        var isProtected: Bool {
+            let protocols = (transcodings ?? []).map { $0.format?.protocol }
+            return !protocols.isEmpty
+                && !protocols.contains { StreamResponse.playableProtocols.contains($0 ?? "") }
+        }
+    }
 
     enum CodingKeys: String, CodingKey {
         case urn
@@ -731,17 +749,19 @@ struct RawTrack: WrappableItem {
         case repostsCount = "reposts_count"
         case commentCount = "comment_count"
         case stationURN = "station_urn"
+        case media
     }
 
     func normalized() -> SoundCloudTrack? {
         guard let urn = urn ?? id.map({ "soundcloud:tracks:\($0)" }),
               let title,
               let permalinkURL,
-              let access = access ?? policy.flatMap(SoundCloudTrack.Access.init(policy:)),
-              access == .playable || access == .preview,
+              let policyAccess = access ?? policy.flatMap(SoundCloudTrack.Access.init(policy:)),
+              policyAccess == .playable || policyAccess == .preview,
               let artist = user?.normalized() else {
             return nil
         }
+        let access: SoundCloudTrack.Access = media?.isProtected == true ? .protected : policyAccess
         return SoundCloudTrack(
             urn: urn,
             title: title,
@@ -857,6 +877,9 @@ struct RawUser: Decodable {
 }
 
 struct StreamResponse: Decodable {
+    /// Unencrypted protocols; the cbc-/ctr-encrypted-hls variants need FairPlay/Widevine.
+    static let playableProtocols: Set<String> = ["hls", "progressive"]
+
     struct Transcoding: Decodable {
         struct Format: Decodable {
             let `protocol`: String

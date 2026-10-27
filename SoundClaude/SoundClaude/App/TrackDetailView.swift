@@ -87,9 +87,7 @@ struct TrackDetailView: View {
             TrackDetailArtwork(track: displayedTrack, model: model)
 
             VStack(alignment: .leading, spacing: 10) {
-                if displayedTrack.access == .preview {
-                    TrackPreviewBadge(font: .callout)
-                }
+                TrackAccessBadge(access: displayedTrack.access, font: .callout)
                 DetailTrackHeadingSlot(
                     track: displayedTrack,
                     artworkLoader: model.artworkLoader,

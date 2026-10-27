@@ -45,6 +45,7 @@ struct TrackCardView: View {
                 )
             }
             .buttonStyle(.plain)
+            .opacity(track.access == .protected ? protectedTrackOpacity : 1)
             .trackDraggable(track)
             .contentHelp("View track or drag to a playlist")
             .accessibilityLabel("Open track: \(track.title)")
@@ -68,6 +69,7 @@ struct TrackCardView: View {
                     trackTitle
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .opacity(track.access == .protected ? protectedTrackOpacity : 1)
 
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     ArtistLink(artist: track.artist, onSelect: onSelectArtist)
@@ -82,6 +84,7 @@ struct TrackCardView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .opacity(track.access == .protected ? protectedTrackOpacity : 1)
 
                 HStack(spacing: 10) {
                     playButton
@@ -94,6 +97,7 @@ struct TrackCardView: View {
                     )
                     .frame(maxWidth: .infinity)
                 }
+                .opacity(track.access == .protected ? protectedTrackOpacity : 1)
 
                 Spacer(minLength: 0)
 
@@ -159,9 +163,7 @@ struct TrackCardView: View {
             .buttonStyle(.plain)
             .onContentHover { isHoveringTitle = $0 }
             .contentHelp(track.title)
-            if track.access == .preview {
-                TrackPreviewBadge()
-            }
+            TrackAccessBadge(access: track.access)
         }
         .modifier(TrackPlaybackTitleInset(inset: showsPlaybackIndicator ? 16 : 0))
         .overlay(alignment: .leading) {
