@@ -43,7 +43,7 @@ final class AppModel {
     @ObservationIgnored private var playlistsObservation: AnyCancellable?
     @ObservationIgnored private var followingTask: Task<Set<String>, Error>?
     @ObservationIgnored private var followingRequestID: UUID?
-    @ObservationIgnored private var followingOverrides: [String: Bool] = [:]
+    @ObservationIgnored private var followingStatuses: [String: Bool] = [:]
     @ObservationIgnored private var hasStarted = false
     private(set) var queue = TrackQueue(source: .single, tracks: [])
     private let queueStore = TrackQueueStore()
@@ -254,7 +254,7 @@ final class AppModel {
         followingTask?.cancel()
         followingTask = nil
         followingRequestID = nil
-        followingOverrides = [:]
+        followingStatuses = [:]
         likes.clear()
         reposts.clear()
         playlists.clear()
@@ -604,9 +604,14 @@ final class AppModel {
         return try await client.relatedArtists(urn: urn, accessToken: accessToken)
     }
 
+    func cachedIsFollowingArtist(_ artist: SoundCloudUser) -> Bool? {
+        guard let urn = artist.urn else { return nil }
+        return followingStatuses[urn]
+    }
+
     func isFollowingArtist(_ artist: SoundCloudUser) async throws -> Bool {
         guard let urn = artist.urn else { throw SoundCloudError.invalidData }
-        if let followed = followingOverrides[urn] { return followed }
+        if let followed = cachedIsFollowingArtist(artist) { return followed }
         if followingTask == nil {
             followingRequestID = UUID()
             followingTask = Task {
@@ -619,7 +624,9 @@ final class AppModel {
             let followed = try await followingTask!.value
             try Task.checkCancellation()
             guard followingRequestID == requestID else { throw CancellationError() }
-            return followingOverrides[urn] ?? followed.contains(urn)
+            let isFollowed = followingStatuses[urn] ?? followed.contains(urn)
+            followingStatuses[urn] = isFollowed
+            return isFollowed
         } catch {
             if followingRequestID == requestID, !Task.isCancelled {
                 followingTask = nil
@@ -635,7 +642,7 @@ final class AppModel {
         let requestID = followingRequestID
         try await client.setArtistFollowed(urn: urn, isFollowed: isFollowed, accessToken: accessToken)
         guard requestID == followingRequestID else { throw CancellationError() }
-        followingOverrides[urn] = isFollowed
+        followingStatuses[urn] = isFollowed
         // Refresh follower counts the next time an artist page opens.
         artistDetailsCache.removeAll()
     }

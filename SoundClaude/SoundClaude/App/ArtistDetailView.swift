@@ -162,6 +162,7 @@ struct ArtistDetailView: View {
         self.onSelectStation = onSelectStation
         let cached = model.cachedArtistDetails(for: artist)
         _details = State(initialValue: cached)
+        _isFollowing = State(initialValue: model.cachedIsFollowingArtist(cached?.user ?? artist))
         _webProfiles = State(initialValue: model.cachedArtistWebProfiles(for: cached?.user ?? artist) ?? [])
         _isLoading = State(initialValue: cached == nil)
         let cachedHeader = model.cachedArtistHeader(for: artist)
@@ -744,6 +745,11 @@ struct ArtistDetailView: View {
 
     private func loadFollowStatus() async {
         guard canFollowArtist, let user = details?.user else { return }
+        if let followed = model.cachedIsFollowingArtist(user) {
+            isFollowing = followed
+            followErrorMessage = nil
+            return
+        }
         isFollowing = nil
         followErrorMessage = nil
         do {
