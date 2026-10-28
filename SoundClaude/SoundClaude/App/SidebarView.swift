@@ -481,6 +481,8 @@ struct SidebarView: View {
         }
         // Keep sliding rows below the header while the section changes height.
         .clipped()
+        // Clipping alone leaves hidden rows clickable over the section header.
+        .contentShape(Rectangle())
     }
 
     private func sectionHeader(_ title: String, isExpanded: Binding<Bool>, isLoading: Bool) -> some View {
