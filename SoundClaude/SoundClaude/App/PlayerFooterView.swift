@@ -676,6 +676,7 @@ private struct PlayerSpeedHoverFeedback: ViewModifier {
 private struct PlayerSpeedSlider: View {
     @Binding var value: Float
 
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @GestureState private var isDragging = false
     @State private var isHovering = false
@@ -829,7 +830,8 @@ private struct PlayerSpeedSlider: View {
             .overlay(alignment: .topLeading) {
                 if let previewSpeed {
                     Rectangle()
-                        .fill(Color.primary.opacity(0.4))
+                        // An opaque line keeps the ticks below from brightening the overlap.
+                        .fill(Color(white: colorScheme == .dark ? 0.55 : 0.5))
                         .frame(width: 1, height: trackHeight)
                         .position(x: inset + length * fraction(previewSpeed), y: trackHeight / 2)
                         .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: previewSpeed)
