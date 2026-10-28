@@ -288,9 +288,9 @@ struct TrackWaveformView: View {
                                 hover.opacity = hoverOpacity
                                 hover.drawLayer { preview in
                                     if renderedHoverFraction < progress {
-                                        preview.fill(
-                                            Path(hoverRegion), with: .color(Color(cgColor: shadow)),
-                                            style: FillStyle(antialiased: false)
+                                        fillBars(
+                                            shadow, in: preview, bars: bars, rect: hoverRegion,
+                                            shaded: false
                                         )
                                     } else {
                                         fillBars(
@@ -514,8 +514,16 @@ struct TrackWaveformView: View {
     ) {
         guard !rect.isEmpty else { return }
         if layout == .compact || !shaded {
-            context.fill(
-                Path(rect), with: .color(Color(cgColor: color)),
+            // Fill bar rects rather than the whole region. The bar clip mask
+            // can render a pixel too wide, letting a region fill bleed
+            // beside bars; the shaded images below stay within bars already.
+            var drawing = context
+            drawing.clip(to: Path(rect), style: FillStyle(antialiased: false))
+            drawing.fill(
+                Path { path in
+                    for bar in bars where bar.intersects(rect) { path.addRect(bar) }
+                },
+                with: .color(Color(cgColor: color)),
                 style: FillStyle(antialiased: false)
             )
             return
