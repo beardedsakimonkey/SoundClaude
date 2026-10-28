@@ -501,8 +501,13 @@ private struct PlayerFooterButtonBackground: ViewModifier {
                 Circle()
                     .fill(isActive ? color.opacity(0.12) : Color(white: 0.5).opacity(isHovering && isEnabled ? 0.12 : 0))
             }
+            .background {
+                Circle()
+                    .fill(color.opacity(isActive && isHovering && isEnabled ? 0.12 * 0.7 : 0))
+            }
             .contentShape(Circle())
             .onContentHover { isHovering = $0 }
+            .animation(.easeInOut(duration: 0.15), value: isHovering && isEnabled)
     }
 }
 
@@ -656,20 +661,24 @@ private struct PlayerSpeedHoverFeedback: ViewModifier {
 
     static let defaultCornerRadius: CGFloat = 10
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
     @State private var isHovering = false
 
     func body(content: Content) -> some View {
         content
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(isActive ? color.opacity(0.12) : Color.primary.opacity(isHovering ? 0.08 : 0))
+                    .fill(isActive ? color.opacity(0.12) : Color.primary.opacity(isHovering && isEnabled ? 0.08 : 0))
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
+            .background {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .fill(color.opacity(isActive && isHovering && isEnabled ? 0.12 * 0.7 : 0))
+            }
             .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
             .onContentHover { isHovering = $0 }
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovering)
+            .animation(.easeInOut(duration: 0.15), value: isHovering && isEnabled)
     }
 }
 
