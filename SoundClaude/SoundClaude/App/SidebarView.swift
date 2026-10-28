@@ -117,7 +117,6 @@ struct SidebarView: View {
                         .modifier(SidebarRowStyle(
                             isSelected: selection == destination,
                             usesPrimaryForeground: true,
-                            selectsOnMouseDown: true,
                             verticalPadding: 4
                         ) {
                             select(destination)
@@ -138,17 +137,15 @@ struct SidebarView: View {
                         }
                         .overlay(alignment: .trailing) {
                             if destination == .liked {
-                                Button {
-                                    Task { await onShuffleLikes() }
-                                } label: {
-                                    Image(systemName: "shuffle")
-                                        .frame(width: 28)
-                                        .frame(maxHeight: .infinity)
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .modifier(SidebarForegroundHover(idleOpacity: 0.3))
-                                .disabled(likes.tracks.isEmpty)
+                                Image(systemName: "shuffle")
+                                    .frame(width: 28)
+                                    .frame(maxHeight: .infinity)
+                                    .contentShape(Rectangle())
+                                    .modifier(SidebarForegroundHover(idleOpacity: 0.3))
+                                    .modifier(SidebarMouseDownAction {
+                                        Task { await onShuffleLikes() }
+                                    })
+                                    .disabled(likes.tracks.isEmpty)
                                 .contentHelp("Shuffle likes")
                                 .accessibilityLabel("Shuffle likes")
                                 .padding(.trailing, 8)
@@ -352,8 +349,7 @@ struct SidebarView: View {
             .task(id: playlist.urn) { await playlists.loadArtwork(for: playlist) }
             .modifier(SidebarRowStyle(
                 isSelected: false,
-                usesPrimaryForeground: currentPlaylistURN == playlist.urn,
-                selectsOnMouseDown: true
+                usesPrimaryForeground: currentPlaylistURN == playlist.urn
             ) {
                 onSelectPlaylist(playlist)
             })
@@ -558,19 +554,17 @@ private struct SidebarAccountHeader: View {
 
             Spacer(minLength: 0)
 
-            Button(role: .destructive) {
-                Task { await onSignOut() }
-            } label: {
-                Image(systemName: "rectangle.portrait.and.arrow.right")
-                    .frame(width: 28, height: 28)
-                    .background {
-                        Circle()
-                            .fill(Color.primary.opacity(isSignOutHovered ? 0.1 : 0))
-                    }
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.primary)
+            Image(systemName: "rectangle.portrait.and.arrow.right")
+                .frame(width: 28, height: 28)
+                .background {
+                    Circle()
+                        .fill(Color.primary.opacity(isSignOutHovered ? 0.1 : 0))
+                }
+                .contentShape(Circle())
+                .foregroundStyle(.primary)
+                .modifier(SidebarMouseDownAction {
+                    Task { await onSignOut() }
+                })
             .onContentHover { isSignOutHovered = $0 }
             .contentHelp("Sign out")
             .accessibilityLabel("Sign out")
@@ -582,42 +576,30 @@ private struct SidebarAccountHeader: View {
 private struct SidebarRowStyle: ViewModifier {
     let isSelected: Bool
     var usesPrimaryForeground = false
-    var selectsOnMouseDown = false
     var verticalPadding: CGFloat = 2
     let onSelect: () -> Void
 
     func body(content: Content) -> some View {
-        rowContent(content)
-            .modifier(SidebarForegroundHover(isSelected: isSelected, usesPrimaryForeground: usesPrimaryForeground))
-            .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.primary.opacity(isSelected ? 0.06 : 0))
-            }
-    }
-
-    @ViewBuilder
-    private func rowContent(_ content: Content) -> some View {
-        let label = content
+        content
             .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
             // Indent inside the row so its background and hit target still reach the sidebar edge.
             .padding(.leading, 8 + SidebarView.sectionIndent)
             .padding(.trailing, 8)
             .padding(.vertical, verticalPadding)
             .contentShape(Rectangle())
-
-        if selectsOnMouseDown {
-            label
-                .modifier(SidebarMouseDownAction(action: onSelect))
-        } else {
-            Button(action: onSelect) { label }
-                .buttonStyle(.plain)
-        }
+            .modifier(SidebarMouseDownAction(action: onSelect))
+            .modifier(SidebarForegroundHover(isSelected: isSelected, usesPrimaryForeground: usesPrimaryForeground))
+            .background {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(isSelected ? 0.06 : 0))
+            }
     }
 }
 
 private struct SidebarMouseDownAction: ViewModifier {
     let action: () -> Void
 
+    @Environment(\.isEnabled) private var isEnabled
     @State private var isPressed = false
 
     func body(content: Content) -> some View {
@@ -627,13 +609,13 @@ private struct SidebarMouseDownAction: ViewModifier {
                     .onChanged { _ in
                         guard !isPressed else { return }
                         isPressed = true
-                        action()
+                        if isEnabled { action() }
                     }
                     .onEnded { _ in isPressed = false }
             )
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isButton)
-            .accessibilityAction { action() }
+            .accessibilityAction { if isEnabled { action() } }
     }
 }
 
