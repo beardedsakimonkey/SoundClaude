@@ -430,7 +430,7 @@ private struct TrackCommentRow: View {
                     .fixedSize()
                 if track.access == .protected {
                     Text(timeLabel)
-                        .font(.caption.monospacedDigit())
+                        .font(.caption.monospacedDigit().weight(.semibold))
                         .fixedSize()
                         .foregroundStyle(timestampColor)
                         .opacity(protectedTrackOpacity)
@@ -446,7 +446,7 @@ private struct TrackCommentRow: View {
                         Text(timeLabel)
                     }
                     .buttonStyle(CommentTimestampButtonStyle(color: timestampColor))
-                    .font(.caption.monospacedDigit())
+                    .font(.caption.monospacedDigit().weight(.semibold))
                     .fixedSize()
                     .foregroundStyle(timestampColor)
                     .contentHelp("Jump to \(timeLabel)")
