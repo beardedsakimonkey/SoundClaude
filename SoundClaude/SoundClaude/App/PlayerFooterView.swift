@@ -639,6 +639,7 @@ private struct PlayerSpeedControl: View {
                 .foregroundStyle(isActive ? Color.orange : Color.secondary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
+                .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
         .modifier(PlayerSpeedHoverFeedback(color: .orange, isActive: isActive))
@@ -663,7 +664,7 @@ private struct PlayerSpeedHoverFeedback: ViewModifier {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
-            .contentShape(Rectangle())
+            .contentShape(RoundedRectangle(cornerRadius: 10))
             .onContentHover { isHovering = $0 }
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovering)
     }
