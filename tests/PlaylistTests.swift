@@ -379,16 +379,16 @@ struct PlaylistTests {
             let direct = try decoder.decode(SoundCloudUser.self, from: Data(json.utf8))
             precondition(direct.stationURN == user.stationURN)
         }
-        // Mount fetches only the station; hover hydrates that same response.
+        // Fetch metadata first, then hydrate that same response.
         PlaylistURLProtocol.respond { request in
             precondition(request.url?.path == "/system-playlists/\(stationURN)",
-                         "Mount must not request track details")
+                         "The metadata fetch must not request track details")
             return (200, #"{"tracks":[\#(track(1)),{"id":2}]}"#)
         }
         let metadata = try await client.stationMetadata(urn: stationURN, accessToken: "test-token")
         precondition(metadata.normalized().tracks.map(\.urn) == ["soundcloud:tracks:1"])
         PlaylistURLProtocol.respond { request in
-            precondition(request.url?.path == "/tracks", "Hover must reuse the station response")
+            precondition(request.url?.path == "/tracks", "Hydration must reuse the station response")
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
             precondition(query == [URLQueryItem(name: "ids", value: "2")])
             return (200, "[\(track(2))]")

@@ -268,9 +268,6 @@ struct TrackDetailView: View {
         }
         .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
         .contentHelp("Open this track’s station")
-        .task(id: urn) {
-            await model.prefetchStationMetadata(urn: urn)
-        }
         .onContentHover { isHoveringStation = $0 }
         .task(id: isHoveringStation ? urn : nil) {
             guard isHoveringStation else { return }

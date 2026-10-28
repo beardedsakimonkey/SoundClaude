@@ -853,11 +853,6 @@ final class AppModel {
         stationCache.value(forKey: urn as NSString)
     }
 
-    func prefetchStationMetadata(urn: String) async {
-        guard cachedStation(urn: urn) == nil else { return }
-        _ = try? await stationMetadata(urn: urn)
-    }
-
     private func stationMetadata(urn: String) async throws -> RawSystemPlaylist {
         if let cached = stationMetadataCache.value(forKey: urn as NSString) { return cached }
         let generation = stationCacheGeneration
