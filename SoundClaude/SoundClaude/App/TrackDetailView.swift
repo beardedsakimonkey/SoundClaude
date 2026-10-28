@@ -267,6 +267,13 @@ struct TrackDetailView: View {
         }
         .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
         .contentHelp("Open this track’s station")
+        .onContentHover { isHovering in
+            guard isHovering else { return }
+            Task {
+                // A failed prefetch can be retried when the station opens.
+                _ = try? await model.station(urn: urn)
+            }
+        }
     }
 
     private func nonempty(_ value: String?) -> String? {

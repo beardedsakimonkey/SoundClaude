@@ -698,6 +698,13 @@ struct ArtistDetailView: View {
             onSelectStation(urn, details?.user.username ?? artist.username)
         }
         .contentHelp("Open this artist’s station")
+        .onContentHover { isHovering in
+            guard isHovering, let urn = nonempty(details?.user.stationURN) else { return }
+            Task {
+                // A failed prefetch can be retried when the station opens.
+                _ = try? await model.station(urn: urn)
+            }
+        }
     }
 
     private func shuffleTracks() async {

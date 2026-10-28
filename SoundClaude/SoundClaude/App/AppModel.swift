@@ -76,6 +76,7 @@ final class AppModel {
     private let artistHeaderCache = MemoryCache<NSURL, CachedArtistHeader>(countLimit: 10)
     private let stationCache = MemoryCache<NSString, SoundCloudStation>(countLimit: 10)
     @ObservationIgnored private var stationCacheGeneration = UUID()
+    @ObservationIgnored private var stationRequests: [String: (id: UUID, task: Task<SoundCloudStation, Error>)] = [:]
 
     init() {
         let initialization = LaunchMetrics.begin("Model initialization")
@@ -281,6 +282,8 @@ final class AppModel {
         artistHeaderCache.removeAll()
         stationCache.removeAll()
         stationCacheGeneration = UUID()
+        for request in stationRequests.values { request.task.cancel() }
+        stationRequests.removeAll()
         errorMessage = nil
         await auth.signOut()
     }
@@ -844,12 +847,27 @@ final class AppModel {
     func station(urn: String) async throws -> SoundCloudStation {
         if let cached = cachedStation(urn: urn) { return cached }
         let generation = stationCacheGeneration
-        let accessToken = try await auth.validAccessToken()
-        let station = try await client.station(urn: urn, accessToken: accessToken)
-        try Task.checkCancellation()
+        let request: (id: UUID, task: Task<SoundCloudStation, Error>)
+        if let existing = stationRequests[urn] {
+            request = existing
+        } else {
+            request = (UUID(), Task { [auth, client] in
+                let accessToken = try await auth.validAccessToken()
+                return try await client.station(urn: urn, accessToken: accessToken)
+            })
+            stationRequests[urn] = request
+        }
+        defer {
+            if stationRequests[urn]?.id == request.id {
+                stationRequests[urn] = nil
+            }
+        }
+        // Keep hover prefetch and navigation on the same request.
+        let station = try await request.task.value
         // A response from a previous session must not repopulate the cache.
         guard generation == stationCacheGeneration else { throw CancellationError() }
         stationCache.insert(station, forKey: urn as NSString)
+        try Task.checkCancellation()
         return station
     }
 
