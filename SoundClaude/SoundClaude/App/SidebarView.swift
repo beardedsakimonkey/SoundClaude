@@ -183,7 +183,7 @@ struct SidebarView: View {
             }
             VStack(alignment: .leading, spacing: 0) {
                 sectionHeader("Playlists", isExpanded: $isPlaylistsExpanded, isLoading: playlists.isLoading)
-                if isPlaylistsExpanded {
+                sectionContents(isExpanded: isPlaylistsExpanded) {
                     Label {
                         Text("New")
                     } icon: {
@@ -193,12 +193,10 @@ struct SidebarView: View {
                         .modifier(SidebarRowStyle(isSelected: false) {
                             isShowingCreatePlaylist = true
                         })
-                        .transition(.opacity)
 
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(playlists.playlists) { playlist in
                             playlistRow(playlist)
-                                .transition(.opacity)
                         }
                         if !playlists.isLoading, let errorMessage = playlists.errorMessage {
                             VStack(alignment: .leading, spacing: 6) {
@@ -215,16 +213,14 @@ struct SidebarView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .transition(.opacity)
                 }
             }
             VStack(alignment: .leading, spacing: 0) {
                 sectionHeader("Liked Playlists", isExpanded: $isLikedPlaylistsExpanded, isLoading: playlists.isLoadingLikes)
-                if isLikedPlaylistsExpanded {
+                sectionContents(isExpanded: isLikedPlaylistsExpanded) {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(playlists.likedPlaylists) { playlist in
                             playlistRow(playlist)
-                                .transition(.opacity)
                         }
                         if !playlists.isLoadingLikes, let errorMessage = playlists.likesErrorMessage {
                             VStack(alignment: .leading, spacing: 6) {
@@ -241,7 +237,6 @@ struct SidebarView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .transition(.opacity)
                 }
             }
             likedStationsSection
@@ -263,7 +258,7 @@ struct SidebarView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("Stations", isExpanded: $isLikedStationsExpanded,
                           isLoading: likes.isLoadingStationLikes)
-            if isLikedStationsExpanded {
+            sectionContents(isExpanded: isLikedStationsExpanded) {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(likes.likedStations) { station in
                         Label {
@@ -307,7 +302,6 @@ struct SidebarView: View {
                                     .allowsHitTesting(false)
                             }
                         }
-                        .transition(.opacity)
                     }
                     if !likes.isLoadingStationLikes, let message = likes.stationLikesErrorMessage {
                         VStack(alignment: .leading, spacing: 6) {
@@ -324,7 +318,6 @@ struct SidebarView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .transition(.opacity)
             }
         }
     }
@@ -473,6 +466,21 @@ struct SidebarView: View {
             }
             await onPlayPlaylist(playlist, contents)
         }
+    }
+
+    private func sectionContents<Content: View>(
+        isExpanded: Bool,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(spacing: 0) {
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 0, content: content)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.move(edge: .top))
+            }
+        }
+        // Keep sliding rows below the header while the section changes height.
+        .clipped()
     }
 
     private func sectionHeader(_ title: String, isExpanded: Binding<Bool>, isLoading: Bool) -> some View {
