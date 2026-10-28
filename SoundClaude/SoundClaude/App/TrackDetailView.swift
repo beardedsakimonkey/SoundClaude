@@ -14,6 +14,7 @@ struct TrackDetailView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var repostErrorMessage: String?
+    @State private var isHoveringStation = false
 
     init(
         track: SoundCloudTrack,
@@ -267,11 +268,19 @@ struct TrackDetailView: View {
         }
         .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
         .contentHelp("Open this track’s station")
-        .onContentHover { isHovering in
-            guard isHovering else { return }
-            Task {
-                // A failed prefetch can be retried when the station opens.
-                _ = try? await model.station(urn: urn)
+        .task(id: urn) {
+            await model.prefetchStationMetadata(urn: urn)
+        }
+        .onContentHover { isHoveringStation = $0 }
+        .task(id: isHoveringStation ? urn : nil) {
+            guard isHoveringStation else { return }
+            do {
+                try await Task.sleep(for: .milliseconds(150))
+                try Task.checkCancellation()
+                // Once started, the shared request can finish even if hover ends.
+                _ = try await model.station(urn: urn)
+            } catch {
+                // Navigation retries failed prefetches; leaving cancels the delay.
             }
         }
     }

@@ -75,6 +75,8 @@ final class AppModel {
     @ObservationIgnored private var artistWebProfilesCacheGeneration = UUID()
     private let artistHeaderCache = MemoryCache<NSURL, CachedArtistHeader>(countLimit: 10)
     var loadingStations: [String: SoundCloudStation] = [:]
+    private let stationMetadataCache = MemoryCache<NSString, RawSystemPlaylist>(countLimit: 10)
+    @ObservationIgnored private var stationMetadataRequests: [String: (id: UUID, task: Task<RawSystemPlaylist, Error>)] = [:]
     private let stationCache = MemoryCache<NSString, SoundCloudStation>(countLimit: 10)
     @ObservationIgnored private var stationCacheGeneration = UUID()
     @ObservationIgnored private var stationRequests: [String: (id: UUID, task: Task<SoundCloudStation, Error>)] = [:]
@@ -282,6 +284,9 @@ final class AppModel {
         searchCacheGeneration = UUID()
         artistHeaderCache.removeAll()
         stationCache.removeAll()
+        stationMetadataCache.removeAll()
+        for request in stationMetadataRequests.values { request.task.cancel() }
+        stationMetadataRequests.removeAll()
         stationCacheGeneration = UUID()
         for request in stationRequests.values { request.task.cancel() }
         stationRequests.removeAll()
@@ -846,6 +851,36 @@ final class AppModel {
         stationCache.value(forKey: urn as NSString)
     }
 
+    func prefetchStationMetadata(urn: String) async {
+        guard cachedStation(urn: urn) == nil else { return }
+        _ = try? await stationMetadata(urn: urn)
+    }
+
+    private func stationMetadata(urn: String) async throws -> RawSystemPlaylist {
+        if let cached = stationMetadataCache.value(forKey: urn as NSString) { return cached }
+        let generation = stationCacheGeneration
+        let request: (id: UUID, task: Task<RawSystemPlaylist, Error>)
+        if let existing = stationMetadataRequests[urn] {
+            request = existing
+        } else {
+            request = (UUID(), Task { [auth, client] in
+                let token = try await auth.validAccessToken()
+                return try await client.stationMetadata(urn: urn, accessToken: token)
+            })
+            stationMetadataRequests[urn] = request
+        }
+        defer {
+            if stationMetadataRequests[urn]?.id == request.id {
+                stationMetadataRequests[urn] = nil
+            }
+        }
+        let metadata = try await request.task.value
+        guard generation == stationCacheGeneration else { throw CancellationError() }
+        stationMetadataCache.insert(metadata, forKey: urn as NSString)
+        try Task.checkCancellation()
+        return metadata
+    }
+
     func station(urn: String) async throws -> SoundCloudStation {
         if let cached = cachedStation(urn: urn) { return cached }
         let generation = stationCacheGeneration
@@ -854,8 +889,10 @@ final class AppModel {
             request = existing
         } else {
             request = (UUID(), Task { [weak self, auth, client] in
+                guard let self else { throw CancellationError() }
+                let metadata = try await self.stationMetadata(urn: urn)
                 let accessToken = try await auth.validAccessToken()
-                return try await client.station(urn: urn, accessToken: accessToken) { [weak self] station in
+                return try await client.hydrateStation(metadata, accessToken: accessToken) { [weak self] station in
                     await self?.updateLoadingStation(station, urn: urn, generation: generation)
                 }
             })

@@ -429,9 +429,21 @@ actor SoundCloudClient {
         urn: String, accessToken: String,
         onProgress: (@Sendable (SoundCloudStation) async -> Void)? = nil
     ) async throws -> SoundCloudStation {
-        let station = try await get(
+        let metadata = try await stationMetadata(urn: urn, accessToken: accessToken)
+        return try await hydrateStation(metadata, accessToken: accessToken, onProgress: onProgress)
+    }
+
+    // Fetch only the station response. Leave ID-only tracks for hover or navigation.
+    func stationMetadata(urn: String, accessToken: String) async throws -> RawSystemPlaylist {
+        try await get(
             RawSystemPlaylist.self, endpoint("system-playlists/\(urn)"), accessToken: accessToken
         )
+    }
+
+    func hydrateStation(
+        _ station: RawSystemPlaylist, accessToken: String,
+        onProgress: (@Sendable (SoundCloudStation) async -> Void)? = nil
+    ) async throws -> SoundCloudStation {
         return station.normalized(
             tracks: try await hydrated(station.tracks, accessToken: accessToken) { tracks in
                 await onProgress?(station.normalized(tracks: tracks))
