@@ -403,8 +403,9 @@ struct ArtistDetailView: View {
                         if !webProfiles.isEmpty || webProfilesErrorMessage != nil {
                             profileLinks
                         }
-                        if !relatedArtists.isEmpty || isLoadingRelatedArtists || relatedArtistsErrorMessage != nil {
+                        if !relatedArtists.isEmpty || relatedArtistsErrorMessage != nil {
                             relatedArtistsSection
+                                .transition(.opacity)
                         }
                     }
                     .frame(width: min(320, max(0, contentSize.width - 72) * 0.3), alignment: .leading)
@@ -518,17 +519,8 @@ struct ArtistDetailView: View {
             }
             .id(relatedArtistsPage)
             .transition(.opacity)
-            .opacity(relatedArtists.isEmpty ? 0 : 1)
-            .animation(
-                reduceMotion ? nil : .easeIn(duration: 0.25),
-                value: relatedArtists.isEmpty
-            )
 
-            if isLoadingRelatedArtists {
-                LoadingSpinner()
-                    .accessibilityLabel("Loading related artists")
-                    .controlSize(.small)
-            } else if let relatedArtistsErrorMessage {
+            if let relatedArtistsErrorMessage {
                 Text(relatedArtistsErrorMessage)
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -575,7 +567,9 @@ struct ArtistDetailView: View {
         do {
             let artists = try await model.relatedArtists(for: user)
             try Task.checkCancellation()
-            relatedArtists = artists
+            withAnimation(reduceMotion ? nil : .easeIn(duration: 0.25)) {
+                relatedArtists = artists
+            }
         } catch {
             guard !Task.isCancelled else { return }
             relatedArtistsErrorMessage = "Could not load related artists."
