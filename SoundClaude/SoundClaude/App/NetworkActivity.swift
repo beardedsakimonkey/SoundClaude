@@ -143,6 +143,25 @@ final class NetworkActivityStore {
     }
 }
 
+// Capture request bounds only when entries change. Timer ticks update leaf views,
+// not the Table, so a refresh cannot interrupt native row selection.
+private struct NetworkActivityTiming {
+    let lower: TimeInterval
+    let completedUpper: TimeInterval
+    let pendingOrigin: TimeInterval?
+
+    init(_ entries: [NetworkActivityEntry]) {
+        lower = entries.map(\.startOffset).min() ?? 0
+        completedUpper = entries.map { $0.startOffset + ($0.duration ?? 0) }.max() ?? lower
+        pendingOrigin = entries.filter { $0.duration == nil }
+            .map { $0.startedUptime - $0.startOffset }.min()
+    }
+
+    func upper(at uptime: TimeInterval) -> TimeInterval {
+        max(completedUpper, pendingOrigin.map { uptime - $0 } ?? completedUpper)
+    }
+}
+
 struct NetworkActivityView: View {
     @State private var store = NetworkActivityStore.shared
     @State private var selection: UUID?
@@ -193,32 +212,36 @@ struct NetworkActivityView: View {
             Text("Clear before opening a station. Rows show start order; overlapping bars show concurrent requests.")
                 .font(.caption).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12)
-            TimelineView(.periodic(from: .now, by: 0.1)) { _ in
-                let uptime = ProcessInfo.processInfo.systemUptime
-                let lower = store.entries.map(\.startOffset).min() ?? 0
-                let upper = store.entries.map { $0.startOffset + $0.elapsed(at: uptime) }.max() ?? lower
-                VStack(spacing: 4) {
-                    Text(String(format: "Timeline: +%.0f to +%.0f ms · offsets from first request after Clear", lower * 1000, upper * 1000))
+            let timing = NetworkActivityTiming(store.entries)
+            VStack(spacing: 4) {
+                TimelineView(.animation(minimumInterval: 0.1, paused: timing.pendingOrigin == nil)) { _ in
+                    let upper = timing.upper(at: ProcessInfo.processInfo.systemUptime)
+                    Text(String(format: "Timeline: +%.0f to +%.0f ms · offsets from first request after Clear", timing.lower * 1000, upper * 1000))
                         .font(.caption).foregroundStyle(.secondary)
-                    Table(entries, selection: $selection) {
-                        TableColumn("#") { Text(String($0.sequence)) }.width(40)
-                        TableColumn("Start (ms)") { Text(milliseconds($0.startOffset)) }.width(85)
-                        TableColumn("Method", value: \.method).width(60)
-                        TableColumn("URL", value: \.url)
-                        TableColumn("Status") { entry in
-                            Text(entry.result).foregroundStyle(entry.failed ? .red : .primary)
-                        }.width(90)
-                        TableColumn("Waterfall") { entry in
-                            waterfall(entry, uptime: uptime, lower: lower, upper: upper)
-                        }.width(min: 180, ideal: 240)
-                        TableColumn("Duration (ms)") { entry in
-                            Text(milliseconds(entry.elapsed(at: uptime)) + (entry.duration == nil ? "…" : ""))
-                        }.width(100)
-                        TableColumn("Bytes") { Text(String($0.bytes)) }.width(65)
-                        TableColumn("Attempt") { Text(String($0.attempt)) }.width(60)
-                    }
-                    .monospacedDigit()
                 }
+                Table(entries, selection: $selection) {
+                    TableColumn("#") { Text(String($0.sequence)) }.width(40)
+                    TableColumn("Start (ms)") { Text(milliseconds($0.startOffset)) }.width(85)
+                    TableColumn("Method", value: \.method).width(60)
+                    TableColumn("URL", value: \.url)
+                    TableColumn("Status") { entry in
+                        Text(entry.result).foregroundStyle(entry.failed ? .red : .primary)
+                    }.width(90)
+                    TableColumn("Waterfall") { entry in
+                        TimelineView(.animation(minimumInterval: 0.1, paused: timing.pendingOrigin == nil)) { _ in
+                            let uptime = ProcessInfo.processInfo.systemUptime
+                            waterfall(entry, uptime: uptime, lower: timing.lower, upper: timing.upper(at: uptime))
+                        }
+                    }.width(min: 180, ideal: 240)
+                    TableColumn("Duration (ms)") { entry in
+                        TimelineView(.animation(minimumInterval: 0.1, paused: entry.duration != nil)) { _ in
+                            Text(milliseconds(entry.elapsed(at: ProcessInfo.processInfo.systemUptime)) + (entry.duration == nil ? "…" : ""))
+                        }
+                    }.width(100)
+                    TableColumn("Bytes") { Text(String($0.bytes)) }.width(65)
+                    TableColumn("Attempt") { Text(String($0.attempt)) }.width(60)
+                }
+                .monospacedDigit()
             }
             Divider()
             ScrollView {
