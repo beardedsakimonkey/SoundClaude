@@ -239,7 +239,7 @@ struct TrackWaveformView: View {
                     }
                     let bars = geometry.bars
                     let path = geometry.path
-                    let backgroundOpacity = layout == .compact ? 0.9 : 0.5
+                    let backgroundOpacity = layout == .compact && colorScheme == .dark ? 0.9 : 0.5
                     let backgroundStrength = colorScheme == .light
                         && colorSchemeContrast != .increased ? 0.6 : 1.0
                     var backgroundColor = Color.secondary.opacity(backgroundOpacity * backgroundStrength)
