@@ -135,6 +135,8 @@ struct VisualizerView: View {
                 .buttonStyle(.bordered)
                 .help("Close visualizer (Escape)")
             }
+            // The scene is always dark, so match the buttons to it in light mode.
+            .environment(\.colorScheme, .dark)
             .padding(20)
         }
         .accessibilityLabel("Audio visualizer")

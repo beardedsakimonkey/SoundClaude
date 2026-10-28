@@ -339,7 +339,8 @@ private struct WaveformCommentMarker: View, Equatable {
                         .padding(.vertical, 4)
                         .frame(maxWidth: textWidth)
                         .fixedSize(horizontal: true, vertical: true)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+                        .background(Color(white: colorScheme == .dark ? 0.18 : 1),
+                                    in: RoundedRectangle(cornerRadius: 6))
                         .overlay {
                             RoundedRectangle(cornerRadius: 6)
                                 .strokeBorder(.primary.opacity(0.2), lineWidth: 1)

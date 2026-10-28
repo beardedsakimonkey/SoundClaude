@@ -7,6 +7,7 @@ struct FeedView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @ObservedObject var feed: FeedController
+    @Environment(\.colorScheme) private var colorScheme
 
     private var items: [SoundCloudFeedItem] { feed.cache.items }
     private var nextPageURL: URL? { feed.cache.nextPageURL }
@@ -79,7 +80,7 @@ struct FeedView: View {
                                 }
                                 .fixedSize()
                             }
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(colorScheme == .light ? .secondary : .tertiary)
                         }
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
