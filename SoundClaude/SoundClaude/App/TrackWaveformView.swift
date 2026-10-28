@@ -241,7 +241,7 @@ struct TrackWaveformView: View {
                     let path = geometry.path
                     let backgroundOpacity = layout == .compact && colorScheme == .dark ? 0.9 : 0.5
                     let backgroundStrength = colorScheme == .light
-                        && colorSchemeContrast != .increased ? 0.6 : 1.0
+                        && colorSchemeContrast != .increased ? (layout == .detail ? 0.45 : 0.6) : 1.0
                     var backgroundColor = Color.secondary.opacity(backgroundOpacity * backgroundStrength)
                         .resolve(in: context.environment)
                     if layout == .compact {
@@ -257,7 +257,7 @@ struct TrackWaveformView: View {
                     let highlight = colorScheme == .light ? nil
                         : Color(white: layout == .compact ? 0.75 : 1).opacity(0.9)
                             .resolve(in: context.environment).cgColor
-                    let shadow = Color.black.opacity(colorScheme == .light ? 0.75 : 0.9)
+                    let shadow = Color.black.opacity(colorScheme == .light ? 0.55 : 0.9)
                         .resolve(in: context.environment).cgColor
                     let progress = renderedProgress
 
