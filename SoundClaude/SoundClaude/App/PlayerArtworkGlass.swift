@@ -10,7 +10,7 @@ struct PlayerArtworkGlassParameters {
     var lipWidth = 0.85
     var reflectionStrength = 0.75
     var causticStrength = 0.15
-    var specularStrength = 0.12
+    var specularStrength = 0.08
     var specularSoftness = 0.25
     // Base darkness, then the fraction of remaining light removed toward the back.
     var slabDarkness = 0.32
