@@ -266,7 +266,11 @@ struct TrackWaveformView: View {
                     let drawBars: (inout GraphicsContext) -> Void = { drawing in
                         drawing.clip(to: Path(path))
                         drawing.drawLayer { layer in
-                            fillBars(background, in: layer, bars: bars, rect: CGRect(origin: .zero, size: size))
+                            fillBars(
+                                background, in: layer, bars: bars,
+                                rect: CGRect(origin: .zero, size: size),
+                                shaded: colorScheme != .light
+                            )
                             fillBars(color, in: layer, bars: bars, rect: CGRect(
                                 x: 0, y: 0,
                                 width: size.width * progress,
@@ -289,7 +293,10 @@ struct TrackWaveformView: View {
                                             style: FillStyle(antialiased: false)
                                         )
                                     } else {
-                                        fillBars(color, in: preview, bars: bars, rect: hoverRegion)
+                                        fillBars(
+                                            color, in: preview, bars: bars, rect: hoverRegion,
+                                            shaded: colorScheme != .light
+                                        )
                                         if let highlight {
                                             fillBars(highlight, in: preview, bars: bars, rect: hoverRegion)
                                         }
@@ -502,10 +509,11 @@ struct TrackWaveformView: View {
     }
 
     private func fillBars(
-        _ color: CGColor, in context: GraphicsContext, bars: [CGRect], rect: CGRect
+        _ color: CGColor, in context: GraphicsContext, bars: [CGRect], rect: CGRect,
+        shaded: Bool = true
     ) {
         guard !rect.isEmpty else { return }
-        if layout == .compact {
+        if layout == .compact || !shaded {
             context.fill(
                 Path(rect), with: .color(Color(cgColor: color)),
                 style: FillStyle(antialiased: false)
