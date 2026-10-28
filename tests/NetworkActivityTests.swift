@@ -23,7 +23,21 @@ struct NetworkActivityTests {
         precondition(entry.attempt == 2 && entry.result == "Pending")
         let response = HTTPURLResponse(url: request.url!, statusCode: 429, httpVersion: nil,
             headerFields: ["Set-Cookie": secret, "Location": "https://example.com/\(secret)", "Retry-After": "1"])!
-        store.finish(id, response: response, bytes: 10, duration: 0.5, error: nil)
+        let body = Data(#"{"error":"Too many requests","retry":true}"#.utf8)
+        store.finish(id, response: response, bytes: 10, duration: 0.5, error: nil, body: body)
+        let preview = store.entries[0].responseBody
+        precondition(preview.contains("\n") && preview.contains("Too many requests"))
+        precondition((try? JSONSerialization.jsonObject(with: Data(preview.utf8))) != nil)
+        precondition(NetworkResponseBody.preview(Data("Service unavailable".utf8), mimeType: "text/plain") == "Service unavailable")
+        precondition(NetworkResponseBody.preview(Data(), mimeType: nil) == "Empty response body")
+        precondition(NetworkResponseBody.preview(nil, mimeType: nil) == "No response body available")
+        precondition(NetworkResponseBody.preview(Data([0xff, 0x00]), mimeType: nil).contains("Binary"))
+        precondition(NetworkResponseBody.preview(Data("GIF89a".utf8), mimeType: "image/gif").contains("Binary"))
+        let large = Data(repeating: 65, count: NetworkResponseBody.maximumBytes + 100)
+        let truncated = NetworkResponseBody.preview(large, mimeType: "text/plain")
+        precondition(truncated.contains("[Truncated:") && truncated.utf8.count < large.count)
+        let unicode = Data((String(repeating: "A", count: NetworkResponseBody.maximumBytes - 1) + "😀").utf8)
+        precondition(NetworkResponseBody.preview(unicode, mimeType: "text/plain").contains("[Truncated:"))
         precondition(store.entries[0].failed && store.entries[0].bytes == 10)
         precondition(!store.entries[0].responseHeaders.contains(secret))
         store.isRecording = false

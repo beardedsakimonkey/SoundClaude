@@ -907,7 +907,7 @@ actor SoundCloudClient {
             let (data, response) = try await session.data(for: request)
             await NetworkActivityStore.shared.finish(
                 id, response: response, bytes: data.count,
-                duration: ProcessInfo.processInfo.systemUptime - start, error: nil
+                duration: ProcessInfo.processInfo.systemUptime - start, error: nil, body: data
             )
             return (data, response)
         } catch {

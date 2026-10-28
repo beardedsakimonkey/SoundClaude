@@ -17,6 +17,7 @@ struct NetworkActivityEntry: Identifiable {
     var duration: TimeInterval?
     var bytes = 0
     var responseHeaders = ""
+    var responseBody = "Waiting for response"
     var error: String?
 
     func elapsed(at uptime: TimeInterval) -> TimeInterval {
@@ -27,7 +28,7 @@ struct NetworkActivityEntry: Identifiable {
     var result: String { error ?? status.map(String.init) ?? "Pending" }
 }
 
-/// Only sanitized metadata is retained. Bodies and arbitrary headers can contain credentials.
+/// URLs and headers remain sanitized independently of the response body preview.
 enum NetworkActivitySanitizer {
     static func url(_ url: URL?) -> String {
         guard let url, var parts = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
@@ -56,6 +57,38 @@ enum NetworkActivitySanitizer {
         return headers.sorted { $0.key < $1.key }.map { key, value in
             "\(key): \(allowed.contains(key.lowercased()) ? String(value.prefix(512)) : "[REDACTED]")"
         }.joined(separator: "\n")
+    }
+}
+
+enum NetworkResponseBody {
+    static let maximumBytes = 64 * 1024
+
+    static func preview(_ data: Data?, mimeType: String?) -> String {
+        guard let data else { return "No response body available" }
+        guard !data.isEmpty else { return "Empty response body" }
+        let mimeType = mimeType?.lowercased() ?? ""
+        if ["image/", "audio/", "video/", "font/"].contains(where: mimeType.hasPrefix) {
+            return "Binary response body (\(mimeType), \(data.count) bytes"
+        }
+        let prefix = data.prefix(maximumBytes)
+        // A truncated UTF-8 sequence is allowed at the end of a large preview.
+        guard String(data: prefix, encoding: .utf8) != nil
+                || (data.count > maximumBytes && (1...3).contains(where: {
+                    String(data: prefix.dropLast($0), encoding: .utf8) != nil
+                })), !prefix.contains(0) else {
+            return "Binary response body, \(data.count) bytes"
+        }
+        var text = String(decoding: prefix, as: UTF8.self)
+        if data.count <= maximumBytes,
+           let json = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
+           let formatted = try? JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys, .fragmentsAllowed]),
+           formatted.count <= maximumBytes {
+            text = String(decoding: formatted, as: UTF8.self)
+        }
+        if data.count > maximumBytes {
+            text += "\n\n[Truncated: showing first \(maximumBytes) of \(data.count) bytes]"
+        }
+        return text
     }
 }
 
@@ -89,13 +122,14 @@ final class NetworkActivityStore {
         return id
     }
 
-    func finish(_ id: UUID?, response: URLResponse?, bytes: Int, duration: TimeInterval, error: String?) {
+    func finish(_ id: UUID?, response: URLResponse?, bytes: Int, duration: TimeInterval, error: String?, body: Data? = nil) {
         guard let id, let index = entries.firstIndex(where: { $0.id == id }) else { return }
         let response = response as? HTTPURLResponse
         entries[index].status = response?.statusCode
         entries[index].bytes = bytes
         entries[index].duration = duration
         entries[index].error = error
+        entries[index].responseBody = NetworkResponseBody.preview(body, mimeType: response?.mimeType)
         let headers = (response?.allHeaderFields ?? [:]).reduce(into: [String: String]()) {
             $0[String(describing: $1.key)] = String(describing: $1.value)
         }
@@ -200,6 +234,8 @@ struct NetworkActivityView: View {
                         }
                         Text("Request headers\n\(entry.requestHeaders.isEmpty ? "None" : entry.requestHeaders)")
                         Text("Response headers\n\(entry.responseHeaders.isEmpty ? "None" : entry.responseHeaders)")
+                        Text("Response body").fontWeight(.semibold)
+                        Text(verbatim: entry.responseBody)
                     }
                     .font(.system(.caption, design: .monospaced))
                     .textSelection(.enabled)
@@ -208,11 +244,11 @@ struct NetworkActivityView: View {
                     Text("Select a request to inspect its details.")
                         .foregroundStyle(.secondary).padding()
                 }
-            }.frame(height: 180)
+            }.frame(height: 280)
             HStack {
                 Text("\(entries.count) shown · \(store.entries.count)/500 retained · \(store.isRecording ? "Recording" : "Paused")")
                 Spacer()
-                Text("Bodies omitted · Query values hidden · Audio downloads excluded")
+                Text("Body previews up to 64 KB · Query values hidden · Audio downloads excluded")
             }.font(.caption).foregroundStyle(.secondary).padding(10)
         }
         .frame(minWidth: 950, minHeight: 500)
