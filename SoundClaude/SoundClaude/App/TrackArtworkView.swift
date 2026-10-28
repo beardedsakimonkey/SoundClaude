@@ -420,7 +420,7 @@ enum DetailArtworkMotion {
     static let hoverOut: Animation = .spring(response: 0.35 * 1.5, dampingFraction: 0.75)
 
     static let rotationIn: Animation = .spring(response: 0.45, dampingFraction: 0.7)
-    static let rotationOut: Animation = .interpolatingSpring(duration: 1.4, bounce: 0, initialVelocity: 4)
+    static let rotationOut: Animation = .spring(response: 0.9, dampingFraction: 0.7)
 }
 
 struct DetailArtworkTransform {
