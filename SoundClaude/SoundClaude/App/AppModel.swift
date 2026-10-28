@@ -315,6 +315,7 @@ final class AppModel {
 
     func play(_ track: SoundCloudTrack, queue: TrackQueue, loadRemainingTracks: Bool = false) async {
         var queue = queue
+        appendAvailableStationTracks(to: &queue)
         queue.replaceLikes(likes.tracks, currentURN: playback.currentTrack?.urn)
         queue.setShuffle(playback.isShuffleEnabled, currentURN: track.urn)
         // A station's seed or a collection's first track may be copy-protected; start after it.
@@ -339,6 +340,7 @@ final class AppModel {
         // Keep the current player item and position. Deduplication leaves the seed first,
         // even when the station omits it or returns it later in the list.
         queue = TrackQueue(source: .station(urn), tracks: [currentTrack] + tracks, sourceTitle: title)
+        appendAvailableStationTracks(to: &queue)
         queue.setShuffle(playback.isShuffleEnabled, currentURN: currentTrack.urn)
         saveQueue()
         if !playback.isPlaybackActive {
@@ -911,6 +913,13 @@ final class AppModel {
         stationCache.insert(station, forKey: urn as NSString)
         try Task.checkCancellation()
         return station
+    }
+
+    private func appendAvailableStationTracks(to queue: inout TrackQueue) {
+        guard case let .station(urn) = queue.source,
+              let station = cachedStation(urn: urn) ?? loadingStations[urn] else { return }
+        // Loading may finish between rendering Start and running its playback task.
+        try? queue.append(SoundCloudTrackPage(tracks: station.tracks, nextURL: nil))
     }
 
     private func updateLoadingStation(_ station: SoundCloudStation, urn: String, generation: UUID) {

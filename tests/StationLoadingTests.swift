@@ -136,7 +136,15 @@ extension View {
         }
         await render()
         precondition(model.completion != nil)
-        precondition(Measurements.trackCounts.last == 0)
+        precondition(Measurements.trackCounts.last == 1,
+                     "The seed must enable Start before the station responds")
+        model.loadingStations[urn] = SoundCloudStation(
+            title: "Station", description: nil, permalinkURL: nil,
+            lastUpdated: nil, trackCount: 50, tracks: []
+        )
+        await render()
+        precondition(Measurements.trackCounts.last == 1,
+                     "An ID-only response must keep the seed available")
         model.loadingStations[urn] = result
         await render()
         precondition(Measurements.trackCounts.last == 1)
@@ -153,6 +161,6 @@ extension View {
         model.completion = nil
         await render()
         precondition(Measurements.trackCounts.allSatisfy { $0 == 1 })
-        print("Station completion handoff keeps Start enabled")
+        print("Station seed and completion handoff keep Start enabled")
     }
 }

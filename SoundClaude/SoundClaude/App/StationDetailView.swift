@@ -38,7 +38,13 @@ struct StationDetailView: View {
         _completedStation = State(initialValue: model.cachedStation(urn: urn))
     }
 
-    private var tracks: [SoundCloudTrack] { station?.tracks ?? [] }
+    private var tracks: [SoundCloudTrack] {
+        let loaded = station?.tracks ?? []
+        // The seed is already known; ID-only station responses must not delay Start.
+        guard !loaded.contains(where: { $0.access != .protected }),
+              let seedTrack, seedTrack.access == .playable || seedTrack.access == .preview else { return loaded }
+        return [seedTrack] + loaded.filter { $0.urn != seedTrack.urn }
+    }
     private var title: String { station?.title ?? seedTrack?.title ?? seedArtistName ?? "Station" }
     private var stationType: String {
         let components = urn.split(separator: ":")
