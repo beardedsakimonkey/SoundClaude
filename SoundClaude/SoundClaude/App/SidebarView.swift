@@ -40,6 +40,8 @@ struct SidebarView: View {
 
     @AppStorage("sidebarLikedStationsExpanded") private var isLikedStationsExpanded = true
 
+    fileprivate static let sectionIndent: CGFloat = 6
+
     var body: some View {
         #if DEBUG
         let _ = Self._printChanges()
@@ -108,13 +110,15 @@ struct SidebarView: View {
                         Text(destination.title)
                     } icon: {
                         Image(systemName: destination.systemImage)
-                            .frame(width: 24)
+                            .font(.system(size: 16))
+                            .frame(width: 28)
                     }
-                        .padding(.trailing, destination == .liked ? 28 : 0)
+                        .padding(.trailing, destination == .liked ? 32 : 0)
                         .modifier(SidebarRowStyle(
                             isSelected: selection == destination,
                             usesPrimaryForeground: true,
-                            selectsOnMouseDown: true
+                            selectsOnMouseDown: true,
+                            verticalPadding: 4
                         ) {
                             select(destination)
                         })
@@ -138,7 +142,7 @@ struct SidebarView: View {
                                     Task { await onShuffleLikes() }
                                 } label: {
                                     Image(systemName: "shuffle")
-                                        .frame(width: 24)
+                                        .frame(width: 28)
                                         .frame(maxHeight: .infinity)
                                         .contentShape(Rectangle())
                                 }
@@ -158,7 +162,7 @@ struct SidebarView: View {
                             Text("New")
                         } icon: {
                             Image(systemName: "plus")
-                                .frame(width: 24, height: 24)
+                                .frame(width: 28, height: 28)
                         }
                             .modifier(SidebarRowStyle(isSelected: false) {
                                 isShowingCreatePlaylist = true
@@ -177,9 +181,11 @@ struct SidebarView: View {
                                         .foregroundStyle(.secondary)
                                     Button("Try Again") { Task { await playlists.load() } }
                                 }
+                                .padding(.leading, Self.sectionIndent)
                             } else if !playlists.isLoading && playlists.cache.hasLoadedList && playlists.playlists.isEmpty {
                                 Text("No playlists")
                                     .foregroundStyle(.secondary)
+                                    .padding(.leading, Self.sectionIndent)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -201,9 +207,11 @@ struct SidebarView: View {
                                         .foregroundStyle(.secondary)
                                     Button("Try Again") { Task { await playlists.loadLikes() } }
                                 }
+                                .padding(.leading, Self.sectionIndent)
                             } else if !playlists.isLoadingLikes && playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
                                 Text("No liked playlists")
                                     .foregroundStyle(.secondary)
+                                    .padding(.leading, Self.sectionIndent)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -264,15 +272,17 @@ struct SidebarView: View {
                                 StationPlayingIcon(
                                     playback: playback, isCurrent: playbackSource == .station(station.urn)
                                 )
-                                .frame(width: 24, height: 24)
+                                .font(.system(size: 16))
+                                .frame(width: 28, height: 28)
                             } else {
                                 Image(systemName: "music.note.list")
-                                    .frame(width: 24, height: 24)
+                                    .font(.system(size: 16))
+                                    .frame(width: 28, height: 28)
                             }
                         }
                         .lineLimit(1)
                         .contentHelp(station.displayTitle)
-                        .padding(.trailing, startingStationURN == station.urn ? 28 : 0)
+                        .padding(.trailing, startingStationURN == station.urn ? 32 : 0)
                         .modifier(SidebarRowStyle(
                             isSelected: false,
                             usesPrimaryForeground: station.isStation
@@ -290,7 +300,7 @@ struct SidebarView: View {
                             if startingStationURN == station.urn {
                                 LoadingSpinner()
                                     .controlSize(.small)
-                                    .frame(width: 24, height: 24)
+                                    .frame(width: 28, height: 28)
                                     .padding(.trailing, 8)
                                     .accessibilityLabel("Loading \(station.displayTitle) for playback")
                                     .allowsHitTesting(false)
@@ -305,9 +315,11 @@ struct SidebarView: View {
                                 .foregroundStyle(.secondary)
                             Button("Try Again") { Task { try? await likes.loadStationLikes() } }
                         }
+                        .padding(.leading, Self.sectionIndent)
                     } else if !likes.isLoadingStationLikes && likes.hasLoadedStationLikes && likes.likedStations.isEmpty {
                         Text("No liked stations")
                             .foregroundStyle(.secondary)
+                            .padding(.leading, Self.sectionIndent)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -332,9 +344,10 @@ struct SidebarView: View {
                 size: 24,
                 showsBorder: false
             )
+            .frame(width: 28)
         }
             .lineLimit(1)
-            .padding(.trailing, startingPlaylistURN == playlist.urn || addingToPlaylistURNs.contains(playlist.urn) ? 28 : 0)
+            .padding(.trailing, startingPlaylistURN == playlist.urn || addingToPlaylistURNs.contains(playlist.urn) ? 32 : 0)
             .contentHelp(playlist.title)
             .task(id: playlist.urn) { await playlists.loadArtwork(for: playlist) }
             .modifier(SidebarRowStyle(
@@ -354,7 +367,7 @@ struct SidebarView: View {
                 if startingPlaylistURN == playlist.urn {
                     LoadingSpinner()
                         .controlSize(.small)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 28, height: 28)
                         .padding(.trailing, 8)
                         .accessibilityLabel("Loading \(playlist.title) for playback")
                 }
@@ -479,9 +492,9 @@ struct SidebarView: View {
                     .accessibilityHidden(true)
             }
         }
-        .font(.caption.weight(.semibold))
+        .font(.subheadline.weight(.semibold))
         .padding(.horizontal, 10)
-        .padding(.top, 16)
+        .padding(.top, 14)
         .padding(.bottom, 6)
         .contentShape(Rectangle())
         .modifier(SidebarForegroundHover())
@@ -570,6 +583,7 @@ private struct SidebarRowStyle: ViewModifier {
     let isSelected: Bool
     var usesPrimaryForeground = false
     var selectsOnMouseDown = false
+    var verticalPadding: CGFloat = 2
     let onSelect: () -> Void
 
     func body(content: Content) -> some View {
@@ -584,9 +598,11 @@ private struct SidebarRowStyle: ViewModifier {
     @ViewBuilder
     private func rowContent(_ content: Content) -> some View {
         let label = content
-            .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+            // Indent inside the row so its background and hit target still reach the sidebar edge.
+            .padding(.leading, 8 + SidebarView.sectionIndent)
+            .padding(.trailing, 8)
+            .padding(.vertical, verticalPadding)
             .contentShape(Rectangle())
 
         if selectsOnMouseDown {
