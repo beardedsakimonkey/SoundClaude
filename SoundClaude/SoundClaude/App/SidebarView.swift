@@ -46,15 +46,7 @@ struct SidebarView: View {
         #if DEBUG
         let _ = Self._printChanges()
         #endif
-        VStack(spacing: 0) {
-            SidebarAccountHeader(
-                user: user,
-                artworkLoader: artworkLoader,
-                onSelectProfile: onSelectProfile,
-                onSignOut: onSignOut
-            )
-            sidebarList
-        }
+        sidebarList
         .navigationTitle("SoundClaude")
         .sheet(isPresented: $isShowingCreatePlaylist) {
             PlaylistEditorView(playlists: playlists, onSaved: onSelectPlaylist)
@@ -104,130 +96,15 @@ struct SidebarView: View {
 
     private var sidebarList: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(SidebarDestination.libraryDestinations) { destination in
-                    Label {
-                        Text(destination.title)
-                    } icon: {
-                        Image(systemName: destination.systemImage)
-                            .font(.system(size: 16))
-                            .frame(width: 28)
-                    }
-                        .padding(.trailing, destination == .liked ? 32 : 0)
-                        .modifier(SidebarRowStyle(
-                            isSelected: selection == destination,
-                            usesPrimaryForeground: true,
-                            verticalPadding: 4
-                        ) {
-                            select(destination)
-                        })
-                        .simultaneousGesture(
-                            TapGesture(count: 2).onEnded {
-                                Task { await onPlayLikes() }
-                            },
-                            including: destination == .liked ? .all : .none
-                        )
-                        .accessibilityActions {
-                            if destination == .liked {
-                                Button("Play likes") {
-                                    Task { await onPlayLikes() }
-                                }
-                                .disabled(likes.tracks.isEmpty)
-                            }
-                        }
-                        .overlay(alignment: .trailing) {
-                            if destination == .liked {
-                                Image(systemName: "shuffle")
-                                    .frame(width: 28)
-                                    .frame(maxHeight: .infinity)
-                                    .contentShape(Rectangle())
-                                    .modifier(SidebarForegroundHover(idleOpacity: 0.3))
-                                    .modifier(SidebarMouseDownAction {
-                                        Task { await onShuffleLikes() }
-                                    })
-                                    .disabled(likes.tracks.isEmpty)
-                                .contentHelp("Shuffle likes")
-                                .accessibilityLabel("Shuffle likes")
-                                .padding(.trailing, 8)
-                            }
-                        }
-                }
-                VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader("Playlists", isExpanded: $isPlaylistsExpanded, isLoading: playlists.isLoading)
-                    if isPlaylistsExpanded {
-                        Label {
-                            Text("New")
-                        } icon: {
-                            Image(systemName: "plus")
-                                .frame(width: 28, height: 28)
-                        }
-                            .modifier(SidebarRowStyle(isSelected: false) {
-                                isShowingCreatePlaylist = true
-                            })
-                            .transition(.opacity)
-
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(playlists.playlists) { playlist in
-                                playlistRow(playlist)
-                                    .transition(.opacity)
-                            }
-                            if !playlists.isLoading, let errorMessage = playlists.errorMessage {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(errorMessage)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Button("Try Again") { Task { await playlists.load() } }
-                                }
-                                .padding(.leading, Self.sectionIndent)
-                            } else if !playlists.isLoading && playlists.cache.hasLoadedList && playlists.playlists.isEmpty {
-                                Text("No playlists")
-                                    .foregroundStyle(.secondary)
-                                    .padding(.leading, Self.sectionIndent)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .transition(.opacity)
-                    }
-                }
-                VStack(alignment: .leading, spacing: 0) {
-                    sectionHeader("Liked Playlists", isExpanded: $isLikedPlaylistsExpanded, isLoading: playlists.isLoadingLikes)
-                    if isLikedPlaylistsExpanded {
-                        VStack(alignment: .leading, spacing: 0) {
-                            ForEach(playlists.likedPlaylists) { playlist in
-                                playlistRow(playlist)
-                                    .transition(.opacity)
-                            }
-                            if !playlists.isLoadingLikes, let errorMessage = playlists.likesErrorMessage {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(errorMessage)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Button("Try Again") { Task { await playlists.loadLikes() } }
-                                }
-                                .padding(.leading, Self.sectionIndent)
-                            } else if !playlists.isLoadingLikes && playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
-                                Text("No liked playlists")
-                                    .foregroundStyle(.secondary)
-                                    .padding(.leading, Self.sectionIndent)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .transition(.opacity)
-                    }
-                }
-                likedStationsSection
+            VStack(spacing: 0) {
+                SidebarAccountHeader(
+                    user: user,
+                    artworkLoader: artworkLoader,
+                    onSelectProfile: onSelectProfile,
+                    onSignOut: onSignOut
+                )
+                sidebarContent
             }
-            .padding(8)
-            // Cache restoration should show rows immediately. Animate only section toggles.
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: isLikedStationsExpanded)
-            .animation(
-                reduceMotion ? nil : .easeInOut(duration: 0.25),
-                value: isPlaylistsExpanded
-            )
-            .animation(
-                reduceMotion ? nil : .easeInOut(duration: 0.25),
-                value: isLikedPlaylistsExpanded
-            )
         }
         .focusable()
         .focusEffectDisabled()
@@ -253,6 +130,133 @@ struct SidebarView: View {
             guard isLikedPlaylistsExpanded else { return }
             await playlists.loadLikes()
         }
+    }
+
+    private var sidebarContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(SidebarDestination.libraryDestinations) { destination in
+                Label {
+                    Text(destination.title)
+                } icon: {
+                    Image(systemName: destination.systemImage)
+                        .font(.system(size: 16))
+                        .frame(width: 28)
+                }
+                    .padding(.trailing, destination == .liked ? 32 : 0)
+                    .modifier(SidebarRowStyle(
+                        isSelected: selection == destination,
+                        usesPrimaryForeground: true,
+                        verticalPadding: 4
+                    ) {
+                        select(destination)
+                    })
+                    .simultaneousGesture(
+                        TapGesture(count: 2).onEnded {
+                            Task { await onPlayLikes() }
+                        },
+                        including: destination == .liked ? .all : .none
+                    )
+                    .accessibilityActions {
+                        if destination == .liked {
+                            Button("Play likes") {
+                                Task { await onPlayLikes() }
+                            }
+                            .disabled(likes.tracks.isEmpty)
+                        }
+                    }
+                    .overlay(alignment: .trailing) {
+                        if destination == .liked {
+                            Image(systemName: "shuffle")
+                                .frame(width: 28)
+                                .frame(maxHeight: .infinity)
+                                .contentShape(Rectangle())
+                                .modifier(SidebarForegroundHover(idleOpacity: 0.3))
+                                .modifier(SidebarMouseDownAction {
+                                    Task { await onShuffleLikes() }
+                                })
+                                .disabled(likes.tracks.isEmpty)
+                            .contentHelp("Shuffle likes")
+                            .accessibilityLabel("Shuffle likes")
+                            .padding(.trailing, 8)
+                        }
+                    }
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                sectionHeader("Playlists", isExpanded: $isPlaylistsExpanded, isLoading: playlists.isLoading)
+                if isPlaylistsExpanded {
+                    Label {
+                        Text("New")
+                    } icon: {
+                        Image(systemName: "plus")
+                            .frame(width: 28, height: 28)
+                    }
+                        .modifier(SidebarRowStyle(isSelected: false) {
+                            isShowingCreatePlaylist = true
+                        })
+                        .transition(.opacity)
+
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(playlists.playlists) { playlist in
+                            playlistRow(playlist)
+                                .transition(.opacity)
+                        }
+                        if !playlists.isLoading, let errorMessage = playlists.errorMessage {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(errorMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Button("Try Again") { Task { await playlists.load() } }
+                            }
+                            .padding(.leading, Self.sectionIndent)
+                        } else if !playlists.isLoading && playlists.cache.hasLoadedList && playlists.playlists.isEmpty {
+                            Text("No playlists")
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, Self.sectionIndent)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity)
+                }
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                sectionHeader("Liked Playlists", isExpanded: $isLikedPlaylistsExpanded, isLoading: playlists.isLoadingLikes)
+                if isLikedPlaylistsExpanded {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(playlists.likedPlaylists) { playlist in
+                            playlistRow(playlist)
+                                .transition(.opacity)
+                        }
+                        if !playlists.isLoadingLikes, let errorMessage = playlists.likesErrorMessage {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(errorMessage)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Button("Try Again") { Task { await playlists.loadLikes() } }
+                            }
+                            .padding(.leading, Self.sectionIndent)
+                        } else if !playlists.isLoadingLikes && playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
+                            Text("No liked playlists")
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, Self.sectionIndent)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity)
+                }
+            }
+            likedStationsSection
+        }
+        .padding(8)
+        // Cache restoration should show rows immediately. Animate only section toggles.
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: isLikedStationsExpanded)
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.25),
+            value: isPlaylistsExpanded
+        )
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.25),
+            value: isLikedPlaylistsExpanded
+        )
     }
 
     private var likedStationsSection: some View {
