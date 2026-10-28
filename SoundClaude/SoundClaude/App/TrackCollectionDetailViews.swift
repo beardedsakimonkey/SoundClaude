@@ -340,7 +340,7 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
                 .frame(width: 44, height: 24)
         }
         .labelStyle(.iconOnly)
-        .buttonStyle(TrackActionButtonStyle(fill: .clear, hoverFill: .primary.opacity(0.12)))
+        .buttonStyle(TrackActionButtonStyle(fill: .clear, hoverForeground: .green))
         .contentHelp("Shuffle this \(collection.subject)")
         .disabled(collection.tracks.isEmpty)
     }
