@@ -72,6 +72,7 @@ struct DetailTrackHeading: View {
             .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .opacity(track.access == .protected ? protectedTrackOpacity : 1)
     }
 }
 
