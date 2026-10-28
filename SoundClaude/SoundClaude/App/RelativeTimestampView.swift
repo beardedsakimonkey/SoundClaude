@@ -37,7 +37,7 @@ struct RelativeTimestampView: View {
             .onContentHover { isShowingDate = $0 }
             .popover(isPresented: $isShowingDate, arrowEdge: .top) {
                 Text(date.formatted(date: .complete, time: .shortened))
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(.primary)
                     .fixedSize()
                     .padding(12)
