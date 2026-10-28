@@ -63,20 +63,17 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
     // Y rotation in degrees, animated with the same spring as the artwork.
     var rotation = 0.0
     // Nonzero pads the shader layer so it can draw the slab's side past the face.
-    // Needs `artworkOverscan` to supply the artwork the side shows.
+    // The side shows the face's nearer edge flipped horizontally.
     var slabThickness: CGFloat = 0
-    // How far the content draws past its frame on every side, unclipped. The glass masks it
-    // to the face, and the slab's side reveals the overscan.
-    var artworkOverscan: CGFloat = 0
 
     var animatableData: Double {
         get { rotation }
         set { rotation = newValue }
     }
 
-    // Room for the slab edge at turns up to about 36 degrees, limited to the artwork available.
-    static func slabPadding(thickness: CGFloat, overscan: CGFloat) -> CGFloat {
-        thickness > 0 ? min(ceil(thickness * 0.75), overscan) : 0
+    // Room for the slab edge at turns up to about 36 degrees.
+    static func slabPadding(thickness: CGFloat) -> CGFloat {
+        thickness > 0 ? ceil(thickness * 0.75) : 0
     }
 
     @Environment(\.playerArtworkGlassParameters) private var parameters
@@ -85,16 +82,13 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
 
     func body(content: Content) -> some View {
         let parameters = parameters
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         let enablesGlass = parameters.isEnabled && !reduceTransparency
-        let slabPadding = enablesGlass ? Self.slabPadding(thickness: slabThickness, overscan: artworkOverscan) : 0
+        let slabPadding = enablesGlass ? Self.slabPadding(thickness: slabThickness) : 0
         let slabShift = min(max(slabShift, -slabPadding), slabPadding)
         let rotationRadians = rotation * .pi / 180
 
         content
             .padding(.horizontal, slabPadding)
-            // Trim overscan to the slab's room, or to the face when the shader can't mask it.
-            .clipShape(enablesGlass ? AnyShape(Rectangle()) : AnyShape(shape), isActive: artworkOverscan > 0)
             .compositingGroup()
             .visualEffect { content, geometry in
                 content.layerEffect(
@@ -112,27 +106,18 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
                         .float(parameters.specularSoftness),
                         .float(rotationRadians),
                         .float2(slabPadding, 0),
-                        .float(artworkOverscan > 0 ? 1 : 0),
                         .float(slabShift),
                         .float2(parameters.slabDarkness, parameters.slabDepthShading)
                     ),
-                    maxSampleOffset: .zero,
+                    // The slab edge reads the face across the edge, pulled in from the corners.
+                    maxSampleOffset: slabPadding > 0
+                        ? CGSize(width: slabPadding * 2 + cornerRadius, height: cornerRadius)
+                        : .zero,
                     isEnabled: enablesGlass
                 )
             }
             .padding(.horizontal, -slabPadding)
             .shadow(color: .black.opacity(0.14), radius: 1, x: 0, y: 1)
             .shadow(color: .black.opacity(0.16), radius: 6, x: 0, y: 3)
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func clipShape(_ shape: AnyShape, isActive: Bool) -> some View {
-        if isActive {
-            clipShape(shape)
-        } else {
-            self
-        }
     }
 }

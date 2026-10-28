@@ -10,16 +10,27 @@ static float roundedRectDistance(float2 point, float minX, float maxX, float hei
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
 }
 
+// The nearest point at least `inset` inside the rounded rect spanning `0...size`.
+static float2 insideRoundedRect(float2 point, float2 size, float cornerRadius, float inset) {
+    float radius = min(cornerRadius, min(size.x, size.y) * 0.5);
+    float2 cornerCenter = clamp(point, float2(radius), size - radius);
+    float2 offset = point - cornerCenter;
+    float limit = max(radius - inset, 0.0);
+    float offsetLength = length(offset);
+    return offsetLength > limit ? cornerCenter + offset * (limit / max(offsetLength, 0.001)) : point;
+}
+
 // The slab's side, seen when the cover turns: the face swept `slabShift` points sideways.
-// The layer holds artwork past the face, so the side shows the artwork continuing
-// beyond the face's edge, darkened toward the back.
+// The side shows the face's nearer edge flipped onto it, darkened toward the back.
 static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI::Layer layer, float2 size, float cornerRadius, float slabShift, float2 slabShading) {
     if (slabShift == 0.0) return half4(0.0h);
     float hull = roundedRectDistance(local, min(slabShift, 0.0), size.x + max(slabShift, 0.0), size.y, cornerRadius);
     float coverage = saturate(0.5 - hull);
     if (coverage <= 0.0) return half4(0.0h);
 
-    half4 sample = layer.sample(position);
+    // Flip across the nearer vertical edge, pulled clear of the face's rounded corners.
+    float2 mirrored = float2(local.x < size.x * 0.5 ? -local.x : 2.0 * size.x - local.x, local.y);
+    half4 sample = layer.sample(position - local + insideRoundedRect(mirrored, size, cornerRadius, 1.0));
     half3 color = sample.rgb / max(sample.a, 0.001h);
     float back = saturate(faceDistance / abs(slabShift));
     // Apply more shading to dark artwork so the edge is not defined mainly by
@@ -57,7 +68,6 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     float specularSoftness,
     float rotation,
     float2 origin,
-    float masksFace,
     float slabShift,
     float2 slabShading
 ) {
@@ -74,8 +84,8 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     float distance = outsideLength + min(max(q.x, q.y), 0.0) - radius;
     float depth = max(-distance, 0.0);
 
-    // Unclipped artwork is masked to the face here; clipped artwork brings its own silhouette.
-    half faceAlpha = masksFace > 0.0 ? original.a * half(saturate(0.5 - distance)) : original.a;
+    // The artwork brings its own antialiased silhouette.
+    half faceAlpha = original.a;
     half4 edge = faceAlpha < 1.0h
         ? slabEdge(position, local, distance, layer, size, cornerRadius, slabShift, slabShading)
         : half4(0.0h);

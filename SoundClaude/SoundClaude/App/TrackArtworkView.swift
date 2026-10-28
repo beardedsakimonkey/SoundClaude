@@ -439,8 +439,6 @@ extension EnvironmentValues {
     @Entry var detailArtworkHoverActive = false
     // Target Y rotation in degrees; the artwork's slab edge animates toward it alongside the turn.
     @Entry var detailArtworkYRotation = 0.0
-    // The configured turn when the artwork rotates at all; sizes the slab's artwork overscan.
-    @Entry var detailArtworkTurn = 0.0
 }
 
 /// Rotates the artwork and its reflection together, resetting Y rotation on hover or while viewing artwork.
@@ -491,9 +489,6 @@ struct DetailArtworkRotation: ViewModifier {
             // Share one hover state with the image and its reflection.
             .environment(\.detailArtworkHoverActive, activeHover || isShowingArtwork)
             .environment(\.detailArtworkYRotation, targetRotation)
-            // Reserve the full crop at both poses so rotation does not animate
-            // image sizing, slab padding, or the reflection mask.
-            .environment(\.detailArtworkTurn, turn)
             .animation(
                 reduceMotion ? nil : (isRotationFlat
                     ? DetailArtworkMotion.rotationIn : DetailArtworkMotion.rotationOut)
@@ -621,7 +616,6 @@ struct DetailArtworkView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.detailArtworkYRotation) private var rotation
-    @Environment(\.detailArtworkTurn) private var turn
     @State private var likeErrorMessage: String?
 
     #if DEBUG
@@ -664,11 +658,8 @@ struct DetailArtworkView: View {
     private var glassParameters: PlayerArtworkGlassParameters { .detail }
     #endif
 
-    // Artwork drawn past the face on every side, just enough for the widest slab edge at the
-    // configured turn. The face shows a zoomed crop and the edge shows the rest, so the image
-    // runs continuously onto the edge.
-    private var displayedOverscan: CGFloat {
-        displayedSlabThickness * tan(abs(turn) * .pi / 180)
+    private var slabPadding: CGFloat {
+        PlayerArtworkGlass.slabPadding(thickness: displayedSlabThickness)
     }
 
     private var reflectionStops: [Gradient.Stop] {
@@ -680,8 +671,7 @@ struct DetailArtworkView: View {
     }
 
     var body: some View {
-        // Keep overscan fixed while the cover and glass slab rotate.
-        artworkStack(overscan: displayedOverscan)
+        artworkStack
         #if DEBUG
         .popover(isPresented: $isShowingSlabControls, arrowEdge: .trailing) {
             slabControls
@@ -697,9 +687,9 @@ struct DetailArtworkView: View {
         }
     }
 
-    private func artworkStack(overscan: CGFloat) -> some View {
+    private var artworkStack: some View {
         VStack(spacing: 1) {
-            draggableArtworkControl(overscan: overscan)
+            draggableArtworkControl
                 .onContentHover { onImageHover?($0) }
                 .contextMenu {
                     if let track {
@@ -731,7 +721,7 @@ struct DetailArtworkView: View {
                 .offset(y: -displayedLift)
                 .zIndex(1)
 
-            artworkThumbnail(overscan: overscan, reflectionBlurRadius: reflectionBlurRadius)
+            artworkThumbnail(reflectionBlurRadius: reflectionBlurRadius)
                 .scaleEffect(x: 1, y: -1)
                 // Mirror the lift below the ground while keeping the fade fixed.
                 .offset(y: displayedLift)
@@ -743,7 +733,7 @@ struct DetailArtworkView: View {
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .padding(.horizontal, -overscan)
+                    .padding(.horizontal, -slabPadding)
                 }
                 .overlay(alignment: .top) { contactShadow }
                 .allowsHitTesting(false)
@@ -754,23 +744,23 @@ struct DetailArtworkView: View {
     }
 
     @ViewBuilder
-    private func draggableArtworkControl(overscan: CGFloat) -> some View {
+    private var draggableArtworkControl: some View {
         if let track {
-            artworkControl(overscan: overscan)
+            artworkControl
                 .trackDraggable(track)
                 .contentHelp(artworkURL != nil ? "View full-size artwork or drag to a playlist" : "Drag to a playlist")
         } else {
-            artworkControl(overscan: overscan)
+            artworkControl
         }
     }
 
     @ViewBuilder
-    private func artworkControl(overscan: CGFloat) -> some View {
+    private var artworkControl: some View {
         if artworkURL != nil {
             Button {
                 onShowArtwork()
             } label: {
-                artworkThumbnail(overscan: overscan)
+                artworkThumbnail()
             }
             .buttonStyle(.plain)
             .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
@@ -779,7 +769,7 @@ struct DetailArtworkView: View {
                 "View full-size artwork for \(title)"
             )
         } else {
-            artworkThumbnail(overscan: overscan)
+            artworkThumbnail()
         }
     }
 
@@ -794,29 +784,26 @@ struct DetailArtworkView: View {
             .accessibilityHidden(true)
     }
 
-    private func artworkThumbnail(overscan: CGFloat, reflectionBlurRadius: CGFloat? = nil) -> some View {
+    private func artworkThumbnail(reflectionBlurRadius: CGFloat? = nil) -> some View {
         TrackArtworkView(
             artworkURL: artworkURL,
             loader: loader,
-            size: size + overscan * 2,
+            size: size,
             rendition: .square500,
             shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
             showsBorder: false,
             animatesChanges: animatesChanges,
             showsPlaceholderIcon: showsPlaceholderIcon
         )
-        // Lay out at the face size; the glass masks the overscan that spills past it.
-        .frame(width: size, height: size)
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius,
             rotation: rotation,
-            slabThickness: displayedSlabThickness,
-            artworkOverscan: overscan
+            slabThickness: displayedSlabThickness
         ))
         .modifier(DetailArtworkReflectionBlur(
             radius: reflectionBlurRadius,
             cornerRadius: cornerRadius,
-            maxShift: PlayerArtworkGlass.slabPadding(thickness: displayedSlabThickness, overscan: overscan)
+            maxShift: slabPadding
         ))
         // A layer this far behind the face projects like the face shifted by depth * tan(angle);
         // positive angles bring the leading edge forward.
