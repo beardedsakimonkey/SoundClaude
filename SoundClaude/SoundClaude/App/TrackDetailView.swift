@@ -131,9 +131,18 @@ struct TrackDetailView: View {
                         .id(track.urn)
                     }
 
-                    if !details.tags.isEmpty {
+                    let genre = nonempty(details.genre)
+                    let tags = details.tags.filter { tag in
+                        guard let genre else { return true }
+                        return tag.trimmingCharacters(in: .whitespacesAndNewlines)
+                            .caseInsensitiveCompare(genre) != .orderedSame
+                    }
+                    if genre != nil || !tags.isEmpty {
                         TagLayout {
-                            ForEach(Array(details.tags.enumerated()), id: \.offset) { _, tag in
+                            if let genre {
+                                GenrePill(genre: genre)
+                            }
+                            ForEach(Array(tags.enumerated()), id: \.offset) { _, tag in
                                 TagPill(tag: tag)
                             }
                         }
