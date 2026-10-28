@@ -3,13 +3,17 @@ import SwiftUI
 
 /// A vertical scroll view that reserves space for the system's legacy scrollbar.
 struct ScrollbarReservedScrollView<Content: View>: View {
+    var enablesKeyboardNavigation = true
+    var reservesSpaceWhenContentFits = true
     @ViewBuilder let content: (CGSize) -> Content
 
     @State private var scrollerStyle = NSScroller.preferredScrollerStyle
+    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
         GeometryReader { geometry in
-            let scrollbarWidth = scrollerStyle == .legacy
+            let needsScrollbarSpace = reservesSpaceWhenContentFits || contentHeight > geometry.size.height
+            let scrollbarWidth = scrollerStyle == .legacy && needsScrollbarSpace
                 ? NSScroller.scrollerWidth(for: .regular, scrollerStyle: .legacy)
                 : 0
             let contentSize = CGSize(
@@ -21,8 +25,15 @@ struct ScrollbarReservedScrollView<Content: View>: View {
                 content(contentSize)
                     // AppKit can defer its narrower width proposal until the first scroll.
                     .frame(width: contentSize.width, alignment: .topLeading)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                        contentHeight = $0
+                    }
                     .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .scrollKeyNavigation()
+                    .background {
+                        if enablesKeyboardNavigation {
+                            ScrollKeyNavigationView()
+                        }
+                    }
             }
             .frame(width: geometry.size.width)
         }
