@@ -5,6 +5,9 @@ import Foundation
 struct NetworkActivityEntry: Identifiable {
     let id: UUID
     let started: Date
+    let sequence: Int
+    let startOffset: TimeInterval
+    let startedUptime: TimeInterval
     let method: String
     let url: String
     let category: String
@@ -15,6 +18,10 @@ struct NetworkActivityEntry: Identifiable {
     var bytes = 0
     var responseHeaders = ""
     var error: String?
+
+    func elapsed(at uptime: TimeInterval) -> TimeInterval {
+        duration ?? max(0, uptime - startedUptime)
+    }
 
     var failed: Bool { error != nil || (status ?? 0) >= 400 }
     var result: String { error ?? status.map(String.init) ?? "Pending" }
@@ -59,18 +66,25 @@ final class NetworkActivityStore {
     var isRecording = true
     private(set) var entries: [NetworkActivityEntry] = []
 
-    func begin(_ request: URLRequest, attempt: Int) -> UUID? {
+    private var origin: TimeInterval?
+    private var nextSequence = 1
+
+    func begin(_ request: URLRequest, attempt: Int,
+               started: Date = Date(), uptime: TimeInterval = ProcessInfo.processInfo.systemUptime) -> UUID? {
         guard isRecording else { return nil }
         let id = UUID()
+        if origin == nil { origin = uptime }
         let host = request.url?.host ?? ""
         let category = host == "api.soundcloud.com" ? "API"
             : host.contains("sndcdn.com") && request.value(forHTTPHeaderField: "Accept")?.contains("image/") == true
                 ? "Artwork" : "Other"
         entries.insert(NetworkActivityEntry(
-            id: id, started: Date(), method: request.httpMethod ?? "GET",
+            id: id, started: started, sequence: nextSequence,
+            startOffset: uptime - (origin ?? uptime), startedUptime: uptime, method: request.httpMethod ?? "GET",
             url: NetworkActivitySanitizer.url(request.url), category: category,
             attempt: attempt, requestHeaders: NetworkActivitySanitizer.headers(request.allHTTPHeaderFields ?? [:])
         ), at: 0)
+        nextSequence += 1
         if entries.count > 500 { entries.removeLast(entries.count - 500) }
         return id
     }
@@ -88,7 +102,11 @@ final class NetworkActivityStore {
         entries[index].responseHeaders = NetworkActivitySanitizer.headers(headers)
     }
 
-    func clear() { entries.removeAll() }
+    func clear() {
+        entries.removeAll()
+        origin = nil
+        nextSequence = 1
+    }
 }
 
 struct NetworkActivityView: View {
@@ -98,11 +116,34 @@ struct NetworkActivityView: View {
     @State private var search = ""
 
     private var entries: [NetworkActivityEntry] {
-        store.entries.filter {
+        store.entries.reversed().filter {
             (filter == "All" || (filter == "Failures" ? $0.failed : $0.category == filter))
                 && (search.isEmpty || $0.url.localizedCaseInsensitiveContains(search)
                     || $0.method.localizedCaseInsensitiveContains(search))
         }
+    }
+
+    private func milliseconds(_ interval: TimeInterval) -> String {
+        String(format: "%.1f", interval * 1000)
+    }
+
+    private func waterfall(_ entry: NetworkActivityEntry, uptime: TimeInterval,
+                           lower: TimeInterval, upper: TimeInterval) -> some View {
+        GeometryReader { geometry in
+            let span = max(upper - lower, 0.001)
+            let x = max(0, (entry.startOffset - lower) / span * geometry.size.width)
+            let width = entry.elapsed(at: uptime) / span * geometry.size.width
+            ZStack(alignment: .leading) {
+                Rectangle().fill(.primary.opacity(0.05))
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(entry.failed ? Color.red : entry.duration == nil ? Color.orange : Color.accentColor)
+                    .frame(width: min(max(2, width), max(0, geometry.size.width - x)), height: 10)
+                    .offset(x: x)
+            }
+        }
+        .frame(height: 18)
+        .help("Start +\(milliseconds(entry.startOffset)) ms · Duration \(milliseconds(entry.elapsed(at: uptime))) ms")
+        .accessibilityLabel("Request \(entry.sequence), start \(milliseconds(entry.startOffset)) milliseconds, duration \(milliseconds(entry.elapsed(at: uptime))) milliseconds")
     }
 
     var body: some View {
@@ -115,18 +156,35 @@ struct NetworkActivityView: View {
                 Button(store.isRecording ? "Pause" : "Resume") { store.isRecording.toggle() }
                 Button("Clear") { store.clear(); selection = nil }
             }.padding(12)
-            Table(entries, selection: $selection) {
-                TableColumn("Time") { Text($0.started, style: .time) }.width(85)
-                TableColumn("Method", value: \.method).width(60)
-                TableColumn("URL", value: \.url)
-                TableColumn("Status") { entry in
-                    Text(entry.result).foregroundStyle(entry.failed ? .red : .primary)
-                }.width(90)
-                TableColumn("Time (ms)") { entry in
-                    Text(entry.duration.map { String(format: "%.0f", $0 * 1000) } ?? "—")
-                }.width(75)
-                TableColumn("Bytes") { Text(String($0.bytes)) }.width(75)
-                TableColumn("Attempt") { Text(String($0.attempt)) }.width(60)
+            Text("Clear before opening a station. Rows show start order; overlapping bars show concurrent requests.")
+                .font(.caption).foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12)
+            TimelineView(.periodic(from: .now, by: 0.1)) { _ in
+                let uptime = ProcessInfo.processInfo.systemUptime
+                let lower = store.entries.map(\.startOffset).min() ?? 0
+                let upper = store.entries.map { $0.startOffset + $0.elapsed(at: uptime) }.max() ?? lower
+                VStack(spacing: 4) {
+                    Text(String(format: "Timeline: +%.0f to +%.0f ms · offsets from first request after Clear", lower * 1000, upper * 1000))
+                        .font(.caption).foregroundStyle(.secondary)
+                    Table(entries, selection: $selection) {
+                        TableColumn("#") { Text(String($0.sequence)) }.width(40)
+                        TableColumn("Start (ms)") { Text(milliseconds($0.startOffset)) }.width(85)
+                        TableColumn("Method", value: \.method).width(60)
+                        TableColumn("URL", value: \.url)
+                        TableColumn("Status") { entry in
+                            Text(entry.result).foregroundStyle(entry.failed ? .red : .primary)
+                        }.width(90)
+                        TableColumn("Waterfall") { entry in
+                            waterfall(entry, uptime: uptime, lower: lower, upper: upper)
+                        }.width(min: 180, ideal: 240)
+                        TableColumn("Duration (ms)") { entry in
+                            Text(milliseconds(entry.elapsed(at: uptime)) + (entry.duration == nil ? "…" : ""))
+                        }.width(100)
+                        TableColumn("Bytes") { Text(String($0.bytes)) }.width(65)
+                        TableColumn("Attempt") { Text(String($0.attempt)) }.width(60)
+                    }
+                    .monospacedDigit()
+                }
             }
             Divider()
             ScrollView {
@@ -134,6 +192,12 @@ struct NetworkActivityView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("\(entry.method) \(entry.url)").fontWeight(.semibold)
                         Text("\(entry.category) · Attempt \(entry.attempt) · \(entry.result)")
+                        Text("Started: \(entry.started.formatted(.dateTime.hour().minute().second().secondFraction(.fractional(3)))) · +\(milliseconds(entry.startOffset)) ms")
+                        if let duration = entry.duration {
+                            Text("Completed: +\(milliseconds(entry.startOffset + duration)) ms · Total: \(milliseconds(duration)) ms")
+                        } else {
+                            Text("Request in progress")
+                        }
                         Text("Request headers\n\(entry.requestHeaders.isEmpty ? "None" : entry.requestHeaders)")
                         Text("Response headers\n\(entry.responseHeaders.isEmpty ? "None" : entry.responseHeaders)")
                     }

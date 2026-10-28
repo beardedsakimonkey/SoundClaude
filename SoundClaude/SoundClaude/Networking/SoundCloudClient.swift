@@ -874,8 +874,9 @@ actor SoundCloudClient {
 
     private func perform(_ request: URLRequest, attempt: Int = 1) async throws -> (Data, URLResponse) {
         #if DEBUG
-        let id = await NetworkActivityStore.shared.begin(request, attempt: attempt)
         let start = ProcessInfo.processInfo.systemUptime
+        let started = Date()
+        let id = await NetworkActivityStore.shared.begin(request, attempt: attempt, started: started, uptime: start)
         do {
             let (data, response) = try await session.data(for: request)
             await NetworkActivityStore.shared.finish(

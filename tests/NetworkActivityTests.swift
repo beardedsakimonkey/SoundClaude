@@ -38,6 +38,25 @@ struct NetworkActivityTests {
         store.isRecording = false
         store.finish(pending, response: nil, bytes: 0, duration: 1, error: "Error -999")
         precondition(store.entries[0].failed, "Pending requests must finish while paused")
+        // Shared offsets preserve overlaps and gaps regardless of completion order.
+        store.clear()
+        store.isRecording = true
+        let first = store.begin(request, attempt: 1, uptime: 100)!
+        let second = store.begin(request, attempt: 1, uptime: 100.1)!
+        store.finish(second, response: response, bytes: 10, duration: 0.2, error: nil)
+        store.finish(first, response: response, bytes: 10, duration: 0.5, error: nil)
+        _ = store.begin(request, attempt: 1, uptime: 101)
+        let chronological = Array(store.entries.reversed())
+        precondition(chronological.map(\.sequence) == [1, 2, 3])
+        precondition(chronological[0].startOffset == 0)
+        precondition(abs(chronological[1].startOffset - 0.1) < 0.000001)
+        precondition(chronological[1].startOffset < chronological[0].duration!)
+        precondition(chronological[2].startOffset > chronological[0].duration!)
+        precondition(chronological[0].elapsed(at: 102) == 0.5)
+        precondition(chronological[2].elapsed(at: 102) == 1)
+        store.clear()
+        _ = store.begin(request, attempt: 1, uptime: 200)
+        precondition(store.entries[0].sequence == 1 && store.entries[0].startOffset == 0)
         print("Network activity tests passed")
     }
 }
