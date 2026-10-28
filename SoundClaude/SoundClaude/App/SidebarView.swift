@@ -474,6 +474,12 @@ struct SidebarView: View {
     private func sectionHeader(_ title: String, isExpanded: Binding<Bool>, isLoading: Bool) -> some View {
         HStack {
             Text(title)
+            Spacer()
+            if isLoading {
+                LoadingSpinner()
+                    .controlSize(.mini)
+                    .accessibilityHidden(true)
+            }
             Image(systemName: "chevron.right")
                 .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
                 .animation(
@@ -481,12 +487,6 @@ struct SidebarView: View {
                     value: isExpanded.wrappedValue
                 )
                 .accessibilityHidden(true)
-            Spacer()
-            if isLoading {
-                LoadingSpinner()
-                    .controlSize(.mini)
-                    .accessibilityHidden(true)
-            }
         }
         .font(.subheadline.weight(.semibold))
         .padding(.horizontal, 10)
@@ -556,12 +556,8 @@ private struct SidebarAccountHeader: View {
 
             Image(systemName: "rectangle.portrait.and.arrow.right")
                 .frame(width: 28, height: 28)
-                .background {
-                    Circle()
-                        .fill(Color.primary.opacity(isSignOutHovered ? 0.1 : 0))
-                }
                 .contentShape(Circle())
-                .foregroundStyle(.primary)
+                .foregroundStyle(isSignOutHovered ? .primary : .tertiary)
                 .modifier(SidebarMouseDownAction {
                     Task { await onSignOut() }
                 })
@@ -631,7 +627,7 @@ private struct SidebarForegroundHover: ViewModifier {
             return Color("AccentColor")
         }
         if usesPrimaryForeground {
-            return isHovered ? (colorScheme == .dark ? .white : .black) : .primary
+            return .primary
         }
         return isHovered ? .primary : .secondary
     }
