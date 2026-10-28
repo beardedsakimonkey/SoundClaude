@@ -598,7 +598,7 @@ private struct PlayerSpeedControl: View {
                         .font(.headline)
                         .accessibilityAddTraits(.isHeader)
                     Spacer()
-                    HStack(spacing: 2) {
+                    HStack(spacing: 8) {
                         presetButton("Slower", semitones: -4)
                         presetButton("Faster", semitones: 3)
                     }
@@ -635,7 +635,7 @@ private struct PlayerSpeedControl: View {
             playback.setPlaybackRate(isActive ? 1 : presetRate)
         } label: {
             Text(title)
-                .font(.subheadline)
+                .font(.body)
                 .foregroundStyle(isActive ? Color.orange : Color.secondary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
