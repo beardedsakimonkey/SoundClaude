@@ -283,7 +283,7 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
                 playback: model.playback,
                 trackURN: displayedTrack?.urn,
                 isStarting: currentTrack == nil,
-                isEnabled: currentTrack != nil || !collection.tracks.isEmpty,
+                isEnabled: currentTrack != nil || collection.tracks.contains { $0.access != .protected },
                 iconOnly: iconOnly, subject: collection.subject
             ) {
                 play(currentTrack: currentTrack)

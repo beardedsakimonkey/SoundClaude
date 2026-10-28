@@ -379,3 +379,15 @@ test-queue-presentation:
 		SoundClaude/SoundClaude/App/ContentHover.swift \
 		tests/QueuePresentationTests.swift
 	/tmp/soundclaude-tests/queue-presentation
+
+# Start must stay enabled while station progress hands off to the cache (requires GUI).
+.PHONY: test-station-loading
+test-station-loading:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/station-loading \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/Support/MemoryCache.swift \
+		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
+		SoundClaude/SoundClaude/App/StationDetailView.swift \
+		tests/StationLoadingTests.swift
+	/tmp/soundclaude-tests/station-loading

@@ -425,12 +425,17 @@ actor SoundCloudClient {
         try await station(urn: urn, accessToken: accessToken).tracks
     }
 
-    func station(urn: String, accessToken: String) async throws -> SoundCloudStation {
+    func station(
+        urn: String, accessToken: String,
+        onProgress: (@Sendable (SoundCloudStation) async -> Void)? = nil
+    ) async throws -> SoundCloudStation {
         let station = try await get(
             RawSystemPlaylist.self, endpoint("system-playlists/\(urn)"), accessToken: accessToken
         )
         return station.normalized(
-            tracks: try await hydrated(station.tracks, accessToken: accessToken)
+            tracks: try await hydrated(station.tracks, accessToken: accessToken) { tracks in
+                await onProgress?(station.normalized(tracks: tracks))
+            }
         )
     }
 
@@ -812,9 +817,18 @@ actor SoundCloudClient {
     }
 
     /// Playlists and stations list later tracks as ID-only stubs.
-    private func hydrated(_ tracks: [RawTrack], accessToken: String) async throws -> [SoundCloudTrack] {
+    private func hydrated(
+        _ tracks: [RawTrack], accessToken: String,
+        onProgress: (@Sendable ([SoundCloudTrack]) async -> Void)? = nil
+    ) async throws -> [SoundCloudTrack] {
         let missing = tracks.filter { $0.title == nil }.compactMap(\.id)
         var loaded: [Int: RawTrack] = [:]
+        func normalized() -> [SoundCloudTrack] {
+            tracks.compactMap { track in
+                (track.title == nil ? track.id.flatMap { loaded[$0] } : track)?.normalized()
+            }
+        }
+        await onProgress?(normalized())
         for start in stride(from: 0, to: missing.count, by: Self.trackBatchSize) {
             try Task.checkCancellation()
             let batch = missing[start..<min(start + Self.trackBatchSize, missing.count)]
@@ -822,10 +836,10 @@ actor SoundCloudClient {
             for track in try await get([RawTrack].self, url, accessToken: accessToken) {
                 if let id = track.id { loaded[id] = track }
             }
+            try Task.checkCancellation()
+            await onProgress?(normalized())
         }
-        return tracks.compactMap { track in
-            (track.title == nil ? track.id.flatMap { loaded[$0] } : track)?.normalized()
-        }
+        return normalized()
     }
 
     private func authenticatedRequest(

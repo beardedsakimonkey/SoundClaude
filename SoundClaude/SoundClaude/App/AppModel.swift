@@ -74,6 +74,7 @@ final class AppModel {
     private let artistWebProfilesCache = MemoryCache<NSURL, [SoundCloudWebProfile]>(countLimit: 100)
     @ObservationIgnored private var artistWebProfilesCacheGeneration = UUID()
     private let artistHeaderCache = MemoryCache<NSURL, CachedArtistHeader>(countLimit: 10)
+    var loadingStations: [String: SoundCloudStation] = [:]
     private let stationCache = MemoryCache<NSString, SoundCloudStation>(countLimit: 10)
     @ObservationIgnored private var stationCacheGeneration = UUID()
     @ObservationIgnored private var stationRequests: [String: (id: UUID, task: Task<SoundCloudStation, Error>)] = [:]
@@ -284,6 +285,7 @@ final class AppModel {
         stationCacheGeneration = UUID()
         for request in stationRequests.values { request.task.cancel() }
         stationRequests.removeAll()
+        loadingStations.removeAll()
         errorMessage = nil
         await auth.signOut()
     }
@@ -851,15 +853,18 @@ final class AppModel {
         if let existing = stationRequests[urn] {
             request = existing
         } else {
-            request = (UUID(), Task { [auth, client] in
+            request = (UUID(), Task { [weak self, auth, client] in
                 let accessToken = try await auth.validAccessToken()
-                return try await client.station(urn: urn, accessToken: accessToken)
+                return try await client.station(urn: urn, accessToken: accessToken) { [weak self] station in
+                    await self?.updateLoadingStation(station, urn: urn, generation: generation)
+                }
             })
             stationRequests[urn] = request
         }
         defer {
             if stationRequests[urn]?.id == request.id {
                 stationRequests[urn] = nil
+                loadingStations[urn] = nil
             }
         }
         // Keep hover prefetch and navigation on the same request.
@@ -869,6 +874,16 @@ final class AppModel {
         stationCache.insert(station, forKey: urn as NSString)
         try Task.checkCancellation()
         return station
+    }
+
+    private func updateLoadingStation(_ station: SoundCloudStation, urn: String, generation: UUID) {
+        guard generation == stationCacheGeneration else { return }
+        loadingStations[urn] = station
+        guard queue.source == .station(urn) else { return }
+        // Append deduplicates tracks and respects tracks removed by the user.
+        try? queue.append(SoundCloudTrackPage(tracks: station.tracks, nextURL: nil))
+        saveQueue()
+        prefetchNextTrack()
     }
 
     func playlistDetails(urn: String, title: String) async -> SoundCloudPlaylist? {

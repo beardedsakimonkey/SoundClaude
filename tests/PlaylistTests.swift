@@ -1,5 +1,10 @@
 import Foundation
 
+private actor StationProgress {
+    var tracks: [[String]] = []
+    func record(_ station: SoundCloudStation) { tracks.append(station.tracks.map(\.urn)) }
+}
+
 @main
 struct PlaylistTests {
     static func main() async throws {
@@ -389,6 +394,14 @@ struct PlaylistTests {
         let stationTracks = try await client.stationTracks(urn: stationURN, accessToken: "test-token")
         precondition(stationTracks.map(\.urn) == ["soundcloud:tracks:1", "soundcloud:tracks:2"])
         precondition(stationTracks.last?.access == .preview)
+        let progress = StationProgress()
+        _ = try await client.station(urn: stationURN, accessToken: "test-token") {
+            await progress.record($0)
+        }
+        let updates = await progress.tracks
+        precondition(updates == [["soundcloud:tracks:1"], ["soundcloud:tracks:1", "soundcloud:tracks:2"]],
+                     "Publish full tracks before hydration, then publish each completed batch")
+
         PlaylistURLProtocol.respond { _ in
             (200, """
             {"title":"Artist station","description":"Similar tracks",

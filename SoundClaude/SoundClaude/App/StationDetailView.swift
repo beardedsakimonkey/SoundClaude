@@ -9,7 +9,10 @@ struct StationDetailView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
-    @State private var station: SoundCloudStation?
+    @State private var completedStation: SoundCloudStation?
+    private var station: SoundCloudStation? {
+        completedStation ?? model.loadingStations[urn] ?? model.cachedStation(urn: urn)
+    }
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var loadAttempt = 0
@@ -32,7 +35,7 @@ struct StationDetailView: View {
         self.likes = likes
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
-        _station = State(initialValue: model.cachedStation(urn: urn))
+        _completedStation = State(initialValue: model.cachedStation(urn: urn))
     }
 
     private var tracks: [SoundCloudTrack] { station?.tracks ?? [] }
@@ -171,7 +174,7 @@ struct StationDetailView: View {
 
     private func load() async {
         if let cached = model.cachedStation(urn: urn) {
-            station = cached
+            completedStation = cached
             errorMessage = nil
             return
         }
@@ -181,7 +184,7 @@ struct StationDetailView: View {
         do {
             let result = try await model.station(urn: urn)
             try Task.checkCancellation()
-            station = result
+            completedStation = result
         } catch {
             guard !Task.isCancelled else { return }
             errorMessage = error.localizedDescription
