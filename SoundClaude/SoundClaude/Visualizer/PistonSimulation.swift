@@ -40,9 +40,9 @@ struct PistonSettings: Equatable {
     var lightYOffset: Float = 0
     var lightZOffset: Float = 0
 
-    // World-space direction toward the scene light: above and directly behind
-    // the pistons by default, so the front view sees them rim-lit.
-    var lightDirection: SIMD3<Float> { SIMD3(0, 0.8 + lightYOffset, -1 + lightZOffset) }
+    // World-space direction toward the scene light: above and in front of
+    // the pistons by default.
+    var lightDirection: SIMD3<Float> { SIMD3(0, 0.8 + lightYOffset, 0.7 + lightZOffset) }
 
     // Extracted artwork accents have a maximum channel of at least 0.75.
     // Preserve their brightness, but let transitions to the black fallback dim.
