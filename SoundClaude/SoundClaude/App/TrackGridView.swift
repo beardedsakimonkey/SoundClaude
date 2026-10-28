@@ -306,7 +306,7 @@ struct TrackGridTile: View {
                         )
                     }
                 }
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             }
