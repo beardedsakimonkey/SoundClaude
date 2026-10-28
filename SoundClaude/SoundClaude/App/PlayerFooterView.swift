@@ -586,7 +586,7 @@ private struct PlayerSpeedControl: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .modifier(PlayerSpeedHoverFeedback(color: .orange, isActive: isShowingSpeed))
+        .modifier(PlayerSpeedHoverFeedback(color: .orange, isActive: isShowingSpeed, cornerRadius: 22))
         .keyboardShortcut("d", modifiers: [])
         .contentHelp("Playback speed and pitch (D)")
         .accessibilityLabel("Playback speed and pitch")
@@ -639,7 +639,7 @@ private struct PlayerSpeedControl: View {
                 .foregroundStyle(isActive ? Color.orange : Color.secondary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .contentShape(RoundedRectangle(cornerRadius: 10))
+                .contentShape(RoundedRectangle(cornerRadius: PlayerSpeedHoverFeedback.defaultCornerRadius))
         }
         .buttonStyle(.plain)
         .modifier(PlayerSpeedHoverFeedback(color: .orange, isActive: isActive))
@@ -652,6 +652,9 @@ private struct PlayerSpeedControl: View {
 private struct PlayerSpeedHoverFeedback: ViewModifier {
     var color: Color = .primary
     var isActive: Bool = false
+    var cornerRadius: CGFloat = defaultCornerRadius
+
+    static let defaultCornerRadius: CGFloat = 10
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
@@ -659,12 +662,12 @@ private struct PlayerSpeedHoverFeedback: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay {
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: cornerRadius)
                     .fill(isActive ? color.opacity(0.12) : Color.primary.opacity(isHovering ? 0.08 : 0))
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 10))
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
             .onContentHover { isHovering = $0 }
             .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isHovering)
     }
