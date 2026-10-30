@@ -257,7 +257,7 @@ struct TrackWaveformView: View {
                     let highlight = colorScheme == .light ? nil
                         : Color(white: layout == .compact ? 0.75 : 1).opacity(0.9)
                             .resolve(in: context.environment).cgColor
-                    let shadow = Color.black.opacity(colorScheme == .light ? 0.55 : 0.9)
+                    let shadow = Color.black.opacity(colorScheme == .light ? 0.4 : 0.9)
                         .resolve(in: context.environment).cgColor
                     let progress = renderedProgress
 
@@ -555,7 +555,8 @@ struct TrackWaveformView: View {
             ? artworkAccent ?? fallback : fallback
         let contrastedAccent = accent.contrasted(
             isDark: isDark,
-            increasedContrast: colorSchemeContrast == .increased
+            increasedContrast: colorSchemeContrast == .increased,
+            minimumContrast: isDark ? 3.0 : 1.75
         )
         return Color(
             .sRGB, red: contrastedAccent.red,

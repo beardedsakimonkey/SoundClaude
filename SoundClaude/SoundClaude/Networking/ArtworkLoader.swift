@@ -303,9 +303,11 @@ struct ArtworkAccent: Sendable {
         return ArtworkAccent(red: gray, green: gray, blue: gray)
     }
 
-    func contrasted(isDark: Bool, increasedContrast: Bool) -> ArtworkAccent {
+    func contrasted(
+        isDark: Bool, increasedContrast: Bool, minimumContrast: Double = 3.0
+    ) -> ArtworkAccent {
         let background = Self.trackBackground(isDark: isDark)
-        let target = increasedContrast ? 4.5 : 3.0
+        let target = increasedContrast ? max(4.5, minimumContrast) : minimumContrast
         // Mix toward white in dark mode or black in light mode only as needed.
         for step in 0...100 {
             let amount = Double(step) / 100
