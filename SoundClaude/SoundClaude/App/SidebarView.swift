@@ -173,7 +173,7 @@ struct SidebarView: View {
                                 .frame(width: 28)
                                 .frame(maxHeight: .infinity)
                                 .contentShape(Rectangle())
-                                .modifier(SidebarForegroundHover(idleOpacity: 0.3))
+                                .modifier(SidebarForegroundHover(idleOpacity: 0.5))
                                 .modifier(SidebarMouseDownAction {
                                     Task { await onShuffleLikes() }
                                 })
@@ -510,7 +510,7 @@ struct SidebarView: View {
         .padding(.top, 14)
         .padding(.bottom, 6)
         .contentShape(Rectangle())
-        .modifier(SidebarForegroundHover())
+        .modifier(SidebarForegroundHover(idleOpacity: 0.5))
         .modifier(SidebarMouseDownAction {
             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
                 isExpanded.wrappedValue.toggle()
@@ -538,7 +538,6 @@ private struct SidebarAccountHeader: View {
     let onSignOut: () async -> Void
 
     @State private var isProfileHovered = false
-    @State private var isSignOutHovered = false
 
     var body: some View {
         HStack(spacing: 8) {
@@ -574,11 +573,10 @@ private struct SidebarAccountHeader: View {
             Image(systemName: "rectangle.portrait.and.arrow.right")
                 .frame(width: 28, height: 28)
                 .contentShape(Circle())
-                .foregroundStyle(isSignOutHovered ? .primary : .tertiary)
+                .modifier(SidebarForegroundHover(idleOpacity: 0.5))
                 .modifier(SidebarMouseDownAction {
                     Task { await onSignOut() }
                 })
-            .onContentHover { isSignOutHovered = $0 }
             .contentHelp("Sign out")
             .accessibilityLabel("Sign out")
         }
