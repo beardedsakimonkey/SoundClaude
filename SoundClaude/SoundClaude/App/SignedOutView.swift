@@ -7,6 +7,7 @@ struct SignedOutView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var copiedSessionCommand = false
+    @State private var isHoveringCopyCommand = false
 
     private let sessionCommand = "copy(document.cookie.split('; ').find(c => c.startsWith('oauth_token='))?.slice('oauth_token='.length) ?? '')"
 
@@ -55,7 +56,7 @@ struct SignedOutView: View {
                 .accessibilityHidden(true)
             Text("SoundClaude")
                 .font(.system(size: 34, weight: .semibold))
-            Text(message ?? "Sign in to load your liked tracks.")
+            Text("Sign in to access your SoundCloud library")
                 .font(.system(size: 17))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -79,6 +80,11 @@ struct SignedOutView: View {
     private var signInButton: some View {
         Button(action: onSignIn) {
             HStack(spacing: 12) {
+                Image("SoundCloudLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 28, height: 28)
+                    .accessibilityHidden(true)
                 Text("Sign in with SoundCloud")
                     .font(.system(size: 15, weight: .medium))
                 Spacer(minLength: 0)
@@ -93,7 +99,6 @@ struct SignedOutView: View {
             .contentShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(SignedOutActionStyle(isPrimary: true))
-        .frame(maxWidth: 334)
     }
 
     private var sessionCard: some View {
@@ -128,7 +133,13 @@ struct SignedOutView: View {
                     Label(copiedSessionCommand ? "Command Copied" : "Copy Command",
                           systemImage: copiedSessionCommand ? "checkmark" : "doc.on.doc")
                 }
-                Text("4. Return here and import the copied session. Importing saves it in Keychain and clears the clipboard.")
+                .overlay {
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(.primary.opacity(isHoveringCopyCommand ? 0.08 : 0))
+                        .allowsHitTesting(false)
+                }
+                .onHover { isHoveringCopyCommand = $0 }
+                Text("4. Return here and import the copied session.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -139,6 +150,12 @@ struct SignedOutView: View {
                         .contentShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(SignedOutActionStyle(isPrimary: false))
+                if let message {
+                    Label(message, systemImage: "exclamationmark.circle")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         .padding(20)
@@ -153,6 +170,7 @@ struct SignedOutView: View {
 private struct SignedOutActionStyle: ButtonStyle {
     let isPrimary: Bool
     @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
     private let primaryColor = Color(.sRGB, red: 1, green: 85.0 / 255.0, blue: 0, opacity: 1)
 
     func makeBody(configuration: Configuration) -> some View {
@@ -160,9 +178,21 @@ private struct SignedOutActionStyle: ButtonStyle {
             .background {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(isPrimary
-                        ? AnyShapeStyle(primaryColor)
+                        ? AnyShapeStyle(LinearGradient(
+                            colors: [
+                                Color(.sRGB, red: 1, green: 0.51, blue: 0.05, opacity: 1),
+                                primaryColor,
+                                Color(.sRGB, red: 0.97, green: 0.28, blue: 0.02, opacity: 1)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom))
                         : AnyShapeStyle(LinearGradient(colors: [.primary.opacity(0.07), .primary.opacity(0.05)],
                                          startPoint: .top, endPoint: .bottom)))
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill((isPrimary ? Color.white : Color.primary).opacity(isEnabled && isHovering ? 0.08 : 0))
+                    .allowsHitTesting(false)
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 12)
@@ -170,6 +200,7 @@ private struct SignedOutActionStyle: ButtonStyle {
             }
             .shadow(color: isPrimary ? primaryColor.opacity(0.12) : .clear, radius: 18, y: 4)
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.5)
+            .onHover { isHovering = $0 }
     }
 }
 
