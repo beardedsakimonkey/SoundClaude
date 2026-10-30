@@ -46,7 +46,7 @@ Choose **Sign in with SoundCloud** and sign in on the embedded soundcloud.com pa
 SoundClaude keeps only the resulting website session token, in macOS Keychain;
 **Sign Out** removes it.
 
-If embedded sign-in does not work, expand **Use an existing browser session** and
+If embedded sign-in does not work, use **Use an existing browser session** to
 import a copied `oauth_token` cookie value from a signed-in soundcloud.com tab. The
 import clears the clipboard.
 

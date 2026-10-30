@@ -6,7 +6,6 @@ struct SignedOutView: View {
     let onImportSession: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
-    @State private var showsSessionImport = true
     @State private var copiedSessionCommand = false
 
     private let sessionCommand = "copy(document.cookie.split('; ').find(c => c.startsWith('oauth_token='))?.slice('oauth_token='.length) ?? '')"
@@ -14,18 +13,13 @@ struct SignedOutView: View {
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
-                VStack(spacing: 24) {
+                HStack(spacing: 36) {
                     header
-                    signInButton
-                    HStack(spacing: 18) {
-                        Rectangle().frame(height: 1)
-                        Text("or").font(.callout)
-                        Rectangle().frame(height: 1)
-                    }
-                    .foregroundStyle(.secondary.opacity(0.4))
-                    sessionCard
+                        .frame(minWidth: 220, maxWidth: .infinity)
+                    signInOptions
+                        .frame(maxWidth: 440)
                 }
-                .frame(maxWidth: 440)
+                .frame(maxWidth: 820)
                 .padding(32)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: geometry.size.height)
@@ -69,6 +63,19 @@ struct SignedOutView: View {
         }
     }
 
+    private var signInOptions: some View {
+        VStack(spacing: 24) {
+            signInButton
+            HStack(spacing: 18) {
+                Rectangle().frame(height: 1)
+                Text("or").font(.callout)
+                Rectangle().frame(height: 1)
+            }
+            .foregroundStyle(.secondary.opacity(0.4))
+            sessionCard
+        }
+    }
+
     private var signInButton: some View {
         Button(action: onSignIn) {
             HStack(spacing: 12) {
@@ -99,57 +106,39 @@ struct SignedOutView: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 16) {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showsSessionImport.toggle()
-                    }
-                } label: {
-                    HStack(spacing: 12) {
-                        Text("Use an existing browser session")
-                            .font(.system(size: 16, weight: .medium))
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .rotationEffect(.degrees(showsSessionImport ? 0 : -90))
-                    }
+                Text("Use an existing browser session")
+                    .font(.system(size: 16, weight: .medium))
                     .frame(minHeight: 30)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityValue(showsSessionImport ? "Expanded" : "Collapsed")
 
-                if showsSessionImport {
-                    Text("1. Sign in at soundcloud.com in your browser.\n2. Open the browser’s developer console.\n3. Paste and run this command to copy your session token.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(sessionCommand)
-                        .font(.system(size: 11, design: .monospaced))
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(10)
-                        .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
-                    Button {
-                        NSPasteboard.general.clearContents()
-                        copiedSessionCommand = NSPasteboard.general.setString(sessionCommand, forType: .string)
-                    } label: {
-                        Label(copiedSessionCommand ? "Command Copied" : "Copy Command",
-                              systemImage: copiedSessionCommand ? "checkmark" : "doc.on.doc")
-                    }
-                    Text("4. Return here and import the copied session. Importing saves it in Keychain and clears the clipboard.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Button(action: onImportSession) {
-                        Text("Import Copied Session")
-                            .font(.system(size: 15, weight: .medium))
-                            .frame(maxWidth: .infinity, minHeight: 40)
-                            .contentShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .buttonStyle(SignedOutActionStyle(isPrimary: false))
+                Text("1. Sign in at soundcloud.com in your browser.\n2. Open the browser’s developer console.\n3. Paste and run this command to copy your session token.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(sessionCommand)
+                    .font(.system(size: 11, design: .monospaced))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(10)
+                    .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+                Button {
+                    NSPasteboard.general.clearContents()
+                    copiedSessionCommand = NSPasteboard.general.setString(sessionCommand, forType: .string)
+                } label: {
+                    Label(copiedSessionCommand ? "Command Copied" : "Copy Command",
+                          systemImage: copiedSessionCommand ? "checkmark" : "doc.on.doc")
                 }
+                Text("4. Return here and import the copied session. Importing saves it in Keychain and clears the clipboard.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(action: onImportSession) {
+                    Text("Import Copied Session")
+                        .font(.system(size: 15, weight: .medium))
+                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .contentShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(SignedOutActionStyle(isPrimary: false))
             }
         }
         .padding(20)
@@ -164,13 +153,14 @@ struct SignedOutView: View {
 private struct SignedOutActionStyle: ButtonStyle {
     let isPrimary: Bool
     @Environment(\.isEnabled) private var isEnabled
+    private let primaryColor = Color(.sRGB, red: 1, green: 85.0 / 255.0, blue: 0, opacity: 1)
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .background {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(isPrimary
-                        ? AnyShapeStyle(Color.accentColor)
+                        ? AnyShapeStyle(primaryColor)
                         : AnyShapeStyle(LinearGradient(colors: [.primary.opacity(0.07), .primary.opacity(0.05)],
                                          startPoint: .top, endPoint: .bottom)))
             }
@@ -178,7 +168,7 @@ private struct SignedOutActionStyle: ButtonStyle {
                 RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(.white.opacity(isPrimary ? 0.25 : 0.08), lineWidth: 1)
             }
-            .shadow(color: isPrimary ? .accentColor.opacity(0.12) : .clear, radius: 18, y: 4)
+            .shadow(color: isPrimary ? primaryColor.opacity(0.12) : .clear, radius: 18, y: 4)
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.5)
     }
 }
