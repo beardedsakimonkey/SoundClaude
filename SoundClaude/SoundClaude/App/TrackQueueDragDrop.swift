@@ -11,6 +11,7 @@ struct TrackQueueList<Row: View>: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var dragSession = QueueMouseSession()
+    @State private var hoveredHandleURN: String?
     @State private var draggedURN: String?
     @State private var previewTracks: [SoundCloudTrack]?
     @State private var dragTranslation: CGFloat = 0
@@ -80,7 +81,7 @@ struct TrackQueueList<Row: View>: View {
                     ForEach(tracks.map { QueueRowItem(track: $0, isDragged: $0.urn == draggedURN) }) { item in
                         let track = item.track
                         HStack(spacing: 0) {
-                            QueueDragHandle()
+                            QueueDragHandle(isHovered: hoveredHandleURN == track.urn)
                                 .accessibilityLabel("Reorder \(track.title)")
                             row(track)
                         }
@@ -101,6 +102,16 @@ struct TrackQueueList<Row: View>: View {
                                     onCancel: cancelDrag
                                 )
                                 .frame(width: 28, height: geometry.size.height)
+                                .onContentHover { isHovered in
+                                    if isHovered {
+                                        hoveredHandleURN = track.urn
+                                    } else if hoveredHandleURN == track.urn {
+                                        hoveredHandleURN = nil
+                                    }
+                                }
+                                .onDisappear {
+                                    if hoveredHandleURN == track.urn { hoveredHandleURN = nil }
+                                }
                             }
                         }
                         .background {
@@ -257,15 +268,13 @@ private struct QueueRowFramesKey: PreferenceKey {
 }
 
 private struct QueueDragHandle: View {
-    @State private var isHovered = false
+    let isHovered: Bool
 
     var body: some View {
         Image(systemName: "line.3.horizontal")
             .foregroundStyle(isHovered ? .primary : .secondary)
             .frame(width: 28, height: 56)
             .contentShape(Rectangle())
-            .onContentHover { isHovered = $0 }
-            .onDisappear { isHovered = false }
             .contentHelp("Drag to reorder")
     }
 }
