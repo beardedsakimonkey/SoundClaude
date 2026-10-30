@@ -135,11 +135,11 @@ private struct PlayerVolumeSlider: View {
 
             ZStack(alignment: isVertical ? .bottom : .leading) {
                 Capsule()
-                    .fill(tint.opacity(colorScheme == .dark ? 0.18 : 0.12))
+                    .fill(tint.opacity(colorScheme == .dark ? 0.18 : 0.2))
                     .frame(width: isVertical ? 8 : nil, height: isVertical ? nil : 8)
 
                 Rectangle()
-                    .fill(tint.opacity(colorScheme == .dark ? (isPressed ? 1 : 0.65) : (isPressed ? 0.5 : 0.3)))
+                    .fill(tint.opacity(colorScheme == .dark ? (isPressed ? 1 : 0.65) : (isPressed ? 0.75 : 0.55)))
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isPressed)
                     .frame(width: isVertical ? 8 : fillLength, height: isVertical ? fillLength : 8)
             }
