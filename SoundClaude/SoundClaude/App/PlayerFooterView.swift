@@ -204,7 +204,7 @@ struct PlayerFooterView: View {
                 Button {
                     isShowingQueue.toggle()
                 } label: {
-                    Image(systemName: "list.bullet")
+                    Image(systemName: "text.line.first.and.arrowtriangle.forward")
                         .font(.system(size: 14))
                         .foregroundStyle(isShowingQueue ? Color.accentColor : Color.primary)
                         .frame(width: 32, height: 32)
