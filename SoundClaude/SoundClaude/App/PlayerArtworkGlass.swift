@@ -77,6 +77,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
     }
 
     @Environment(\.playerArtworkGlassParameters) private var parameters
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.playerArtworkGlassSlabShift) private var slabShift
 
@@ -86,6 +87,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
         let slabPadding = enablesGlass ? Self.slabPadding(thickness: slabThickness) : 0
         let slabShift = min(max(slabShift, -slabPadding), slabPadding)
         let rotationRadians = rotation * .pi / 180
+        let slabDarknessScale = colorScheme == .light ? 0.0 : 1.0
 
         content
             .padding(.horizontal, slabPadding)
@@ -107,7 +109,10 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
                         .float(rotationRadians),
                         .float2(slabPadding, 0),
                         .float(slabShift),
-                        .float2(parameters.slabDarkness, parameters.slabDepthShading)
+                        .float2(
+                            parameters.slabDarkness * slabDarknessScale,
+                            parameters.slabDepthShading
+                        )
                     ),
                     // The slab edge reads the face across the edge, pulled in from the corners.
                     maxSampleOffset: slabPadding > 0
