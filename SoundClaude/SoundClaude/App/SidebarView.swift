@@ -510,7 +510,7 @@ struct SidebarView: View {
         .padding(.top, 14)
         .padding(.bottom, 6)
         .contentShape(Rectangle())
-        .modifier(SidebarForegroundHover(idleOpacity: 0.5))
+        .modifier(SidebarForegroundHover())
         .modifier(SidebarMouseDownAction {
             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
                 isExpanded.wrappedValue.toggle()
