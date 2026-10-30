@@ -724,6 +724,16 @@ private struct PlayerSpeedSlider: View {
         return speed(semitones: Int((position * 24).rounded()) - 12)
     }
 
+    private func hoverIndicatorPosition(for speed: Float, length: CGFloat) -> CGFloat {
+        let snappedPosition = inset + length * fraction(speed)
+        guard !reduceMotion, let hoverLocation, hoverLocation.y < trackHeight else {
+            return snappedPosition
+        }
+        let pointerPosition = min(max(hoverLocation.x, inset), inset + length)
+        // Pull slightly toward the pointer while keeping the line anchored to its tick.
+        return snappedPosition + (pointerPosition - snappedPosition) * 0.3
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let length = max(geometry.size.width - inset * 2, 1)
@@ -732,7 +742,11 @@ private struct PlayerSpeedSlider: View {
             let previewPosition = previewSpeed.map { inset + length * fraction($0) }
             let isPreviewingLabels = (hoverLocation?.y ?? 0) >= trackHeight
             VStack(spacing: 0) {
-                track(width: geometry.size.width, length: length, previewSpeed: previewSpeed)
+                track(
+                    width: geometry.size.width,
+                    length: length,
+                    previewPosition: previewSpeed.map { hoverIndicatorPosition(for: $0, length: length) }
+                )
                 ZStack(alignment: .topLeading) {
                     ForEach(marks, id: \.self) { mark in
                         // Highlight fixed labels in place; a traveling copy can overlap its neighbors.
@@ -804,7 +818,7 @@ private struct PlayerSpeedSlider: View {
         .padding(.top, 10)
     }
 
-    private func track(width: CGFloat, length: CGFloat, previewSpeed: Float?) -> some View {
+    private func track(width: CGFloat, length: CGFloat, previewPosition: CGFloat?) -> some View {
         // Overlays keep the hover indicator from changing the track's layout size.
         // The track fills the end margins; speeds map onto the inset span between them.
         let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -835,13 +849,13 @@ private struct PlayerSpeedSlider: View {
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: value)
             }
             .overlay(alignment: .topLeading) {
-                if let previewSpeed {
+                if let previewPosition {
                     Rectangle()
                         // An opaque line keeps the ticks below from brightening the overlap.
                         .fill(Color.primary)
                         .frame(width: 2, height: trackHeight)
-                        .position(x: inset + length * fraction(previewSpeed), y: trackHeight / 2)
-                        .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: previewSpeed)
+                        .position(x: previewPosition, y: trackHeight / 2)
+                        .animation(reduceMotion ? nil : .spring(response: 0.18, dampingFraction: 0.65), value: previewPosition)
                 }
             }
         .clipShape(shape)
