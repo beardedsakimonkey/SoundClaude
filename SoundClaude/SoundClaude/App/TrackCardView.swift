@@ -231,7 +231,11 @@ struct TrackCardView: View {
                 systemImage: isLiked ? "heart.fill" : "heart"
             )
         }
-        .buttonStyle(TrackStatisticButtonStyle(color: .accentColor, isSelected: isLiked))
+        .buttonStyle(TrackStatisticButtonStyle(
+            color: .accentColor,
+            isSelected: isLiked,
+            iconOnly: likes.likeCount(for: track) == nil
+        ))
         .disabled(likes.isUpdating(trackURN: track.urn))
         .contentHelp(isLiked ? "Unlike track" : "Like track")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
@@ -252,24 +256,34 @@ struct TrackCardView: View {
         } label: {
             statistic(reposts.repostCount(for: track), label: "reposts", systemImage: "arrow.2.squarepath")
         }
-        .buttonStyle(TrackStatisticButtonStyle(color: .green, isSelected: isReposted))
+        .buttonStyle(TrackStatisticButtonStyle(
+            color: .green,
+            isSelected: isReposted,
+            iconOnly: reposts.repostCount(for: track) == nil
+        ))
         .disabled(reposts.isLoading || reposts.updatingTrackURNs.contains(track.urn))
         .contentHelp(isReposted ? "Undo repost" : "Repost track")
         .accessibilityLabel(isReposted ? "Undo repost" : "Repost track")
         .accessibilityValue(isReposted ? "Reposted" : "Not reposted")
     }
 
+    @ViewBuilder
     private var commentCount: some View {
-        statistic(track.commentCount, label: "comments", systemImage: "text.bubble")
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 5)
+        if let count = track.commentCount {
+            statistic(count, label: "comments", systemImage: "text.bubble")
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 5)
+        }
     }
 
     private func statistic(_ count: Int?, label: String, systemImage: String) -> some View {
         HStack(spacing: 4) {
             Image(systemName: systemImage)
-            Text(count?.formatted(.number.notation(.compactName)) ?? "—")
+                .frame(width: count == nil ? 16 : nil, height: count == nil ? 16 : nil)
+            if let count {
+                Text(count.formatted(.number.notation(.compactName)))
+            }
         }
             .monospacedDigit()
             .fixedSize()
@@ -288,6 +302,7 @@ struct TrackCardView: View {
 private struct TrackStatisticButtonStyle: ButtonStyle {
     let color: Color
     var isSelected = false
+    var iconOnly = false
 
     @Environment(\.isEnabled) private var isEnabled
     @State private var isHovering = false
@@ -297,7 +312,7 @@ private struct TrackStatisticButtonStyle: ButtonStyle {
 
         configuration.label
             .foregroundStyle(isSelected ? color : (isHighlighted ? Color.primary.opacity(0.8) : Color.secondary))
-            .padding(.horizontal, 10)
+            .padding(.horizontal, iconOnly ? 5 : 10)
             .padding(.vertical, 5)
             .background(
                 isSelected ? color.opacity(0.12) : Color.primary.opacity(isHighlighted ? 0.1 : 0.06),
