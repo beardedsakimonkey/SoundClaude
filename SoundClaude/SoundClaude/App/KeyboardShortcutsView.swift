@@ -96,7 +96,7 @@ struct KeyboardShortcutsView: View {
             Text(key)
                 .font(.system(.callout, design: .monospaced).weight(.medium))
                 .frame(minWidth: 24, minHeight: 22)
-                .padding(.horizontal, key == "Space" ? 10 : 4)
+                .padding(.horizontal, key.count > 1 ? 10 : 4)
                 .background {
                     ZStack {
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
