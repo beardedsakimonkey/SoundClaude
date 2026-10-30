@@ -278,6 +278,7 @@ struct SignedInView: View {
             )
                 .safeAreaPadding(.bottom, max(0, footerHeight - 20))
                 .toolbar(removing: .sidebarToggle)
+                .background(NonCollapsingSidebar())
                 .navigationSplitViewColumnWidth(
                     min: 180,
                     ideal: 220,

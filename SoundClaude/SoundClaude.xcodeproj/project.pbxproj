@@ -70,6 +70,7 @@
 		D92000000000000000000001 /* AnimatedPlayPauseIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D92000000000000000000002 /* AnimatedPlayPauseIcon.swift */; };
 		A1000000000000000000001C /* SignedOutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* SignedOutView.swift */; };
 		A1000000000000000000001D /* NavigationBackEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000035 /* NavigationBackEventView.swift */; };
+		694ECE0E6F2D4C3C8713E6C7 /* NonCollapsingSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F82E5A84874D2085A63E4B /* NonCollapsingSidebar.swift */; };
 		A1000000000000000000001E /* TrackWaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000036 /* TrackWaveformView.swift */; };
 		D100EF000000000000000001 /* DetailWaveformSlot.swift in Sources */ = {isa = PBXBuildFile; fileRef = D100EF000000000000000002 /* DetailWaveformSlot.swift */; };
 		D100F0000000000000000001 /* DetailTrackHeading.swift in Sources */ = {isa = PBXBuildFile; fileRef = D100F0000000000000000002 /* DetailTrackHeading.swift */; };
@@ -214,6 +215,7 @@
 		D92000000000000000000002 /* AnimatedPlayPauseIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedPlayPauseIcon.swift; sourceTree = "<group>"; };
 		A20000000000000000000034 /* SignedOutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedOutView.swift; sourceTree = "<group>"; };
 		A20000000000000000000035 /* NavigationBackEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationBackEventView.swift; sourceTree = "<group>"; };
+		79F82E5A84874D2085A63E4B /* NonCollapsingSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonCollapsingSidebar.swift; sourceTree = "<group>"; };
 		A20000000000000000000036 /* TrackWaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackWaveformView.swift; sourceTree = "<group>"; };
 		D100EF000000000000000002 /* DetailWaveformSlot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailWaveformSlot.swift; sourceTree = "<group>"; };
 		D100F0000000000000000002 /* DetailTrackHeading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailTrackHeading.swift; sourceTree = "<group>"; };
@@ -398,6 +400,7 @@
 				D92000000000000000000002 /* AnimatedPlayPauseIcon.swift */,
 				A20000000000000000000034 /* SignedOutView.swift */,
 				A20000000000000000000035 /* NavigationBackEventView.swift */,
+				79F82E5A84874D2085A63E4B /* NonCollapsingSidebar.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -696,6 +699,7 @@
 				D92000000000000000000001 /* AnimatedPlayPauseIcon.swift in Sources */,
 				A1000000000000000000001C /* SignedOutView.swift in Sources */,
 				A1000000000000000000001D /* NavigationBackEventView.swift in Sources */,
+				694ECE0E6F2D4C3C8713E6C7 /* NonCollapsingSidebar.swift in Sources */,
 				A1000000000000000000001F /* MemoryCache.swift in Sources */,
 				A10000000000000000000004 /* AuthController.swift in Sources */,
 				A10000000000000000000005 /* KeychainTokenStore.swift in Sources */,

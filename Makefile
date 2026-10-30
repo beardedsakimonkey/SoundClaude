@@ -7,7 +7,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := release
 
-.PHONY: api build release debug run dist lsp icon test test-focus test-queue-drag test-navigation test-playback-title test-now-playing test-detail-waveform test-detail-heading
+.PHONY: api build release debug run dist lsp icon test test-focus test-queue-drag test-navigation test-sidebar-resize test-playback-title test-now-playing test-detail-waveform test-detail-heading
 
 api:
 	@set -eu; \
@@ -246,6 +246,13 @@ test-queue-drag:
 	/tmp/soundclaude-tests/queue-drag
 
 # Layout regression uses AppKit hosting and requires a macOS GUI session.
+test-sidebar-resize:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/sidebar-resize \
+		SoundClaude/SoundClaude/App/NonCollapsingSidebar.swift \
+		tests/SidebarResizeTests.swift
+	/tmp/soundclaude-tests/sidebar-resize
+
 test-navigation:
 	@mkdir -p /tmp/soundclaude-tests
 	swiftc -o /tmp/soundclaude-tests/navigation-viewport \
