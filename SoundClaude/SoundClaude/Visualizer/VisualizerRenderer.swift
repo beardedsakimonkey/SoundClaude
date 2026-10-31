@@ -4,14 +4,8 @@ import MetalPerformanceShaders
 import simd
 
 enum VisualizerShader: String, CaseIterable {
-    case cloth
     case pistons
     case fluid
-
-    // Pistons add a 0.25-radian tilt and orbit a point above the floor.
-    var cameraPitchRange: ClosedRange<Float> {
-        self == .pistons ? PistonGroundControls.pitchRange : ClothCamera.pitchRange
-    }
 
     var next: Self {
         let shaders = Self.allCases
@@ -21,7 +15,6 @@ enum VisualizerShader: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .cloth: "Cloth"
         case .pistons: "Pistons"
         case .fluid: "Fluid"
         }
@@ -29,7 +22,6 @@ enum VisualizerShader: String, CaseIterable {
 
     var sourceFile: String {
         switch self {
-        case .cloth: "ClothVisualizer.metal"
         case .pistons: "PistonVisualizer.metal"
         case .fluid: "FluidVisualizer.metal"
         }
@@ -37,7 +29,6 @@ enum VisualizerShader: String, CaseIterable {
 
     private var functionPrefix: String {
         switch self {
-        case .cloth: "clothVisualizer"
         case .pistons: "pistonVisualizer"
         case .fluid: "fluidVisualizer"
         }
@@ -59,9 +50,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private var accentTransitionTarget: SIMD3<Float>
     private var accentTransitionStart: Double?
     var shader: VisualizerShader = .pistons
-    var clothSettings = ClothSettings()
-    // Match the pole, foot, rope and rounded cap geometry in clothSupportVertex.
-    private let clothSupportVertexCount = 4 * (12 * 9 + 2 * 12 * 12 + 12 * 4 * 6)
     var fluidSettings = FluidSettings()
     var fluidTouch = FluidTouch()
     private var fluid: FluidSimulation?
@@ -69,7 +57,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var trackProgress: Double = 0
     var hasTrack = false
     var isPlaying = false
-    var clothCamera = ClothCamera()
+    var pistonCamera = PistonGroundControls.defaultCamera
 
     private var shadowMask: MTLTexture?
     private var shadowBlur: MTLTexture?
@@ -90,12 +78,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private var gradeFrame: UInt32 = 0
     private var pistons = PistonSimulation()
     private var lastPistonTime: Double?
-    private var cloth = ClothSimulation()
-    private var bassLevel: Float = 0
-    private var trebleLevel: Float = 0
-    private var trebleDetector = ClothBassDetector.treble
-    private var bassDetector = ClothBassDetector()
-    private var lastClothTime: Double?
     private let glowDepthState: MTLDepthStencilState?
     private let depthState: MTLDepthStencilState?
     private let spectrumBuffer: OpaquePointer
@@ -301,8 +283,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         pistons.advance(delta: delta, bands: bands)
         lastPistonTime = now
         var uniforms = [PistonGroundControls.camera(
-            size: view.drawableSize, yaw: clothCamera.yaw,
-            pitch: clothCamera.pitch, zoom: clothCamera.zoom)]
+            size: view.drawableSize, yaw: pistonCamera.yaw,
+            pitch: pistonCamera.pitch, zoom: pistonCamera.zoom)]
         uniforms.append(SIMD4(pistons.heights[0], pistons.heights[1], pistons.heights[2], pistons.heights[3]))
         uniforms.append(SIMD4(pistons.heights[4], pistons.heights[5], pistons.heights[6], pistons.heights[7]))
         uniforms.append(SIMD4<Float>(pistonSettings.ropeThickness * 0.5, Float(pistonSettings.stringsPerPiston), 0, 0))
@@ -336,102 +318,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         uniforms.append(SIMD4<Float>(pistonSettings.lightDirection, 0))
         return (buffer, uniforms, PistonSimulation.count *
             (32 * 12 * 3 + pistonSettings.stringsPerPiston * (PistonSimulation.segments * 6 + 12 * 8 * 6)))
-    }
-
-    private typealias ClothFrame = (positions: MTLBuffer, normals: MTLBuffer, uniforms: [SIMD4<Float>])
-
-    private func prepareCloth(in view: MTKView) -> ClothFrame? {
-        var clothSettings = self.clothSettings
-        let artworkAspect = artworkImage.map { Float($0.width) / Float($0.height) } ?? 1
-        // The size control sets the longest edge while preserving the artwork's proportions.
-        let size = clothSettings.width
-        clothSettings.width = size * min(1, artworkAspect)
-        clothSettings.height = size / max(1, artworkAspect)
-        cloth.configure(clothSettings)
-        let now = ProcessInfo.processInfo.systemUptime
-        let delta = lastClothTime.map { now - $0 } ?? ClothSimulation.step
-        lastClothTime = now
-        if let strength = bassDetector.update(level: bassLevel, delta: delta) {
-            cloth.impulse(strength: strength)
-        }
-        if let strength = trebleDetector.update(level: trebleLevel, delta: delta) {
-            cloth.trebleImpulse(strength: strength)
-        }
-        cloth.advance(delta: delta)
-        // Each command owns its snapshot until the GPU completes the frame.
-        let buffer = (cloth.positions + cloth.attachments).withUnsafeBytes { bytes in
-            view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
-        }
-        // Precompute unit normals once per grid node for bicubic fragment sampling.
-        let columns = cloth.columns, rows = cloth.rows
-        let normals: [SIMD4<Float>] = cloth.positions.indices.map { index in
-            let x = index % columns, y = index / columns
-            let tangent = cloth.positions[y * columns + min(x + 1, columns - 1)]
-                - cloth.positions[y * columns + max(x - 1, 0)]
-            let bitangent = cloth.positions[min(y + 1, rows - 1) * columns + x]
-                - cloth.positions[max(y - 1, 0) * columns + x]
-            let cross = simd_cross(SIMD3(bitangent.x, bitangent.y, bitangent.z),
-                                   SIMD3(tangent.x, tangent.y, tangent.z))
-            let length = simd_length(cross)
-            let normal = length > 0.00001 ? cross / length : SIMD3<Float>(0, 0, 1)
-            return SIMD4(normal.x, normal.y, normal.z, 0)
-        }
-        let normalBuffer = normals.withUnsafeBytes { bytes in
-            view.device?.makeBuffer(bytes: bytes.baseAddress!, length: bytes.count)
-        }
-        if let buffer, let normalBuffer {
-            let camera = ClothGroundControls.camera(size: view.drawableSize, camera: clothCamera,
-                                                     artworkAspect: artworkAspect)
-            let bassHighlight = cloth.bassPulse * cloth.bassPulse * cloth.bassPulse
-                * (0.8 + 1.2 * cloth.bassPulseLevel)
-            // Strong bass hits triple the selected shine, then fade back to it.
-            let shineIntensity = clothSettings.shineIntensity * (1 + bassHighlight)
-            // Seven float4s, matching ClothUniforms in Metal.
-            let uniforms = [
-                SIMD4<Float>(Float(cloth.columns), Float(cloth.rows), clothSettings.width, clothSettings.height),
-                camera,
-                SIMD4<Float>(shineIntensity, clothSettings.groundBrightness, clothSettings.showMesh ? 1 : 0, 0),
-                SIMD4<Float>(Float(view.drawableSize.width), 0.48, ClothSimulation.groundDepth, Float(view.drawableSize.height)),
-                SIMD4<Float>(trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0, hasTrack ? 1 : 0, clothSettings.groundTileSize, ClothGroundControls.targetOffset),
-                SIMD4<Float>(cloth.bassOrigin.x, cloth.bassOrigin.y, clothSettings.impulseRadius,
-                             bassHighlight * clothSettings.flashBrightness),
-                SIMD4<Float>(isPlaying ? 1 : 0, 0, 0, 0)
-            ]
-            return (buffer, normalBuffer, uniforms)
-        }
-        return nil
-    }
-
-    private func encodeClothShadow(
-        in view: MTKView, commandBuffer: MTLCommandBuffer,
-        pipeline: MTLRenderPipelineState, frame: ClothFrame
-    ) -> MTLTexture? {
-        encodeShadow(in: view, commandBuffer: commandBuffer) { encoder in
-            encoder.setRenderPipelineState(pipeline)
-            var accentColor = SIMD4<Float>(displayedAccent, 0)
-            encoder.setFragmentBytes(&accentColor, length: MemoryLayout<SIMD4<Float>>.stride, index: 2)
-            encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
-            encoder.setFragmentBuffer(frame.normals, offset: 0, index: 5)
-            encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
-            encoder.setFragmentTexture(fallbackTexture, index: 1)
-            encoder.setFragmentTexture(artworkTexture ?? fallbackTexture, index: 0)
-            var uniforms = frame.uniforms
-            uniforms[2].w = 1
-            uniforms.withUnsafeBytes { bytes in
-                encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
-                encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
-            }
-            // Opaque writes form one silhouette, including where cloth folds overlap.
-            encoder.drawPrimitives(type: .triangle, vertexStart: 0,
-                                   vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
-            uniforms[2].w = 4
-            uniforms.withUnsafeBytes { bytes in
-                encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
-                encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
-            }
-            // Merge poles, feet and ropes into the mask; exclude the ground plane.
-            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: clothSupportVertexCount)
-        }
     }
 
     private func encodePistonRopeShadow(
@@ -516,9 +402,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         drawMask: (MTLRenderCommandEncoder) -> Void
     ) -> MTLTexture? {
         guard let device = view.device else { return nil }
-        // Resolve cloth folds and thin supports at higher resolution, capped to
-        // bound offscreen cost. Blur below keeps softness proportional to the viewport.
-        let maximumDimension: CGFloat = shader == .cloth ? 2048 : 512
+        // Cap offscreen cost and keep blur softness proportional to the viewport.
+        let maximumDimension: CGFloat = 512
         let scale = min(1, maximumDimension / max(1, max(view.drawableSize.width, view.drawableSize.height)))
         let width = max(1, Int(view.drawableSize.width * scale))
         let height = max(1, Int(view.drawableSize.height * scale))
@@ -548,7 +433,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         encoder.label = "Visualizer wall shadow mask"
         drawMask(encoder)
         encoder.endEncoding()
-        let blur = MPSImageGaussianBlur(device: device, sigma: max(1, Float(min(width, height)) * (shader == .cloth ? 0.003 : 0.008)))
+        let blur = MPSImageGaussianBlur(device: device, sigma: max(1, Float(min(width, height)) * 0.008))
         blur.edgeMode = .zero
         blur.encode(commandBuffer: commandBuffer, sourceTexture: shadowMask, destinationTexture: shadowBlur)
         return shadowBlur
@@ -710,7 +595,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 
     private func updateAccent() {
         let target = SIMD3<Float>(Float(accent.red), Float(accent.green), Float(accent.blue))
-        guard shader == .cloth || shader == .pistons else {
+        guard shader == .pistons else {
             displayedAccent = target
             accentTransitionTarget = target
             accentTransitionStart = nil
@@ -739,25 +624,18 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             }
         }
 #endif
-        // Fluid and cloth draw straight into the view's drawable; MTKView creates
-        // multisample attachments for cloth and resolves them into it. Pistons own
-        // their multisample attachments and reach the drawable through the grade.
-        let sampleCount = shader == .cloth ? sceneSampleCount : 1
-        if view.sampleCount != sampleCount { view.sampleCount = sampleCount }
+        // Pistons own their multisample attachments and resolve through the grade.
+        if view.sampleCount != 1 { view.sampleCount = 1 }
         guard let pipelines = pipelines[shader],
               let renderPassDescriptor = view.currentRenderPassDescriptor,
               let drawable = view.currentDrawable,
               let commandBuffer = commandQueue.makeCommandBuffer() else { return }
         updateAccent()
-        var rms: Float = 0
         _ = bands.withUnsafeMutableBufferPointer {
-            SCSpectrumBufferRead(spectrumBuffer, $0.baseAddress, &rms, &bassLevel, &trebleLevel)
+            SCSpectrumBufferRead(spectrumBuffer, $0.baseAddress, nil, nil, nil)
         }
         if shader == .fluid {
-            lastClothTime = nil
             lastPistonTime = nil
-            bassDetector = ClothBassDetector()
-            trebleDetector = .treble
             if let texture = fluid?.encode(commandBuffer: commandBuffer, size: view.drawableSize,
                     settings: fluidSettings, bands: bands,
                     touch: fluidTouch),
@@ -780,16 +658,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             return
         }
         fluid?.suspend()
-        let clothFrame = shader == .cloth
-            ? prepareCloth(in: view) : nil
         let pistonFrame = shader == .pistons ? preparePistons(in: view) : nil
         let ropeShadow = pistonFrame.flatMap {
             encodePistonRopeShadow(in: view, commandBuffer: commandBuffer, frame: $0)
         }
-        let frameShadow = clothFrame.flatMap {
-            encodeClothShadow(in: view, commandBuffer: commandBuffer,
-                              pipeline: pipelines.shadow, frame: $0)
-        } ?? pistonFrame.flatMap {
+        let frameShadow = pistonFrame.flatMap {
             encodePistonShadow(in: view, commandBuffer: commandBuffer,
                                pipeline: pipelines.shadow, frame: $0)
         }
@@ -811,11 +684,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             length: MemoryLayout<SIMD4<Float>>.stride,
             index: 2
         )
-        if shader != .cloth {
-            lastClothTime = nil
-            bassDetector = ClothBassDetector()
-            trebleDetector = .treble
-        }
         if shader != .pistons { lastPistonTime = nil }
         if shader == .pistons {
             if let frame = pistonFrame {
@@ -867,38 +735,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                     }
                 }
 
-            }
-        } else if shader == .cloth {
-            if let frame = clothFrame {
-                var uniforms = frame.uniforms
-                encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
-                encoder.setFragmentBuffer(frame.normals, offset: 0, index: 5)
-                encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
-                encoder.setFragmentTexture(frameShadow ?? fallbackTexture, index: 1)
-                if frameShadow == nil { uniforms[3].y = 0 }
-                uniforms[2].w = 2
-                uniforms.withUnsafeBytes { bytes in
-                    encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
-                    encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
-                }
-                encoder.setDepthStencilState(depthState)
-                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-                uniforms[2].w = 0
-                uniforms.withUnsafeBytes { bytes in
-                    encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
-                    encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
-                }
-                encoder.setDepthStencilState(depthState)
-                encoder.setFrontFacing(.counterClockwise)
-                encoder.drawPrimitives(type: .triangle, vertexStart: 0,
-                                       vertexCount: (cloth.columns - 1) * (cloth.rows - 1) * 6)
-                uniforms[2].w = 3
-                uniforms.withUnsafeBytes { bytes in
-                    encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
-                    encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
-                }
-                // Four supports, each with a pillar, foot and rope.
-                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: clothSupportVertexCount)
             }
         }
         encoder.endEncoding()
@@ -990,11 +826,26 @@ private final class VisualizerShaderReloader {
 }
 #endif
 
+struct PistonCamera: Equatable {
+    var yaw: Float = 0
+    var pitch: Float
+    var zoom: Float
+
+    mutating func orbit(delta: SIMD2<Float>, viewport: SIMD2<Float>,
+                        pitchRange: ClosedRange<Float>) {
+        // Consume each delta at tilt limits so reversing the drag responds immediately.
+        let sensitivity = Float.pi / max(240, min(viewport.x, viewport.y))
+        yaw = (yaw + delta.x * sensitivity).remainder(dividingBy: 2 * .pi)
+        pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound,
+                    pitch + delta.y * sensitivity))
+    }
+}
+
 // Shared camera projection keeps ground controls aligned with the Metal scene.
 enum PistonGroundControls {
     static let pitchRange: ClosedRange<Float> = -1.8...1.2
     // Start at the lowest tilt; camera(size:yaw:pitch:zoom:) raises it to the floor clearance.
-    static let defaultCamera = ClothCamera(pitch: pitchRange.lowerBound, zoom: 0.55)
+    static let defaultCamera = PistonCamera(pitch: pitchRange.lowerBound, zoom: 0.55)
     // Floor position and scale of the artwork, rail and buttons layout.
     static let layoutCenter = SIMD2<Float>(0, 3.4)
     static let layoutScale: Float = 0.7
@@ -1059,58 +910,6 @@ enum PistonGroundControls {
         let tolerance = 0.15 / layoutScale // Keep the click target from shrinking with the layout.
         if simd_length_squared(offset) <= tolerance * tolerance {
             return .seek(Double(min(1, max(0, rail.x / 3.2))))
-        }
-        return nil
-    }
-}
-
-// Z-up projection and floor hit targets for the cloth's playback controls.
-enum ClothGroundControls {
-    // Move the orbit target toward the camera along the cloth plane.
-    static let targetOffset: Float = 1
-
-    static func camera(size: CGSize, camera: ClothCamera, artworkAspect: Float) -> SIMD4<Float> {
-        let reference = ClothSettings().width
-        let width = reference * min(1, artworkAspect) + 3.4
-        let height = reference / max(1, artworkAspect) + 3.4
-        let distance = sqrt(width * width + height * height) * 1.35 * camera.zoom
-        return SIMD4(Float(size.width / max(1, size.height)), camera.yaw,
-                     camera.viewingPitch(distance: distance), distance)
-    }
-
-    static func hit(at point: CGPoint, size: CGSize, camera: SIMD4<Float>,
-                    height: Float) -> PistonGroundControls.Hit? {
-        guard size.width > 0, size.height > 0,
-              point.x >= 0, point.x <= size.width, point.y >= 0, point.y <= size.height else { return nil }
-        let ndc = SIMD2<Float>(Float(point.x / size.width) * 2 - 1,
-                               1 - Float(point.y / size.height) * 2)
-        func inverseRotate(_ p: SIMD3<Float>) -> SIMD3<Float> {
-            let q = SIMD3(p.x, cos(camera.z) * p.y - sin(camera.z) * p.z,
-                          sin(camera.z) * p.y + cos(camera.z) * p.z)
-            return SIMD3(cos(camera.y) * q.x + sin(camera.y) * q.y,
-                         -sin(camera.y) * q.x + cos(camera.y) * q.y, q.z)
-        }
-        let scale = min(2.6, 2.6 * camera.x)
-        let target = SIMD3(-sin(camera.y) * targetOffset, -cos(camera.y) * targetOffset, 0)
-        let origin = target + inverseRotate(SIMD3(0, 0, camera.w))
-        let ray = inverseRotate(SIMD3(ndc.x * camera.x / scale, ndc.y / scale, -1))
-        guard abs(ray.z) > 0.000001 else { return nil }
-        let distance = (ClothSimulation.groundDepth - origin.z) / ray.z
-        guard distance >= 0.1, distance < 100 else { return nil }
-        let floor = origin + ray * distance
-        let local = SIMD2(floor.x, floor.y + height * 0.5 + 1.8)
-        // Match the previous/play-pause/next group and rail in ClothVisualizer.metal.
-        let buttons: [(Float, PistonGroundControls.Hit)] = [
-            (-4.5, .previous), (-3.3, .playPause), (-2.1, .next)
-        ]
-        for (x, action) in buttons {
-            if simd_length_squared(local - SIMD2(x, 0)) <= 0.55 * 0.55 {
-                return action
-            }
-        }
-        let offset = SIMD2(local.x - min(5, max(-1, local.x)), local.y)
-        if simd_length_squared(offset) <= 0.26 * 0.26 {
-            return .seek(Double(min(1, max(0, (local.x + 1) / 6))))
         }
         return nil
     }

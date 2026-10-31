@@ -20,9 +20,6 @@
 		C92810000000000000000001 /* PistonSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92800000000000000000001; };
 		C92A10000000000000000001 /* VisualizerGrade.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92A00000000000000000001; };
 		C92A10000000000000000002 /* VisualizerGrade.metal in Sources */ = {isa = PBXBuildFile; fileRef = C92A00000000000000000002; };
-		C92410000000000000000003 /* ClothSolver.c in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000003; settings = {COMPILER_FLAGS = "-O2"; }; };
-		C92410000000000000000002 /* ClothVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000002; };
-		C92410000000000000000001 /* ClothSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92400000000000000000001; };
 		D91700000000000000000002 /* RecentSearchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91700000000000000000012 /* RecentSearchStore.swift */; };
 		D93000000000000000000002 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D93000000000000000000012 /* HistoryStore.swift */; };
 		D91700000000000000000001 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91700000000000000000011 /* SearchView.swift */; };
@@ -148,10 +145,6 @@
 		C92800000000000000000001 /* PistonSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PistonSimulation.swift; sourceTree = "<group>"; };
 		C92A00000000000000000001 /* VisualizerGrade.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerGrade.swift; sourceTree = "<group>"; };
 		C92A00000000000000000002 /* VisualizerGrade.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = VisualizerGrade.metal; sourceTree = "<group>"; };
-		C92400000000000000000004 /* ClothSolver.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ClothSolver.h; sourceTree = "<group>"; };
-		C92400000000000000000003 /* ClothSolver.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = ClothSolver.c; sourceTree = "<group>"; };
-		C92400000000000000000002 /* ClothVisualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = ClothVisualizer.metal; sourceTree = "<group>"; };
-		C92400000000000000000001 /* ClothSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClothSimulation.swift; sourceTree = "<group>"; };
 		D91700000000000000000012 /* RecentSearchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentSearchStore.swift; sourceTree = "<group>"; };
 		D93000000000000000000012 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
 		D91700000000000000000011 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
@@ -468,10 +461,7 @@
 		A4000000000000000000000A /* Visualizer */ = {
 			isa = PBXGroup;
 			children = (
-				C92400000000000000000004 /* ClothSolver.h */,
-				C92400000000000000000003 /* ClothSolver.c */,
 				C91000000000000000000001 /* FluidSimulation.swift */,
-				C92400000000000000000001 /* ClothSimulation.swift */,
 				C92800000000000000000001 /* PistonSimulation.swift */,
 				C92A00000000000000000001 /* VisualizerGrade.swift */,
 				C92800000000000000000004 /* PistonSolver.h */,
@@ -487,7 +477,6 @@
 			isa = PBXGroup;
 			children = (
 				C91000000000000000000002 /* FluidVisualizer.metal */,
-				C92400000000000000000002 /* ClothVisualizer.metal */,
 				C92800000000000000000002 /* PistonVisualizer.metal */,
 				C92A00000000000000000002 /* VisualizerGrade.metal */,
 				8D06FA75D610477E98EECAA2 /* PlayerArtworkGlass.metal */,
@@ -609,11 +598,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C92410000000000000000003 /* ClothSolver.c in Sources */,
 				C91010000000000000000002 /* FluidVisualizer.metal in Sources */,
-				C92410000000000000000002 /* ClothVisualizer.metal in Sources */,
 				C91010000000000000000001 /* FluidSimulation.swift in Sources */,
-				C92410000000000000000001 /* ClothSimulation.swift in Sources */,
 				C92810000000000000000002 /* PistonVisualizer.metal in Sources */,
 				C92810000000000000000001 /* PistonSimulation.swift in Sources */,
 				C92A10000000000000000001 /* VisualizerGrade.swift in Sources */,

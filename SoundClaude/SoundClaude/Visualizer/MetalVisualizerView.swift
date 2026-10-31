@@ -17,14 +17,13 @@ private final class TransparentMetalView: MTKView {
 
 struct ArtworkVisualizerView: View {
     let shader: VisualizerShader
-    let clothSettings: ClothSettings
     let pistonSettings: PistonSettings
     let fluidSettings: FluidSettings
     let fluidTouch: FluidTouch
     let trackProgress: Double
     let hasTrack: Bool
     let isPlaying: Bool
-    @Binding var clothCamera: ClothCamera
+    @Binding var pistonCamera: PistonCamera
     let spectrumBuffer: OpaquePointer
     let artworkURL: URL?
     let artworkLoader: ArtworkLoader
@@ -39,14 +38,13 @@ struct ArtworkVisualizerView: View {
     var body: some View {
         MetalVisualizerView(
             shader: shader,
-            clothSettings: clothSettings,
             pistonSettings: pistonSettings,
             fluidSettings: fluidSettings,
             fluidTouch: fluidTouch,
             trackProgress: trackProgress,
             hasTrack: hasTrack,
             isPlaying: isPlaying,
-            clothCamera: $clothCamera,
+            pistonCamera: $pistonCamera,
             spectrumBuffer: spectrumBuffer,
             accent: accent,
             artworkImage: accentArtworkURL == artworkURL ? artworkImage : nil
@@ -54,8 +52,6 @@ struct ArtworkVisualizerView: View {
             .background {
                 if shader == .fluid {
                     Color.black
-                } else if shader == .cloth {
-                    Color(.sRGB, red: 0.035, green: 0.045, blue: 0.06)
                 } else if shader == .pistons {
                     let rgb = pistonSettings.backgroundColor
                     Color(.sRGBLinear, red: Double(rgb.x), green: Double(rgb.y), blue: Double(rgb.z))
@@ -125,14 +121,13 @@ struct ArtworkVisualizerView: View {
 
 struct MetalVisualizerView: NSViewRepresentable {
     let shader: VisualizerShader
-    let clothSettings: ClothSettings
     let pistonSettings: PistonSettings
     let fluidSettings: FluidSettings
     let fluidTouch: FluidTouch
     let trackProgress: Double
     let hasTrack: Bool
     let isPlaying: Bool
-    @Binding var clothCamera: ClothCamera
+    @Binding var pistonCamera: PistonCamera
     let spectrumBuffer: OpaquePointer
     let accent: ArtworkAccent
     let artworkImage: CGImage?
@@ -172,14 +167,13 @@ struct MetalVisualizerView: NSViewRepresentable {
         )
         context.coordinator.renderer = renderer
         renderer?.shader = shader
-        renderer?.clothSettings = clothSettings
         renderer?.pistonSettings = pistonSettings
         renderer?.fluidSettings = fluidSettings
         renderer?.fluidTouch = fluidTouch
         renderer?.trackProgress = trackProgress
         renderer?.hasTrack = hasTrack
         renderer?.isPlaying = isPlaying
-        renderer?.clothCamera = clothCamera
+        renderer?.pistonCamera = pistonCamera
         renderer?.updateArtwork(artworkImage)
         view.onZoom = zoomHandler
         view.delegate = renderer
@@ -189,14 +183,13 @@ struct MetalVisualizerView: NSViewRepresentable {
     func updateNSView(_ view: MTKView, context: Context) {
         (view as? TransparentMetalView)?.onZoom = zoomHandler
         context.coordinator.renderer?.shader = shader
-        context.coordinator.renderer?.clothSettings = clothSettings
         context.coordinator.renderer?.pistonSettings = pistonSettings
         context.coordinator.renderer?.fluidSettings = fluidSettings
         context.coordinator.renderer?.fluidTouch = fluidTouch
         context.coordinator.renderer?.trackProgress = trackProgress
         context.coordinator.renderer?.hasTrack = hasTrack
         context.coordinator.renderer?.isPlaying = isPlaying
-        context.coordinator.renderer?.clothCamera = clothCamera
+        context.coordinator.renderer?.pistonCamera = pistonCamera
         context.coordinator.renderer?.accent = accent
         context.coordinator.renderer?.updateArtwork(artworkImage)
     }
@@ -204,7 +197,7 @@ struct MetalVisualizerView: NSViewRepresentable {
     private var zoomHandler: ((Float) -> Void)? {
         guard shader != .fluid else { return nil }
         return { amount in
-            clothCamera.zoom = min(2, max(0.2, clothCamera.zoom * exp(-amount)))
+            pistonCamera.zoom = min(2, max(0.2, pistonCamera.zoom * exp(-amount)))
         }
     }
 

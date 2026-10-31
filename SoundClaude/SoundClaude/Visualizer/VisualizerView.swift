@@ -11,8 +11,6 @@ struct VisualizerView: View {
     @State private var fluidSettings = FluidSettings()
     @State private var fluidTouch = FluidTouch()
     @State private var pistonSettings = PistonSettings()
-    @State private var clothSettings = ClothSettings()
-    @State private var clothCamera = ClothCamera()
     @State private var pistonCamera = PistonGroundControls.defaultCamera
     @State private var orbitTranslation = CGSize.zero
     @GestureState private var isOrbiting = false
@@ -20,28 +18,16 @@ struct VisualizerView: View {
     @State private var artworkAspect: Float = 1
     @State private var viewportSize = CGSize.zero
 
-    private var camera: ClothCamera {
-        get { shader == .pistons ? pistonCamera : clothCamera }
-        nonmutating set {
-            if shader == .pistons {
-                pistonCamera = newValue
-            } else {
-                clothCamera = newValue
-            }
-        }
-    }
-
     var body: some View {
         ArtworkVisualizerView(
             shader: shader,
-            clothSettings: clothSettings,
             pistonSettings: pistonSettings,
             fluidSettings: fluidSettings,
             fluidTouch: fluidTouch,
             trackProgress: playback.duration > 0 ? playback.currentTime / playback.duration : 0,
             hasTrack: playback.currentTrack != nil,
             isPlaying: playback.isPlaying,
-            clothCamera: Binding(get: { camera }, set: { camera = $0 }),
+            pistonCamera: $pistonCamera,
             spectrumBuffer: spectrumBuffer,
             artworkURL: playback.currentTrack?.displayArtworkURL,
             artworkLoader: artworkLoader,
@@ -63,13 +49,10 @@ struct VisualizerView: View {
                         stir(at: value.location, delta: delta)
                         return
                     }
-                    camera.orbit(
+                    pistonCamera.orbit(
                         delta: SIMD2(Float(delta.width), Float(delta.height)),
                         viewport: SIMD2(Float(viewportSize.width), Float(viewportSize.height)),
-                        pitchRange: shader == .pistons
-                            ? PistonGroundControls.orbitPitchRange(size: viewportSize, zoom: camera.zoom)
-                            : shader.cameraPitchRange,
-                        pitchDirection: shader == .cloth ? -1 : 1)
+                        pitchRange: PistonGroundControls.orbitPitchRange(size: viewportSize, zoom: pistonCamera.zoom))
                 }
                 .onEnded { _ in orbitTranslation = .zero }
                 .exclusively(before: SpatialTapGesture().onEnded { value in
@@ -79,16 +62,11 @@ struct VisualizerView: View {
                     }
                     guard playback.currentTrack != nil else { return }
                     let hit: PistonGroundControls.Hit?
-                    if shader == .cloth {
-                        let projection = ClothGroundControls.camera(size: viewportSize, camera: camera,
-                                                                    artworkAspect: artworkAspect)
-                        hit = ClothGroundControls.hit(at: value.location, size: viewportSize,
-                            camera: projection, height: clothSettings.width / max(1, artworkAspect))
-                    } else if !pistonSettings.showsGroundControls {
+                    if !pistonSettings.showsGroundControls {
                         hit = nil
                     } else {
-                        let projection = PistonGroundControls.camera(size: viewportSize, yaw: camera.yaw,
-                                                                     pitch: camera.pitch, zoom: camera.zoom)
+                        let projection = PistonGroundControls.camera(size: viewportSize, yaw: pistonCamera.yaw,
+                                                                     pitch: pistonCamera.pitch, zoom: pistonCamera.zoom)
                         hit = PistonGroundControls.hit(at: value.location, size: viewportSize, camera: projection,
                                                        artworkAspect: artworkAspect)
                     }
@@ -121,10 +99,8 @@ struct VisualizerView: View {
                 .popover(isPresented: $isShowingControls, arrowEdge: .bottom) {
                     if shader == .fluid {
                         fluidControls
-                    } else if shader == .pistons {
-                        pistonControls
                     } else {
-                        clothControls
+                        pistonControls
                     }
                 }
                 #endif
@@ -321,43 +297,6 @@ struct VisualizerView: View {
             .help("Hue for bright areas. White is neutral; tints keep brightness unchanged.")
         tuningSlider("Vignette", value: grade.vignette, range: 0...1)
         tuningSlider("Grain", value: grade.grain, range: 0...0.2, format: "%.3f")
-    }
-
-    private var clothControls: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Cloth").font(.headline)
-                Spacer()
-                Button("Reset") {
-                    clothSettings = ClothSettings()
-                }
-            }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    tuningSlider("Columns", value: $clothSettings.columns, range: 8...257)
-                    tuningSlider("Rows", value: $clothSettings.rows, range: 8...257)
-                    tuningSlider("Size", value: $clothSettings.width, range: 2...20)
-                    Divider()
-                    tuningSlider("Damping", value: $clothSettings.damping, range: 0.001...0.1, format: "%.3f")
-                    tuningSlider("Stretch compliance", value: $clothSettings.compliance, range: 0...0.001, format: "%.1e")
-                    tuningSlider("Bend compliance", value: $clothSettings.bendCompliance, range: 0...1, format: "%.3f")
-                    tuningSlider("Gravity", value: $clothSettings.gravity, range: 0...10)
-                    tuningSlider("Bass impulse", value: $clothSettings.impulseStrength, range: 0...20)
-                    tuningSlider("Treble impulse", value: $clothSettings.trebleImpulseStrength, range: 0...1, format: "%.2f")
-                    tuningSlider("Impulse radius", value: $clothSettings.impulseRadius, range: 0.3...5)
-                    Stepper("Solver passes: \(clothSettings.iterations)", value: $clothSettings.iterations, in: 1...10)
-                    Divider()
-                    Toggle("Show mesh (debug)", isOn: $clothSettings.showMesh)
-                    tuningSlider("Shine intensity", value: $clothSettings.shineIntensity, range: 0...2)
-                    tuningSlider("Impulse flash brightness", value: $clothSettings.flashBrightness, range: 0...3)
-                    tuningSlider("Ground brightness", value: $clothSettings.groundBrightness, range: 0...2)
-                    tuningSlider("Tile size", value: $clothSettings.groundTileSize, range: 0.5...8)
-                }
-            }
-            .frame(maxHeight: 520)
-        }
-        .padding(20)
-        .frame(width: 320)
     }
 
     private func tuningSlider(

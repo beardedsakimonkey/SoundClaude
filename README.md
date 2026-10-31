@@ -20,7 +20,7 @@ features:
 - Light and dark modes (depending on OS setting)
 - Built for desktop with hover feedback on interactive elements, right-click menus,
   and keyboard shortcuts
-- Several physics-based music visualizers, including cloth, rope, and fluid simulations
+- Several physics-based music visualizers, including piston, rope, and fluid simulations
 - Expandable track artwork and artist photos
 
 
