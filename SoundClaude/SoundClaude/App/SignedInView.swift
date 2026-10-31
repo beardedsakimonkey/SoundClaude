@@ -191,9 +191,27 @@ struct SignedInView: View {
                 onForward: navigateForward
             )
         }
+        .background {
+            seekShortcuts
+        }
         #if DEBUG
         .debugViewUpdates("SignedInView")
         #endif
+    }
+
+    private var seekShortcuts: some View {
+        Group {
+            Button("Seek Back 5 Seconds") {
+                model.playback.seek(by: -5)
+            }
+            .keyboardShortcut("j", modifiers: [])
+            Button("Seek Forward 5 Seconds") {
+                model.playback.seek(by: 5)
+            }
+            .keyboardShortcut("k", modifiers: [])
+        }
+        .hidden()
+        .accessibilityHidden(true)
     }
 
     // The footer owns these shortcuts in normal mode. Keep them available when it is absent.
