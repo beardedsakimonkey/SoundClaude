@@ -30,7 +30,7 @@ mkdir -p "$work/staging/.background"
 swift "$script_dir/generate-dmg-background.swift" "$work/staging/.background/gradient.tiff"
 ditto "$app" "$work/staging/SoundClaude.app"
 ln -s /Applications "$work/staging/Applications"
-hdiutil create -quiet -srcfolder "$work/staging" -volname "Drag SoundClaude to Applications" \
+hdiutil create -quiet -srcfolder "$work/staging" -volname "SoundClaude" \
     -fs HFS+ -format UDRW "$work/layout.dmg"
 hdiutil attach -quiet -readwrite -noverify -noautoopen \
     -mountpoint "$mount_path" "$work/layout.dmg"
