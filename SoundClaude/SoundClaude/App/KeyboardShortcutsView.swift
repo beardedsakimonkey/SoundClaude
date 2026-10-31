@@ -26,7 +26,7 @@ struct KeyboardShortcutsView: View {
     private let rightShortcuts = [
         Shortcut(title: "Toggle shuffle", keys: ["⇧", "S"]),
         Shortcut(title: "Cycle repeat", keys: ["R"]),
-        Shortcut(title: "Show or hide playback speed", keys: ["D"]),
+        Shortcut(title: "Show or hide playback speed", keys: ["X"]),
         Shortcut(title: "Show or hide track queue", keys: ["Q"]),
         Shortcut(title: "Show or hide visualizer", keys: ["V"]),
         Shortcut(title: "Next visualizer effect", keys: ["Enter"]),

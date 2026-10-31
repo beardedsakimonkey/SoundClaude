@@ -592,8 +592,8 @@ private struct PlayerSpeedControl: View {
         }
         .buttonStyle(.plain)
         .modifier(PlayerSpeedHoverFeedback(color: .orange, isActive: isShowingSpeed, cornerRadius: 22))
-        .keyboardShortcut("d", modifiers: [])
-        .contentHelp("Playback speed and pitch (D)")
+        .keyboardShortcut("x", modifiers: [])
+        .contentHelp("Playback speed and pitch (X)")
         .accessibilityLabel("Playback speed and pitch")
         .accessibilityValue(rateLabel)
         .popover(isPresented: $isShowingSpeed, arrowEdge: .top) {
@@ -618,7 +618,7 @@ private struct PlayerSpeedControl: View {
             // The popover is its own key window, so the footer button's shortcut can't close it.
             .background {
                 Button("Close speed") { isShowingSpeed = false }
-                    .keyboardShortcut("d", modifiers: [])
+                    .keyboardShortcut("x", modifiers: [])
                     .hidden()
                     .accessibilityHidden(true)
             }
