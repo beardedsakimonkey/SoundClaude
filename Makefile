@@ -41,9 +41,12 @@ run: build
 DIST_DERIVED_DATA_PATH := build/DerivedData
 DIST_APP := $(DIST_DERIVED_DATA_PATH)/Build/Products/Release/SoundClaude.app
 DIST_ZIP := build/SoundClaude.zip
+DIST_DMG := build/SoundClaude.dmg
 
-dist:
-	rm -rf "$(DIST_DERIVED_DATA_PATH)" "$(DIST_ZIP)"
+.PHONY: dist-build dmg
+
+dist-build:
+	rm -rf "$(DIST_DERIVED_DATA_PATH)"
 	xcodebuild \
 		-project $(PROJECT) \
 		-scheme $(SCHEME) \
@@ -56,8 +59,14 @@ dist:
 		DEVELOPMENT_TEAM= \
 		build
 	codesign --verify --deep --strict "$(DIST_APP)"
+
+dist: dist-build
+	rm -f "$(DIST_ZIP)"
 	ditto -c -k --sequesterRsrc --keepParent "$(DIST_APP)" "$(DIST_ZIP)"
 	@echo "$(DIST_ZIP)"
+
+dmg: dist-build
+	sh scripts/create-dmg.sh "$(DIST_APP)" "$(DIST_DMG)"
 
 lsp:
 	xcode-build-server config \

@@ -31,7 +31,9 @@ features:
 
 ## Install
 
-Download `SoundClaude.zip` from Releases, unzip it, and move `SoundClaude.app` to
+Download `SoundClaude.dmg` from Releases, open it, and drag `SoundClaude.app` onto
+the **Applications** folder. Eject the disk image, then open SoundClaude from
+Applications. If you use the ZIP download, unzip it and move the app to
 `/Applications`. The app isn't notarized, so macOS blocks the first launch: open it
 once, then choose **Open Anyway** in **System Settings → Privacy & Security**. Or
 run:
@@ -39,6 +41,16 @@ run:
 ```sh
 xattr -dr com.apple.quarantine /Applications/SoundClaude.app
 ```
+
+## Package for distribution
+
+Run `make dmg` to build a universal (Apple Silicon and Intel), ad-hoc-signed app
+and package it as `build/SoundClaude.dmg` with a drag-to-Applications layout.
+This uses the built-in macOS tools and requires a logged-in desktop session.
+If macOS asks, allow your terminal to control Finder so it can save the layout.
+The app is not notarized; the first-launch instructions above still apply.
+
+Run `make dist` to produce `build/SoundClaude.zip` instead.
 
 ## Sign in
 
