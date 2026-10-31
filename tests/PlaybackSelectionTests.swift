@@ -64,7 +64,7 @@ struct PlaybackSelectionTests {
             let restored = PlaybackController(defaults: defaults)
             precondition(restored[isCurrentTrack: track(2).urn])
             precondition(!restored[isCurrentTrack: track(1).urn])
-            controller.clearSession()
+            controller.resetSession(preservingPlayback: false)
             precondition(selectionChanges.withLock { $0 } == 1)
             precondition(!controller[isCurrentTrack: track(2).urn])
             precondition(changes[0].withLock { $0 } == 2)

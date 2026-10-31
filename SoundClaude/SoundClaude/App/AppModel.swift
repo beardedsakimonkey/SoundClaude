@@ -251,9 +251,9 @@ final class AppModel {
         prefetchedTrack = nil
         playbackTask = nil
         playbackRequestID = nil
-        playback.clearSession()
-        queue = TrackQueue(source: .single, tracks: [])
-        queueStore.clear()
+        playback.resetSession()
+        queue = TrackQueue(source: .single, tracks: playback.currentTrack.map { [$0] } ?? [])
+        saveQueue()
         audioTap.stop()
         followingTask?.cancel()
         followingTask = nil

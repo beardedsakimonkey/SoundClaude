@@ -379,7 +379,9 @@ final class PlaybackController {
         lastSaveTime = Date()
     }
 
-    func clearSession() {
+    func resetSession(preservingPlayback: Bool = true) {
+        if preservingPlayback { saveSession() }
+        let session = preservingPlayback ? savedSession : nil
         restoredPrefetchTask?.cancel()
         restoredPrefetchTask = nil
         pause()
@@ -392,10 +394,10 @@ final class PlaybackController {
         loadingRequestID = nil
         canStartImmediately = false
         player.replaceCurrentItem(with: nil)
-        currentTrack = nil
-        sessionToRestore = nil
-        currentTime = 0
-        duration = 0
+        currentTrack = session?.track
+        sessionToRestore = session
+        currentTime = session?.position ?? 0
+        duration = Double(session?.track.durationMilliseconds ?? 0) / 1_000
         seekTarget = nil
         seekFraction = nil
         isSeekInProgress = false
@@ -403,7 +405,9 @@ final class PlaybackController {
         isPlaying = false
         isWaitingForPlayback = false
         errorMessage = nil
-        sessionDefaults.removeObject(forKey: SettingsKey.session)
+        if session == nil {
+            sessionDefaults.removeObject(forKey: SettingsKey.session)
+        }
         updateNowPlayingInfo()
         updateRemoteCommandAvailability()
     }

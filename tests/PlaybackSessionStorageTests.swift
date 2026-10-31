@@ -139,7 +139,7 @@ struct PlaybackSessionStorageTests {
         precondition(evaluations.count > beforeSettingsChange)
         let restored = PlaybackController(defaults: settings, sessionDefaults: sessions)
         precondition(restored.savedSession?.position == 23)
-        restored.clearSession()
+        restored.resetSession(preservingPlayback: false)
         let cleared = PlaybackController(defaults: settings, sessionDefaults: sessions)
         precondition(cleared.savedSession == nil, "Cleared sessions must not reappear")
         print("Playback session storage tests passed")

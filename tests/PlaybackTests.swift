@@ -128,7 +128,7 @@ struct PlaybackTests {
             try await until { controller.isPlaying }
             precondition(controller.player.rate == semitones(3))
             precondition(controller.player.currentItem?.audioTimePitchAlgorithm == .varispeed)
-            controller.clearSession()
+            controller.resetSession(preservingPlayback: false)
             for key in ["playback.rate", "playback.isMuted"] {
                 defaults.removeObject(forKey: key)
             }
@@ -159,7 +159,7 @@ struct PlaybackTests {
                 precondition(player.currentTime().seconds < 0.5)
             }
             controller.onNext = nil
-            controller.clearSession()
+            controller.resetSession(preservingPlayback: false)
         }
         defaults.removeObject(forKey: "playback.repeatMode")
 
@@ -206,7 +206,7 @@ struct PlaybackTests {
             let normalStarts = standby!.normalStarts
             controller.togglePlayPause()
             precondition(standby!.normalStarts == normalStarts + 1)
-            controller.clearSession()
+            controller.resetSession(preservingPlayback: false)
         }
 
         // Sessions save the track and position without playback state.
@@ -268,7 +268,7 @@ struct PlaybackTests {
         deferred.load(source: source, requestID: deferredRequest!)
         try await until { !deferred.isLoading && abs(deferred.player.currentTime().seconds - 1) < 0.05 }
         precondition(!deferred.isPlaybackActive)
-        deferred.clearSession()
+        deferred.resetSession(preservingPlayback: false)
 
         // Delayed restore prepares the saved position silently and reuses its player.
         defaults.set(encoded, forKey: "playback.session")
@@ -297,7 +297,7 @@ struct PlaybackTests {
         precondition(warmed.player === restoredPlayer)
         precondition(restoredPlayer!.immediateStarts == 1)
         warmed.pause()
-        warmed.clearSession()
+        warmed.resetSession(preservingPlayback: false)
 
         // Early Play cancels the timer and does not start a second resolution.
         defaults.set(encoded, forKey: "playback.session")
@@ -308,7 +308,7 @@ struct PlaybackTests {
         early.onNeedsSource = { _, _ in }
         early.togglePlayPause()
         try await Task.sleep(for: .milliseconds(100))
-        early.clearSession()
+        early.resetSession(preservingPlayback: false)
 
         // Signing out clears the timer before it can access the network.
         defaults.set(encoded, forKey: "playback.session")
@@ -316,7 +316,7 @@ struct PlaybackTests {
         cleared.scheduleRestoredPrefetch(delay: .milliseconds(50)) { _ in
             fatalError("Cleared sessions must not prefetch")
         }
-        cleared.clearSession()
+        cleared.resetSession(preservingPlayback: false)
         try await Task.sleep(for: .milliseconds(100))
 
         // Selection and saved position update before a stream URL is available.
@@ -573,9 +573,30 @@ struct PlaybackTests {
         playback.discardPrefetch(of: track(15), in: .viewed)
         precondition(leftPagePlayer.currentItem == nil)
 
-        // Sign-out invalidates an outstanding source and clears saved metadata.
+        // Sign-out keeps the track and position, but invalidates the old source.
+        let suspendedRequest = playback.beginLoading(track: track(2), position: 0.75)
+        playback.resetSession()
+        playback.load(source: source, requestID: suspendedRequest)
+        playback.failLoading(requestID: suspendedRequest, message: "Late failure")
+        precondition(playback.currentTrack == track(2) && playback.currentTime == 0.75)
+        precondition(playback.sessionToRestore?.track == track(2))
+        precondition(playback.savedSession?.position == 0.75)
+        precondition(playback.player.currentItem == nil && !playback.isPlaybackActive)
+        precondition(!playback.isLoading && playback.errorMessage == nil)
+        var resumedRequest: UUID?
+        playback.onNeedsSource = { selected, request in
+            precondition(selected == track(2))
+            resumedRequest = request
+        }
+        playback.togglePlayPause()
+        precondition(resumedRequest != nil && playback.currentTime == 0.75)
+        playback.load(source: source, requestID: resumedRequest!)
+        try await until { !playback.isLoading }
+        playback.onNeedsSource = nil
+
+        // Explicit clearing still removes the saved metadata.
         let pending = playback.beginLoading(track: track(2))
-        playback.clearSession()
+        playback.resetSession(preservingPlayback: false)
         playback.load(source: source, requestID: pending)
         playback.failLoading(requestID: pending, message: "Late failure")
         precondition(playback.currentTrack == nil && playback.player.currentItem == nil)
@@ -594,11 +615,11 @@ struct PlaybackTests {
         let signingOut = playback.beginLoading(track: track(9))
         let signedOutLoad = Task { await playback.loadPrefetched(requestID: signingOut) }
         await Task.yield()
-        playback.clearSession()
+        playback.resetSession()
         releaseResolution?.resume()
         let ignoredSignOut = await signedOutLoad.value
         precondition(ignoredSignOut && preparedPlayers.count == countBeforeSignOut)
-        precondition(playback.currentTrack == nil)
+        precondition(playback.currentTrack == track(9) && playback.sessionToRestore != nil)
         // A waveform click before readiness uses the short stream duration,
         // even when metadata describes a much longer full track.
         let previewRequest = playback.beginLoading(
@@ -625,7 +646,7 @@ struct PlaybackTests {
         playback.load(source: source, requestID: replacementRequest)
         try await until { !playback.isLoading && !playback.isBuffering }
         precondition(abs(playback.currentTime - 0.5) < 0.05)
-        playback.clearSession()
+        playback.resetSession(preservingPlayback: false)
         print("Playback tests passed")
     }
 
