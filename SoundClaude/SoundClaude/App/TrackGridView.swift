@@ -85,7 +85,7 @@ struct TrackArtworkGrid<Content: View>: View {
 
     var body: some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 160), spacing: 20, alignment: .top)],
+            columns: [GridItem(.adaptive(minimum: 140), spacing: 20, alignment: .top)],
             alignment: .leading,
             spacing: 24
         ) {
@@ -99,7 +99,7 @@ struct TrackArtworkGrid<Content: View>: View {
         .preference(key: TrackArtworkQueueDebugKey.self, value: [prefetcher])
         #endif
         .onGeometryChange(for: Int.self) { geometry in
-            max(1, Int((geometry.size.width + 20) / 180))
+            max(1, Int((geometry.size.width + 20) / 160))
         } action: { columnCount = $0 }
         .onChange(of: artworkWindow, initial: true) { _, window in
             prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader, isEnabled: prefetchEnabled)
