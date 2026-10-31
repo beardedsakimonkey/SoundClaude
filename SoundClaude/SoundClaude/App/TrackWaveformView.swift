@@ -388,7 +388,8 @@ struct TrackWaveformView: View {
                         }
                 )
                 .contentHelp(
-                    track == nil ? "Start playback to see the waveform."
+                    !isEnabled ? ""
+                        : track == nil ? "Start playback to see the waveform."
                         : isCurrentTrack ? "Click to seek."
                         : "Click to play from this position."
                 )
