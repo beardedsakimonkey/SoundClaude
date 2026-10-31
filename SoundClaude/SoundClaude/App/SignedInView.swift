@@ -203,6 +203,10 @@ struct SignedInView: View {
                 .keyboardShortcut("v", modifiers: [])
             Button("Play or Pause", action: model.playback.togglePlayPause)
                 .keyboardShortcut(.space, modifiers: [])
+            Button("Previous Track", action: model.playback.previous)
+                .keyboardShortcut("p", modifiers: [])
+            Button("Next Track", action: model.playback.next)
+                .keyboardShortcut("n", modifiers: [])
             Button("Focus current track") {
                 if let track = model.playback.currentTrack { showTrack(track) }
             }

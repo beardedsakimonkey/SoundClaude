@@ -11,8 +11,8 @@ struct KeyboardShortcutsView: View {
     private let leftShortcuts = [
         // Playback
         Shortcut(title: "Play or pause", keys: ["Space"]),
-        Shortcut(title: "Previous track", keys: ["⇧", "←"]),
-        Shortcut(title: "Next track", keys: ["⇧", "→"]),
+        Shortcut(title: "Previous track", keys: ["P"], alternateKeys: ["⇧", "←"]),
+        Shortcut(title: "Next track", keys: ["N"], alternateKeys: ["⇧", "→"]),
         Shortcut(title: "Seek back 5 seconds", keys: ["←"]),
         Shortcut(title: "Seek forward 5 seconds", keys: ["→"]),
         Shortcut(title: "Seek back 30 seconds", keys: ["⌥", "←"]),
@@ -82,6 +82,12 @@ struct KeyboardShortcutsView: View {
 
                     HStack(spacing: 4) {
                         keyCaps(shortcut.keys)
+                        if let alternateKeys = shortcut.alternateKeys {
+                            Text("or")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            keyCaps(alternateKeys)
+                        }
                     }
                     .fixedSize()
                     .gridColumnAlignment(.trailing)
@@ -118,6 +124,7 @@ struct KeyboardShortcutsView: View {
 private struct Shortcut: Identifiable {
     let title: String
     let keys: [String]
+    var alternateKeys: [String]? = nil
 
     var id: String { title }
 }

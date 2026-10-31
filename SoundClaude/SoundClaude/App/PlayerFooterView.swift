@@ -240,7 +240,8 @@ struct PlayerFooterView: View {
                     .frame(width: 32, height: 32)
                     .modifier(PlayerFooterButtonBackground())
             }
-            .contentHelp("Previous track")
+            .keyboardShortcut("p", modifiers: [])
+            .contentHelp("Previous track (P)")
             .accessibilityLabel("Previous track")
 
             PlayerFooterPlayPauseButton(playback: playback)
@@ -251,7 +252,8 @@ struct PlayerFooterView: View {
                     .frame(width: 32, height: 32)
                     .modifier(PlayerFooterButtonBackground())
             }
-            .contentHelp("Next track")
+            .keyboardShortcut("n", modifiers: [])
+            .contentHelp("Next track (N)")
             .accessibilityLabel("Next track")
 
             Button(action: model.toggleShuffle) {
