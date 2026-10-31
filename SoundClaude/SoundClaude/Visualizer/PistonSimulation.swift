@@ -36,7 +36,6 @@ struct PistonSettings: Equatable {
     var reflectionStrength: Float = 0.42
     var edgeSoftness: Float = 0.05
     var grade = VisualizerGrade.pistons
-    var showsGroundControls = false // Artwork, progress rail and skip buttons on the floor.
     var lightYOffset: Float = 0
     var lightZOffset: Float = 0
 

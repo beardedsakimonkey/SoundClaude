@@ -11,11 +11,10 @@ struct VisualizerView: View {
     @State private var fluidSettings = FluidSettings()
     @State private var fluidTouch = FluidTouch()
     @State private var pistonSettings = PistonSettings()
-    @State private var pistonCamera = PistonGroundControls.defaultCamera
+    @State private var pistonCamera = PistonCameraProjection.defaultCamera
     @State private var orbitTranslation = CGSize.zero
     @GestureState private var isOrbiting = false
     @State private var isShowingControls = false
-    @State private var artworkAspect: Float = 1
     @State private var viewportSize = CGSize.zero
 
     var body: some View {
@@ -24,14 +23,10 @@ struct VisualizerView: View {
             pistonSettings: pistonSettings,
             fluidSettings: fluidSettings,
             fluidTouch: fluidTouch,
-            trackProgress: playback.duration > 0 ? playback.currentTime / playback.duration : 0,
-            hasTrack: playback.currentTrack != nil,
-            isPlaying: playback.isPlaying,
             pistonCamera: $pistonCamera,
             spectrumBuffer: spectrumBuffer,
             artworkURL: playback.currentTrack?.displayArtworkURL,
-            artworkLoader: artworkLoader,
-            onArtworkAspectChange: { artworkAspect = $0 }
+            artworkLoader: artworkLoader
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
@@ -52,30 +47,12 @@ struct VisualizerView: View {
                     pistonCamera.orbit(
                         delta: SIMD2(Float(delta.width), Float(delta.height)),
                         viewport: SIMD2(Float(viewportSize.width), Float(viewportSize.height)),
-                        pitchRange: PistonGroundControls.orbitPitchRange(size: viewportSize, zoom: pistonCamera.zoom))
+                        pitchRange: PistonCameraProjection.orbitPitchRange(size: viewportSize, zoom: pistonCamera.zoom))
                 }
                 .onEnded { _ in orbitTranslation = .zero }
                 .exclusively(before: SpatialTapGesture().onEnded { value in
                     if shader == .fluid {
                         stir(at: value.location, delta: .zero)
-                        return
-                    }
-                    guard playback.currentTrack != nil else { return }
-                    let hit: PistonGroundControls.Hit?
-                    if !pistonSettings.showsGroundControls {
-                        hit = nil
-                    } else {
-                        let projection = PistonGroundControls.camera(size: viewportSize, yaw: pistonCamera.yaw,
-                                                                     pitch: pistonCamera.pitch, zoom: pistonCamera.zoom)
-                        hit = PistonGroundControls.hit(at: value.location, size: viewportSize, camera: projection,
-                                                       artworkAspect: artworkAspect)
-                    }
-                    switch hit {
-                    case .playPause: playback.togglePlayPause()
-                    case .previous: playback.previous()
-                    case .next: playback.next()
-                    case .seek(let fraction): playback.seek(toFraction: fraction)
-                    case nil: break
                     }
                 })
         )
@@ -208,7 +185,6 @@ struct VisualizerView: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    Toggle("Show artwork and controls", isOn: $pistonSettings.showsGroundControls)
                     tuningSlider("Ropes per piston", value: $pistonSettings.stringsPerPiston, range: 4...64, step: 2)
                     tuningSlider("Rope length", value: $pistonSettings.ropeLength, range: 0.5...5)
                     tuningSlider("Rope stretchiness", value: $pistonSettings.ropeStretchiness, range: 0...1)

@@ -20,17 +20,12 @@ struct ArtworkVisualizerView: View {
     let pistonSettings: PistonSettings
     let fluidSettings: FluidSettings
     let fluidTouch: FluidTouch
-    let trackProgress: Double
-    let hasTrack: Bool
-    let isPlaying: Bool
     @Binding var pistonCamera: PistonCamera
     let spectrumBuffer: OpaquePointer
     let artworkURL: URL?
     let artworkLoader: ArtworkLoader
-    var onArtworkAspectChange: (Float) -> Void
 
     @State private var artworkAccent: ArtworkAccent?
-    @State private var artworkImage: CGImage?
     @State private var accentArtworkURL: URL?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
@@ -41,13 +36,9 @@ struct ArtworkVisualizerView: View {
             pistonSettings: pistonSettings,
             fluidSettings: fluidSettings,
             fluidTouch: fluidTouch,
-            trackProgress: trackProgress,
-            hasTrack: hasTrack,
-            isPlaying: isPlaying,
             pistonCamera: $pistonCamera,
             spectrumBuffer: spectrumBuffer,
-            accent: accent,
-            artworkImage: accentArtworkURL == artworkURL ? artworkImage : nil
+            accent: accent
         )
             .background {
                 if shader == .fluid {
@@ -60,22 +51,14 @@ struct ArtworkVisualizerView: View {
                 }
             }
             .task(id: artworkURL) {
-                onArtworkAspectChange(1)
                 artworkAccent = nil
-                artworkImage = nil
                 accentArtworkURL = nil
                 guard let url = artworkURL else { return }
-                async let image = try? artworkLoader.bitmap(for: url, rendition: .square1080)
                 // Use the same source rendition as the waveform for a shared accent.
-                async let color = try? artworkLoader.accentColor(for: url)
-                let (loadedImage, loadedAccent) = await (image, color)
+                let loadedAccent = try? await artworkLoader.accentColor(for: url)
                 guard !Task.isCancelled else { return }
-                artworkImage = loadedImage
                 artworkAccent = loadedAccent
                 accentArtworkURL = url
-                if let artworkImage {
-                    onArtworkAspectChange(Float(artworkImage.width) / Float(artworkImage.height))
-                }
             }
     }
 
@@ -124,13 +107,9 @@ struct MetalVisualizerView: NSViewRepresentable {
     let pistonSettings: PistonSettings
     let fluidSettings: FluidSettings
     let fluidTouch: FluidTouch
-    let trackProgress: Double
-    let hasTrack: Bool
-    let isPlaying: Bool
     @Binding var pistonCamera: PistonCamera
     let spectrumBuffer: OpaquePointer
     let accent: ArtworkAccent
-    let artworkImage: CGImage?
 
     final class Coordinator {
         var renderer: VisualizerRenderer?
@@ -170,11 +149,7 @@ struct MetalVisualizerView: NSViewRepresentable {
         renderer?.pistonSettings = pistonSettings
         renderer?.fluidSettings = fluidSettings
         renderer?.fluidTouch = fluidTouch
-        renderer?.trackProgress = trackProgress
-        renderer?.hasTrack = hasTrack
-        renderer?.isPlaying = isPlaying
         renderer?.pistonCamera = pistonCamera
-        renderer?.updateArtwork(artworkImage)
         view.onZoom = zoomHandler
         view.delegate = renderer
         return view
@@ -186,12 +161,8 @@ struct MetalVisualizerView: NSViewRepresentable {
         context.coordinator.renderer?.pistonSettings = pistonSettings
         context.coordinator.renderer?.fluidSettings = fluidSettings
         context.coordinator.renderer?.fluidTouch = fluidTouch
-        context.coordinator.renderer?.trackProgress = trackProgress
-        context.coordinator.renderer?.hasTrack = hasTrack
-        context.coordinator.renderer?.isPlaying = isPlaying
         context.coordinator.renderer?.pistonCamera = pistonCamera
         context.coordinator.renderer?.accent = accent
-        context.coordinator.renderer?.updateArtwork(artworkImage)
     }
 
     private var zoomHandler: ((Float) -> Void)? {

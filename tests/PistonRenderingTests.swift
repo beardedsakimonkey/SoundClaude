@@ -57,8 +57,8 @@ import Metal
             let buffer = points.withUnsafeBytes {
                 device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)!
             }
-            var uniforms = [SIMD4<Float>](repeating: .zero, count: 18)
-            uniforms[17] = SIMD4(0, 0.8, -1, 0) // Light direction.
+            var uniforms = [SIMD4<Float>](repeating: .zero, count: 17)
+            uniforms[16] = SIMD4(0, 0.8, -1, 0) // Light direction.
             uniforms[0] = SIMD4(1, 0.3, 0.4, 3)
             uniforms[1] = SIMD4(repeating: resting ? 0.8 : 1.1) // Raised enough for full rope glow.
             uniforms[2] = uniforms[1]
@@ -66,7 +66,7 @@ import Metal
             uniforms[4] = SIMD4(256, 256, 1, 0.25)
             uniforms[5].w = 2.7
             uniforms[10] = SIMD4(0.42, 0.05, 1, 1.5)
-            uniforms[14] = SIMD4(1, 1, 1, 0)
+            uniforms[13] = SIMD4(1, 1, 1, 0)
             let commandBuffer = queue.makeCommandBuffer()!
             for passIndex in 0..<2 {
                 let pass = MTLRenderPassDescriptor()
@@ -89,7 +89,7 @@ import Metal
                     encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 1)
                     encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 4)
                 }
-                for i in 0..<3 { encoder.setFragmentTexture(fallback, index: i) }
+                for i in 1..<3 { encoder.setFragmentTexture(fallback, index: i) }
                 encoder.drawPrimitives(type: .triangle, vertexStart: 32 * 12 * 3, vertexCount: 6)
                 encoder.endEncoding()
             }
@@ -142,8 +142,8 @@ import Metal
         for (index, fixture) in (cases + fogCases).enumerated() {
             let (pitch, strength, blocked, height, travel) = fixture
             let floorCase = index >= cases.count
-            var uniforms = [SIMD4<Float>](repeating: .zero, count: 18)
-            uniforms[17] = SIMD4(0, 0.8, -1, 0) // Light direction.
+            var uniforms = [SIMD4<Float>](repeating: .zero, count: 17)
+            uniforms[16] = SIMD4(0, 0.8, -1, 0) // Light direction.
             uniforms[0] = SIMD4(1, 0.3, pitch, 20)
             uniforms[1] = SIMD4(repeating: height)
             uniforms[2] = SIMD4(repeating: height)
@@ -152,13 +152,13 @@ import Metal
             uniforms[5].w = travel
             uniforms[9].z = strength
             uniforms[9].w = 1
-            uniforms[13] = SIMD4(0.52, 0.72, 1.0, 0)
-            uniforms[14] = SIMD4(1, 1, 1, 0)
+            uniforms[12] = SIMD4(0.52, 0.72, 1.0, 0)
+            uniforms[13] = SIMD4(1, 1, 1, 0)
             if floorCase {
                 uniforms[3].w = 2
-                uniforms[12] = SIMD4(0.23, 0.28, 0.31, 0)
-                uniforms[15] = SIMD4(0.08, 0.85, 35, index == cases.count ? 0.045 : 0)
-                uniforms[16] = SIMD4(0.02, 0.03, 0.04, 0)
+                uniforms[11] = SIMD4(0.23, 0.28, 0.31, 0)
+                uniforms[14] = SIMD4(0.08, 0.85, 35, index == cases.count ? 0.045 : 0)
+                uniforms[15] = SIMD4(0.02, 0.03, 0.04, 0)
             }
             let pass = MTLRenderPassDescriptor()
             pass.colorAttachments[0].texture = multisampleColor
@@ -181,7 +181,7 @@ import Metal
                 encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 1)
                 encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 4)
             }
-            for i in 0..<3 { encoder.setFragmentTexture(fallback, index: i) }
+            for i in 1..<3 { encoder.setFragmentTexture(fallback, index: i) }
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: floorCase ? 6 : 3)
             encoder.endEncoding()
             command.commit()

@@ -54,10 +54,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var fluidTouch = FluidTouch()
     private var fluid: FluidSimulation?
     var pistonSettings = PistonSettings()
-    var trackProgress: Double = 0
-    var hasTrack = false
-    var isPlaying = false
-    var pistonCamera = PistonGroundControls.defaultCamera
+    var pistonCamera = PistonCameraProjection.defaultCamera
 
     private var shadowMask: MTLTexture?
     private var shadowBlur: MTLTexture?
@@ -82,10 +79,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private let depthState: MTLDepthStencilState?
     private let spectrumBuffer: OpaquePointer
     private let commandQueue: MTLCommandQueue
-    private var artworkTask: Task<MTLTexture?, Never>?
     private let fallbackTexture: MTLTexture
-    private var artworkTexture: MTLTexture?
-    private var artworkImage: CGImage?
     fileprivate struct Pipelines {
         let scene: MTLRenderPipelineState
         let shadow: MTLRenderPipelineState
@@ -181,60 +175,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 #endif
     }
 
-    func updateArtwork(_ image: CGImage?) {
-        guard artworkImage !== image else { return }
-        artworkTask?.cancel()
-        artworkTask = nil
-        artworkImage = image
-        artworkTexture = nil
-        guard let image else { return }
-        let device = commandQueue.device
-        let task = Task.detached(priority: .userInitiated) {
-            guard !Task.isCancelled else { return nil as MTLTexture? }
-            return Self.makeArtworkTexture(image, device: device)
-        }
-        artworkTask = task
-        Task { @MainActor [weak self] in
-            let texture = await task.value
-            guard let self, !task.isCancelled, artworkImage === image else { return }
-            artworkTexture = texture
-            artworkTask = nil
-        }
-    }
-
-    deinit { artworkTask?.cancel() }
-
-    private static func makeArtworkTexture(_ image: CGImage, device: MTLDevice) -> MTLTexture? {
-        // Grayscale images can load as single-channel textures, which the shader
-        // reads as red. Convert to sRGB RGBA so every artwork supplies RGB.
-        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
-              let context = CGContext(
-                data: nil, width: image.width, height: image.height,
-                bitsPerComponent: 8, bytesPerRow: image.width * 4,
-                space: colorSpace,
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-                    | CGBitmapInfo.byteOrder32Big.rawValue
-              ) else {
-            NSLog("[Visualizer] Cannot create artwork bitmap context")
-            return nil
-        }
-        context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
-        guard let rgbaImage = context.makeImage() else {
-            NSLog("[Visualizer] Cannot create RGBA artwork image")
-            return nil
-        }
-        do {
-            guard !Task.isCancelled else { return nil }
-            return try MTKTextureLoader(device: device).newTexture(cgImage: rgbaImage, options: [
-                .SRGB: false,
-                .origin: MTKTextureLoader.Origin.topLeft
-            ])
-        } catch {
-            NSLog("[Visualizer] Cannot load artwork texture: %@", String(describing: error))
-            return nil
-        }
-    }
-
     fileprivate static func makePipelines(
         device: MTLDevice, library: MTLLibrary, pixelFormat: MTLPixelFormat,
         shader: VisualizerShader, sampleCount: Int
@@ -282,7 +222,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         let delta = lastPistonTime.map { now - $0 } ?? PistonSimulation.step
         pistons.advance(delta: delta, bands: bands)
         lastPistonTime = now
-        var uniforms = [PistonGroundControls.camera(
+        var uniforms = [PistonCameraProjection.camera(
             size: view.drawableSize, yaw: pistonCamera.yaw,
             pitch: pistonCamera.pitch, zoom: pistonCamera.zoom)]
         uniforms.append(SIMD4(pistons.heights[0], pistons.heights[1], pistons.heights[2], pistons.heights[3]))
@@ -305,10 +245,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                                      pistonSettings.spotlightStrength, pistonSettings.spotlightSize))
         uniforms.append(SIMD4<Float>(pistonSettings.reflectionStrength, pistonSettings.edgeSoftness,
                                      pistonSettings.neutralRopeGlow, pistonSettings.bloomStrength))
-        let progress = trackProgress.isFinite ? Float(min(1, max(0, trackProgress))) : 0
-        let artworkAspect = artworkImage.map { Float($0.width) / Float($0.height) } ?? 1
-        let showsGroundControls = hasTrack && pistonSettings.showsGroundControls
-        uniforms.append(SIMD4<Float>(progress, artworkAspect, artworkTexture == nil ? 0 : 1, showsGroundControls ? 1 : 0))
         uniforms.append(SIMD4<Float>(pistonSettings.groundColor, 0))
         uniforms.append(SIMD4<Float>(pistonSettings.spotlightColor(for: displayedArtworkAccent), 0))
         uniforms.append(SIMD4<Float>(pistonSettings.lightColor(for: displayedArtworkAccent), 0))
@@ -356,7 +292,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
         encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
         encoder.setFragmentTexture(fallbackTexture, index: 1)
-        encoder.setFragmentTexture(fallbackTexture, index: 0)
         encoder.setFragmentTexture(fallbackTexture, index: 2)
         var uniforms = frame.uniforms
         uniforms[3].w = 3
@@ -385,7 +320,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
             encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
             encoder.setFragmentTexture(fallbackTexture, index: 1)
-            encoder.setFragmentTexture(fallbackTexture, index: 0)
             encoder.setFragmentTexture(fallbackTexture, index: 2)
             var uniforms = frame.uniforms
             uniforms[3].w = 1
@@ -485,7 +419,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         source.setVertexBuffer(frame.positions, offset: 0, index: 0)
         source.setFragmentBuffer(frame.positions, offset: 0, index: 6)
         source.setFragmentTexture(fallbackTexture, index: 1)
-        source.setFragmentTexture(fallbackTexture, index: 0)
         source.setFragmentTexture(fallbackTexture, index: 2)
         var uniforms = frame.uniforms
         uniforms[3].w = 4
@@ -674,11 +607,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 
         encoder.setRenderPipelineState(pipelines.scene)
         encoder.setFragmentTexture(fallbackTexture, index: 1)
-        encoder.setFragmentTexture(artworkTexture ?? fallbackTexture, index: 0)
-        var accentColor = SIMD4<Float>(
-            displayedAccent,
-            artworkTexture == nil ? 0 : 1
-        )
+        var accentColor = SIMD4<Float>(displayedAccent, 0)
         encoder.setFragmentBytes(
             &accentColor,
             length: MemoryLayout<SIMD4<Float>>.stride,
@@ -841,21 +770,11 @@ struct PistonCamera: Equatable {
     }
 }
 
-// Shared camera projection keeps ground controls aligned with the Metal scene.
-enum PistonGroundControls {
+// Camera projection and orbit limits for the Metal scene.
+enum PistonCameraProjection {
     static let pitchRange: ClosedRange<Float> = -1.8...1.2
     // Start at the lowest tilt; camera(size:yaw:pitch:zoom:) raises it to the floor clearance.
     static let defaultCamera = PistonCamera(pitch: pitchRange.lowerBound, zoom: 0.55)
-    // Floor position and scale of the artwork, rail and buttons layout.
-    static let layoutCenter = SIMD2<Float>(0, 3.4)
-    static let layoutScale: Float = 0.7
-
-    enum Hit {
-        case playPause
-        case previous
-        case next
-        case seek(Double)
-    }
 
     static func camera(size: CGSize, yaw: Float, pitch: Float, zoom: Float) -> SIMD4<Float> {
         let aspect = Float(size.width / max(1, size.height))
@@ -869,48 +788,5 @@ enum PistonGroundControls {
     static func orbitPitchRange(size: CGSize, zoom: Float) -> ClosedRange<Float> {
         let lowest = camera(size: size, yaw: 0, pitch: pitchRange.lowerBound, zoom: zoom).z - 0.25
         return lowest...pitchRange.upperBound
-    }
-
-    // Input points use SwiftUI's top-left origin. Intersect the view ray with
-    // the same world-space floor used in PistonVisualizer.metal.
-    static func hit(at point: CGPoint, size: CGSize, camera: SIMD4<Float>, artworkAspect: Float = 1) -> Hit? {
-        guard size.width > 0, size.height > 0,
-              point.x >= 0, point.x <= size.width, point.y >= 0, point.y <= size.height else { return nil }
-        let ndc = SIMD2<Float>(Float(point.x / size.width) * 2 - 1,
-                               1 - Float(point.y / size.height) * 2)
-        func inverseRotate(_ p: SIMD3<Float>) -> SIMD3<Float> {
-            let q = SIMD3(p.x, cos(camera.z) * p.y + sin(camera.z) * p.z,
-                          -sin(camera.z) * p.y + cos(camera.z) * p.z)
-            return SIMD3(cos(camera.y) * q.x - sin(camera.y) * q.z, q.y,
-                         sin(camera.y) * q.x + cos(camera.y) * q.z)
-        }
-        let origin = inverseRotate(SIMD3(0, 0, camera.w))
-        let ray = inverseRotate(SIMD3(ndc.x * camera.x / 2.1, ndc.y / 2.1, -1))
-        guard abs(ray.y) > 0.000001 else { return nil }
-        let distance = (-2.65 - origin.y) / ray.y
-        guard distance >= 0.1, distance < 100 else { return nil }
-        let floor = origin + ray * distance
-        let local = (SIMD2(floor.x, floor.z) - layoutCenter) / layoutScale
-        // Match the aspect-fitted artwork projection in PistonVisualizer.metal.
-        let fit = SIMD2(min(artworkAspect, 1), min(1 / max(artworkAspect, 0.001), 1))
-        if abs(local.x) <= 1.6 * fit.x, abs(local.y) <= 1.6 * fit.y {
-            return .playPause
-        }
-        // Match the circular projected buttons centered beside the artwork.
-        for direction in [-1, 1] {
-            let offset = SIMD2(local.x - Float(direction) * 2.15, local.y)
-            if simd_length_squared(offset) <= 0.4 * 0.4 {
-                return direction < 0 ? .previous : .next
-            }
-        }
-        // Match the rail at the near edge of the artwork, with extra click
-        // tolerance around its thin stroke. Clamp clicks at the rounded ends.
-        let rail = SIMD2(local.x + 1.6, local.y - 1.85)
-        let offset = SIMD2(rail.x - min(3.15, max(0.05, rail.x)), rail.y)
-        let tolerance = 0.15 / layoutScale // Keep the click target from shrinking with the layout.
-        if simd_length_squared(offset) <= tolerance * tolerance {
-            return .seek(Double(min(1, max(0, rail.x / 3.2))))
-        }
-        return nil
     }
 }

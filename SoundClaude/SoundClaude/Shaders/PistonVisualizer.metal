@@ -12,7 +12,6 @@ struct PistonUniforms {
     float4 baseColor; // linear RGB, unused
     float4 material; // roughness, metallic, spotlight strength, spotlight size
     float4 finish; // reflection strength, edge softness, neutral rope glow, bloom strength
-    float4 track; // progress, artwork aspect, has artwork, shows ground controls
     float4 groundColor; // linear RGB, unused
     float4 spotlightColor; // linear RGB matching the background glow's hue, unused
     float4 lightColor; // linear RGB scene light tint with unit luminance, unused
@@ -394,7 +393,6 @@ fragment PistonFragment pistonVisualizerFragment(
     PistonVertex in [[stage_in]],
     constant PistonUniforms &u [[buffer(4)]],
     const device float4 *points [[buffer(6)]],
-    texture2d<float> artwork [[texture(0)]],
     texture2d<float> shadowMask [[texture(1)]],
     texture2d<float> ropeShadow [[texture(2)]]
 ) {
@@ -463,50 +461,6 @@ fragment PistonFragment pistonVisualizerFragment(
         float3 floorColor = ambient * visibility
             + (diffuseColor * mix(1.0, visibility, 0.65) + highlight * visibility)
             * (1.0 - opacity);
-        if (u.track.w > 0.5) {
-            // Project light directly onto the floor. Dark image areas leave the
-            // ground visible; the projection has no frame, thickness or shadow.
-            // World-space floor coordinates keep both position and orientation
-            // fixed as the camera orbits. The whole layout is scaled about its
-            // center; PistonGroundControls uses the same center and scale.
-            float2 projected = (floorPosition - float2(0, 3.4)) / 0.7;
-            float2 artUV = projected / 3.2 + 0.5;
-            float2 fit = float2(min(u.track.y, 1.0), min(1.0 / max(u.track.y, 0.001), 1.0));
-            float2 uv = (artUV - 0.5) / fit + 0.5;
-            float3 emission = float3(0);
-            if (all(uv >= 0) && all(uv <= 1)) {
-                float2 edge = min(uv, 1 - uv);
-                float2 softness = max(fwidth(uv), float2(0.008));
-                float feather = smoothstep(0.0, softness.x, edge.x)
-                              * smoothstep(0.0, softness.y, edge.y);
-                if (u.track.z > 0.5) {
-                    constexpr sampler artSampler(filter::linear, mip_filter::linear, address::clamp_to_edge);
-                    emission = artwork.sample(artSampler, uv).rgb * feather * 0.21;
-                }
-            }
-            // Project the progress rail along the near edge of the artwork.
-            float2 rail = projected - float2(-1.6, 1.85);
-            float railDistance = length(float2(rail.x - clamp(rail.x, 0.05, 3.15), rail.y)) - 0.05;
-            float aa = max(fwidth(railDistance), 0.008);
-            float coverage = 1 - smoothstep(-aa, aa, railDistance);
-            float fill = u.track.x <= 0 ? 0 : (u.track.x >= 1 ? 1
-                : 1 - smoothstep(3.2 * u.track.x - aa, 3.2 * u.track.x + aa, rail.x));
-            emission += mix(float3(0.036, 0.045, 0.06), float3(0.12), fill) * coverage;
-            // Fixed ground controls. Their centers and radius also define the
-            // ray hit targets in PistonGroundControls.
-            for (int direction = -1; direction <= 1; direction += 2) {
-                float2 button = projected - float2(float(direction) * 2.15, 0);
-                float radius = length(button);
-                float feather = max(fwidth(radius), 0.008);
-                float disk = 1 - smoothstep(0.4 - feather, 0.4 + feather, radius);
-                // Cut a triangle out of the filled circle; mirror for previous.
-                float2 icon = float2(button.x * float(direction), button.y);
-                float triangle = max(-0.12 - icon.x, abs(icon.y) - (0.24 - icon.x) * 0.6);
-                float cutout = 1 - smoothstep(-feather, feather, triangle);
-                emission += float3(0.12) * disk * (1 - cutout);
-            }
-            floorColor += emission * 0.85 * mix(0.7, 1.0, visibility);
-        }
         // Distance fog converges to the exact sky color, rather than fading the
         // floor by viewing angle. A clear near region preserves its material.
         float fogDistance = max(0.0, distance * length(ray) - u.groundAppearance.z);
