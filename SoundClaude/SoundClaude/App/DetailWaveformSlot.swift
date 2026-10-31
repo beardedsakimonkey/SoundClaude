@@ -55,56 +55,6 @@ struct DetailWaveformSource {
     let scrollTarget: DetailWaveformScrollTarget
 }
 
-final class DetailWaveformScrollTarget {
-    weak var anchor: NSView?
-}
-
-private struct DetailWaveformScrollAnchor: NSViewRepresentable {
-    let target: DetailWaveformScrollTarget
-
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        target.anchor = view
-        return view
-    }
-
-    func updateNSView(_ view: NSView, context: Context) {
-        target.anchor = view
-    }
-}
-
-// The shared waveform is outside the page's scroll view. Return wheel events
-// to the scroll view that contains its slot, leaving clicks and drags to SwiftUI.
-private struct DetailWaveformScrollForwarder: NSViewRepresentable {
-    let target: DetailWaveformScrollTarget
-
-    func makeNSView(context: Context) -> DetailWaveformScrollView {
-        DetailWaveformScrollView()
-    }
-
-    func updateNSView(_ view: DetailWaveformScrollView, context: Context) {
-        view.target = target
-    }
-}
-
-final class DetailWaveformScrollView: NSView {
-    var target: DetailWaveformScrollTarget?
-
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        guard NSApp.currentEvent?.type == .scrollWheel,
-              target?.anchor?.enclosingScrollView != nil else { return nil }
-        return super.hitTest(point)
-    }
-
-    override func scrollWheel(with event: NSEvent) {
-        if let scrollView = target?.anchor?.enclosingScrollView {
-            scrollView.scrollWheel(with: event)
-        } else {
-            super.scrollWheel(with: event)
-        }
-    }
-}
-
 struct DetailWaveformPreferenceKey: PreferenceKey {
     static let defaultValue: DetailWaveformSource? = nil
 
@@ -129,6 +79,7 @@ struct DetailWaveformOverlay: ViewModifier {
                         isCollection: source.isCollection,
                         onPlayTrack: source.onPlayTrack
                     )
+                    .environment(\.detailWaveformScrollTarget, source.scrollTarget)
                     .overlay(DetailWaveformScrollForwarder(target: source.scrollTarget))
                     .modifier(DetailWaveformPlacement(bounds: source.bounds))
                 }

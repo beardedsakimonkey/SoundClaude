@@ -274,6 +274,7 @@ test-detail-waveform:
 	swiftc -o /tmp/soundclaude-tests/detail-waveform \
 		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 		SoundClaude/SoundClaude/App/DetailWaveformSlot.swift \
+		SoundClaude/SoundClaude/App/DetailWaveformScrollForwarder.swift \
 		tests/DetailWaveformLifetimeTests.swift
 	/tmp/soundclaude-tests/detail-waveform
 
@@ -331,6 +332,7 @@ test-track-waveform-navigation:
 	swiftc -o /tmp/soundclaude-tests/track-waveform-navigation \
 		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 		SoundClaude/SoundClaude/App/DetailWaveformSlot.swift \
+		SoundClaude/SoundClaude/App/DetailWaveformScrollForwarder.swift \
 		SoundClaude/SoundClaude/App/TrackWaveformView.swift \
 		SoundClaude/SoundClaude/App/WaveformShadingCache.swift \
 		SoundClaude/SoundClaude/App/ContentHover.swift \
@@ -343,6 +345,7 @@ test-waveform-comment-hover:
 	@mkdir -p /tmp/soundclaude-tests
 	swiftc -o /tmp/soundclaude-tests/waveform-comment-hover \
 		SoundClaude/SoundClaude/App/WaveformCommentsView.swift \
+		SoundClaude/SoundClaude/App/DetailWaveformScrollForwarder.swift \
 		SoundClaude/SoundClaude/App/WaveformCommentIndex.swift \
 		SoundClaude/SoundClaude/App/ContentHover.swift \
 		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
