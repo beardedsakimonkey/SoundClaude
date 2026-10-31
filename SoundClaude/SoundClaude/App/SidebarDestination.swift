@@ -80,14 +80,14 @@ struct SidebarSelectionStore {
 
     func restoreNavigation(for user: SoundCloudUser) -> NavigationSelection {
         guard let data = defaults.data(forKey: key(for: user)) else {
-            return NavigationSelection(destination: .liked)
+            return NavigationSelection(destination: .feed)
         }
         let decoder = JSONDecoder()
         if let selection = try? decoder.decode(NavigationSelection.self, from: data) {
             return selection
         }
         // Keep the selected tab from versions that saved only the tab.
-        let destination = (try? decoder.decode(SidebarDestination.self, from: data)) ?? .liked
+        let destination = (try? decoder.decode(SidebarDestination.self, from: data)) ?? .feed
         return NavigationSelection(destination: destination)
     }
 

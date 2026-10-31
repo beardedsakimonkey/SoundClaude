@@ -31,11 +31,11 @@ struct SignedInView: View {
     }
 
     private var navigationSelection: NavigationSelection {
-        NavigationSelection(destination: selectedDestination ?? .liked, route: path.last)
+        NavigationSelection(destination: selectedDestination ?? .feed, route: path.last)
     }
 
     private var destinationID: SidebarDestination.ID {
-        (selectedDestination ?? .liked).id
+        (selectedDestination ?? .feed).id
     }
 
     private var path: [Route] {
@@ -356,14 +356,14 @@ struct SignedInView: View {
             CurrentNavigationPage(route: path.last, retainsRoot: true) {
                 RetainedRootPages(
                     selections: SidebarDestination.libraryDestinations,
-                    selection: selectedDestination ?? .liked,
+                    selection: selectedDestination ?? .feed,
                     isActive: path.isEmpty
                 ) { destination, active in
                     rootView(destination, isActive: active)
                         .environment(\.contentAnimationsPaused, isShowingVisualizer || !active)
                         .environment(\.contentHoverEnabled, active && !isShowingVisualizer)
                 }
-                .navigationTitle((selectedDestination ?? .liked).title)
+                .navigationTitle((selectedDestination ?? .feed).title)
             } destination: { route in
                 routeView(route)
                     .environment(\.initialDetailArtworkRotation, initialDetailArtworkRotation)
