@@ -162,6 +162,14 @@ private struct PlaybackCommands: Commands {
             }
             .keyboardShortcut(.rightArrow, modifiers: [.option])
 
+            ForEach(0..<10, id: \.self) { digit in
+                Button("Seek to \(digit * 10)%") {
+                    model.playback.seek(toFraction: Double(digit) / 10)
+                }
+                .keyboardShortcut(KeyEquivalent(Character(String(digit))), modifiers: [])
+                .disabled(model.playback.currentTrack == nil)
+            }
+
             Divider()
 
             Button("Previous Track") {
