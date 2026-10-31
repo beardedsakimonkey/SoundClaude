@@ -18,8 +18,8 @@ struct KeyboardShortcutsView: View {
         Shortcut(title: "Seek back 30 seconds", keys: ["⌥", "←"]),
         Shortcut(title: "Seek forward 30 seconds", keys: ["⌥", "→"]),
         Shortcut(title: "Mute or unmute", keys: ["M"]),
-        Shortcut(title: "Increase volume", keys: ["⇧", "↑"]),
-        Shortcut(title: "Decrease volume", keys: ["⇧", "↓"]),
+        Shortcut(title: "Increase volume", keys: ["U"], alternateKeys: ["⇧", "↑"]),
+        Shortcut(title: "Decrease volume", keys: ["D"], alternateKeys: ["⇧", "↓"]),
         Shortcut(title: "Like or unlike current track", keys: ["L"])
     ]
 

@@ -192,14 +192,14 @@ struct SignedInView: View {
             )
         }
         .background {
-            seekShortcuts
+            playbackShortcuts
         }
         #if DEBUG
         .debugViewUpdates("SignedInView")
         #endif
     }
 
-    private var seekShortcuts: some View {
+    private var playbackShortcuts: some View {
         Group {
             Button("Seek Back 5 Seconds") {
                 model.playback.seek(by: -5)
@@ -209,6 +209,14 @@ struct SignedInView: View {
                 model.playback.seek(by: 5)
             }
             .keyboardShortcut("k", modifiers: [])
+            Button("Increase Volume") {
+                model.playback.volume = min(model.playback.volume + 0.05, 1)
+            }
+            .keyboardShortcut("u", modifiers: [])
+            Button("Decrease Volume") {
+                model.playback.volume = max(model.playback.volume - 0.05, 0)
+            }
+            .keyboardShortcut("d", modifiers: [])
         }
         .hidden()
         .accessibilityHidden(true)
