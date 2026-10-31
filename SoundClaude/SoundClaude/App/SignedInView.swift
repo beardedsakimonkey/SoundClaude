@@ -296,20 +296,10 @@ struct SignedInView: View {
                 #endif
         }
         .background {
-            Group {
-                Button("Open search", action: openSearch)
-                    .keyboardShortcut("/", modifiers: [])
-                Button("Open search") { openDestination(.search) }
-                    .keyboardShortcut("1", modifiers: [])
-                Button("Open feed") { openDestination(.feed) }
-                    .keyboardShortcut("2", modifiers: [])
-                Button("Open likes") { openDestination(.liked) }
-                    .keyboardShortcut("3", modifiers: [])
-                Button("Open history") { openDestination(.history) }
-                    .keyboardShortcut("4", modifiers: [])
-            }
-            .hidden()
-            .accessibilityHidden(true)
+            Button("Open search", action: openSearch)
+                .keyboardShortcut("/", modifiers: [])
+                .hidden()
+                .accessibilityHidden(true)
         }
     }
 
