@@ -243,8 +243,10 @@ struct PlayerFooterView: View {
             .keyboardShortcut("p", modifiers: [])
             .contentHelp("Previous track (P)")
             .accessibilityLabel("Previous track")
+            .disabled(model.queue.tracks.isEmpty)
 
             PlayerFooterPlayPauseButton(playback: playback)
+                .disabled(model.queue.tracks.isEmpty)
 
             Button(action: playback.next) {
                 Image(systemName: "forward.fill")
@@ -255,6 +257,7 @@ struct PlayerFooterView: View {
             .keyboardShortcut("n", modifiers: [])
             .contentHelp("Next track (N)")
             .accessibilityLabel("Next track")
+            .disabled(model.queue.tracks.isEmpty)
 
             Button(action: model.toggleShuffle) {
                 Image(systemName: "shuffle")
@@ -537,6 +540,7 @@ private struct PlayerFooterButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         let isPressed = configuration.isPressed && isEnabled
         return configuration.label
+            .opacity(isEnabled ? 1 : 0.4)
             .scaleEffect(isPressed && !reduceMotion ? 0.9 : 1)
             .animation(
                 reduceMotion ? nil : .spring(response: 0.2, dampingFraction: 0.7),
