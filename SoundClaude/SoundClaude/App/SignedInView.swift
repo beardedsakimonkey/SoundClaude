@@ -100,6 +100,8 @@ struct SignedInView: View {
                     onClose: { isShowingVisualizer = false }
                 )
                 .ignoresSafeArea()
+                .onAppear { model.audioTap.setVisualizerVisible(true) }
+                .onDisappear { model.audioTap.setVisualizerVisible(false) }
                 .accessibilityAction(named: "Close visualizer") {
                     isShowingVisualizer = false
                 }

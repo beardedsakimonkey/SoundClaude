@@ -254,7 +254,7 @@ final class AppModel {
         playback.resetSession()
         queue = TrackQueue(source: .single, tracks: playback.currentTrack.map { [$0] } ?? [])
         saveQueue()
-        audioTap.stop()
+        audioTap.setVisualizerVisible(false)
         followingTask?.cancel()
         followingTask = nil
         followingRequestID = nil

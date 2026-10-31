@@ -18,13 +18,24 @@ final class AudioTapController: ObservableObject {
     )
     private let processTap: ProcessTap
     private var generation: UInt64 = 0
+    private var isVisualizerVisible = false
 
     init(analyzer: SpectrumAnalyzer) {
         self.analyzer = analyzer
         processTap = ProcessTap(ringBuffer: analyzer.ringBuffer)
     }
 
+    func setVisualizerVisible(_ isVisible: Bool) {
+        isVisualizerVisible = isVisible
+        if isVisible {
+            Task { await startForCurrentProcess() }
+        } else {
+            stop()
+        }
+    }
+
     func startForCurrentProcess() async {
+        guard isVisualizerVisible else { return }
         // The tap captures the process, not an individual AVPlayer item.
         // Keep capture and spectrum smoothing continuous across track changes.
         switch state {

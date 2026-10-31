@@ -39,10 +39,14 @@ struct AudioTapLifecycleTests {
     @MainActor
     static func main() async throws {
         let capture = AudioTapController(analyzer: SpectrumAnalyzer())
-        let starting = Task { await capture.startForCurrentProcess() }
+        await capture.startForCurrentProcess()
+        precondition(capture.state == .idle)
+        precondition(ProcessTap.counts.starts == 0,
+                     "Playback must not request capture before the visualizer opens")
+        capture.setVisualizerVisible(true)
         try await until { capture.state == .starting }
         await capture.startForCurrentProcess()
-        await starting.value
+        try await until { capture.state == .running(ProcessTapFormat(sampleRate: 48_000)) }
         precondition(capture.state == .running(ProcessTapFormat(sampleRate: 48_000)))
         let initial = ProcessTap.counts
         precondition(initial.starts == 1, "Track changes during setup must share the tap")
@@ -67,8 +71,19 @@ struct AudioTapLifecycleTests {
         await obsolete.value
         precondition(capture.state == .running(ProcessTapFormat(sampleRate: 48_000)),
                      "A stale setup must not stop or overwrite a newer session")
-        capture.stop()
-        print("Audio tap reuse, concurrent startup, and stop/restart tests passed")
+        capture.setVisualizerVisible(false)
+        let closedStarts = ProcessTap.counts.starts
+        await capture.startForCurrentProcess()
+        precondition(capture.state == .idle)
+        precondition(ProcessTap.counts.starts == closedStarts,
+                     "Playback must not restart capture after the visualizer closes")
+        capture.setVisualizerVisible(true)
+        capture.setVisualizerVisible(false)
+        await Task.yield()
+        precondition(capture.state == .idle)
+        precondition(ProcessTap.counts.starts == closedStarts,
+                     "Closing immediately must cancel the pending capture request")
+        print("Audio tap visibility, reuse, concurrent startup, and stop/restart tests passed")
     }
 
     @MainActor
