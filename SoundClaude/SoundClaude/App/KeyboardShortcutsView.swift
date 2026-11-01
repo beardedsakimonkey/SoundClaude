@@ -86,6 +86,7 @@ struct KeyboardShortcutsView: View {
                             Text("or")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
                             keyCaps(alternateKeys)
                         }
                     }
