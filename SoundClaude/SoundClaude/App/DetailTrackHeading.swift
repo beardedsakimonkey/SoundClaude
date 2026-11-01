@@ -35,6 +35,17 @@ struct DetailTrackHeading: View {
 
     private static let titleFont = Font.system(size: 28, weight: .semibold)
 
+    // Match the title line and avatar row before a collection has a track.
+    static var placeholder: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(verbatim: " ").font(titleFont)
+            Color.clear.frame(height: 24)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .hidden()
+        .accessibilityHidden(true)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Reserve full-size line height so scaling down a long title doesn't shift the rows below.

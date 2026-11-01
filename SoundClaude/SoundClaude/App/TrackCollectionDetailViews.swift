@@ -229,10 +229,10 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
                             onSelectArtist: onSelectArtist
                         )
                     } else {
-                        Color.clear
+                        DetailTrackHeading.placeholder
                     }
                 }
-                .frame(minHeight: 64, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 10)
                 if showsControls || currentTrack != nil {
                     VStack(alignment: .leading, spacing: 16) {

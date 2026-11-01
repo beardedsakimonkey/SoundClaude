@@ -1,12 +1,16 @@
 import AppKit
 import SwiftUI
 
+let protectedTrackOpacity = 0.55
+enum TrackAccess { case playable, protected }
+
 struct SoundCloudUser { let username: String }
 struct SoundCloudTrack {
     let urn: String
     let title: String
     let artist: SoundCloudUser
     var createdAt: String? = nil
+    var access: TrackAccess = .playable
 }
 struct ArtworkLoader {}
 struct ArtistLink: View {
@@ -15,7 +19,7 @@ struct ArtistLink: View {
     var showsAvatarBorder = false
     let onSelect: (SoundCloudUser) -> Void
     @StateObject private var lifetime = HeadingLifetime()
-    var body: some View { let _ = lifetime; Button(artist.username) { onSelect(artist) }.lineLimit(1) }
+    var body: some View { let _ = lifetime; HStack(spacing: 8) { Color.clear.frame(width: 24, height: 24); Button(artist.username) { onSelect(artist) }.lineLimit(1) } }
 }
 extension View {
     func onContentHover(_ action: @escaping (Bool) -> Void) -> some View { onHover(perform: action) }
@@ -107,6 +111,21 @@ private final class HeadingLifetime: ObservableObject {
         await layout()
         precondition(selectedTrackURN == track.urn, "Clicking the collection title must open its track")
         window.orderOut(nil)
-        print("Detail heading lifetime and collection title click tests passed")
+        // The controls below a loading collection must keep the same vertical position.
+        let placeholder = NSHostingView(rootView: DetailTrackHeading.placeholder
+            .fixedSize(horizontal: false, vertical: true))
+        let loaded = NSHostingView(rootView: DetailTrackHeading(
+            track: track, isCollection: true, artworkLoader: ArtworkLoader(),
+            onSelectTrack: { _ in }, onSelectArtist: { _ in }
+        ).fixedSize(horizontal: false, vertical: true))
+        for width: CGFloat in [240, 600] {
+            placeholder.frame.size = CGSize(width: width, height: 100)
+            loaded.frame.size = CGSize(width: width, height: 100)
+            placeholder.layoutSubtreeIfNeeded()
+            loaded.layoutSubtreeIfNeeded()
+            precondition(placeholder.fittingSize.height == loaded.fittingSize.height,
+                         "Loading a track must not move the playback controls")
+        }
+        print("Detail heading lifetime, title click, and loading layout tests passed")
     }
 }
