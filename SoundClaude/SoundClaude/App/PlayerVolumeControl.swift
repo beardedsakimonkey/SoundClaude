@@ -34,8 +34,12 @@ struct PlayerVolumeControl: View {
                     playback.toggleMute()
                 }
             } label: {
-                volumeSymbol
+                Color.clear
                     .frame(width: usesCompactVolume ? 32 : 24, height: 32)
+                    .overlay {
+                        volumeSymbol
+                            .allowsHitTesting(false)
+                    }
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -91,6 +95,7 @@ struct PlayerVolumeControl: View {
         ZStack {
             if playback.volume == 0 || playback.isMuted {
                 Image(systemName: "speaker.slash.fill")
+                    .offset(x: -4)
             } else {
                 Image(systemName: "speaker.wave.3.fill", variableValue: Double(playback.volume))
             }
