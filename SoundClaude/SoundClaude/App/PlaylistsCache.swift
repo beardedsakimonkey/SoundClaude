@@ -5,6 +5,8 @@ import Foundation
 struct PlaylistsCache: Codable {
     var playlists: [SoundCloudPlaylist] = []
     var hasLoadedList = false
+    var likedPlaylists: [SoundCloudPlaylist] = []
+    var hasLoadedLikes = false
     var contents: [String: PlaylistContents] = [:]
     var artworkURLs: [String: URL]?
 }
@@ -29,6 +31,8 @@ actor PlaylistsCacheStore {
     private struct SidebarCache: Codable {
         var playlists: [SoundCloudPlaylist]
         var hasLoadedList: Bool
+        var likedPlaylists: [SoundCloudPlaylist]
+        var hasLoadedLikes: Bool
         var artworkURLs: [String: URL]?
     }
 
@@ -105,7 +109,11 @@ actor PlaylistsCacheStore {
             ? sidebarURL : fileURL(accountID: accountID)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         let sidebar = try JSONDecoder().decode(SidebarCache.self, from: Data(contentsOf: url))
-        return PlaylistsCache(playlists: sidebar.playlists, hasLoadedList: sidebar.hasLoadedList, artworkURLs: sidebar.artworkURLs)
+        return PlaylistsCache(
+            playlists: sidebar.playlists, hasLoadedList: sidebar.hasLoadedList,
+            likedPlaylists: sidebar.likedPlaylists, hasLoadedLikes: sidebar.hasLoadedLikes,
+            artworkURLs: sidebar.artworkURLs
+        )
     }
 
     func save(_ cache: PlaylistsCache, accountID: String) throws {
@@ -177,15 +185,16 @@ actor PlaylistsCacheStore {
 
     private func saveSidebar(_ cache: PlaylistsCache, accountID: String) throws {
         var artworkURLs = cache.artworkURLs ?? [:]
-        for playlist in cache.playlists {
+        for playlist in cache.playlists + cache.likedPlaylists {
             if let contents = cache.contents[playlist.urn] {
                 artworkURLs[playlist.urn] = contents.playlist.artworkURL
                     ?? contents.tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
             }
         }
-        let libraryURNs = Set(cache.playlists.map(\.urn))
+        let libraryURNs = Set((cache.playlists + cache.likedPlaylists).map(\.urn))
         let sidebar = SidebarCache(
             playlists: cache.playlists, hasLoadedList: cache.hasLoadedList,
+            likedPlaylists: cache.likedPlaylists, hasLoadedLikes: cache.hasLoadedLikes,
             artworkURLs: artworkURLs.filter { libraryURNs.contains($0.key) }
         )
         try JSONEncoder().encode(sidebar).write(

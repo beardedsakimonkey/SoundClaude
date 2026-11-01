@@ -15,7 +15,10 @@ final class PlaylistsController: ObservableObject {
     @Published private(set) var playlistErrors: [String: String] = [:] {
         didSet { updateCardStates() }
     }
-    @Published private(set) var likedPlaylists: [SoundCloudPlaylist] = []
+    private(set) var likedPlaylists: [SoundCloudPlaylist] {
+        get { cache.likedPlaylists }
+        set { cache.likedPlaylists = newValue }
+    }
     @Published private(set) var isLoadingLikes = false
     @Published private(set) var hasLoadedLikes = false
     @Published private(set) var likesErrorMessage: String?
@@ -499,7 +502,7 @@ final class PlaylistsController: ObservableObject {
             await likesTask.value
             return
         }
-        guard accountID != nil, !hasLoadedLikes else { return }
+        guard let accountID, !hasLoadedLikes else { return }
         let session = sessionID
         likesErrorMessage = nil
         isLoadingLikes = true
@@ -511,6 +514,7 @@ final class PlaylistsController: ObservableObject {
                 }
             }
             do {
+                let hadCachedLikes = cache.hasLoadedLikes
                 var likedURNs: Set<String> = []
                 var refreshed: [SoundCloudPlaylist] = []
                 var url: URL?
@@ -521,11 +525,15 @@ final class PlaylistsController: ObservableObject {
                     try checkSession(session)
                     try validate(next: page.nextURL, requested: url, visited: &visited)
                     refreshed.append(contentsOf: page.playlists.filter { likedURNs.insert($0.urn).inserted })
+                    // Keep a saved list visible until every page confirms removals.
+                    if !hadCachedLikes { likedPlaylists = refreshed }
                     url = page.nextURL
                     if url != nil { try await Task.sleep(for: .milliseconds(350)) }
                 } while url != nil
                 likedPlaylists = refreshed
                 hasLoadedLikes = true
+                cache.hasLoadedLikes = true
+                try? await save(accountID: accountID, session: session)
             } catch {
                 if sessionID == session, !(error is CancellationError) {
                     likesErrorMessage = error.localizedDescription
@@ -542,6 +550,7 @@ final class PlaylistsController: ObservableObject {
         guard hasLoadedLikes, updatingLikeURNs.insert(playlist.urn).inserted else { return }
         let session = sessionID
         defer { if sessionID == session { updatingLikeURNs.remove(playlist.urn) } }
+        guard let accountID else { throw CancellationError() }
         let shouldLike = !likedPlaylistURNs.contains(playlist.urn)
         let token = try await accessToken(session: session)
         try await client.setPlaylistLiked(urn: playlist.urn, isLiked: shouldLike, accessToken: token)
@@ -551,6 +560,8 @@ final class PlaylistsController: ObservableObject {
         } else {
             likedPlaylists.removeAll { $0.urn == playlist.urn }
         }
+        try? await save(accountID: accountID, session: session)
+        try checkSession(session)
     }
 
     private func accessToken(session: UUID) async throws -> String {
@@ -584,7 +595,6 @@ final class PlaylistsController: ObservableObject {
         previewOrder = []
         likesTask?.cancel()
         likesTask = nil
-        likedPlaylists = []
         isLoadingLikes = false
         hasLoadedLikes = false
         likesErrorMessage = nil

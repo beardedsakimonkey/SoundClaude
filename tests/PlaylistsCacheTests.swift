@@ -109,6 +109,65 @@ struct PlaylistsCacheTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = PlaylistsCacheStore(directory: directory)
         let next = URL(string: "https://api.soundcloud.com/playlists?cursor=next")!
+
+        // Cold loads publish pages early, but only complete lists reach disk.
+        let likesDirectory = directory.appending(path: "likes-regression")
+        let likesStore = PlaylistsCacheStore(directory: likesDirectory)
+        let likesClient = SoundCloudClient()
+        let likesAuth = AuthController()
+        let cold = PlaylistsController(client: likesClient, auth: likesAuth, store: likesStore)
+        let firstLike = makePlaylist(71, isPrivate: false)
+        let secondLike = makePlaylist(72, isPrivate: false)
+        likesClient.fetchLikes = { url in
+            if url == nil { return SoundCloudPlaylistPage(playlists: [firstLike], nextURL: next) }
+            precondition(cold.likedPlaylists == [firstLike] && !cold.hasLoadedLikes)
+            throw SoundCloudError.invalidData
+        }
+        await cold.loadLikes()
+        precondition(cold.likedPlaylists == [firstLike] && cold.likesErrorMessage != nil)
+        let partialDisk = try likesStore.loadForLaunch(accountID: "user:1")?.likedPlaylists
+        precondition(partialDisk == nil)
+        likesClient.fetchLikes = { url in
+            SoundCloudPlaylistPage(playlists: url == nil ? [firstLike] : [secondLike],
+                                   nextURL: url == nil ? next : nil)
+        }
+        await cold.loadLikes()
+        let warm = PlaylistsController(client: likesClient, auth: likesAuth, store: likesStore)
+        precondition(warm.likedPlaylists == [firstLike, secondLike] && !warm.hasLoadedLikes)
+        likesClient.fetchLikes = { url in
+            precondition(warm.likedPlaylists == [firstLike, secondLike])
+            if url == nil { return SoundCloudPlaylistPage(playlists: [secondLike], nextURL: next) }
+            throw SoundCloudError.invalidData
+        }
+        await warm.loadLikes()
+        precondition(warm.likedPlaylists == [firstLike, secondLike] && !warm.hasLoadedLikes)
+        likesClient.fetchLikes = { _ in SoundCloudPlaylistPage(playlists: [secondLike], nextURL: nil) }
+        await warm.loadLikes()
+        precondition(warm.likedPlaylists == [secondLike] && warm.hasLoadedLikes)
+        likesClient.fetchList = { _ in SoundCloudPlaylistPage(playlists: [makePlaylist(1)], nextURL: nil) }
+        await warm.load()
+        let sharedCache = try likesStore.loadForLaunch(accountID: "user:1")
+        precondition(sharedCache?.playlists == [makePlaylist(1)])
+        precondition(sharedCache?.hasLoadedLikes == true)
+        let refreshedDisk = try likesStore.loadForLaunch(accountID: "user:1")?.likedPlaylists
+        precondition(refreshedDisk == [secondLike])
+        let otherAccount = try likesStore.loadForLaunch(accountID: "user:2")?.likedPlaylists
+        precondition(otherAccount == nil)
+
+        // Sign-out cancels an in-flight response before it can replace saved likes.
+        warm.clear()
+        var likesResponse: CheckedContinuation<SoundCloudPlaylistPage, Never>?
+        likesClient.fetchLikes = { _ in await withCheckedContinuation { likesResponse = $0 } }
+        let pendingLikes = Task { await warm.loadLikes() }
+        while likesResponse == nil { await Task.yield() }
+        warm.clear()
+        likesAuth.state = .signedOut
+        likesResponse?.resume(returning: SoundCloudPlaylistPage(playlists: [firstLike], nextURL: nil))
+        await pendingLikes.value
+        precondition(warm.likedPlaylists.isEmpty && !warm.hasLoadedLikes)
+        let afterCancelledLikes = try likesStore.loadForLaunch(accountID: "user:1")?.likedPlaylists
+        precondition(afterCancelledLikes == [secondLike])
+
         let baseline = PlaylistsCache(
             playlists: [makePlaylist(1), makePlaylist(2)], hasLoadedList: true,
             contents: ["playlist:1": PlaylistContents(playlist: makePlaylist(1),
@@ -401,10 +460,14 @@ struct PlaylistsCacheTests {
         precondition(controller.playlists == [makePlaylist(2)])
         try await controller.toggleLike(publicPlaylist)
         precondition(controller.likedPlaylists.isEmpty)
+        let savedUnlike = try store.loadForLaunch(accountID: "user:1")?.likedPlaylists
+        precondition(savedUnlike == [])
         precondition(client.likeWrites == [false] && controller.likedPlaylistURNs.isEmpty)
         try await controller.toggleLike(publicPlaylist)
         precondition(client.likeWrites == [false, true])
         precondition(controller.likedPlaylists == [publicPlaylist])
+        let savedLike = try store.loadForLaunch(accountID: "user:1")?.likedPlaylists
+        precondition(savedLike == [publicPlaylist])
         client.failLikeWrite = true
         do {
             try await controller.toggleLike(publicPlaylist)
@@ -441,7 +504,7 @@ struct PlaylistsCacheTests {
         await controller.restoreCache()
 
         precondition(controller.likedPlaylistURNs.isEmpty && !controller.hasLoadedLikes)
-        precondition(controller.likedPlaylists.isEmpty && !controller.isLoadingLikes)
+        precondition(!controller.isLoadingLikes)
         await controller.restoreCache()
         client.fetchLikes = { url in
             if url == nil { return SoundCloudPlaylistPage(playlists: [publicPlaylist], nextURL: next) }
@@ -449,7 +512,7 @@ struct PlaylistsCacheTests {
         }
         await controller.loadLikes()
         precondition(!controller.hasLoadedLikes && controller.likesErrorMessage != nil)
-        precondition(controller.likedPlaylists.isEmpty && !controller.isLoadingLikes)
+        precondition(controller.likedPlaylists == [publicPlaylist] && !controller.isLoadingLikes)
         client.fetchLikes = { _ in SoundCloudPlaylistPage(playlists: [], nextURL: nil) }
         await controller.loadLikes()
         precondition(controller.hasLoadedLikes && controller.likesErrorMessage == nil)
