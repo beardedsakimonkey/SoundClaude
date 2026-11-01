@@ -291,7 +291,8 @@ struct ArtistDetailView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .padding(headerImage == nil ? 0 : 16)
+                        // Reserve the material inset before the header image loads.
+                        .padding(16)
                         .background {
                             if headerImage != nil {
                                 RoundedRectangle(cornerRadius: 16)
