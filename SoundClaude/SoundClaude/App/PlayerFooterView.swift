@@ -457,8 +457,8 @@ private struct PlayerFooterWaveform: View {
                 : 0))
             .animation(
                 reduceMotion ? nil : (raisesTimestamps
-                    ? .spring(duration: 0.44, bounce: 0.22)
-                    : .spring(duration: 0.44, bounce: 0.44)),
+                    ? TrackWaveformView.barCollapseAnimation
+                    : TrackWaveformView.barExpandAnimation),
                 value: raisesTimestamps
             )
         }

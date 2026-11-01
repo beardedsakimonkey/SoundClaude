@@ -30,8 +30,9 @@ struct TrackWaveformView: View {
     let animatesBarTransitions: Bool
     let invertsBarsOnTrackChange: Bool
     let collapsesBarsWhenPaused: Bool
+    static let barCollapseAnimation = Animation.spring(duration: 0.34, bounce: 0)
+    static let barExpandAnimation = Animation.spring(duration: 0.44, bounce: 0.44)
 
-    // The overshoot of the collapse spring stays above the previous 4-point height.
     static let collapsedBarHeight: CGFloat = 5
     let keepsBarsVisible: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
@@ -220,10 +221,6 @@ struct TrackWaveformView: View {
                 // Read observed state before entering Canvas. Direct observation
                 // in its renderer can redraw with target bar heights while the
                 // animatable view is still interpolating them.
-                let barCollapseAnimation = Animation(WaveformCollapseSpring(
-                    maxBounceTravel: 16 / Double(layout.availableBarHeight(for: height))
-                ))
-                let barExpandAnimation = Animation.spring(duration: 0.44, bounce: 0.44)
                 let renderedProgress = progress
                 let renderedProgressColor = progressColor
                 let renderedHoverFraction = hoverFraction
@@ -325,7 +322,7 @@ struct TrackWaveformView: View {
                 // Resampling during window resizing must not start or extend a spring.
                 .animation(nil, value: waveformWidth)
                 .animation(
-                    revealsWaveformFromCollapse && !reduceMotion ? barExpandAnimation : trackChangeAnimation,
+                    revealsWaveformFromCollapse && !reduceMotion ? Self.barExpandAnimation : trackChangeAnimation,
                     value: waveform
                 )
                 .animation(
@@ -334,8 +331,8 @@ struct TrackWaveformView: View {
                 )
                 .animation(
                     reduceMotion ? nil : (barsAreCollapsed && !showsHoverPreview
-                        ? barCollapseAnimation
-                        : barExpandAnimation),
+                        ? Self.barCollapseAnimation
+                        : Self.barExpandAnimation),
                     value: showsHoverPreview
                 )
                 .animation(
@@ -344,8 +341,8 @@ struct TrackWaveformView: View {
                 )
                 .animation(
                     reduceMotion || !animatesBarTransitions ? nil : (barsAreCollapsed
-                        ? barCollapseAnimation
-                        : barExpandAnimation),
+                        ? Self.barCollapseAnimation
+                        : Self.barExpandAnimation),
                     value: barsAreCollapsed
                 )
                 .modifier(WaveformLoadingOpacity(
@@ -836,44 +833,6 @@ private struct WaveformStaggeredSpring: CustomAnimation {
             let delay = Self.staggerDuration * Double(staggerIndex) / Double(max(lastIndex, 1))
             guard time > delay else { return 0 }
             return spring.value(target: amplitude, time: time - delay)
-        }
-        bars.second = spring.value(target: bars.second, time: time)
-        return bars as? V
-    }
-}
-
-// Spring overshoot grows with travel, so tall bars bounce further past the
-// collapsed height. Cap each bar's overshoot at that of a reference travel.
-private struct WaveformCollapseSpring: CustomAnimation {
-    // In amplitude units.
-    let maxBounceTravel: Double
-    private static let spring = Spring(duration: 0.44, bounce: 0.22)
-    // Scaling only after the first crossing keeps the approach continuous.
-    private static let firstCrossingTime: TimeInterval = {
-        var time: TimeInterval = 0
-        while time < spring.settlingDuration, spring.value(target: 1.0, time: time) < 1 {
-            time += 1.0 / 600
-        }
-        return time
-    }()
-
-    func animate<V: VectorArithmetic>(
-        value: V,
-        time: TimeInterval,
-        context: inout AnimationContext<V>
-    ) -> V? {
-        let spring = Self.spring
-        guard time < spring.settlingDuration else { return nil }
-        guard var bars = value as? AnimatablePair<WaveformAmplitudes, Double> else {
-            return spring.value(target: value, time: time)
-        }
-
-        let progress = spring.value(target: 1.0, time: time)
-        let isBouncing = time > Self.firstCrossingTime
-        bars.first.values = bars.first.values.map { travel in
-            guard isBouncing, abs(travel) > maxBounceTravel else { return travel * progress }
-            // Deviation from the target, scaled as if the bar travelled the reference.
-            return travel + (progress - 1) * maxBounceTravel * (travel < 0 ? -1 : 1)
         }
         bars.second = spring.value(target: bars.second, time: time)
         return bars as? V
