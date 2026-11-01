@@ -53,7 +53,6 @@ private struct SearchPill: View {
     let text: String
     let label: String
     let action: () -> Void
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
 
     var body: some View {
@@ -62,7 +61,6 @@ private struct SearchPill: View {
         }
         .buttonStyle(.plain)
         .onContentHover { isHovering = $0 }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isHovering)
         .fixedSize()
         .accessibilityLabel(label)
         .contentHelp(label)
