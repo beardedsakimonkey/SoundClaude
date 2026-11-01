@@ -339,6 +339,7 @@ struct SidebarView: View {
                 artworkURL: artworkURL,
                 loader: artworkLoader,
                 size: 24,
+                shape: RoundedRectangle(cornerRadius: 6, style: .continuous),
                 showsBorder: false
             )
             .frame(width: 28)
