@@ -480,7 +480,10 @@ struct SidebarView: View {
             if isExpanded {
                 VStack(alignment: .leading, spacing: 0, content: content)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .transition(.move(edge: .top))
+                    .transition(.modifier(
+                        active: SidebarSectionSlide(progress: 0),
+                        identity: SidebarSectionSlide(progress: 1)
+                    ))
             }
         }
         // Keep sliding rows below the header while the section changes height.
@@ -529,6 +532,25 @@ struct SidebarView: View {
         } else {
             onSelect(destination)
         }
+    }
+}
+
+// Apply the interpolated transform to the section itself. A built-in move
+// transition can give newly inserted artwork the final position while the
+// placeholder and text are still sliding.
+private struct SidebarSectionSlide: GeometryEffect {
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(
+            translationX: 0,
+            y: (progress - 1) * size.height
+        ))
     }
 }
 
