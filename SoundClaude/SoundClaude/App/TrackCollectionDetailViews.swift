@@ -400,6 +400,13 @@ struct TrackCollectionTitleRow<Title: View, Actions: View>: View {
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .overlay {
+                    Capsule()
+                        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
 
             actions()
                 .opacity(isHovered ? 1 : 0)

@@ -151,7 +151,7 @@ struct PlaylistDetailView: View {
             TrackCollectionTitleRow {
                 Label {
                     Text(displayedPlaylist.title)
-                        .foregroundStyle(Color.primary.opacity(0.9))
+                        .foregroundStyle(.secondary)
                 } icon: {
                     Image(systemName: "music.note.list")
                 }
