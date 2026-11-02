@@ -778,7 +778,7 @@ enum PistonCameraProjection {
 
     static func camera(size: CGSize, yaw: Float, pitch: Float, zoom: Float) -> SIMD4<Float> {
         let aspect = Float(size.width / max(1, size.height))
-        let distance = max(13, 17 / max(0.1, aspect)) * zoom / 0.7
+        let distance = max(13, 22 / max(0.1, aspect)) * zoom / 0.7
         // Orbit around y = 1; the floor is y = -1.65. Keep 0.75 clearance.
         let groundLimit = asin(max(-1, min(1, -1.9 / distance)))
         let viewingPitch = max(groundLimit, min(pitchRange.upperBound, max(pitchRange.lowerBound, pitch)) + 0.25)
