@@ -12,6 +12,7 @@ struct PlaylistEditorView: View {
     @State private var isPrivate = true
     @State private var artwork: PlaylistArtwork?
     @State private var artworkPreview: NSImage?
+    @State private var removedArtwork = false
     @State private var isChoosingArtwork = false
     @State private var isSaving = false
     @State private var errorMessage: String?
@@ -31,37 +32,11 @@ struct PlaylistEditorView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(playlist == nil ? "Create playlist" : "Edit playlist")
+            Text(playlist == nil ? "New playlist" : "Edit playlist")
                 .font(.title2.bold())
-            Form {
-                if playlist == nil {
-                    HStack {
-                        if let artworkPreview {
-                            Image(nsImage: artworkPreview)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 64, height: 64)
-                                .accessibilityLabel("Selected playlist image")
-                        }
-                        Button(artwork == nil ? "Choose image…" : "Change image…") {
-                            isChoosingArtwork = true
-                        }
-                        if artwork != nil {
-                            Button("Remove") {
-                                artwork = nil
-                                artworkPreview = nil
-                            }
-                        }
-                    }
-                }
-                TextField("Title", text: $title)
-                    .focused($isTitleFocused)
-                TextField("Description", text: $description, axis: .vertical)
-                    .lineLimit(3...5)
-                Picker("Visibility", selection: $isPrivate) {
-                    Text("Private").tag(true)
-                    Text("Public").tag(false)
-                }
+            HStack(alignment: .top, spacing: 24) {
+                artworkColumn
+                playlistFields
             }
             .disabled(isSaving)
             if let errorMessage {
@@ -89,6 +64,9 @@ struct PlaylistEditorView: View {
                             let saved: SoundCloudPlaylist
                             let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
                             if let playlist {
+                                guard artwork == nil && !removedArtwork else {
+                                    throw SoundCloudError.api("Playlist artwork changes are not supported yet. Cancel and reopen the dialog to edit the playlist details.")
+                                }
                                 saved = try await playlists.updatePlaylist(
                                     playlist, title: trimmedTitle, description: trimmedDescription,
                                     isPrivate: isPrivate
@@ -113,7 +91,7 @@ struct PlaylistEditorView: View {
             }
         }
         .padding(24)
-        .frame(width: 420)
+        .frame(width: 600)
         .interactiveDismissDisabled(isSaving)
         .dismissOnOutsideClick(isEnabled: !isSaving)
         .onAppear { isTitleFocused = true }
@@ -132,6 +110,7 @@ struct PlaylistEditorView: View {
                     errorMessage = "Choose a valid GIF, JPEG, or PNG image."
                     return
                 }
+                removedArtwork = false
                 artwork = PlaylistArtwork(data: data, format: format)
                 artworkPreview = preview
                 errorMessage = nil
@@ -140,4 +119,90 @@ struct PlaylistEditorView: View {
             }
         }
     }
+
+    private var artworkColumn: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                isChoosingArtwork = true
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(.quaternary)
+                    if let artworkPreview {
+                        Image(nsImage: artworkPreview)
+                            .resizable()
+                            .scaledToFill()
+                    } else if let url = playlist?.artworkURL, !removedArtwork {
+                        AsyncImage(url: url) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            defaultArtwork
+                        }
+                    } else {
+                        defaultArtwork
+                    }
+                }
+                .frame(width: 210, height: 210)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(.white.opacity(0.15), lineWidth: 1)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(hasArtwork ? "Change playlist image" : "Choose playlist image")
+            .help("Choose a playlist image")
+
+            HStack(spacing: 8) {
+                Button("Choose image…") {
+                    isChoosingArtwork = true
+                }
+                if hasArtwork {
+                    Button("Remove") {
+                        artwork = nil
+                        artworkPreview = nil
+                        removedArtwork = playlist?.artworkURL != nil
+                    }
+                }
+            }
+        }
+        .frame(width: 210)
+    }
+
+    private var hasArtwork: Bool {
+        artwork != nil || (playlist?.artworkURL != nil && !removedArtwork)
+    }
+
+    private var defaultArtwork: some View {
+        Image(systemName: "music.note")
+            .font(.system(size: 84, weight: .medium))
+            .foregroundStyle(.secondary)
+    }
+
+    private var playlistFields: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Title")
+                TextField("", text: $title)
+                    .accessibilityLabel("Title")
+                    .labelsHidden()
+                    .focused($isTitleFocused)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Description")
+                TextField("", text: $description, axis: .vertical)
+                    .accessibilityLabel("Description")
+                    .labelsHidden()
+                    .lineLimit(3...5)
+            }
+            Picker("Visibility", selection: $isPrivate) {
+                Text("Private").tag(true)
+                Text("Public").tag(false)
+            }
+        }
+        .textFieldStyle(.roundedBorder)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
 }
