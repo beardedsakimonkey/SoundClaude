@@ -827,7 +827,7 @@ private struct PlayerSpeedSlider: View {
     private func track(width: CGFloat, length: CGFloat, previewPosition: CGFloat?) -> some View {
         // Overlays keep the hover indicator from changing the track's layout size.
         // The track fills the end margins; speeds map onto the inset span between them.
-        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         return shape
             .fill(Color.primary.opacity(isDragging ? 0.24 : 0.16))
             .frame(width: width, height: trackHeight)
@@ -857,11 +857,10 @@ private struct PlayerSpeedSlider: View {
             .overlay(alignment: .topLeading) {
                 if let previewPosition {
                     Rectangle()
-                        // An opaque line keeps the ticks below from brightening the overlap.
                         .fill(Color.primary)
                         .frame(width: 2, height: trackHeight)
                         .position(x: previewPosition, y: trackHeight / 2)
-                        .animation(reduceMotion ? nil : .spring(response: 0.18, dampingFraction: 0.65), value: previewPosition)
+                        .animation(reduceMotion ? nil : .spring(response: 0.18, dampingFraction: 0.75), value: previewPosition)
                 }
             }
         .clipShape(shape)
