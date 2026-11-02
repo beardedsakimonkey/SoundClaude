@@ -162,6 +162,8 @@ struct VisualizerView: View {
                     tuningSlider("Flow damping", value: $fluidSettings.velocityDissipation, range: 0...2)
                     tuningSlider("Brightness", value: $fluidSettings.brightness, range: 0.3...3)
                     tuningSlider("Bloom", value: $fluidSettings.bloom, range: 0...2)
+                    Toggle("Glossy shading", isOn: $fluidSettings.glossyShading)
+                        .help("Light the fluid from above with specular highlights. Off uses softer, head-on edge shading.")
                     tuningSlider("Emitter slide speed", value: $fluidSettings.emitterSlideSpeed, range: 0...3, format: "%.2f×")
                         .help("One horizontal sweep takes six seconds at 1×. Zero stops movement. The middle jet rotates with the sweep.")
                     Toggle("Show emitter positions", isOn: $fluidSettings.showEmitters)

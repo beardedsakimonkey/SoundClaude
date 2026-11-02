@@ -2,14 +2,14 @@ import MetalKit
 import simd
 
 struct FluidSettings {
-    var curl: Float = 30
-    var force: Float = 1
-    var steadyFlow: Float = 0.6
+    var curl: Float = 20
+    var force: Float = 0.5
+    var steadyFlow: Float = 0
     var topEmitterSpray: Float = 1
     var middleEmitterSpray: Float = 1
     var bottomEmitterSpray: Float = 1
     var emitterSlideSpeed: Float = 1
-    var radius: Float = 0.1
+    var radius: Float = 0.25
     var topEmitterSize: Float = 1.2
     var middleEmitterSize: Float = 0.7
     var bottomEmitterSize: Float = 1.4
@@ -19,7 +19,7 @@ struct FluidSettings {
     var velocityDissipation: Float = 0.2
     var brightness: Float = 1
     var bloom: Float = 0.8
-    var shading = true
+    var glossyShading = true
     var sunrays = true
 }
 
@@ -31,7 +31,7 @@ struct FluidDisplayUniforms {
     init(size: CGSize, settings: FluidSettings, emitterPositions: SIMD3<Float> = .zero,
          middleEmitterY: Float = 0.5) {
         texelAndStyle = SIMD4(1 / Float(size.width), 1 / Float(size.height),
-                             settings.brightness, settings.shading ? 1 : 0)
+                             settings.brightness, settings.glossyShading ? 1 : 0)
         effects = SIMD4(settings.sunrays ? 1 : 0, settings.bloom, middleEmitterY, 0)
         emitters = SIMD4(emitterPositions, settings.showEmitters ? 1 : 0)
     }

@@ -122,6 +122,24 @@ fragment float4 fluidVisualizerFragment(FluidVertex in [[stage_in]],
     float2 texel = display[0].xy;
     float3 c = dye.sample(fluidSampler, in.uv).rgb;
     if (display[0].w > 0) {
+        // Light the dye's luminance as a height field, from the top of the screen.
+        // Normal and light use x right, y up; uv.y grows downward.
+        const float3 lumaWeights = float3(0.2126, 0.7152, 0.0722);
+        const float slope = 24;
+        const float3 light = normalize(float3(0, 0.55, 0.83));
+        const float3 halfway = normalize(light + float3(0, 0, 1));
+        // A two-texel reach smooths grain, and is independent of the drawable's size.
+        float2 reach = 2.0 / float2(dye.get_width(), dye.get_height());
+        float left = dot(dye.sample(fluidSampler, in.uv - float2(reach.x, 0)).rgb, lumaWeights);
+        float right = dot(dye.sample(fluidSampler, in.uv + float2(reach.x, 0)).rgb, lumaWeights);
+        float above = dot(dye.sample(fluidSampler, in.uv - float2(0, reach.y)).rgb, lumaWeights);
+        float below = dot(dye.sample(fluidSampler, in.uv + float2(0, reach.y)).rgb, lumaWeights);
+        float3 n = normalize(float3((left - right) * slope, (below - above) * slope, 1));
+        c *= mix(0.35, 1.0, saturate(dot(n, light)));
+        // Scaling by ink density keeps empty background free of highlights.
+        float density = saturate(dot(c, lumaWeights) * 4);
+        c += float3(1, 0.98, 0.95) * pow(saturate(dot(n, halfway)), 48.0) * density * 0.6;
+    } else {
         float l = length(dye.sample(fluidSampler, in.uv - float2(texel.x, 0)).rgb);
         float r = length(dye.sample(fluidSampler, in.uv + float2(texel.x, 0)).rgb);
         float b = length(dye.sample(fluidSampler, in.uv - float2(0, texel.y)).rgb);
