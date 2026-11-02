@@ -165,15 +165,24 @@ struct PlaylistTests {
         )
         precondition(artistLikesLastPage.playlists.isEmpty && artistLikesLastPage.nextURL == nil)
 
-        for isLiked in [true, false] {
-            PlaylistURLProtocol.respond { request in
-                precondition(request.url?.path == "/users/42/playlist_likes/42")
-                precondition(request.httpMethod == (isLiked ? "PUT" : "DELETE"))
-                precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
-                return (200, "")
+        let likeTargets = [
+            ("soundcloud:playlists:42", "/users/42/playlist_likes/42"),
+            ("soundcloud:system-playlists:track-stations:42",
+             "/users/42/system_playlist_likes/soundcloud:system-playlists:track-stations:42"),
+            ("soundcloud:system-playlists:artist-stations:42",
+             "/users/42/system_playlist_likes/soundcloud:system-playlists:artist-stations:42"),
+        ]
+        for (urn, path) in likeTargets {
+            for isLiked in [true, false] {
+                PlaylistURLProtocol.respond { request in
+                    precondition(request.url?.path == path)
+                    precondition(request.httpMethod == (isLiked ? "PUT" : "DELETE"))
+                    precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+                    return (200, "")
+                }
+                try await client.setPlaylistLiked(urn: urn, isLiked: isLiked,
+                                                  accessToken: "test-token")
             }
-            try await client.setPlaylistLiked(urn: "soundcloud:playlists:42", isLiked: isLiked,
-                                              accessToken: "test-token")
         }
 
         for isPrivate in [true, false] {

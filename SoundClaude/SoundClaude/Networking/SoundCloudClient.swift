@@ -505,9 +505,13 @@ actor SoundCloudClient {
 
     func setPlaylistLiked(urn: String, isLiked: Bool, accessToken: String) async throws {
         let userID = try await myID(accessToken: accessToken)
+        // Stations use a separate endpoint keyed by the full system-playlist URN.
+        let path = urn.hasPrefix("soundcloud:system-playlists:")
+            ? "users/\(userID)/system_playlist_likes/\(urn)"
+            : "users/\(userID)/playlist_likes/\(try Self.id(urn))"
         try await send(
             isLiked ? "PUT" : "DELETE",
-            endpoint("users/\(userID)/playlist_likes/\(try Self.id(urn))"),
+            endpoint(path),
             accessToken: accessToken
         )
     }
