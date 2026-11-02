@@ -247,7 +247,8 @@ struct SidebarView: View {
         .padding(8)
         .modifier(SidebarPlaylistRemovalAnimation(
             playlistURNs: playlists.playlists.map(\.urn),
-            likedPlaylistURNs: playlists.likedPlaylists.map(\.urn)
+            likedPlaylistURNs: playlists.likedPlaylists.map(\.urn),
+            likedStationURNs: likes.likedStations.map(\.urn)
         ))
         // Cache restoration should show rows immediately. Section toggles animate separately.
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: isLikedStationsExpanded)
@@ -545,11 +546,16 @@ struct SidebarView: View {
 private struct SidebarPlaylistRemovalAnimation: ViewModifier {
     let playlistURNs: [String]
     let likedPlaylistURNs: [String]
+    let likedStationURNs: [String]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var previousRows: Set<String> = []
 
     private var rows: Set<String> {
-        Set(playlistURNs.map { "owned:\($0)" } + likedPlaylistURNs.map { "liked:\($0)" })
+        Set(
+            playlistURNs.map { "owned:\($0)" }
+                + likedPlaylistURNs.map { "liked:\($0)" }
+                + likedStationURNs.map { "station:\($0)" }
+        )
     }
 
     func body(content: Content) -> some View {
