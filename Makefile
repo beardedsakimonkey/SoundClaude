@@ -3,11 +3,12 @@ SCHEME := SoundClaude
 CONFIGURATION ?= Release
 DERIVED_DATA_PATH := SoundClaude/DerivedData
 APP := $(DERIVED_DATA_PATH)/Build/Products/$(CONFIGURATION)/SoundClaude.app
+BUNDLE_ID := com.tim.soundclaude.native
 LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := release
 
-.PHONY: api build release debug run dist lsp icon test test-focus test-queue-drag test-navigation test-sidebar-resize test-playback-title test-now-playing test-detail-waveform test-detail-heading
+.PHONY: api build release debug quit-running run dist lsp icon test test-focus test-queue-drag test-navigation test-sidebar-resize test-playback-title test-now-playing test-detail-waveform test-detail-heading
 
 api:
 	@set -eu; \
@@ -33,7 +34,25 @@ release:
 debug:
 	$(MAKE) run CONFIGURATION=Debug
 
+# `open` only activates an app that is already running, so the old process has
+# to exit first. Quit with an Apple Event rather than a signal so that
+# willTerminate fires and the playback session is saved.
+quit-running:
+	@for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do \
+		[ -n "$$(lsappinfo find bundleid=$(BUNDLE_ID))" ] || exit 0; \
+		osascript \
+			-e 'if application id "$(BUNDLE_ID)" is running then' \
+			-e 'ignoring application responses' \
+			-e 'tell application id "$(BUNDLE_ID)" to quit' \
+			-e 'end ignoring' \
+			-e 'end if' || exit 1; \
+		sleep 0.5; \
+	done; \
+	echo "$(BUNDLE_ID) did not quit after 10 seconds" >&2; \
+	exit 1
+
 run: build
+	$(MAKE) quit-running
 	open "$(APP)"
 
 # Universal, ad-hoc-signed build for sharing. Ad-hoc keeps the developer
