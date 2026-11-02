@@ -56,13 +56,18 @@ struct TrackQueueList<Row: View>: View {
               let destination = previewTracks?.firstIndex(where: { $0.urn == draggedURN }) else {
             return false
         }
-        if source != destination {
-            onMove(
-                IndexSet(integer: source),
-                destination > source ? destination + 1 : destination
-            )
+        // The dropped rows are already drawn in their final positions.
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            if source != destination {
+                onMove(
+                    IndexSet(integer: source),
+                    destination > source ? destination + 1 : destination
+                )
+            }
+            cancelDrag()
         }
-        cancelDrag()
         return true
     }
 
@@ -140,6 +145,7 @@ struct TrackQueueList<Row: View>: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
+                .modifier(QueueReorderAnimation(order: tracks.map(\.urn)))
             }
             .coordinateSpace(name: dragCoordinateSpace)
             .onPreferenceChange(QueueRowFramesKey.self) { rowFrames = $0 }
@@ -158,6 +164,31 @@ struct TrackQueueList<Row: View>: View {
                 onDismiss()
             }
         }
+    }
+}
+
+// Slide rows only when the same tracks change order, such as toggling shuffle.
+// Loading more pages or replacing the queue should still update immediately.
+private struct QueueReorderAnimation: ViewModifier {
+    let order: [String]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var previousOrder: [String] = []
+
+    private var isReordered: Bool {
+        order != previousOrder && order.count == previousOrder.count
+            && Set(order) == Set(previousOrder)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .transaction { transaction in
+                if !reduceMotion && !transaction.disablesAnimations && isReordered {
+                    transaction.animation = .spring(response: 0.3, dampingFraction: 0.85)
+                }
+            }
+            .onChange(of: order, initial: true) { _, newOrder in
+                previousOrder = newOrder
+            }
     }
 }
 

@@ -25,7 +25,9 @@ enum SidebarDestination {
 struct SoundCloudTrack: Identifiable, Equatable, Codable {
     var urn: String
     var title: String
+    var access: Access = .playable
     var id: String { urn }
+    enum Access: Codable { case playable, protected }
 }
 struct SoundCloudTrackPage { var tracks: [SoundCloudTrack]; var nextURL: URL? }
 enum SoundCloudError: Error { case invalidData }
@@ -133,6 +135,23 @@ struct QueueDragTests {
             }
             model.queue = originalQueue
             await pause()
+            // Reordering the same tracks must slide rows rather than jump to their new slots.
+            @MainActor func rowY(_ title: String) -> CGFloat { point(title).y }
+            let reorderFrom = rowY("Track 1")
+            let reorderTo = rowY("Track 5")
+            model.queue.move(fromOffsets: IndexSet(integer: 0), toOffset: 5)
+            var sawIntermediatePosition = false
+            for _ in 0..<25 {
+                let y = rowY("Track 1")
+                if abs(y - reorderFrom) > 1 && abs(y - reorderTo) > 1 { sawIntermediatePosition = true }
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+            precondition(sawIntermediatePosition, "Reordered rows must animate to their new positions")
+            await pause()
+            precondition(abs(rowY("Track 1") - reorderTo) < 1, "Reordered rows must settle in their new slots")
+            model.queue = originalQueue
+            await pause()
+            await pause() // Let the reorder animation finish.
             // Header buttons sit in the top-right corner of the panel.
             let content = window.contentView!
             let headerY = window.convertPoint(toScreen: content.convert(
