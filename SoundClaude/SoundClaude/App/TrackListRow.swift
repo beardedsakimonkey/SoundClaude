@@ -67,21 +67,9 @@ struct TrackListRow: View {
             .onContentHover { isHoveringArtwork = $0 }
             .contentHelp(isPlaybackActive ? "Pause" : "Play")
             .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
-            ViewThatFits(in: .horizontal) {
-                if showsMetadata,
-                   let genre = track.genre?.trimmingCharacters(in: .whitespacesAndNewlines),
-                   !genre.isEmpty {
-                    HStack(spacing: 12) {
-                        trackDetails
-                            .fixedSize(horizontal: true, vertical: false)
-                        Spacer(minLength: 0)
-                        GenrePill(genre: genre, isInteractive: false)
-                    }
-                }
-                trackDetails
-            }
-            .opacity(track.access == .protected ? protectedTrackOpacity : 1)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            trackDetails
+                .opacity(track.access == .protected ? protectedTrackOpacity : 1)
+                .frame(maxWidth: .infinity, alignment: .leading)
             if showsMetadata {
                 Spacer()
             }
@@ -194,13 +182,9 @@ struct TrackListRow: View {
             let likeCount = showsMetadata ? likes.likeCount(for: track) : nil
             let showsLikeIndicator = showsMetadata && (likeCount != nil || isLiked)
             if showsArtist || showsLikeIndicator {
-                // Drop the like indicator before truncating the artist name.
-                ViewThatFits(in: .horizontal) {
-                    metadataLine(likeCount: likeCount, isLiked: isLiked, showsLikeIndicator: showsLikeIndicator)
-                    metadataLine(likeCount: likeCount, isLiked: isLiked, showsLikeIndicator: false)
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                metadataLine(likeCount: likeCount, isLiked: isLiked, showsLikeIndicator: showsLikeIndicator)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
         }
         .lineLimit(1)
@@ -211,10 +195,13 @@ struct TrackListRow: View {
             if showsArtist {
                 ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                     .onContentHover { isHoveringArtist = $0 }
+                    // Truncate the like count before the artist name.
+                    .layoutPriority(1)
             }
             if showsLikeIndicator {
                 if showsArtist {
                     Text("·")
+                        .fixedSize()
                         .accessibilityHidden(true)
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
@@ -224,7 +211,6 @@ struct TrackListRow: View {
                     }
                 }
                 .font(.system(size: 9))
-                .fixedSize()
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(
                     [isLiked ? "Liked" : nil, likeCount.map { "\($0.formatted()) likes" }]

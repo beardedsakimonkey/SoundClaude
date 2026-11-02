@@ -391,12 +391,7 @@ private struct TrackCommentRow: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                ViewThatFits(in: .horizontal) {
-                    header(showsRelativeAge: true)
-                        .fixedSize(horizontal: true, vertical: false)
-                    header(showsRelativeAge: false)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                header
 
                 ArtistMentionText(comment.body, onSelectArtist: onSelectArtist)
                     .textSelection(.enabled)
@@ -407,7 +402,7 @@ private struct TrackCommentRow: View {
         }
     }
 
-    private func header(showsRelativeAge: Bool) -> some View {
+    private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             if let user = comment.user {
                 ArtistLink(
@@ -417,9 +412,12 @@ private struct TrackCommentRow: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .opacity(0.85)
+                // Truncate the relative age before the username.
+                .layoutPriority(1)
             } else {
                 Text("Unknown user")
                     .foregroundStyle(.secondary)
+                    .layoutPriority(1)
             }
             if let timestamp = comment.timestampMilliseconds {
                 let seconds = timestamp / 1_000
@@ -453,7 +451,7 @@ private struct TrackCommentRow: View {
                     .accessibilityLabel("Jump to \(timeLabel) in \(track.title)")
                 }
             }
-            if showsRelativeAge, let createdAt = comment.createdAt {
+            if let createdAt = comment.createdAt {
                 RelativeTimestampView(
                     date: createdAt,
                     accessibilityPrefix: "Posted",

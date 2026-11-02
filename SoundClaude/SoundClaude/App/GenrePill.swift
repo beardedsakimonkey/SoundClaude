@@ -22,18 +22,11 @@ extension EnvironmentValues {
 
 struct GenrePill: View {
     let genre: String
-    var isInteractive = true
     @Environment(\.searchGenre) private var searchGenre
 
     var body: some View {
-        if isInteractive {
-            SearchPill(text: genre, label: "Search tracks in genre: \(genre)") {
-                searchGenre(genre)
-            }
-        } else {
-            PillLabel(text: genre)
-                .fixedSize()
-                .accessibilityLabel("Genre: \(genre)")
+        SearchPill(text: genre, label: "Search tracks in genre: \(genre)") {
+            searchGenre(genre)
         }
     }
 }
