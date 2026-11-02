@@ -2,24 +2,37 @@
 set -eu
 
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-source_icon="$repo_root/icon.png"
-catalog="$repo_root/SoundClaude/SoundClaude/Resources/Assets.xcassets"
-app_icon="$catalog/AppIcon.appiconset"
-mkdir -p "$app_icon"
+app_icon="$repo_root/SoundClaude/SoundClaude/Resources/AppIcon.icon"
+mkdir -p "$app_icon/Assets"
 
-printf '%s\n' '{ "info": { "author": "xcode", "version": 1 } }' > "$catalog/Contents.json"
+# Icon Composer's canvas is 1024pt and images are placed at their natural size,
+# so anything larger gets cropped.
+sips -z 1024 1024 "$repo_root/icon.png" --out "$app_icon/Assets/icon.png" > /dev/null
+sips -z 1024 1024 "$repo_root/icon_dark.png" --out "$app_icon/Assets/icon_dark.png" > /dev/null
+
+# macOS only honors dark app icons from a .icon bundle: actool silently drops
+# dark variants in an .appiconset. Glass and specular are off to keep the
+# artwork's colors, since it already has its own lighting.
+cat > "$app_icon/icon.json" <<'EOF'
 {
-    printf '{\n  "images": [\n'
-    separator=''
-    for size in 16 32 128 256 512; do
-        for scale in 1 2; do
-            pixels=$((size * scale))
-            filename="icon_${size}x${size}@${scale}x.png"
-            sips -z "$pixels" "$pixels" "$source_icon" --out "$app_icon/$filename" > /dev/null
-            printf '%s    { "filename": "%s", "idiom": "mac", "scale": "%sx", "size": "%sx%s" }' "$separator" "$filename" "$scale" "$size" "$size"
-            separator=',
-'
-        done
-    done
-    printf '\n  ],\n  "info": { "author": "xcode", "version": 1 }\n}\n'
-} > "$app_icon/Contents.json"
+  "fill" : "automatic",
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : false,
+          "image-name-specializations" : [
+            { "value" : "icon.png" },
+            { "appearance" : "dark", "value" : "icon_dark.png" }
+          ],
+          "name" : "icon"
+        }
+      ],
+      "shadow" : { "kind" : "none", "opacity" : 0 },
+      "specular" : false,
+      "translucency" : { "enabled" : false, "value" : 0 }
+    }
+  ],
+  "supported-platforms" : { "squares" : [ "macOS" ] }
+}
+EOF

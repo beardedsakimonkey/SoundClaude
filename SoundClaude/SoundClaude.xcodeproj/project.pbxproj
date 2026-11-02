@@ -116,6 +116,7 @@
 		EA5095DB820C4F7B9F932E11 /* TrackPlaybackIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 311A2AB195D74C16B3ECC0D7 /* TrackPlaybackIndicator.swift */; };
 		85566A7E7F294AF79697AAA5 /* NowPlayingTrackRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66440D2ACA42479790BD674C /* NowPlayingTrackRow.swift */; };
 		A1000000000000000000003C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003C /* Assets.xcassets */; };
+		A1000000000000000000F001 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000F001 /* AppIcon.icon */; };
 		A1000000000000000000003D /* PlaylistsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000003D /* PlaylistsController.swift */; };
 		A10000000000000000000041 /* PlaylistsCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000041 /* PlaylistsCache.swift */; };
 		A10000000000000000000075 /* FeedController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000075 /* FeedController.swift */; };
@@ -248,6 +249,7 @@
 		311A2AB195D74C16B3ECC0D7 /* TrackPlaybackIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackPlaybackIndicator.swift; sourceTree = "<group>"; };
 		66440D2ACA42479790BD674C /* NowPlayingTrackRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingTrackRow.swift; sourceTree = "<group>"; };
 		A2000000000000000000003C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A2000000000000000000F001 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		A2000000000000000000003D /* PlaylistsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistsController.swift; sourceTree = "<group>"; };
 		A20000000000000000000041 /* PlaylistsCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistsCache.swift; sourceTree = "<group>"; };
 		A20000000000000000000075 /* FeedController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedController.swift; sourceTree = "<group>"; };
@@ -518,6 +520,7 @@
 				A20000000000000000000013 /* Info.plist */,
 				C91000000000000000000003 /* Fluid-LICENSE.txt */,
 				A2000000000000000000003C /* Assets.xcassets */,
+				A2000000000000000000F001 /* AppIcon.icon */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -591,6 +594,7 @@
 			files = (
 				C91010000000000000000003 /* Fluid-LICENSE.txt in Resources */,
 				A1000000000000000000003C /* Assets.xcassets in Resources */,
+				A1000000000000000000F001 /* AppIcon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
