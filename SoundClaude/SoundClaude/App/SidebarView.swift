@@ -331,6 +331,7 @@ struct SidebarView: View {
             || playlist.owner.permalinkURL == user.permalinkURL
         let contents = playlists.cache.contents[playlist.urn]
         let artworkURL = playlists.artworkURL(for: playlist)
+        let isDeleting = playlists.deletingPlaylistURNs.contains(playlist.urn)
 
         let row = Label {
             Text(playlist.title)
@@ -369,6 +370,8 @@ struct SidebarView: View {
                         .accessibilityLabel("Loading \(playlist.title) for playback")
                 }
             }
+            .opacity(isDeleting ? 0.5 : 1)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isDeleting)
             .contextMenu {
                 if playlists.likedPlaylistURNs.contains(playlist.urn) {
                     Button("Unlike playlist", systemImage: "heart.slash") {

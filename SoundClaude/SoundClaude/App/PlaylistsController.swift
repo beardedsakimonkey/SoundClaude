@@ -25,6 +25,7 @@ final class PlaylistsController: ObservableObject {
     @Published private(set) var updatingLikeURNs: Set<String> = []
 
     @Published private(set) var updatingPlaylistURNs: Set<String> = []
+    @Published private(set) var deletingPlaylistURNs: Set<String> = []
 
     var playlists: [SoundCloudPlaylist] { cache.playlists }
     var likedPlaylistURNs: Set<String> { Set(likedPlaylists.map(\.urn)) }
@@ -403,6 +404,8 @@ final class PlaylistsController: ObservableObject {
     }
 
     func deletePlaylist(_ playlist: SoundCloudPlaylist) async throws {
+        guard deletingPlaylistURNs.insert(playlist.urn).inserted else { throw CancellationError() }
+        defer { deletingPlaylistURNs.remove(playlist.urn) }
         await restoreCache()
         let session = sessionID
         guard let accountID else { throw CancellationError() }
