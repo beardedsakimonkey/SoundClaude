@@ -124,29 +124,47 @@ struct QueueDragTests {
             precondition(app.isActive && handles(window.contentView!).count == 5)
             await pause()
             let originalQueue = model.queue
+            @MainActor func rowY(_ title: String) -> CGFloat { point(title).y }
+            @MainActor func sawRowMove(_ title: String, from: CGFloat, to: CGFloat) async -> Bool {
+                var sawIntermediatePosition = false
+                for _ in 0..<25 {
+                    let y = rowY(title)
+                    if abs(y - from) > 1 && abs(y - to) > 1 { sawIntermediatePosition = true }
+                    try? await Task.sleep(for: .milliseconds(16))
+                }
+                return sawIntermediatePosition
+            }
             let rowUpdates = TitleAnimationProbe.rowUpdates
+            // Removing a track must slide the rows below it up into the gap.
+            let removalFrom = rowY("Track 4")
+            let removalTo = rowY("Track 3")
             model.removeFromQueue(model.queue.tracks[2])
+            let removalSlid = await sawRowMove("Track 4", from: removalFrom, to: removalTo)
+            precondition(removalSlid, "Rows below a removed track must animate to their new positions")
             await pause()
             await pause() // Let the removal animation finish.
+            precondition(abs(rowY("Track 4") - removalTo) < 1, "Rows must settle after a removal")
             precondition(model.queue.tracks.map(\.urn) == [1,2,4,5].map { "track:\($0)" })
             for urn in ["track:1", "track:2", "track:4", "track:5"] {
                 precondition(TitleAnimationProbe.rowUpdates[urn] == rowUpdates[urn],
                              "Removing a track must not re-render surviving row \(urn)")
             }
+            // Adding a track after the current one must slide later rows down to make room.
+            _ = model.queue.add(originalQueue.tracks[2], after: "track:2")
+            let insertionSlid = await sawRowMove("Track 4", from: removalTo, to: removalFrom)
+            precondition(insertionSlid, "Rows below an added track must animate to their new positions")
+            await pause()
+            await pause() // Let the insertion animation finish.
+            precondition(abs(rowY("Track 4") - removalFrom) < 1, "Rows must settle after an insertion")
+            precondition(abs(rowY("Track 3") - removalTo) < 1, "An added track must land after the current track")
             model.queue = originalQueue
             await pause()
             // Reordering the same tracks must slide rows rather than jump to their new slots.
-            @MainActor func rowY(_ title: String) -> CGFloat { point(title).y }
             let reorderFrom = rowY("Track 1")
             let reorderTo = rowY("Track 5")
             model.queue.move(fromOffsets: IndexSet(integer: 0), toOffset: 5)
-            var sawIntermediatePosition = false
-            for _ in 0..<25 {
-                let y = rowY("Track 1")
-                if abs(y - reorderFrom) > 1 && abs(y - reorderTo) > 1 { sawIntermediatePosition = true }
-                try? await Task.sleep(for: .milliseconds(16))
-            }
-            precondition(sawIntermediatePosition, "Reordered rows must animate to their new positions")
+            let reorderSlid = await sawRowMove("Track 1", from: reorderFrom, to: reorderTo)
+            precondition(reorderSlid, "Reordered rows must animate to their new positions")
             await pause()
             precondition(abs(rowY("Track 1") - reorderTo) < 1, "Reordered rows must settle in their new slots")
             model.queue = originalQueue

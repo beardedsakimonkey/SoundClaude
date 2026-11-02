@@ -145,7 +145,7 @@ struct TrackQueueList<Row: View>: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .modifier(QueueReorderAnimation(order: tracks.map(\.urn)))
+                .modifier(QueueRowMoveAnimation(order: tracks.map(\.urn)))
             }
             .coordinateSpace(name: dragCoordinateSpace)
             .onPreferenceChange(QueueRowFramesKey.self) { rowFrames = $0 }
@@ -167,22 +167,23 @@ struct TrackQueueList<Row: View>: View {
     }
 }
 
-// Slide rows only when the same tracks change order, such as toggling shuffle.
-// Loading more pages or replacing the queue should still update immediately.
-private struct QueueReorderAnimation: ViewModifier {
+// Slide rows only when the same tracks change order, such as toggling shuffle,
+// or when one track is added or removed. Loading more pages, clearing, or
+// replacing the queue should still update immediately.
+private struct QueueRowMoveAnimation: ViewModifier {
     let order: [String]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var previousOrder: [String] = []
 
-    private var isReordered: Bool {
-        order != previousOrder && order.count == previousOrder.count
-            && Set(order) == Set(previousOrder)
+    private var shouldAnimate: Bool {
+        order != previousOrder && !previousOrder.isEmpty
+            && Set(order).symmetricDifference(previousOrder).count <= 1
     }
 
     func body(content: Content) -> some View {
         content
             .transaction { transaction in
-                if !reduceMotion && !transaction.disablesAnimations && isReordered {
+                if !reduceMotion && !transaction.disablesAnimations && shouldAnimate {
                     transaction.animation = .spring(response: 0.3, dampingFraction: 0.85)
                 }
             }
