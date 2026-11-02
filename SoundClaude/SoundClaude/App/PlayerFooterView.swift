@@ -160,6 +160,16 @@ struct PlayerFooterView: View {
             .buttonStyle(PlayerFooterArtworkButtonStyle(shape: artworkShape))
             .contentShape(artworkShape)
             .trackDraggable(track)
+            .contextMenu {
+                TrackMenuItems(
+                    track: track,
+                    likes: model.likes,
+                    likeErrorMessage: Binding(
+                        get: { model.likeErrorMessage },
+                        set: { model.likeErrorMessage = $0 }
+                    )
+                )
+            }
             .contentHelp("View track or drag to a playlist")
             .accessibilityLabel("View track: \(track.title)")
         } else {
