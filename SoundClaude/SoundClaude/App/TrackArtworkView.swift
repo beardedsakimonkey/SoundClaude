@@ -429,9 +429,9 @@ struct DetailArtworkTransform {
     // Where the right-edge fade begins across the artwork (0...1).
     var fadeStart = 0.35
     // Opacity left at the right edge at the full turn (0...1).
-    var fadeEdgeOpacity = 0.5
+    var fadeEdgeOpacity = 0.7
     // Fade direction in degrees up from the right edge; 0 fades horizontally.
-    var fadeAngle = 19.0
+    var fadeAngle = 0.0
 }
 
 extension EnvironmentValues {
