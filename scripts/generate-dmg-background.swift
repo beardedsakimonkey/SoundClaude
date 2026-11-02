@@ -16,12 +16,21 @@ bitmap.size = size
 NSGraphicsContext.saveGraphicsState()
 NSGraphicsContext.current = context
 context.cgContext.scaleBy(x: 2, y: 2)
-let gradient = NSGradient(colors: [
-    NSColor(srgbRed: 1.00, green: 0.87, blue: 0.78, alpha: 1),
-    NSColor(srgbRed: 0.97, green: 0.90, blue: 0.92, alpha: 1),
-    NSColor(srgbRed: 0.85, green: 0.87, blue: 0.98, alpha: 1),
-])!
-gradient.draw(in: NSRect(origin: .zero, size: size), angle: 20)
+func color(_ hex: Int) -> NSColor {
+    NSColor(
+        srgbRed: CGFloat(hex >> 16 & 0xFF) / 255,
+        green: CGFloat(hex >> 8 & 0xFF) / 255,
+        blue: CGFloat(hex & 0xFF) / 255,
+        alpha: 1
+    )
+}
+var locations: [CGFloat] = [0, 0.43, 0.67, 1]
+let gradient = NSGradient(
+    colors: [color(0xFFD6C5), color(0xF7DCEB), color(0xE8DEFA), color(0xC9DEFF)],
+    atLocations: &locations,
+    colorSpace: .sRGB
+)!
+gradient.draw(in: NSRect(origin: .zero, size: size), angle: 25)
 
 // Finder places both icons 130 points down from the top of its content area.
 NSColor(srgbRed: 0.42, green: 0.36, blue: 0.47, alpha: 0.35).setStroke()
