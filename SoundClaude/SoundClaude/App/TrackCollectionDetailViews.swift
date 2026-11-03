@@ -411,6 +411,8 @@ struct TrackCollectionTitleRow<Title: View, Actions: View>: View {
 }
 
 struct TrackCollectionLikeButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let isLiked: Bool
     let isUpdating: Bool
     // Names the liked item, e.g. "playlist: Title".
@@ -421,27 +423,41 @@ struct TrackCollectionLikeButton: View {
         let actionLabel = "\(isLiked ? "Unlike" : "Like") \(subject)"
         Button(action: action) {
             Image(systemName: isLiked ? "heart.fill" : "heart")
+                .contentTransition(.symbolEffect(.replace))
         }
-        .foregroundStyle(Color.accentColor)
-        .buttonStyle(TrackCollectionHeaderButtonStyle())
+        .buttonStyle(TrackCollectionLikeButtonStyle(isLiked: isLiked))
         .disabled(isUpdating)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)
         .contentHelp(actionLabel)
         .accessibilityLabel(actionLabel)
         .accessibilityValue(isUpdating ? "Updating" : (isLiked ? "Liked" : "Not liked"))
     }
 }
 
-private struct TrackCollectionHeaderButtonStyle: ButtonStyle {
+private struct TrackCollectionLikeButtonStyle: ButtonStyle {
+    let isLiked: Bool
+
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovered = false
 
     func makeBody(configuration: Configuration) -> some View {
         let isHighlighted = isEnabled && (isHovered || configuration.isPressed)
+        let fill = isLiked
+            ? Color.accentColor.opacity(isHighlighted ? 0.2 : 0.12)
+            : Color.primary.opacity(isHighlighted ? 0.12 : 0)
         configuration.label
+            .foregroundStyle(isLiked ? Color.accentColor : Color.primary)
             .padding(4)
             .contentShape(Rectangle())
-            .opacity(isEnabled ? (isHighlighted ? 1 : 0.8) : 0.5)
+            .opacity(isEnabled ? 0.9 : 0.5)
+            .background {
+                // The heart is wider than tall. Aspect fill keeps the circle round
+                // without letting it affect the button's layout.
+                Circle()
+                    .fill(fill)
+                    .aspectRatio(1, contentMode: .fill)
+            }
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHighlighted)
             .onContentHover { isHovered = $0 }
             .onDisappear { isHovered = false }

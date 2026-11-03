@@ -270,8 +270,6 @@ private struct PlaylistCardTitleRow: View {
                 if likeClickID == clickID { likeClickID = nil }
             }
         }
-        .contentTransition(.symbolEffect(.replace))
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: cardState.isLiked)
     }
 }
 
