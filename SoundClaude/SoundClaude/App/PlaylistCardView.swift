@@ -222,14 +222,19 @@ private struct PlaylistCardTitleRow: View {
     var body: some View {
         HStack(spacing: 4) {
             Button(action: onSelect) {
-                Text(playlist.title)
-                    .underline(isHoveringTitle)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(1)
+                Label {
+                    Text(playlist.title)
+                        .underline(isHoveringTitle)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(1)
+                } icon: {
+                    Image(systemName: "music.note.list")
+                }
             }
             .buttonStyle(.plain)
             .onContentHover { isHoveringTitle = $0 }
             .contentHelp(playlist.title)
+            .accessibilityLabel("Playlist, \(playlist.title)")
 
             // Reserve the button's height so title rows match on cards that can't be liked.
             if playlist.isPrivate || playlist.isSystemPlaylist {

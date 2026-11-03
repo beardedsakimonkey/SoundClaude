@@ -142,7 +142,7 @@ struct StationDetailView: View {
             onSelectTrack: onSelectTrack,
             onSelectArtist: onSelectArtist
         ) {
-            TrackCollectionTitleRow(keepsActionsVisible: likes.likedStationURNs.contains(urn)) {
+            TrackCollectionTitleRow {
                 Label {
                     StationSourceButton(
                         title: title,

@@ -386,16 +386,11 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
     }
 }
 
-// Keep hover state local so pointer movement does not invalidate the detail header.
 struct TrackCollectionTitleRow<Title: View, Actions: View>: View {
-    var keepsActionsVisible = false
     @ViewBuilder let title: () -> Title
     @ViewBuilder let actions: () -> Actions
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isHovered = false
 
     var body: some View {
-        let showsActions = isHovered || keepsActionsVisible
         HStack(spacing: 4) {
             title()
                 .labelStyle(.titleAndIcon)
@@ -411,11 +406,7 @@ struct TrackCollectionTitleRow<Title: View, Actions: View>: View {
                 }
 
             actions()
-                .opacity(showsActions ? 1 : 0)
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: showsActions)
         }
-        .contentShape(Rectangle())
-        .onContentHover { isHovered = $0 }
     }
 }
 
