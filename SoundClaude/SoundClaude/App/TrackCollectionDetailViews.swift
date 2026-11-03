@@ -214,6 +214,7 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
                 isShowingArtwork: isShowingArtwork,
                 flattensOnHover: true
             ))
+            .modifier(DetailArtworkFootprint(size: artworkSize))
 
             VStack(alignment: .leading, spacing: 0) {
                 titleRow()

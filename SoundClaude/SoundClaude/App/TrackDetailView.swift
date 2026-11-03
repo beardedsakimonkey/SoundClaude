@@ -367,6 +367,7 @@ private struct TrackDetailArtwork: View {
         ) { content in
             content.scaleEffect(isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverScale : 1)
         }
+        .modifier(DetailArtworkFootprint(size: artworkSize))
         .sheet(isPresented: $isShowingArtwork) {
             FullSizeArtworkView(
                 title: track.title,

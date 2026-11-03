@@ -564,7 +564,24 @@ struct DetailArtworkRotation: ViewModifier {
     }
 }
 
+/// Gives the artwork a fixed footprint beside the header's controls. An overlay does not
+/// contribute to its parent's sizing, so the rotation spring cannot re-measure the header
+/// on every frame.
+struct DetailArtworkFootprint: ViewModifier {
+    let size: CGFloat
+
+    func body(content: Content) -> some View {
+        Color.clear
+            .frame(width: size, height: size + DetailArtworkView.reflectionSpacing + DetailArtworkView.reflectionSlotHeight)
+            .overlay(alignment: .top) { content }
+    }
+}
+
 struct DetailArtworkView: View {
+    static let reflectionSpacing: CGFloat = 1
+    // Space reserved for the visible reflection; its faint tail overflows.
+    static let reflectionSlotHeight: CGFloat = 32
+
     enum HoverStyle {
         case lift, rotation
     }
@@ -688,7 +705,7 @@ struct DetailArtworkView: View {
     }
 
     private var artworkStack: some View {
-        VStack(spacing: 1) {
+        VStack(spacing: Self.reflectionSpacing) {
             draggableArtworkControl
                 .onContentHover { onImageHover?($0) }
                 .contextMenu {
@@ -738,8 +755,7 @@ struct DetailArtworkView: View {
                 .overlay(alignment: .top) { contactShadow }
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
-                // Reserve space for the visible reflection; let its faint tail overflow.
-                .frame(height: 32, alignment: .top)
+                .frame(height: Self.reflectionSlotHeight, alignment: .top)
         }
     }
 
