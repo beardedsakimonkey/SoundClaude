@@ -33,7 +33,7 @@ private struct ArtistMentions {
     let artistsByURL: [URL: SoundCloudUser]
     let tagsByURL: [URL: String]
 
-    @MainActor private static let cache = MemoryCache<NSString, ArtistMentions>(countLimit: 256)
+    @MainActor private static let cache = MemoryCache<NSString, ArtistMentions>(name: "Artist Mentions", countLimit: 256)
 
     @MainActor static func cached(_ text: String) -> ArtistMentions {
         let key = text as NSString

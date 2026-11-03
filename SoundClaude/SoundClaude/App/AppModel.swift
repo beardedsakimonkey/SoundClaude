@@ -51,33 +51,33 @@ final class AppModel {
     private let trackDetailsCache = MemoryCache<
         TrackCacheKey,
         SoundCloudTrackDetails
-    >(countLimit: 100)
+    >(name: "Track Details", countLimit: 100)
     private let waveformCache = MemoryCache<
         NSURL,
         SoundCloudWaveform
-    >(countLimit: 50, totalCostLimit: 8 * 1_024 * 1_024)
+    >(name: "Waveforms", countLimit: 50, totalCostLimit: 8 * 1_024 * 1_024)
     @ObservationIgnored private var waveformRequests: [URL: (id: UUID, task: Task<SoundCloudWaveform, Error>)] = [:]
     // The detail list and waveform markers both read the first comment page.
-    private let firstCommentPageCache = MemoryCache<TrackCacheKey, SoundCloudCommentPage>(countLimit: 20)
+    private let firstCommentPageCache = MemoryCache<TrackCacheKey, SoundCloudCommentPage>(name: "First Comment Pages", countLimit: 20)
     @ObservationIgnored private var firstCommentPageRequests: [TrackCacheKey: (id: UUID, task: Task<SoundCloudCommentPage, Error>)] = [:]
-    private let firstRelatedTrackPageCache = MemoryCache<NSString, SoundCloudTrackPage>(countLimit: 20)
+    private let firstRelatedTrackPageCache = MemoryCache<NSString, SoundCloudTrackPage>(name: "First Related Track Pages", countLimit: 20)
     @ObservationIgnored private var firstRelatedTrackPageCacheGeneration = UUID()
-    private let firstArtistTrackPageCache = MemoryCache<NSString, SoundCloudTrackPage>(countLimit: 20)
+    private let firstArtistTrackPageCache = MemoryCache<NSString, SoundCloudTrackPage>(name: "First Artist Track Pages", countLimit: 20)
     @ObservationIgnored private var firstArtistTrackPageCacheGeneration = UUID()
     // Keep initial search pages across Back/Forward navigation without unbounded growth.
-    private let firstSearchTrackPageCache = MemoryCache<SearchTrackCacheKey, SoundCloudTrackPage>(countLimit: 20)
-    private let firstSearchPlaylistPageCache = MemoryCache<NSString, SoundCloudPlaylistPage>(countLimit: 20)
-    private let firstSearchUserPageCache = MemoryCache<NSString, SoundCloudUserPage>(countLimit: 20)
-    private let searchCategoryCache = MemoryCache<NSString, SearchCategory>(countLimit: 100)
+    private let firstSearchTrackPageCache = MemoryCache<SearchTrackCacheKey, SoundCloudTrackPage>(name: "First Search Track Pages", countLimit: 20)
+    private let firstSearchPlaylistPageCache = MemoryCache<NSString, SoundCloudPlaylistPage>(name: "First Search Playlist Pages", countLimit: 20)
+    private let firstSearchUserPageCache = MemoryCache<NSString, SoundCloudUserPage>(name: "First Search User Pages", countLimit: 20)
+    private let searchCategoryCache = MemoryCache<NSString, SearchCategory>(name: "Search Categories", countLimit: 100)
     @ObservationIgnored private var searchCacheGeneration = UUID()
-    private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(countLimit: 100)
-    private let artistWebProfilesCache = MemoryCache<NSURL, [SoundCloudWebProfile]>(countLimit: 100)
+    private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(name: "Artist Details", countLimit: 100)
+    private let artistWebProfilesCache = MemoryCache<NSURL, [SoundCloudWebProfile]>(name: "Artist Web Profiles", countLimit: 100)
     @ObservationIgnored private var artistWebProfilesCacheGeneration = UUID()
-    private let artistHeaderCache = MemoryCache<NSURL, CachedArtistHeader>(countLimit: 10)
+    private let artistHeaderCache = MemoryCache<NSURL, CachedArtistHeader>(name: "Artist Headers", countLimit: 10)
     var loadingStations: [String: SoundCloudStation] = [:]
-    private let stationMetadataCache = MemoryCache<NSString, RawSystemPlaylist>(countLimit: 10)
+    private let stationMetadataCache = MemoryCache<NSString, RawSystemPlaylist>(name: "Station Metadata", countLimit: 10)
     @ObservationIgnored private var stationMetadataRequests: [String: (id: UUID, task: Task<RawSystemPlaylist, Error>)] = [:]
-    private let stationCache = MemoryCache<NSString, SoundCloudStation>(countLimit: 10)
+    private let stationCache = MemoryCache<NSString, SoundCloudStation>(name: "Stations", countLimit: 10)
     @ObservationIgnored private var stationCacheGeneration = UUID()
     @ObservationIgnored private var stationRequests: [String: (id: UUID, task: Task<SoundCloudStation, Error>)] = [:]
 
@@ -1205,6 +1205,10 @@ private final class TrackCacheKey: NSObject {
         secretToken = track.secretToken
     }
 
+    #if DEBUG
+    override var description: String { secretToken == nil ? urn : "\(urn) (secret)" }
+    #endif
+
     override var hash: Int {
         var hasher = Hasher()
         hasher.combine(urn)
@@ -1228,6 +1232,12 @@ private final class SearchTrackCacheKey: NSObject {
         self.genres = genres
         self.tags = tags
     }
+
+    #if DEBUG
+    override var description: String {
+        [query, genres.map { "genres: \($0)" }, tags.map { "tags: \($0)" }].compactMap { $0 }.joined(separator: " · ")
+    }
+    #endif
 
     override var hash: Int {
         var hasher = Hasher()

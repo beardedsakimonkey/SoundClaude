@@ -52,6 +52,10 @@ struct SoundClaudeApp: App {
             NetworkActivityView()
         }
         .defaultSize(width: 1100, height: 650)
+        Window("Cache Inspector", id: "cache-inspector") {
+            CacheInspectorView(model: model)
+        }
+        .defaultSize(width: 1200, height: 700)
         #endif
     }
 

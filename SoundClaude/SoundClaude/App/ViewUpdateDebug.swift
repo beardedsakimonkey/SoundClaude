@@ -24,6 +24,8 @@ struct ViewUpdateDebugCommands: Commands {
                 .keyboardShortcut("a", modifiers: [.command, .option, .shift])
             Button("Network Activity") { openWindow(id: "network-activity") }
                 .keyboardShortcut("n", modifiers: [.command, .option, .shift])
+            Button("Cache Inspector") { openWindow(id: "cache-inspector") }
+                .keyboardShortcut("c", modifiers: [.command, .option, .shift])
         }
     }
 }

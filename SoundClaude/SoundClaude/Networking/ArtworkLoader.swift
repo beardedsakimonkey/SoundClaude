@@ -17,18 +17,20 @@ actor ArtworkLoader {
 
     private let client: SoundCloudClient
     private let cache = MemoryCache<NSURL, Data>(
+        name: "Artwork Data",
         countLimit: 300,
         totalCostLimit: 32 * 1_024 * 1_024
     )
     private var requests: [URL: Task<Data, Error>] = [:]
-    private let accents = MemoryCache<NSURL, ArtworkAccent>(countLimit: 300)
+    private let accents = MemoryCache<NSURL, ArtworkAccent>(name: "Artwork Accents", countLimit: 300)
     private let bitmaps = MemoryCache<NSString, CGImage>(
-        countLimit: 48, totalCostLimit: 24 * 1_024 * 1_024
+        name: "Artwork Bitmaps", countLimit: 48, totalCostLimit: 24 * 1_024 * 1_024
     )
 
     // Keep display images separate from compressed data. NSCache can evict
     // them under memory pressure; charge for decoded pixels, not file size.
     @MainActor private let images = MemoryCache<NSString, NSImage>(
+        name: "Artwork Images",
         countLimit: 64,
         totalCostLimit: 32 * 1_024 * 1_024
     )

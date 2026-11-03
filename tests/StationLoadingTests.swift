@@ -8,7 +8,7 @@ enum SoundCloudError: Error { case invalidData }
 // Child views and services are deterministic; no account or network is needed.
 @MainActor @Observable final class AppModel {
     var loadingStations: [String: SoundCloudStation] = [:]
-    let cache = MemoryCache<NSString, SoundCloudStation>(countLimit: 10)
+    let cache = MemoryCache<NSString, SoundCloudStation>(name: "Stations", countLimit: 10)
     var completion: CheckedContinuation<SoundCloudStation, Never>?
     let playback = 0
     let queue = TrackQueue(source: .single, tracks: [])
