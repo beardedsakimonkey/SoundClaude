@@ -363,6 +363,11 @@ final class PlaybackController {
         return session
     }
 
+    /// The saved like state only covers launch, until the like library is available.
+    func discardRestoredLikeState() {
+        sessionToRestore?.isLiked = nil
+    }
+
     func saveSession() {
         guard let track = currentTrack,
               player.currentItem?.status != .failed else { return }

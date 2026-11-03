@@ -191,6 +191,7 @@ final class AppModel {
         await auth.restore()
         if case .signedIn = auth.state {
             await likes.restoreCache()
+            playback.discardRestoredLikeState()
             playback.scheduleRestoredPrefetch { [auth, client] track in
                 let accessToken = try await auth.validAccessToken()
                 try Task.checkCancellation()
@@ -239,6 +240,7 @@ final class AppModel {
         await auth.signIn(token: token)
         if case .signedIn = auth.state {
             await likes.restoreCache()
+            playback.discardRestoredLikeState()
         }
     }
 

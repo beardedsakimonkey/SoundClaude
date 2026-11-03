@@ -218,6 +218,15 @@ struct PlaybackTests {
         defaults.set(encoded, forKey: "playback.session")
         precondition(playback.savedSession?.position == 0.75)
 
+        // Once the like library is available, it replaces the saved like state.
+        let likesRestored = PlaybackController(defaults: defaults)
+        likesRestored.isTrackLiked = { _ in false }
+        likesRestored.discardRestoredLikeState()
+        precondition(likesRestored.sessionToRestore?.track == track(1))
+        precondition(likesRestored.sessionToRestore?.isLiked == nil)
+        likesRestored.saveSession()
+        precondition(likesRestored.savedSession?.isLiked == false)
+
         // Previously active sessions still restore paused at their saved position.
         legacy["wasPlaying"] = true
         defaults.set(try JSONSerialization.data(withJSONObject: legacy), forKey: "playback.session")
