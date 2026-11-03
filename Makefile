@@ -349,6 +349,17 @@ test-detail-like-button:
 		tests/DetailLikeButtonTests.swift
 	/tmp/soundclaude-tests/detail-like-button
 
+# Scale header buttons in and out when moving between a track and its collection.
+.PHONY: test-detail-swap-buttons
+test-detail-swap-buttons:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/detail-swap-buttons \
+		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
+		SoundClaude/SoundClaude/App/DetailNavigationAnimation.swift \
+		SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
+		tests/DetailSwapButtonTests.swift
+	/tmp/soundclaude-tests/detail-swap-buttons
+
 # Exercise real waveform loading and comment visibility across detail routes.
 .PHONY: test-track-waveform-navigation
 test-track-waveform-navigation:

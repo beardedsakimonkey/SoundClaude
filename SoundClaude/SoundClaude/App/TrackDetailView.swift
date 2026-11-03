@@ -14,7 +14,6 @@ struct TrackDetailView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var repostErrorMessage: String?
-    @State private var isHoveringStation = false
 
     init(
         track: SoundCloudTrack,
@@ -211,8 +210,12 @@ struct TrackDetailView: View {
             playButton(for: track, iconOnly: iconOnly)
             likeButton(for: track, iconOnly: iconOnly)
             repostButton(for: track, iconOnly: iconOnly)
+                .detailSwapSlot(id: "repost", trackURN: track.urn)
             if let stationURN = nonempty(track.stationURN) {
-                stationButton(urn: stationURN)
+                TrackDetailStationButton(urn: stationURN, model: model) {
+                    onSelectStation(stationURN, details?.track ?? track)
+                }
+                .detailSwapSlot(id: "station", trackURN: track.urn)
             }
         }
     }
@@ -264,31 +267,6 @@ struct TrackDetailView: View {
         .contentHelp(isReposted ? "Undo repost" : "Repost track")
         .accessibilityLabel(isReposted ? "Undo repost" : "Repost track")
         .accessibilityValue(isReposted ? "Reposted" : "Not reposted")
-    }
-
-    private func stationButton(urn: String) -> some View {
-        Button {
-            onSelectStation(urn, details?.track ?? track)
-        } label: {
-            Label("Open track station", systemImage: "dot.radiowaves.left.and.right")
-                .labelStyle(.iconOnly)
-                .font(.title3.weight(.semibold))
-                .frame(width: 44, height: 24)
-        }
-        .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
-        .contentHelp("Open this track’s station")
-        .onContentHover { isHoveringStation = $0 }
-        .task(id: isHoveringStation ? urn : nil) {
-            guard isHoveringStation else { return }
-            do {
-                try await Task.sleep(for: .milliseconds(150))
-                try Task.checkCancellation()
-                // Once started, the shared request can finish even if hover ends.
-                _ = try await model.station(urn: urn)
-            } catch {
-                // Navigation retries failed prefetches; leaving cancels the delay.
-            }
-        }
     }
 
     private func nonempty(_ value: String?) -> String? {
@@ -375,6 +353,38 @@ private struct TrackDetailArtwork: View {
                 loader: model.artworkLoader,
                 cachedArtwork: $cachedFullSizeArtwork
             )
+        }
+    }
+}
+
+// Keep hover local so that only the visible copy prefetches, not the page's hidden sizing copy.
+private struct TrackDetailStationButton: View {
+    let urn: String
+    let model: AppModel
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Label("Open track station", systemImage: "dot.radiowaves.left.and.right")
+                .labelStyle(.iconOnly)
+                .font(.title3.weight(.semibold))
+                .frame(width: 44, height: 24)
+        }
+        .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
+        .contentHelp("Open this track’s station")
+        .onContentHover { isHovering = $0 }
+        .task(id: isHovering ? urn : nil) {
+            guard isHovering else { return }
+            do {
+                try await Task.sleep(for: .milliseconds(150))
+                try Task.checkCancellation()
+                // Once started, the shared request can finish even if hover ends.
+                _ = try await model.station(urn: urn)
+            } catch {
+                // Navigation retries failed prefetches; leaving cancels the delay.
+            }
         }
     }
 }

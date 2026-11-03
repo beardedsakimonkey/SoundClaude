@@ -283,26 +283,9 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
             ) {
                 play(currentTrack: currentTrack)
             }
-            shuffleButton
-            Group {
-                Button {
-                    navigateTrack(backward: true, currentTrack: currentTrack, displayedTrack: displayedTrack)
-                } label: {
-                    Label("Previous track", systemImage: "backward.fill")
-                        .frame(width: 44, height: 24)
-                }
-                .contentHelp("Previous track")
-
-                Button {
-                    navigateTrack(backward: false, currentTrack: currentTrack, displayedTrack: displayedTrack)
-                } label: {
-                    Label("Next track", systemImage: "forward.fill")
-                        .frame(width: 44, height: 24)
-                }
-                .contentHelp("Next track")
-            }
-            .labelStyle(.iconOnly)
-            .disabled(currentTrack == nil && collection.tracks.isEmpty)
+            shuffleButton(trackURN: displayedTrack?.urn)
+            stepButton(backward: true, currentTrack: currentTrack, displayedTrack: displayedTrack)
+            stepButton(backward: false, currentTrack: currentTrack, displayedTrack: displayedTrack)
             if let track = displayedTrack {
                 DetailLikeButton(
                     track: track,
@@ -315,11 +298,29 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
                 .detailSlot(trackURN: track.urn, isCollection: true)
             }
         }
-        .font(.title3.weight(.semibold))
-        .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
     }
 
-    private var shuffleButton: some View {
+    private func stepButton(
+        backward: Bool,
+        currentTrack: SoundCloudTrack?,
+        displayedTrack: SoundCloudTrack?
+    ) -> some View {
+        let title = backward ? "Previous track" : "Next track"
+        return Button {
+            navigateTrack(backward: backward, currentTrack: currentTrack, displayedTrack: displayedTrack)
+        } label: {
+            Label(title, systemImage: backward ? "backward.fill" : "forward.fill")
+                .frame(width: 44, height: 24)
+        }
+        .contentHelp(title)
+        .labelStyle(.iconOnly)
+        .font(.title3.weight(.semibold))
+        .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
+        .disabled(currentTrack == nil && collection.tracks.isEmpty)
+        .detailSwapSlot(id: backward ? "previous" : "next", trackURN: displayedTrack?.urn, isCollection: true)
+    }
+
+    private func shuffleButton(trackURN: String?) -> some View {
         Button {
             guard let track = collection.tracks.randomElement() else { return }
             if !model.playback.isShuffleEnabled {
@@ -333,9 +334,11 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
                 .frame(width: 44, height: 24)
         }
         .labelStyle(.iconOnly)
+        .font(.title3.weight(.semibold))
         .buttonStyle(TrackActionButtonStyle(fill: .clear, hoverForeground: .green))
         .contentHelp("Shuffle this \(collection.subject)")
         .disabled(collection.tracks.isEmpty)
+        .detailSwapSlot(id: "shuffle", trackURN: trackURN, isCollection: true)
     }
 
     private func play(currentTrack: SoundCloudTrack?) {

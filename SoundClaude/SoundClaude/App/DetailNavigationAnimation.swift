@@ -57,3 +57,72 @@ struct DetailControlLifetime: ViewModifier {
             }
     }
 }
+
+// Buttons that only the track or only the collection layout has. The page reserves their
+// layout while the navigation host draws them, so the old page's buttons outlive it to scale away.
+struct DetailSwapButtonSource: Identifiable {
+    let id: String
+    let bounds: Anchor<CGRect>
+    let trackURN: String?
+    let isCollection: Bool
+    let button: AnyView
+}
+
+struct DetailSwapButtonPreferenceKey: PreferenceKey {
+    static let defaultValue: [DetailSwapButtonSource] = []
+
+    static func reduce(value: inout [DetailSwapButtonSource], nextValue: () -> [DetailSwapButtonSource]) {
+        value += nextValue()
+    }
+}
+
+extension View {
+    // The host does not inherit the page's environment, so the button must carry its own styling.
+    func detailSwapSlot(id: String, trackURN: String?, isCollection: Bool = false) -> some View {
+        hidden()
+            .accessibilityHidden(true)
+            .anchorPreference(key: DetailSwapButtonPreferenceKey.self, value: .bounds) {
+                [DetailSwapButtonSource(
+                    id: id, bounds: $0, trackURN: trackURN, isCollection: isCollection, button: AnyView(self)
+                )]
+            }
+    }
+}
+
+struct DetailSwapButtonOverlay: ViewModifier {
+    let routeID: AnyHashable
+
+    func body(content: Content) -> some View {
+        content.overlayPreferenceValue(DetailSwapButtonPreferenceKey.self) { sources in
+            GeometryReader { geometry in
+                if let first = sources.first {
+                    ZStack {
+                        ForEach(sources) { source in
+                            let bounds = geometry[source.bounds]
+                            source.button
+                                .modifier(FadeInOnAppear())
+                                .geometryGroup()
+                                .frame(width: bounds.width, height: bounds.height)
+                                .position(x: bounds.midX, y: bounds.midY)
+                                // Positioning fills the host, so name the button's center as the anchor.
+                                .transition(.scale(scale: 0, anchor: UnitPoint(
+                                    x: bounds.midX / max(geometry.size.width, 1),
+                                    y: bounds.midY / max(geometry.size.height, 1)
+                                )))
+                        }
+                    }
+                    .modifier(DetailNavigationAnimation(
+                        trackURN: first.trackURN, isCollection: first.isCollection,
+                        bounds: sources.reduce(geometry[first.bounds]) { $0.union(geometry[$1.bounds]) },
+                        in: geometry
+                    ))
+                    .modifier(DetailControlLifetime(routeID: routeID, trackURN: first.trackURN))
+                }
+            }
+            .mask {
+                // Match the scroll view: content can pass behind the toolbar.
+                Rectangle().ignoresSafeArea(edges: .top)
+            }
+        }
+    }
+}

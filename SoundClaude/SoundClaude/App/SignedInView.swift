@@ -382,6 +382,7 @@ struct SignedInView: View {
             ))
             .modifier(DetailPlayButtonOverlay(routeID: AnyHashable(path.last)))
             .modifier(DetailLikeButtonOverlay(routeID: AnyHashable(path.last)))
+            .modifier(DetailSwapButtonOverlay(routeID: AnyHashable(path.last)))
             .modifier(NavigationPageActivity())
             .safeAreaPadding(.bottom, footerHeight)
             .mask { bottomFade }
