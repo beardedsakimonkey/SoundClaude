@@ -37,6 +37,30 @@ private struct LifetimePage: View {
     var body: some View { Text("Page \(lifetime.id)") }
 }
 
+@Observable
+private final class PageSource {
+    var value = 0
+}
+
+// A fresh closure on every parent update, like the real pages, defeats SwiftUI's
+// structural comparison, so the page re-renders unless its wrapper skips it.
+private struct CountedPage: View {
+    static var evaluations: [Int: Int] = [:]
+    static var lastValue: [Int: Int] = [:]
+    static var lastActive: [Int: Bool] = [:]
+    let id: Int
+    let value: Int
+    let isActive: Bool
+    let onSelect: () -> Void
+
+    var body: some View {
+        let _ = Self.evaluations[id, default: 0] += 1
+        let _ = Self.lastValue[id] = value
+        let _ = Self.lastActive[id] = isActive
+        Text("Page \(id)")
+    }
+}
+
 @main struct NavigationViewportTests {
     @MainActor static func main() {
         _ = NSApplication.shared
@@ -148,6 +172,62 @@ private struct LifetimePage: View {
                 renderLibrary(selection, route: 1003)
                 renderLibrary(selection)
             }
+        }
+
+        let source = PageSource()
+        let countedIDs = [-20, -21, -22, -23]
+        func countedLibrary(_ selection: Int, route: Int? = nil) -> some View {
+            NavigationStack {
+                CurrentNavigationPage(route: route, retainsRoot: true) {
+                    RetainedRootPages(selections: countedIDs, selection: selection, isActive: route == nil) { id, active in
+                        // Capture a new object: a closure with no captures compares equal.
+                        let capture = NSObject()
+                        CountedPage(id: id, value: source.value, isActive: active, onSelect: { _ = capture })
+                    }
+                } destination: { id in
+                    Text("Route \(id)")
+                }
+            }
+        }
+        let countedHost = NSHostingView(rootView: countedLibrary(-20))
+        countedHost.frame.size = CGSize(width: 800, height: 600)
+        func settleCounted() {
+            countedHost.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.01))
+        }
+        func renderCounted(_ selection: Int, route: Int? = nil) {
+            countedHost.rootView = countedLibrary(selection, route: route)
+            settleCounted()
+        }
+        settleCounted()
+        for id in countedIDs { renderCounted(id) }
+        renderCounted(-20)
+
+        // Navigating must not re-render pages that stay hidden.
+        func assertHiddenPagesSkipped(_ selection: Int, route: Int? = nil, hidden: [Int]) {
+            let before = CountedPage.evaluations
+            renderCounted(selection, route: route)
+            for id in hidden {
+                precondition(CountedPage.evaluations[id] == before[id],
+                             "Hidden page \(id) re-rendered during navigation")
+            }
+        }
+        assertHiddenPagesSkipped(-20, hidden: [-21, -22, -23])
+        assertHiddenPagesSkipped(-20, route: 2000, hidden: [-21, -22, -23])
+        precondition(CountedPage.lastActive[-20] == false, "Pushing a route must deactivate the root")
+        assertHiddenPagesSkipped(-20, route: 2001, hidden: [-20, -21, -22, -23])
+        assertHiddenPagesSkipped(-20, hidden: [-21, -22, -23])
+        precondition(CountedPage.lastActive[-20] == true, "Popping to a root must reactivate it")
+        assertHiddenPagesSkipped(-21, hidden: [-22, -23])
+        precondition(CountedPage.lastActive[-20] == false && CountedPage.lastActive[-21] == true,
+                     "Switching roots must update both pages")
+
+        // Skipping parent updates must not hide model changes from a hidden page.
+        renderCounted(-21, route: 2002)
+        source.value = 1
+        settleCounted()
+        for id in countedIDs {
+            precondition(CountedPage.lastValue[id] == 1, "Hidden page \(id) missed an observed model change")
         }
         print("Viewport, navigation lifetime, and retained top-level page tests passed")
     }

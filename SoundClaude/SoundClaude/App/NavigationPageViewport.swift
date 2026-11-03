@@ -53,7 +53,8 @@ struct RetainedRootPages<Selection: Hashable, Content: View>: View {
             ForEach(selections, id: \.self) { candidate in
                 if candidate == selection || visited.contains(candidate) {
                     let active = isActive && candidate == selection
-                    content(candidate, active)
+                    RetainedRootPage(isActive: active) { content(candidate, active) }
+                        .equatable()
                         .opacity(active ? 1 : 0)
                         .allowsHitTesting(active)
                         .disabled(!active)
@@ -65,5 +66,22 @@ struct RetainedRootPages<Selection: Hashable, Content: View>: View {
         .onChange(of: selection) { old, new in
             visited.formUnion([old, new])
         }
+    }
+}
+
+/// Navigation updates the parent, which hands each page fresh closures that SwiftUI
+/// can't compare. A page that stays hidden has nothing to show for them, so skip it;
+/// reactivating delivers the current inputs. Models read while building the page are
+/// still observed by this body, so a hidden page keeps tracking their changes.
+private struct RetainedRootPage<Content: View>: View, Equatable {
+    let isActive: Bool
+    @ViewBuilder let content: () -> Content
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        !lhs.isActive && !rhs.isActive
+    }
+
+    var body: some View {
+        content()
     }
 }
