@@ -415,16 +415,28 @@ final class TrackArtworkPrefetcher {
     }
 }
 
-// Keep scroll bookkeeping outside observation so row lifecycle events do not
-// invalidate the list. Only data changes rebuild the index.
+// Keep scroll bookkeeping outside observation so item lifecycle events do not
+// invalidate the list or grid. Only data changes rebuild the index.
 @MainActor
-final class TrackListArtworkPrefetcher {
-    let prefetcher = TrackArtworkPrefetcher(rendition: .source)
+final class TrackScrollArtworkPrefetcher {
+    let prefetcher: TrackArtworkPrefetcher
+    private var lookahead: Int
     private var indices: [String: Int] = [:]
     private var urls: [URL?] = []
     private var visibleIDs: Set<String> = []
     private var isEnabled = true
     private var updateTask: Task<Void, Never>?
+
+    init(rendition: ArtworkLoader.Rendition, lookahead: Int) {
+        prefetcher = TrackArtworkPrefetcher(rendition: rendition)
+        self.lookahead = lookahead
+    }
+
+    func setLookahead(_ lookahead: Int, loader: ArtworkLoader) {
+        guard lookahead != self.lookahead else { return }
+        self.lookahead = lookahead
+        schedule(loader: loader)
+    }
 
     func configure(ids: [String], urls: [URL?], loader: ArtworkLoader, isEnabled: Bool) {
         indices = Dictionary(ids.enumerated().map { ($0.element, $0.offset) },
@@ -459,7 +471,7 @@ final class TrackListArtworkPrefetcher {
             let visible = visibleIDs.compactMap { self.indices[$0] }.sorted()
             let upcoming: [URL]
             if let last = visible.last {
-                upcoming = urls[(last + 1)..<min(urls.count, last + 9)].compactMap { $0 }
+                upcoming = urls[(last + 1)..<min(urls.count, last + 1 + lookahead)].compactMap { $0 }
             } else {
                 upcoming = []
             }

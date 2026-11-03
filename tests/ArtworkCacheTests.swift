@@ -217,7 +217,7 @@ struct ArtworkCacheTests {
         // Rapid row changes must replace the window before speculative work starts.
         let scrollClient = SoundCloudClient(payload: encoded as Data)
         let scrollLoader = ArtworkLoader(client: scrollClient)
-        let scroll = TrackListArtworkPrefetcher()
+        let scroll = TrackScrollArtworkPrefetcher(rendition: .source, lookahead: 8)
         let scrollIDs = (0..<20).map(String.init)
         let scrollURLs = (0..<20).map { URL(string: "https://i1.sndcdn.com/scroll-\($0)-large.png")! }
         scroll.configure(ids: scrollIDs, urls: scrollURLs, loader: scrollLoader, isEnabled: true)
@@ -238,6 +238,23 @@ struct ArtworkCacheTests {
         try await Task.sleep(for: .milliseconds(100))
         let stoppedRequests = await scrollClient.requests
         precondition(stoppedRequests == 9, "Leaving the list must cancel its delayed update")
+
+        // Grids load their own rendition and scale the window with their column count.
+        let gridClient = SoundCloudClient(payload: encoded as Data)
+        let gridLoader = ArtworkLoader(client: gridClient)
+        let grid = TrackScrollArtworkPrefetcher(rendition: .square300, lookahead: 2)
+        let gridIDs = (0..<20).map(String.init)
+        let gridURLs = (0..<20).map { URL(string: "https://i1.sndcdn.com/grid-\($0)-large.png")! }
+        grid.configure(ids: gridIDs, urls: gridURLs, loader: gridLoader, isEnabled: true)
+        grid.setLookahead(4, loader: gridLoader)
+        grid.setVisible("5", isVisible: true, loader: gridLoader)
+        for url in gridURLs[5...9] {
+            while gridLoader.cachedImage(for: url, rendition: .square300) == nil { await Task.yield() }
+        }
+        let gridRequests = await gridClient.requests
+        precondition(gridRequests == 5, "A grid must load its visible tile and the four tiles below it")
+        precondition(gridLoader.cachedImage(for: gridURLs[10], rendition: .square300) == nil)
+        grid.stop(loader: gridLoader)
 
         let invalidLoader = ArtworkLoader(client: SoundCloudClient(payload: Data([0, 1, 2])))
         let invalid = try await invalidLoader.image(for: url)

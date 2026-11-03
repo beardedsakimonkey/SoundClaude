@@ -90,14 +90,19 @@ private struct JustifiedTrackGrid<Content: View>: View {
 }
 
 // Share the same look-ahead behavior across likes, history, and collections.
+// Visibility changes update a coordinator, not SwiftUI state for the whole grid.
 struct TrackArtworkGrid<Content: View>: View {
     let tracks: [SoundCloudTrack]
     let loader: ArtworkLoader
     @ViewBuilder let content: (SoundCloudTrack) -> Content
 
-    @State private var visibleIDs: Set<String> = []
-    @State private var columnCount = 1
-    @State private var prefetcher = TrackArtworkPrefetcher(rendition: .square300)
+    // Speculatively load two rows below the visible tiles.
+    private static var prefetchRowCount: Int { 2 }
+
+    @State private var coordinator = TrackScrollArtworkPrefetcher(
+        rendition: .square300,
+        lookahead: prefetchRowCount
+    )
     #if DEBUG
     private let prefetchSettings = ArtworkPrefetchDebugSettings.shared
     private var prefetchEnabled: Bool { prefetchSettings.isEnabled }
@@ -105,52 +110,33 @@ struct TrackArtworkGrid<Content: View>: View {
     private let prefetchEnabled = true
     #endif
 
-    private struct ArtworkWindow: Equatable {
-        var visible: [URL] = []
-        var prefetch: [URL] = []
-    }
-
-    private var artworkWindow: ArtworkWindow {
-        let indices = tracks.indices.filter { visibleIDs.contains(tracks[$0].id) }
-        guard let last = indices.last else { return ArtworkWindow() }
-        // Keep visible artwork separate from the two speculative rows below.
-        let end = min(tracks.count, last + 1 + columnCount * 2)
-        return ArtworkWindow(
-            visible: indices.compactMap { tracks[$0].displayArtworkURL },
-            prefetch: ((last + 1)..<end).compactMap { tracks[$0].displayArtworkURL }
-        )
-    }
-
     var body: some View {
         JustifiedTrackGrid {
             ForEach(tracks) { track in
                 content(track)
-                    .onAppear { visibleIDs.insert(track.id) }
-                    .onDisappear { visibleIDs.remove(track.id) }
+                    .onAppear { coordinator.setVisible(track.id, isVisible: true, loader: loader) }
+                    .onDisappear { coordinator.setVisible(track.id, isVisible: false, loader: loader) }
             }
         }
         #if DEBUG
-        .preference(key: TrackArtworkQueueDebugKey.self, value: [prefetcher])
+        .preference(key: TrackArtworkQueueDebugKey.self, value: [coordinator.prefetcher])
         #endif
         .onGeometryChange(for: Int.self) { geometry in
             TrackGridMetrics.columnCount(forWidth: geometry.size.width)
-        } action: { columnCount = $0 }
-        .onChange(of: artworkWindow, initial: true) { _, window in
-            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader, isEnabled: prefetchEnabled)
+        } action: { columnCount in
+            coordinator.setLookahead(columnCount * Self.prefetchRowCount, loader: loader)
         }
-        .onAppear {
-            let window = artworkWindow
-            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader, isEnabled: prefetchEnabled)
+        .onChange(of: tracks, initial: true) { _, tracks in
+            configure(tracks)
         }
-        .onChange(of: prefetchEnabled) { _, enabled in
-            let window = artworkWindow
-            prefetcher.update(urls: window.prefetch, visibleURLs: window.visible,
-                              loader: loader, isEnabled: enabled)
-        }
-        .onDisappear {
-            prefetcher.update(urls: [], visibleURLs: [], loader: loader)
-            visibleIDs.removeAll()
-        }
+        .onAppear { configure(tracks) }
+        .onChange(of: prefetchEnabled) { _, _ in configure(tracks) }
+        .onDisappear { coordinator.stop(loader: loader) }
+    }
+
+    private func configure(_ tracks: [SoundCloudTrack]) {
+        coordinator.configure(ids: tracks.map(\.id), urls: tracks.map(\.displayArtworkURL),
+                              loader: loader, isEnabled: prefetchEnabled)
     }
 }
 
@@ -160,7 +146,7 @@ struct TrackArtworkList<Content: View>: View {
     let loader: ArtworkLoader
     @ViewBuilder let content: (SoundCloudTrack) -> Content
 
-    @State private var coordinator = TrackListArtworkPrefetcher()
+    @State private var coordinator = TrackScrollArtworkPrefetcher(rendition: .source, lookahead: 8)
     #if DEBUG
     private let prefetchSettings = ArtworkPrefetchDebugSettings.shared
     private var prefetchEnabled: Bool { prefetchSettings.isEnabled }
