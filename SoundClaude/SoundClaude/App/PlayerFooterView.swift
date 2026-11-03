@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct PlayerFooterView: View {
-    private let artworkThumbnailSize: CGFloat = 72
+    // 75 points is 150 pixels at 2x, exactly half of the .square300 artwork.
+    private let artworkThumbnailSize: CGFloat = 75
     private let cornerRadius: CGFloat = 18
     private let contentInset: CGFloat = 6
 
@@ -380,7 +381,19 @@ private struct PlayerFooterArtworkThumbnail: View {
     }
 
     var body: some View {
-        thumbnail(for: artworkURL)
+        TrackArtworkView(
+            artworkURL: artworkURL,
+            loader: artworkLoader,
+            size: artworkThumbnailSize,
+            rendition: .square300,
+            shape: artworkShape,
+            showsBorder: false
+        )
+        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.15 : 1)
+        .clipShape(artworkShape)
+        .modifier(PlayerArtworkGlass(
+            cornerRadius: cornerRadius
+        ))
         .id(artworkURL)
         .animation(
             reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
@@ -390,23 +403,6 @@ private struct PlayerFooterArtworkThumbnail: View {
         .contentShape(artworkShape)
         .onContentHover { isHoveringArtwork = $0 }
     }
-
-    private func thumbnail(for url: URL?) -> some View {
-        TrackArtworkView(
-            artworkURL: url,
-            loader: artworkLoader,
-            size: artworkThumbnailSize,
-            rendition: .square500,
-            shape: artworkShape,
-            showsBorder: false
-        )
-        .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.15 : 1)
-        .clipShape(artworkShape)
-        .modifier(PlayerArtworkGlass(
-            cornerRadius: cornerRadius
-        ))
-    }
-
 }
 
 // Keep waveform hover and layout updates local to the waveform and timestamps.

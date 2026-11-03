@@ -51,6 +51,44 @@ struct TrackLayoutPicker: View {
     }
 }
 
+private enum TrackGridMetrics {
+    // 150 points is 300 pixels at 2x, matching the .square300 artwork.
+    static let tileWidth: CGFloat = 150
+    static let minimumColumnSpacing: CGFloat = 20
+
+    static func columnCount(forWidth width: CGFloat) -> Int {
+        max(1, Int((width + minimumColumnSpacing) / (tileWidth + minimumColumnSpacing)))
+    }
+}
+
+// Spread fixed-width tiles from edge to edge. The width lives here so that resizing
+// reuses the stored content instead of re-evaluating the parent's tiles.
+private struct JustifiedTrackGrid<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    @State private var width: CGFloat = 0
+
+    private var columns: [GridItem] {
+        let count = TrackGridMetrics.columnCount(forWidth: width)
+        let spacing = count > 1
+            ? (width - TrackGridMetrics.tileWidth * CGFloat(count)) / CGFloat(count - 1)
+            : 0
+        return Array(
+            repeating: GridItem(.fixed(TrackGridMetrics.tileWidth), spacing: spacing, alignment: .top),
+            count: count
+        )
+    }
+
+    var body: some View {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+            content
+        }
+        // The zero minimum lets this shrink below the fixed columns' current width.
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+    }
+}
+
 // Share the same look-ahead behavior across likes, history, and collections.
 struct TrackArtworkGrid<Content: View>: View {
     let tracks: [SoundCloudTrack]
@@ -59,7 +97,7 @@ struct TrackArtworkGrid<Content: View>: View {
 
     @State private var visibleIDs: Set<String> = []
     @State private var columnCount = 1
-    @State private var prefetcher = TrackArtworkPrefetcher()
+    @State private var prefetcher = TrackArtworkPrefetcher(rendition: .square300)
     #if DEBUG
     private let prefetchSettings = ArtworkPrefetchDebugSettings.shared
     private var prefetchEnabled: Bool { prefetchSettings.isEnabled }
@@ -84,11 +122,7 @@ struct TrackArtworkGrid<Content: View>: View {
     }
 
     var body: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 140), spacing: 20, alignment: .top)],
-            alignment: .leading,
-            spacing: 24
-        ) {
+        JustifiedTrackGrid {
             ForEach(tracks) { track in
                 content(track)
                     .onAppear { visibleIDs.insert(track.id) }
@@ -99,7 +133,7 @@ struct TrackArtworkGrid<Content: View>: View {
         .preference(key: TrackArtworkQueueDebugKey.self, value: [prefetcher])
         #endif
         .onGeometryChange(for: Int.self) { geometry in
-            max(1, Int((geometry.size.width + 20) / 160))
+            TrackGridMetrics.columnCount(forWidth: geometry.size.width)
         } action: { columnCount = $0 }
         .onChange(of: artworkWindow, initial: true) { _, window in
             prefetcher.update(urls: window.prefetch, visibleURLs: window.visible, loader: loader, isEnabled: prefetchEnabled)
@@ -203,7 +237,7 @@ struct TrackGridTile: View {
                         artworkURL: track.displayArtworkURL,
                         loader: artworkLoader,
                         size: geometry.size.width,
-                        rendition: .square500,
+                        rendition: .square300,
                         shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous),
                         showsBorder: false
                     )

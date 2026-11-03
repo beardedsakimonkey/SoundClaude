@@ -1106,12 +1106,14 @@ final class AppModel {
 
     private func prefetchArtwork(for track: SoundCloudTrack) async {
         guard let url = track.displayArtworkURL else { return }
-        async let thumbnail = try? artworkLoader.image(for: url, rendition: .square500)
+        // The footer and the detail page use different renditions.
+        async let footer = try? artworkLoader.image(for: url, rendition: .square300)
+        async let detail = try? artworkLoader.image(for: url, rendition: .square500)
         // Prepare the source rendition too: the backdrop uses it rather
         // than square500. Cache the extracted accent, not just its JPEG data.
         async let backdrop = try? artworkLoader.image(for: url)
         async let accent = try? artworkLoader.accentColor(for: url)
-        _ = await (thumbnail, backdrop, accent)
+        _ = await (footer, detail, backdrop, accent)
     }
 
     func navigateTrack(from track: SoundCloudTrack, offset: Int, queue: TrackQueue) {

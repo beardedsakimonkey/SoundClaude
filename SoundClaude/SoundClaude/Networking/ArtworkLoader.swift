@@ -9,6 +9,7 @@ import Observation
 actor ArtworkLoader {
     enum Rendition: Sendable {
         case source
+        case square300
         case square500
         case square1080
         case original
@@ -144,6 +145,8 @@ actor ArtworkLoader {
         switch rendition {
         case .source:
             return sourceURL
+        case .square300:
+            renditionSuffix = "-t300x300"
         case .square500:
             renditionSuffix = "-t500x500"
         case .square1080:
