@@ -33,6 +33,7 @@ struct SidebarView: View {
     @State private var playlistPlaybackError: String?
     @State private var startingStationURN: String?
     @State private var stationPlaybackError: String?
+    @State private var stationLikeError: String?
     @State private var editingPlaylist: SoundCloudPlaylist?
     @State private var playlistDeletion = PlaylistDeletionState()
     @AppStorage("sidebarPlaylistsExpanded") private var isPlaylistsExpanded = true
@@ -88,6 +89,14 @@ struct SidebarView: View {
             Button("OK", role: .cancel) { stationPlaybackError = nil }
         } message: {
             Text(stationPlaybackError ?? "Please try again.")
+        }
+        .alert("Could not unlike station", isPresented: Binding(
+            get: { stationLikeError != nil },
+            set: { if !$0 { stationLikeError = nil } }
+        )) {
+            Button("OK", role: .cancel) { stationLikeError = nil }
+        } message: {
+            Text(stationLikeError ?? "Please try again.")
         }
         #if DEBUG
         .debugViewUpdates("SidebarView")
@@ -324,6 +333,22 @@ struct SidebarView: View {
                                     .allowsHitTesting(false)
                             }
                         }
+                        .opacity(likes.updatingStationURNs.contains(station.urn) ? 0.5 : 1)
+                        .animation(
+                            reduceMotion ? nil : .easeInOut(duration: 0.2),
+                            value: likes.updatingStationURNs.contains(station.urn)
+                        )
+                        .contextMenu {
+                            Button(
+                                station.isStation ? "Unlike station" : "Unlike playlist",
+                                systemImage: "heart.slash"
+                            ) {
+                                unlikeStation(station)
+                            }
+                            // toggleStationLike likes anything absent from the list, so wait
+                            // until a finished load confirms this row is still liked.
+                            .disabled(!likes.hasLoadedStationLikes || likes.updatingStationURNs.contains(station.urn))
+                        }
                     }
                     if !likes.isLoadingStationLikes, let message = likes.stationLikesErrorMessage {
                         VStack(alignment: .leading, spacing: 6) {
@@ -467,6 +492,18 @@ struct SidebarView: View {
             } catch {
                 guard !Task.isCancelled, !(error is CancellationError) else { return }
                 stationPlaybackError = "\(station.displayTitle): \(error.localizedDescription)"
+            }
+        }
+    }
+
+    private func unlikeStation(_ station: SoundCloudStationLikePage.Station) {
+        Task { @MainActor in
+            guard likes.likedStationURNs.contains(station.urn) else { return }
+            do {
+                try await likes.toggleStationLike(urn: station.urn, title: station.title)
+            } catch is CancellationError {
+            } catch {
+                stationLikeError = "\(station.displayTitle): \(error.localizedDescription)"
             }
         }
     }
