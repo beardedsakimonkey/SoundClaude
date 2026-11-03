@@ -64,11 +64,13 @@ final class SoundCloudClient {
     }
     var likeWrites: [Bool] = []
     var failLikeWrite = false
+    var onLikeWrite: () -> Void = {}
     func likedPlaylists(accessToken: String, pageURL: URL?) async throws -> SoundCloudPlaylistPage {
         try await fetchLikes(pageURL)
     }
     func setPlaylistLiked(urn: String, isLiked: Bool, accessToken: String) async throws {
         likeWrites.append(isLiked)
+        onLikeWrite()
         if failLikeWrite { throw SoundCloudError.invalidData }
     }
     func playlists(accessToken: String, pageURL: URL?) async throws -> SoundCloudPlaylistPage {
@@ -458,12 +460,18 @@ struct PlaylistsCacheTests {
         precondition(controller.hasLoadedLikes && controller.likedPlaylistURNs == [publicPlaylist.urn])
         precondition(controller.likedPlaylists == [publicPlaylist] && !controller.isLoadingLikes)
         precondition(controller.playlists == [makePlaylist(2)])
+        // Only unlikes are pending removal; a new like must not dim its row.
+        var unlikingDuringWrite: Set<String> = []
+        client.onLikeWrite = { unlikingDuringWrite = controller.unlikingPlaylistURNs }
         try await controller.toggleLike(publicPlaylist)
+        precondition(unlikingDuringWrite == [publicPlaylist.urn])
+        precondition(controller.unlikingPlaylistURNs.isEmpty)
         precondition(controller.likedPlaylists.isEmpty)
         let savedUnlike = try store.loadForLaunch(accountID: "user:1")?.likedPlaylists
         precondition(savedUnlike == [])
         precondition(client.likeWrites == [false] && controller.likedPlaylistURNs.isEmpty)
         try await controller.toggleLike(publicPlaylist)
+        precondition(unlikingDuringWrite.isEmpty)
         precondition(client.likeWrites == [false, true])
         precondition(controller.likedPlaylists == [publicPlaylist])
         let savedLike = try store.loadForLaunch(accountID: "user:1")?.likedPlaylists
@@ -475,6 +483,8 @@ struct PlaylistsCacheTests {
         } catch is SoundCloudError {}
         precondition(controller.likedPlaylistURNs == [publicPlaylist.urn])
         precondition(controller.updatingLikeURNs.isEmpty)
+        precondition(unlikingDuringWrite == [publicPlaylist.urn])
+        precondition(controller.unlikingPlaylistURNs.isEmpty)
         precondition(controller.likedPlaylists == [publicPlaylist])
         try await controller.toggleLike(makePlaylist(1))
         precondition(client.likeWrites.count == 3)

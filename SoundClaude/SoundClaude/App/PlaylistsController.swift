@@ -23,6 +23,7 @@ final class PlaylistsController: ObservableObject {
     @Published private(set) var hasLoadedLikes = false
     @Published private(set) var likesErrorMessage: String?
     @Published private(set) var updatingLikeURNs: Set<String> = []
+    @Published private(set) var unlikingPlaylistURNs: Set<String> = []
 
     @Published private(set) var updatingPlaylistURNs: Set<String> = []
     @Published private(set) var deletingPlaylistURNs: Set<String> = []
@@ -555,6 +556,8 @@ final class PlaylistsController: ObservableObject {
         defer { if sessionID == session { updatingLikeURNs.remove(playlist.urn) } }
         guard let accountID else { throw CancellationError() }
         let shouldLike = !likedPlaylistURNs.contains(playlist.urn)
+        if !shouldLike { unlikingPlaylistURNs.insert(playlist.urn) }
+        defer { if sessionID == session { unlikingPlaylistURNs.remove(playlist.urn) } }
         let token = try await accessToken(session: session)
         try await client.setPlaylistLiked(urn: playlist.urn, isLiked: shouldLike, accessToken: token)
         try checkSession(session)
@@ -602,6 +605,7 @@ final class PlaylistsController: ObservableObject {
         hasLoadedLikes = false
         likesErrorMessage = nil
         updatingLikeURNs = []
+        unlikingPlaylistURNs = []
         syncTask?.cancel()
         restoreTask?.cancel()
         for task in playlistTasks.values { task.cancel() }

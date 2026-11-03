@@ -223,7 +223,7 @@ struct SidebarView: View {
                 sectionContents(isExpanded: isLikedPlaylistsExpanded) {
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(playlists.likedPlaylists) { playlist in
-                            playlistRow(playlist)
+                            playlistRow(playlist, isUnliking: playlists.unlikingPlaylistURNs.contains(playlist.urn))
                         }
                         if !playlists.isLoadingLikes, let errorMessage = playlists.likesErrorMessage {
                             VStack(alignment: .leading, spacing: 6) {
@@ -331,12 +331,12 @@ struct SidebarView: View {
     }
 
     @ViewBuilder
-    private func playlistRow(_ playlist: SoundCloudPlaylist) -> some View {
+    private func playlistRow(_ playlist: SoundCloudPlaylist, isUnliking: Bool = false) -> some View {
         let isOwned = (playlist.owner.urn == user.urn && user.urn != nil)
             || playlist.owner.permalinkURL == user.permalinkURL
         let contents = playlists.cache.contents[playlist.urn]
         let artworkURL = playlists.artworkURL(for: playlist)
-        let isDeleting = playlists.deletingPlaylistURNs.contains(playlist.urn)
+        let isPendingRemoval = isUnliking || playlists.deletingPlaylistURNs.contains(playlist.urn)
 
         let row = Label {
             Text(playlist.title)
@@ -375,8 +375,8 @@ struct SidebarView: View {
                         .accessibilityLabel("Loading \(playlist.title) for playback")
                 }
             }
-            .opacity(isDeleting ? 0.5 : 1)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isDeleting)
+            .opacity(isPendingRemoval ? 0.5 : 1)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isPendingRemoval)
             .contextMenu {
                 if playlists.likedPlaylistURNs.contains(playlist.urn) {
                     Button("Unlike playlist", systemImage: "heart.slash") {
