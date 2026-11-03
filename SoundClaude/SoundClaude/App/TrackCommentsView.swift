@@ -454,6 +454,7 @@ private struct TrackCommentAvatar: View {
 
     @State private var isShowingPicture = false
     @State private var cachedFullSizePicture: CachedFullSizeArtwork?
+    @State private var isHovering = false
 
     var body: some View {
         let thumbnail = TrackArtworkView(
@@ -463,12 +464,17 @@ private struct TrackCommentAvatar: View {
             showsBorder: false,
             showsPlaceholderIcon: false
         )
+        .scaleEffect(isHovering ? 1.15 : 1)
         .clipShape(Circle())
         .overlay {
             Circle()
                 .strokeBorder(.white.opacity(0.2), lineWidth: 1)
                 .allowsHitTesting(false)
         }
+        .animation(
+            .spring(response: 0.35, dampingFraction: 0.75),
+            value: isHovering
+        )
 
         if user.avatarURL != nil {
             Button {
@@ -478,6 +484,9 @@ private struct TrackCommentAvatar: View {
             }
             .buttonStyle(.plain)
             .contentShape(Circle())
+            .onContentHover(in: Circle().path(in: CGRect(x: 0, y: 0, width: 40, height: 40))) {
+                isHovering = $0
+            }
             .contentHelp("View full-size picture")
             .accessibilityLabel("View full-size picture of \(user.username)")
             .sheet(isPresented: $isShowingPicture) {
