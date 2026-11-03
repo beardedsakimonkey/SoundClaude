@@ -362,26 +362,7 @@ private struct TrackCommentRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             if let user = comment.user {
-                Button {
-                    onSelectArtist(user)
-                } label: {
-                    TrackArtworkView(
-                        artworkURL: user.avatarURL,
-                        loader: model.artworkLoader,
-                        size: 40,
-                        showsBorder: false,
-                        showsPlaceholderIcon: false
-                    )
-                    .clipShape(Circle())
-                    .overlay {
-                        Circle()
-                            .strokeBorder(.white.opacity(0.2), lineWidth: 1)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .buttonStyle(.plain)
-                .contentHelp("View artist")
-                .accessibilityLabel("View artist: \(user.username)")
+                TrackCommentAvatar(user: user, loader: model.artworkLoader)
             } else {
                 Image(systemName: "person.crop.circle")
                     .resizable()
@@ -463,6 +444,53 @@ private struct TrackCommentRow: View {
             Spacer(minLength: 0)
         }
         .lineLimit(1)
+    }
+}
+
+// Keep the sheet state local so opening a picture does not update the row.
+private struct TrackCommentAvatar: View {
+    let user: SoundCloudUser
+    let loader: ArtworkLoader
+
+    @State private var isShowingPicture = false
+    @State private var cachedFullSizePicture: CachedFullSizeArtwork?
+
+    var body: some View {
+        let thumbnail = TrackArtworkView(
+            artworkURL: user.avatarURL,
+            loader: loader,
+            size: 40,
+            showsBorder: false,
+            showsPlaceholderIcon: false
+        )
+        .clipShape(Circle())
+        .overlay {
+            Circle()
+                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+
+        if user.avatarURL != nil {
+            Button {
+                isShowingPicture = true
+            } label: {
+                thumbnail
+            }
+            .buttonStyle(.plain)
+            .contentShape(Circle())
+            .contentHelp("View full-size picture")
+            .accessibilityLabel("View full-size picture of \(user.username)")
+            .sheet(isPresented: $isShowingPicture) {
+                FullSizeArtworkView(
+                    title: user.username,
+                    artworkURL: user.avatarURL,
+                    loader: loader,
+                    cachedArtwork: $cachedFullSizePicture
+                )
+            }
+        } else {
+            thumbnail
+        }
     }
 }
 
