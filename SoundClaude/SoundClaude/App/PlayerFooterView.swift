@@ -396,7 +396,9 @@ private struct PlayerFooterArtworkThumbnail: View {
         ))
         .id(artworkURL)
         .animation(
-            reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.75),
+            reduceMotion ? nil : isHoveringArtwork
+                ? .spring(response: 0.4, dampingFraction: 0.75)
+                : .spring(duration: 0.34, bounce: 0),
             value: isHoveringArtwork
         )
         .frame(width: artworkThumbnailSize, height: artworkThumbnailSize)
