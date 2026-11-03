@@ -175,6 +175,7 @@ struct TrackGridTile: View {
     let onPlayTrack: (SoundCloudTrack) async -> Void
 
     @State private var isHoveringArtwork = false
+    @State private var hasHoveredArtwork = false
     @State private var isHoveringTitle = false
     @State private var isHoveringMenu = false
     @State private var likeErrorMessage: String?
@@ -237,17 +238,28 @@ struct TrackGridTile: View {
             }
             .aspectRatio(1, contentMode: .fit)
             .overlay(alignment: .bottomTrailing) {
-                overflowMenu
-                    .padding(8)
-                    .opacity(isHoveringArtwork ? 1 : 0)
-                    .animation(
-                        reduceMotion ? nil : .easeInOut(duration: 0.15),
-                        value: isHoveringArtwork
-                    )
-                    .allowsHitTesting(isHoveringArtwork)
-                    .accessibilityHidden(!isHoveringArtwork)
+                ZStack {
+                    // Mounting a Menu is expensive, so wait for the first hover. It stays
+                    // mounted afterward so that leaving the tile can't remove an open menu.
+                    if hasHoveredArtwork {
+                        overflowMenu
+                            .padding(8)
+                            .opacity(isHoveringArtwork ? 1 : 0)
+                            .allowsHitTesting(isHoveringArtwork)
+                            .accessibilityHidden(!isHoveringArtwork)
+                            // Fade in on the first hover, when the menu is inserted already opaque.
+                            .transition(.opacity)
+                    }
+                }
+                .animation(
+                    reduceMotion ? nil : .easeInOut(duration: 0.15),
+                    value: isHoveringArtwork
+                )
             }
-            .onContentHover { isHoveringArtwork = $0 }
+            .onContentHover { hovering in
+                isHoveringArtwork = hovering
+                if hovering { hasHoveredArtwork = true }
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
