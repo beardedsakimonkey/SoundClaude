@@ -139,7 +139,6 @@ final class LikesController {
         guard let accountID, !hasLoadedStationLikes else { return }
         let session = sessionID
         isLoadingStationLikes = true
-        stationLikesErrorMessage = nil
         let task = Task { @MainActor in
             defer {
                 if sessionID == session {
@@ -169,6 +168,8 @@ final class LikesController {
             try await store.saveStations(stations, accountID: accountID)
             guard sessionID == session else { throw CancellationError() }
             hasLoadedStationLikes = true
+            // Cleared here, not on retry, so the sidebar section stays up while retrying.
+            stationLikesErrorMessage = nil
         }
         stationLikesTask = task
         do {

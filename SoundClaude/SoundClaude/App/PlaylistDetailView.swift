@@ -167,7 +167,8 @@ struct PlaylistDetailView: View {
                 }
             }
         } controlsFooter: {
-            if !playlist.isSystemPlaylist, !displayedPlaylist.isPrivate, let error = playlists.likesErrorMessage {
+            if !playlist.isSystemPlaylist, !displayedPlaylist.isPrivate, !playlists.isLoadingLikes,
+               let error = playlists.likesErrorMessage {
                 Text(error).font(.caption).foregroundStyle(.secondary)
                 Button("Retry likes") { Task { await playlists.loadLikes() } }
             }

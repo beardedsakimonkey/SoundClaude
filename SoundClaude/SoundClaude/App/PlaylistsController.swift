@@ -508,7 +508,6 @@ final class PlaylistsController: ObservableObject {
         }
         guard let accountID, !hasLoadedLikes else { return }
         let session = sessionID
-        likesErrorMessage = nil
         isLoadingLikes = true
         let task = Task { @MainActor in
             defer {
@@ -536,6 +535,8 @@ final class PlaylistsController: ObservableObject {
                 } while url != nil
                 likedPlaylists = refreshed
                 hasLoadedLikes = true
+                // Cleared here, not on retry, so the sidebar section stays up while retrying.
+                likesErrorMessage = nil
                 cache.hasLoadedLikes = true
                 try? await save(accountID: accountID, session: session)
             } catch {

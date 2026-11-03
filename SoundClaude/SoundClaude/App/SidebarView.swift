@@ -209,40 +209,46 @@ struct SidebarView: View {
                                 Button("Try Again") { Task { await playlists.load() } }
                             }
                             .padding(.leading, Self.sectionIndent)
-                        } else if !playlists.isLoading && playlists.cache.hasLoadedList && playlists.playlists.isEmpty {
-                            Text("No playlists")
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, Self.sectionIndent)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            VStack(alignment: .leading, spacing: 0) {
-                sectionHeader("Liked Playlists", isExpanded: $isLikedPlaylistsExpanded, isLoading: playlists.isLoadingLikes)
-                sectionContents(isExpanded: isLikedPlaylistsExpanded) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        ForEach(playlists.likedPlaylists) { playlist in
-                            playlistRow(playlist, isUnliking: playlists.unlikingPlaylistURNs.contains(playlist.urn))
-                        }
-                        if !playlists.isLoadingLikes, let errorMessage = playlists.likesErrorMessage {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(errorMessage)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Button("Try Again") { Task { await playlists.loadLikes() } }
+            if showsLikedSection(
+                isEmpty: playlists.likedPlaylists.isEmpty,
+                errorMessage: playlists.likesErrorMessage,
+                isExpanded: isLikedPlaylistsExpanded,
+                hasLoaded: playlists.hasLoadedLikes
+            ) {
+                VStack(alignment: .leading, spacing: 0) {
+                    sectionHeader("Liked Playlists", isExpanded: $isLikedPlaylistsExpanded, isLoading: playlists.isLoadingLikes)
+                    sectionContents(isExpanded: isLikedPlaylistsExpanded) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(playlists.likedPlaylists) { playlist in
+                                playlistRow(playlist, isUnliking: playlists.unlikingPlaylistURNs.contains(playlist.urn))
                             }
-                            .padding(.leading, Self.sectionIndent)
-                        } else if !playlists.isLoadingLikes && playlists.hasLoadedLikes && playlists.likedPlaylists.isEmpty {
-                            Text("No liked playlists")
-                                .foregroundStyle(.secondary)
+                            if !playlists.isLoadingLikes, let errorMessage = playlists.likesErrorMessage {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(errorMessage)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Button("Try Again") { Task { await playlists.loadLikes() } }
+                                }
                                 .padding(.leading, Self.sectionIndent)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            likedStationsSection
+            if showsLikedSection(
+                isEmpty: likes.likedStations.isEmpty,
+                errorMessage: likes.stationLikesErrorMessage,
+                isExpanded: isLikedStationsExpanded,
+                hasLoaded: likes.hasLoadedStationLikes
+            ) {
+                likedStationsSection
+            }
         }
         .padding(8)
         .modifier(SidebarPlaylistRemovalAnimation(
@@ -260,6 +266,14 @@ struct SidebarView: View {
             reduceMotion ? nil : .easeInOut(duration: 0.25),
             value: isLikedPlaylistsExpanded
         )
+    }
+
+    // Empty sections stay hidden while loading so the header doesn't flash on launch.
+    // Collapsed sections don't load, so they keep a header to expand them with.
+    private func showsLikedSection(
+        isEmpty: Bool, errorMessage: String?, isExpanded: Bool, hasLoaded: Bool
+    ) -> Bool {
+        !isEmpty || errorMessage != nil || (!isExpanded && !hasLoaded)
     }
 
     private var likedStationsSection: some View {
@@ -319,10 +333,6 @@ struct SidebarView: View {
                             Button("Try Again") { Task { try? await likes.loadStationLikes() } }
                         }
                         .padding(.leading, Self.sectionIndent)
-                    } else if !likes.isLoadingStationLikes && likes.hasLoadedStationLikes && likes.likedStations.isEmpty {
-                        Text("No liked stations")
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, Self.sectionIndent)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
