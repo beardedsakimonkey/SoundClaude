@@ -388,13 +388,15 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
 
 // Keep hover state local so pointer movement does not invalidate the detail header.
 struct TrackCollectionTitleRow<Title: View, Actions: View>: View {
+    var keepsActionsVisible = false
     @ViewBuilder let title: () -> Title
     @ViewBuilder let actions: () -> Actions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: 8) {
+        let showsActions = isHovered || keepsActionsVisible
+        HStack(spacing: 4) {
             title()
                 .labelStyle(.titleAndIcon)
                 .font(.body)
@@ -409,8 +411,8 @@ struct TrackCollectionTitleRow<Title: View, Actions: View>: View {
                 }
 
             actions()
-                .opacity(isHovered ? 1 : 0)
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isHovered)
+                .opacity(showsActions ? 1 : 0)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: showsActions)
         }
         .contentShape(Rectangle())
         .onContentHover { isHovered = $0 }
@@ -429,6 +431,7 @@ struct TrackCollectionLikeButton: View {
         Button(action: action) {
             Image(systemName: isLiked ? "heart.fill" : "heart")
         }
+        .foregroundStyle(Color.accentColor)
         .buttonStyle(TrackCollectionHeaderButtonStyle())
         .disabled(isUpdating)
         .contentHelp(actionLabel)
@@ -447,7 +450,7 @@ private struct TrackCollectionHeaderButtonStyle: ButtonStyle {
         configuration.label
             .padding(4)
             .contentShape(Rectangle())
-            .opacity(isEnabled ? (isHighlighted ? 1 : 0.75) : 0.5)
+            .opacity(isEnabled ? (isHighlighted ? 1 : 0.8) : 0.5)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHighlighted)
             .onContentHover { isHovered = $0 }
             .onDisappear { isHovered = false }

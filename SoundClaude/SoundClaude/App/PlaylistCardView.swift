@@ -265,7 +265,6 @@ private struct PlaylistCardTitleRow: View {
                 if likeClickID == clickID { likeClickID = nil }
             }
         }
-        .foregroundStyle(Color.accentColor)
         .contentTransition(.symbolEffect(.replace))
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: cardState.isLiked)
     }

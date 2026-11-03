@@ -148,7 +148,7 @@ struct PlaylistDetailView: View {
             onSelectTrack: onSelectTrack,
             onSelectArtist: onSelectArtist
         ) {
-            TrackCollectionTitleRow {
+            TrackCollectionTitleRow(keepsActionsVisible: isLiked) {
                 Label {
                     Text(displayedPlaylist.title)
                         .foregroundStyle(.secondary)
@@ -243,11 +243,15 @@ struct PlaylistDetailView: View {
         .disabled(playlistDeletion.deletingURNs.contains(playlist.urn))
     }
 
+    private var isLiked: Bool {
+        playlist.isSystemPlaylist
+            ? likes.likedStationURNs.contains(playlist.urn)
+            : playlists.likedPlaylistURNs.contains(playlist.urn)
+    }
+
     private var likeButton: some View {
         TrackCollectionLikeButton(
-            isLiked: playlist.isSystemPlaylist
-                ? likes.likedStationURNs.contains(playlist.urn)
-                : playlists.likedPlaylistURNs.contains(playlist.urn),
+            isLiked: isLiked,
             isUpdating: playlist.isSystemPlaylist
                 ? !likes.hasLoadedStationLikes || likes.updatingStationURNs.contains(playlist.urn)
                 : !playlists.hasLoadedLikes || playlists.updatingLikeURNs.contains(playlist.urn),
