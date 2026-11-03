@@ -445,10 +445,9 @@ private struct TrackCollectionHeaderButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         let isHighlighted = isEnabled && (isHovered || configuration.isPressed)
         configuration.label
-            .foregroundStyle(isHighlighted ? .primary : .secondary)
             .padding(4)
             .contentShape(Rectangle())
-            .opacity(isEnabled ? 1 : 0.5)
+            .opacity(isEnabled ? (isHighlighted ? 1 : 0.75) : 0.5)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHighlighted)
             .onContentHover { isHovered = $0 }
             .onDisappear { isHovered = false }

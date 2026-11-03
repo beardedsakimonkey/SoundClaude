@@ -20,9 +20,13 @@ final class PlaylistsController: ObservableObject {
         set { cache.likedPlaylists = newValue }
     }
     @Published private(set) var isLoadingLikes = false
-    @Published private(set) var hasLoadedLikes = false
+    @Published private(set) var hasLoadedLikes = false {
+        didSet { updateCardStates() }
+    }
     @Published private(set) var likesErrorMessage: String?
-    @Published private(set) var updatingLikeURNs: Set<String> = []
+    @Published private(set) var updatingLikeURNs: Set<String> = [] {
+        didSet { updateCardStates() }
+    }
     @Published private(set) var unlikingPlaylistURNs: Set<String> = []
 
     @Published private(set) var updatingPlaylistURNs: Set<String> = []
@@ -37,22 +41,27 @@ final class PlaylistsController: ObservableObject {
     func cardState(for urn: String) -> PlaylistCardState {
         if let state = cardStates[urn] { return state }
         let state = PlaylistCardState()
-        updateCardState(state, urn: urn)
+        updateCardState(state, urn: urn, likedURNs: likedPlaylistURNs)
         cardStates[urn] = state
         return state
     }
 
     private func updateCardStates() {
-        for (urn, state) in cardStates { updateCardState(state, urn: urn) }
+        let likedURNs = likedPlaylistURNs
+        for (urn, state) in cardStates { updateCardState(state, urn: urn, likedURNs: likedURNs) }
     }
 
-    private func updateCardState(_ state: PlaylistCardState, urn: String) {
+    private func updateCardState(_ state: PlaylistCardState, urn: String, likedURNs: Set<String>) {
         let contents = cache.contents[urn] ?? previews[urn]
         let isLoading = loadingPlaylistURNs.contains(urn)
         let errorMessage = playlistErrors[urn]
+        let isLiked = likedURNs.contains(urn)
+        let isUpdatingLike = !hasLoadedLikes || updatingLikeURNs.contains(urn)
         if state.contents != contents { state.contents = contents }
         if state.isLoading != isLoading { state.isLoading = isLoading }
         if state.errorMessage != errorMessage { state.errorMessage = errorMessage }
+        if state.isLiked != isLiked { state.isLiked = isLiked }
+        if state.isUpdatingLike != isUpdatingLike { state.isUpdatingLike = isUpdatingLike }
     }
 
     func artworkURL(for playlist: SoundCloudPlaylist) -> URL? {
@@ -634,4 +643,6 @@ final class PlaylistCardState {
     fileprivate(set) var contents: PlaylistContents?
     fileprivate(set) var isLoading = false
     fileprivate(set) var errorMessage: String?
+    fileprivate(set) var isLiked = false
+    fileprivate(set) var isUpdatingLike = true
 }

@@ -9,7 +9,6 @@ struct PlaylistCardView: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     @State private var isExpanded = false
-    @State private var isHoveringTitle = false
     @State private var isHoveringTrackToggle = false
     @State private var selectedTrackURN: String?
 
@@ -59,18 +58,13 @@ struct PlaylistCardView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Button {
-                    onSelectPlaylist(displayedPlaylist)
-                } label: {
-                    Text(displayedPlaylist.title)
-                        .font(.title2.weight(.semibold))
-                        .underline(isHoveringTitle)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(1)
-                }
-                .buttonStyle(.plain)
-                .onContentHover { isHoveringTitle = $0 }
-                .contentHelp(displayedPlaylist.title)
+                PlaylistCardTitleRow(
+                    playlist: displayedPlaylist,
+                    cardState: cardState,
+                    model: model,
+                    playlists: playlists,
+                    onSelect: { onSelectPlaylist(displayedPlaylist) }
+                )
 
                 ArtistLink(artist: displayedPlaylist.owner, onSelect: onSelectArtist)
                     .font(.callout)
@@ -205,6 +199,75 @@ struct PlaylistCardView: View {
             tracks: loaded.tracks,
             nextPageURL: loaded.nextPageURL, sourceTitle: loaded.playlist.title
         ), loadRemainingTracks: true)
+    }
+}
+
+// Keep hover state here so revealing the like button doesn't update the whole card.
+private struct PlaylistCardTitleRow: View {
+    let playlist: SoundCloudPlaylist
+    let cardState: PlaylistCardState
+    let model: AppModel
+    let playlists: PlaylistsController
+    let onSelect: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isHoveringRow = false
+    @State private var isHoveringTitle = false
+    // Keeps the like button visible after the pointer leaves, until shortly after the
+    // latest click's request finishes.
+    @State private var likeClickID: UUID?
+
+    private var isLikeButtonVisible: Bool { cardState.isLiked || isHoveringRow || likeClickID != nil }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Button(action: onSelect) {
+                Text(playlist.title)
+                    .underline(isHoveringTitle)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(1)
+            }
+            .buttonStyle(.plain)
+            .onContentHover { isHoveringTitle = $0 }
+            .contentHelp(playlist.title)
+
+            // Reserve the button's height so title rows match on cards that can't be liked.
+            if playlist.isPrivate || playlist.isSystemPlaylist {
+                likeButton.hidden()
+            } else {
+                likeButton
+                    .opacity(isLikeButtonVisible ? 1 : 0)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLikeButtonVisible)
+            }
+        }
+        .font(.title2.weight(.semibold))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onContentHover { isHoveringRow = $0 }
+    }
+
+    private var likeButton: some View {
+        TrackCollectionLikeButton(
+            isLiked: cardState.isLiked,
+            isUpdating: cardState.isUpdatingLike,
+            subject: "playlist: \(playlist.title)"
+        ) {
+            let clickID = UUID()
+            likeClickID = clickID
+            Task {
+                do {
+                    try await playlists.toggleLike(playlist)
+                } catch is CancellationError {
+                } catch {
+                    model.likeErrorMessage = error.localizedDescription
+                }
+                try? await Task.sleep(for: .seconds(1))
+                if likeClickID == clickID { likeClickID = nil }
+            }
+        }
+        .foregroundStyle(Color.accentColor)
+        .contentTransition(.symbolEffect(.replace))
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: cardState.isLiked)
     }
 }
 
