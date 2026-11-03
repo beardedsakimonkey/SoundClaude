@@ -243,11 +243,6 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
                                 .fixedSize(horizontal: true, vertical: false)
                             playbackControls(currentTrack: currentTrack, displayedTrack: displayedTrack, iconOnly: true)
                                 .labelStyle(.iconOnly)
-                            playbackControls(
-                                currentTrack: currentTrack, displayedTrack: displayedTrack,
-                                iconOnly: true, showsShuffle: false
-                            )
-                            .labelStyle(.iconOnly)
                         }
                         // Overflowing controls must not widen the column.
                         .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
@@ -276,8 +271,7 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
     private func playbackControls(
         currentTrack: SoundCloudTrack?,
         displayedTrack: SoundCloudTrack?,
-        iconOnly: Bool,
-        showsShuffle: Bool = true
+        iconOnly: Bool
     ) -> some View {
         HStack(spacing: 12) {
             CollectionPlayButtonSlot(
@@ -289,9 +283,7 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
             ) {
                 play(currentTrack: currentTrack)
             }
-            if showsShuffle {
-                shuffleButton
-            }
+            shuffleButton
             Group {
                 Button {
                     navigateTrack(backward: true, currentTrack: currentTrack, displayedTrack: displayedTrack)
