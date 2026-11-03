@@ -19,6 +19,7 @@ struct TrackListRow: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
+    @State private var hasHovered = false
     @State private var isHoveringArtwork = false
     @State private var isHoveringTitle = false
     @State private var isHoveringArtist = false
@@ -87,18 +88,22 @@ struct TrackListRow: View {
                 }
             }
             .overlay {
-                trailingHoverButton
-                    .fixedSize()
-                    .background {
-                        Circle()
-                            .fill(Color.primary.opacity(isHoveringMenu ? 0.1 : 0))
-                            .frame(width: 28, height: 28)
-                    }
-                    .contentShape(Circle())
-                    .opacity(isHovering ? 1 : 0)
-                    .allowsHitTesting(isHovering)
-                    .accessibilityHidden(!isHovering)
-                    .onContentHover { isHoveringMenu = $0 }
+                // Mounting a Menu is expensive, so wait for the first hover. It stays
+                // mounted afterward so that leaving the row can't remove an open menu.
+                if hasHovered {
+                    trailingHoverButton
+                        .fixedSize()
+                        .background {
+                            Circle()
+                                .fill(Color.primary.opacity(isHoveringMenu ? 0.1 : 0))
+                                .frame(width: 28, height: 28)
+                        }
+                        .contentShape(Circle())
+                        .opacity(isHovering ? 1 : 0)
+                        .allowsHitTesting(isHovering)
+                        .accessibilityHidden(!isHovering)
+                        .onContentHover { isHoveringMenu = $0 }
+                }
             }
         }
         .padding(.vertical, isCompact ? 4 : 6)
@@ -122,7 +127,10 @@ struct TrackListRow: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(rowBackground)
         }
-        .onContentHover { isHovering = $0 }
+        .onContentHover { hovering in
+            isHovering = hovering
+            if hovering { hasHovered = true }
+        }
         .onChange(of: isCurrentTrack) { _, _ in
             isStartingPlayback = false
         }
