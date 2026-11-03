@@ -211,54 +211,51 @@ struct TrackGridTile: View {
         let likeCount = likes.likeCount(for: track)
 
         VStack(alignment: .leading, spacing: 8) {
-            GeometryReader { geometry in
-                Button {
-                    if isCurrentTrack {
-                        playback.togglePlayPause()
-                    } else {
-                        Task { await onPlayTrack(track) }
-                    }
-                } label: {
-                    TrackArtworkView(
-                        artworkURL: track.displayArtworkURL,
-                        loader: artworkLoader,
-                        size: geometry.size.width,
-                        rendition: .square300,
-                        shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous),
-                        showsBorder: false
-                    )
-                    .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
-                    .clipShape(RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous))
-                    .modifier(PlayerArtworkGlass(
-                        cornerRadius: Self.artworkCornerRadius
-                    ))
-                    .animation(
-                        reduceMotion ? nil : isHoveringArtwork
-                            ? .spring(response: 0.35, dampingFraction: 0.75)
-                            : .spring(duration: 0.34, bounce: 0),
-                        value: isHoveringArtwork
-                    )
-                    .overlay {
-                        AnimatedPlayPauseIcon(isPlaybackActive: isPlaybackActive, size: 32)
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
-                            .scaleEffect(reduceMotion || isHoveringArtwork || isCurrentTrack ? 1 : 0.8)
-                            .opacity((isHoveringArtwork || isCurrentTrack) && track.access != .protected ? 1 : 0)
-                            .animation(
-                                reduceMotion ? nil : .easeInOut(duration: 0.15),
-                                value: isHoveringArtwork || isCurrentTrack
-                            )
-                            .allowsHitTesting(false)
-                            .accessibilityHidden(true)
-                    }
+            Button {
+                if isCurrentTrack {
+                    playback.togglePlayPause()
+                } else {
+                    Task { await onPlayTrack(track) }
                 }
-                .buttonStyle(.plain)
-                .disabled(track.access == .protected)
-                .opacity(track.access == .protected ? protectedTrackOpacity : 1)
-                .contentHelp(isPlaybackActive ? "Pause" : "Play")
-                .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
+            } label: {
+                TrackArtworkView(
+                    artworkURL: track.displayArtworkURL,
+                    loader: artworkLoader,
+                    size: TrackGridMetrics.tileWidth,
+                    rendition: .square300,
+                    shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous),
+                    showsBorder: false
+                )
+                .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
+                .clipShape(RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous))
+                .modifier(PlayerArtworkGlass(
+                    cornerRadius: Self.artworkCornerRadius
+                ))
+                .animation(
+                    reduceMotion ? nil : isHoveringArtwork
+                        ? .spring(response: 0.35, dampingFraction: 0.75)
+                        : .spring(duration: 0.34, bounce: 0),
+                    value: isHoveringArtwork
+                )
+                .overlay {
+                    AnimatedPlayPauseIcon(isPlaybackActive: isPlaybackActive, size: 32)
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
+                        .scaleEffect(reduceMotion || isHoveringArtwork || isCurrentTrack ? 1 : 0.8)
+                        .opacity((isHoveringArtwork || isCurrentTrack) && track.access != .protected ? 1 : 0)
+                        .animation(
+                            reduceMotion ? nil : .easeInOut(duration: 0.15),
+                            value: isHoveringArtwork || isCurrentTrack
+                        )
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
             }
-            .aspectRatio(1, contentMode: .fit)
+            .buttonStyle(.plain)
+            .disabled(track.access == .protected)
+            .opacity(track.access == .protected ? protectedTrackOpacity : 1)
+            .contentHelp(isPlaybackActive ? "Pause" : "Play")
+            .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
             .overlay(alignment: .bottomTrailing) {
                 ZStack {
                     // Mounting a Menu is expensive, so wait for the first hover. It stays
