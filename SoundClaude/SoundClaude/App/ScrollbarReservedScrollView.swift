@@ -53,7 +53,7 @@ extension View {
 }
 
 private struct ScrollKeyNavigationView: NSViewRepresentable {
-    // Retained root pages and pages behind the visualizer stay mounted but inactive.
+    // Pages behind the visualizer stay mounted but inactive.
     @Environment(\.contentHoverEnabled) private var isActive
 
     func makeNSView(context: Context) -> MonitorView {

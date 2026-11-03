@@ -3,7 +3,6 @@ import SwiftUI
 struct HistoryView: View {
     let model: AppModel
     @Binding var searchText: String
-    let isActive: Bool
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
@@ -36,7 +35,6 @@ struct HistoryView: View {
 
                     TrackFilterField(
                         text: $searchText,
-                        isActive: isActive,
                         accessibilityLabel: "Search listening history"
                     )
                     .frame(maxWidth: 200)
@@ -58,6 +56,7 @@ struct HistoryView: View {
             }
             .padding(20)
             .scrollKeyNavigation()
+            .remembersScrollPosition()
         }
     }
 

@@ -81,7 +81,7 @@ struct WaveformCommentsView: View {
         let model = AppModel()
         func page(station: Bool) -> some View {
             NavigationStack {
-                CurrentNavigationPage(route: station ? 1 : 0, retainsRoot: true) {
+                CurrentNavigationPage(route: station ? 1 : 0) {
                     Color.clear
                 } destination: { route in
                     GeometryReader { _ in

@@ -17,7 +17,6 @@ private enum LikesSortOrder: String, CaseIterable {
 
 struct LikesView: View {
     let user: SoundCloudUser
-    let isActive: Bool
     let artworkLoader: ArtworkLoader
     let appErrorMessage: String?
     let onSelectArtist: (SoundCloudUser) -> Void
@@ -36,7 +35,6 @@ struct LikesView: View {
     init(
         user: SoundCloudUser,
         searchText: Binding<String>,
-        isActive: Bool = true,
         likes: LikesController,
         playback: PlaybackController,
         analyzer: SpectrumAnalyzer,
@@ -48,7 +46,6 @@ struct LikesView: View {
         onPlayTrack: @escaping (SoundCloudTrack) async -> Void
     ) {
         self.user = user
-        self.isActive = isActive
         _searchText = searchText
         self.artworkLoader = artworkLoader
         self.appErrorMessage = appErrorMessage
@@ -75,14 +72,12 @@ struct LikesView: View {
                             value: likes.tracks.map(\.urn)
                         )
                 }
+                .remembersScrollPosition()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Root pages stay mounted, so sync on every entry to pick up likes made elsewhere.
-        .task(id: isActive) {
-            guard isActive else { return }
-            await likes.loadLikedTracks()
-        }
+        // Sync on every entry to pick up likes made elsewhere.
+        .task { await likes.loadLikedTracks() }
         #if DEBUG
         .debugViewUpdates("LikesView")
         #endif
@@ -128,7 +123,6 @@ struct LikesView: View {
     private var searchBar: some View {
         TrackFilterField(
             text: $searchText,
-            isActive: isActive,
             accessibilityLabel: "Search liked tracks"
         )
     }

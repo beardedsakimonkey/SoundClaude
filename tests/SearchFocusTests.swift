@@ -14,7 +14,6 @@ private struct FilterFixture: View {
         VStack {
             TrackFilterField(
                 text: $text,
-                isActive: true,
                 accessibilityLabel: "Search liked tracks"
             )
             Color.gray.frame(height: 200)
@@ -104,30 +103,16 @@ private struct SearchFocusTests {
                                 )
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     precondition(searchField.currentEditor() != nil, "Reselecting Search must restore input focus")
-                                    searchHost.rootView = SearchView(
-                                        user: user, searchText: .constant(""), focusRequest: UUID(), isActive: false,
+                                    let requestedHost = NSHostingView(rootView: SearchView(
+                                        user: user, searchText: .constant(""), focusRequest: UUID(),
                                         onSearch: { _ in }
-                                    )
+                                    ))
+                                    window.contentView = requestedHost
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                        precondition(searchField.currentEditor() == nil, "A retained hidden search page must release focus")
-                                        searchHost.rootView = SearchView(
-                                            user: user, searchText: .constant(""), focusRequest: UUID(),
-                                            onSearch: { _ in }
-                                        )
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                            precondition(searchField.currentEditor() != nil, "Returning to retained Search must restore requested focus")
-                                            let requestedHost = NSHostingView(rootView: SearchView(
-                                                user: user, searchText: .constant(""), focusRequest: UUID(),
-                                                onSearch: { _ in }
-                                            ))
-                                            window.contentView = requestedHost
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                let requestedField = descendant(NSTextField.self, in: requestedHost)!
-                                                precondition(requestedField.currentEditor() != nil, "Opening Search must focus a newly mounted input")
-                                                print("Search focus tests passed")
-                                                app.terminate(nil)
-                                            }
-                                        }
+                                        let requestedField = descendant(NSTextField.self, in: requestedHost)!
+                                        precondition(requestedField.currentEditor() != nil, "Opening Search must focus a newly mounted input")
+                                        print("Search focus tests passed")
+                                        app.terminate(nil)
                                     }
                                 }
                             }

@@ -156,6 +156,16 @@ struct FeedCacheTests {
         await controller.load()
         let repaired = try await store.load(accountID: "user:1")
         precondition(repaired?.items.map(\.id) == [item(8).id])
+
+        // Remounting the page keeps the feed. Only the first visit or the user refreshes.
+        controller.clear()
+        client.requests = []
+        await controller.loadIfNeeded()
+        precondition(client.requests.count == 1)
+        await controller.loadIfNeeded()
+        precondition(client.requests.count == 1)
+        await controller.load()
+        precondition(client.requests.count == 2)
         print("Feed persistence, refresh, pagination, and account isolation checks passed")
     }
 }

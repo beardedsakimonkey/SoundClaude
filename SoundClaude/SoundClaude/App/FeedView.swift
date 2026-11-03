@@ -26,7 +26,8 @@ struct FeedView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Feed")
-        .task { await feed.load() }
+        // This page remounts on every visit. Keep the loaded feed until the user refreshes.
+        .task { await feed.loadIfNeeded() }
         #if DEBUG
         .debugViewUpdates("FeedView")
         #endif
@@ -113,6 +114,7 @@ struct FeedView: View {
                             )
                         }
                     }
+                    .remembersScrollRow(id: item.id, spacing: 24)
                 }
 
                 if let errorMessage = feed.errorMessage {
@@ -136,7 +138,9 @@ struct FeedView: View {
             }
             .padding(20)
             .scrollKeyNavigation()
+            .remembersScrollPosition()
         }
+        .restoresScrollRow()
     }
 
     private func activityLabel(for item: SoundCloudFeedItem) -> String {

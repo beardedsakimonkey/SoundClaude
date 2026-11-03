@@ -19,13 +19,9 @@ private struct Probe: Layout {
 // A retained StateObject detects hidden page trees, not just visible pixels.
 private final class PageLifetime: ObservableObject {
     static var livePages: Set<Int> = []
-    static var rootCreations = 0
-    static var creations: [Int: Int] = [:]
     let id: Int
     init(id: Int) {
         self.id = id
-        Self.creations[id, default: 0] += 1
-        if id == -1 { Self.rootCreations += 1 }
         precondition(Self.livePages.insert(id).inserted)
     }
     deinit { Self.livePages.remove(id) }
@@ -35,30 +31,6 @@ private struct LifetimePage: View {
     @StateObject private var lifetime: PageLifetime
     init(id: Int) { _lifetime = StateObject(wrappedValue: PageLifetime(id: id)) }
     var body: some View { Text("Page \(lifetime.id)") }
-}
-
-@Observable
-private final class PageSource {
-    var value = 0
-}
-
-// A fresh closure on every parent update, like the real pages, defeats SwiftUI's
-// structural comparison, so the page re-renders unless its wrapper skips it.
-private struct CountedPage: View {
-    static var evaluations: [Int: Int] = [:]
-    static var lastValue: [Int: Int] = [:]
-    static var lastActive: [Int: Bool] = [:]
-    let id: Int
-    let value: Int
-    let isActive: Bool
-    let onSelect: () -> Void
-
-    var body: some View {
-        let _ = Self.evaluations[id, default: 0] += 1
-        let _ = Self.lastValue[id] = value
-        let _ = Self.lastActive[id] = isActive
-        Text("Page \(id)")
-    }
 }
 
 @main struct NavigationViewportTests {
@@ -95,10 +67,10 @@ private struct CountedPage: View {
                          "Page moved above the viewport when resized: \(measurements.pageFrame)")
         }
 
-        func page(_ route: Int?, retainsRoot: Bool = false) -> some View {
+        func page(_ route: Int?, root: Int = -1) -> some View {
             NavigationStack {
-                CurrentNavigationPage(route: route, retainsRoot: retainsRoot) {
-                    LifetimePage(id: -1)
+                CurrentNavigationPage(route: route) {
+                    LifetimePage(id: root).id(root)
                 } destination: { id in
                     LifetimePage(id: id)
                 }
@@ -120,115 +92,139 @@ private struct CountedPage: View {
         for id in 0..<100 { history.append(id); render() }
         while let id = history.popLast() { forward.append(id); render() }
         while let id = forward.popLast() { history.append(id); render() }
-        // Search keeps exactly one root alive across push, back, and forward.
-        pages.rootView = page(nil, retainsRoot: true)
-        pages.layoutSubtreeIfNeeded()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.01))
-        let retainedRootCount = PageLifetime.rootCreations
-        for route in [0, 1, nil, 1, 2, nil] as [Int?] {
-            pages.rootView = page(route, retainsRoot: true)
+
+        // Top-level pages unmount when switching between them or pushing a route.
+        for (root, route) in [(-10, nil), (-11, nil), (-11, 1000), (-11, nil), (-12, 1001), (-10, nil)] as [(Int, Int?)] {
+            pages.rootView = page(route, root: root)
             pages.layoutSubtreeIfNeeded()
             RunLoop.main.run(until: Date().addingTimeInterval(0.01))
-            let expected: Set<Int> = route.map { [-1, $0] } ?? [-1]
-            precondition(PageLifetime.livePages == expected, "Only the search root and current result should stay mounted")
-            precondition(PageLifetime.rootCreations == retainedRootCount, "Search state must survive back and forward navigation")
+            precondition(PageLifetime.livePages == [route ?? root],
+                         "Only the current page should stay mounted: \(PageLifetime.livePages)")
         }
-        func library(_ selection: Int, route: Int? = nil) -> some View {
-            NavigationStack {
-                CurrentNavigationPage(route: route, retainsRoot: true) {
-                    RetainedRootPages(selections: [-10, -11, -12, -13], selection: selection, isActive: route == nil) { id, _ in
-                        LifetimePage(id: id)
+
+        // A remounted page returns to its offset, including in lazy rows of varying height.
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+            styleMask: [.titled], backing: .buffered, defer: false
+        )
+        let positions = [RememberedScrollPosition(), RememberedScrollPosition()]
+        func scrollPage(_ selection: Int?) -> AnyView {
+            guard let selection else { return AnyView(Text("Route")) }
+            return AnyView(
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(0..<3000, id: \.self) { row in
+                            Text("Row \(row)").frame(height: CGFloat(20 + row % 7 * 15))
+                        }
                     }
-                } destination: { id in
-                    LifetimePage(id: id)
+                    .frame(maxWidth: .infinity)
+                    .remembersScrollPosition()
                 }
-                .modifier(NavigationPageViewport())
-            }
+                .environment(\.rememberedScrollPosition, positions[selection])
+                .id(selection)
+            )
         }
-        let libraryHost = NSHostingView(rootView: library(-10))
-        libraryHost.frame.size = CGSize(width: 800, height: 600)
-        var visited: Set<Int> = []
-        func renderLibrary(_ selection: Int, route: Int? = nil) {
-            visited.insert(selection)
-            libraryHost.rootView = library(selection, route: route)
-            libraryHost.layoutSubtreeIfNeeded()
-            RunLoop.main.run(until: Date().addingTimeInterval(0.01))
-            let libraryPages = PageLifetime.livePages.subtracting([-1])
-            precondition(libraryPages == visited.union(route.map { [$0] } ?? []),
-                         "Keep visited roots and only the current detail: \(libraryPages)")
-            for id in visited {
-                precondition(PageLifetime.creations[id] == 1, "Recreated top-level page \(id)")
-            }
+        func descendant<T: NSView>(_ type: T.Type, in view: NSView) -> T? {
+            if let match = view as? T { return match }
+            return view.subviews.lazy.compactMap { descendant(type, in: $0) }.first
         }
-        renderLibrary(-10)
-        renderLibrary(-10, route: 1000)
-        renderLibrary(-11)
-        renderLibrary(-12)
-        renderLibrary(-13, route: 1001)
+        func settle(_ seconds: TimeInterval = 0.5) {
+            RunLoop.main.run(until: Date().addingTimeInterval(seconds))
+        }
+        let scrollHost = NSHostingView(rootView: scrollPage(0))
+        window.contentView = scrollHost
+        window.orderFront(nil)
+        func show(_ selection: Int?) {
+            scrollHost.rootView = scrollPage(selection)
+            settle()
+        }
+        func scrollOffset() -> CGFloat {
+            descendant(NSScrollView.self, in: scrollHost)!.contentView.bounds.origin.y
+        }
+        func scroll(to offset: CGFloat) {
+            let scrollView = descendant(NSScrollView.self, in: scrollHost)!
+            scrollView.contentView.setBoundsOrigin(NSPoint(x: 0, y: offset))
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+            settle()
+        }
+        settle()
+        precondition(abs(scrollOffset()) < 1, "A first visit must start at the top")
+        scroll(to: 20000)
+        let savedOffset = scrollOffset()
+        precondition(abs(savedOffset - 20000) < 1, "Fixture did not scroll: \(savedOffset)")
+        precondition(positions[0].offset == savedOffset, "Scrolling did not save the offset")
+
+        show(nil)
+        precondition(positions[0].offset == savedOffset, "Unmounting changed the saved offset")
+        show(0)
+        precondition(abs(scrollOffset() - savedOffset) < 1, "Back did not restore the offset: \(scrollOffset())")
+
+        show(1)
+        precondition(abs(scrollOffset()) < 1, "Pages must not share an offset")
+        scroll(to: 500)
+        show(0)
+        precondition(abs(scrollOffset() - savedOffset) < 1, "Switching pages lost the offset: \(scrollOffset())")
+        show(1)
+        precondition(abs(scrollOffset() - 500) < 1, "Switching back lost the offset: \(scrollOffset())")
+
+        // With very uneven rows, the same row must return to the same place.
+        final class RowFrames { static var frames: [Int: CGRect] = [:] }
+        let rowPosition = RememberedScrollPosition()
+        func rowHeight(_ row: Int) -> CGFloat { row < 150 ? 420 : (row % 5 == 0 ? 300 : 90) }
+        func rowPage(_ visible: Bool) -> AnyView {
+            guard visible else { return AnyView(Text("Route")) }
+            return AnyView(
+                ScrollView {
+                    LazyVStack(spacing: 24) {
+                        Text("Header").frame(height: 60)
+                        ForEach(0..<600, id: \.self) { row in
+                            Color.gray.frame(height: rowHeight(row))
+                                .remembersScrollRow(id: row, spacing: 24)
+                                .onGeometryChange(for: CGRect.self) { $0.frame(in: .scrollView) } action: {
+                                    RowFrames.frames[row] = $0
+                                }
+                                .onDisappear { RowFrames.frames[row] = nil }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .remembersScrollPosition()
+                }
+                .restoresScrollRow()
+                .environment(\.rememberedScrollPosition, rowPosition)
+            )
+        }
+        func topRow() -> (row: Int, distance: CGFloat)? {
+            RowFrames.frames.filter { $0.value.minY <= 0 && $0.value.maxY + 24 > 0 }.first
+                .map { (row: $0.key, distance: -$0.value.minY) }
+        }
+        func showRows(_ visible: Bool) {
+            RowFrames.frames = [:]
+            scrollHost.rootView = rowPage(visible)
+            settle()
+        }
+        showRows(true)
+        // Scroll in steps like a user, so the rows above were measured.
+        for y in stride(from: 0, through: 60000, by: 400) {
+            let scrollView = descendant(NSScrollView.self, in: scrollHost)!
+            scrollView.contentView.setBoundsOrigin(NSPoint(x: 0, y: CGFloat(y)))
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.005))
+        }
+        settle()
+        let expectedRow = topRow()!
+        precondition(rowPosition.rowAnchor?.id == AnyHashable(expectedRow.row), "Scrolling did not save the top row")
         for _ in 0..<3 {
-            for selection in [-10, -11, -12, -13] {
-                renderLibrary(selection)
-                renderLibrary(selection, route: 1002)
-                renderLibrary(selection, route: 1003)
-                renderLibrary(selection)
-            }
+            showRows(false)
+            showRows(true)
+            let restored = topRow()
+            precondition(restored?.row == expectedRow.row && abs(restored!.distance - expectedRow.distance) < 1,
+                         "Restored \(String(describing: restored)), expected \(expectedRow)")
         }
-
-        let source = PageSource()
-        let countedIDs = [-20, -21, -22, -23]
-        func countedLibrary(_ selection: Int, route: Int? = nil) -> some View {
-            NavigationStack {
-                CurrentNavigationPage(route: route, retainsRoot: true) {
-                    RetainedRootPages(selections: countedIDs, selection: selection, isActive: route == nil) { id, active in
-                        // Capture a new object: a closure with no captures compares equal.
-                        let capture = NSObject()
-                        CountedPage(id: id, value: source.value, isActive: active, onSelect: { _ = capture })
-                    }
-                } destination: { id in
-                    Text("Route \(id)")
-                }
-            }
-        }
-        let countedHost = NSHostingView(rootView: countedLibrary(-20))
-        countedHost.frame.size = CGSize(width: 800, height: 600)
-        func settleCounted() {
-            countedHost.layoutSubtreeIfNeeded()
-            RunLoop.main.run(until: Date().addingTimeInterval(0.01))
-        }
-        func renderCounted(_ selection: Int, route: Int? = nil) {
-            countedHost.rootView = countedLibrary(selection, route: route)
-            settleCounted()
-        }
-        settleCounted()
-        for id in countedIDs { renderCounted(id) }
-        renderCounted(-20)
-
-        // Navigating must not re-render pages that stay hidden.
-        func assertHiddenPagesSkipped(_ selection: Int, route: Int? = nil, hidden: [Int]) {
-            let before = CountedPage.evaluations
-            renderCounted(selection, route: route)
-            for id in hidden {
-                precondition(CountedPage.evaluations[id] == before[id],
-                             "Hidden page \(id) re-rendered during navigation")
-            }
-        }
-        assertHiddenPagesSkipped(-20, hidden: [-21, -22, -23])
-        assertHiddenPagesSkipped(-20, route: 2000, hidden: [-21, -22, -23])
-        precondition(CountedPage.lastActive[-20] == false, "Pushing a route must deactivate the root")
-        assertHiddenPagesSkipped(-20, route: 2001, hidden: [-20, -21, -22, -23])
-        assertHiddenPagesSkipped(-20, hidden: [-21, -22, -23])
-        precondition(CountedPage.lastActive[-20] == true, "Popping to a root must reactivate it")
-        assertHiddenPagesSkipped(-21, hidden: [-22, -23])
-        precondition(CountedPage.lastActive[-20] == false && CountedPage.lastActive[-21] == true,
-                     "Switching roots must update both pages")
-
-        // Skipping parent updates must not hide model changes from a hidden page.
-        renderCounted(-21, route: 2002)
-        source.value = 1
-        settleCounted()
-        for id in countedIDs {
-            precondition(CountedPage.lastValue[id] == 1, "Hidden page \(id) missed an observed model change")
-        }
-        print("Viewport, navigation lifetime, and retained top-level page tests passed")
+        // Jumping above the first row unmounts the anchor row, so only the offset applies.
+        scroll(to: 10)
+        showRows(false)
+        showRows(true)
+        precondition(abs(scrollOffset() - 10) < 1, "Header offset was not restored: \(scrollOffset())")
+        print("Viewport, navigation lifetime, and scroll position tests passed")
     }
 }

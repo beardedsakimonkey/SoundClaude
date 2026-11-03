@@ -17,6 +17,7 @@ final class FeedController: ObservableObject {
     private var restoreTask: Task<Void, Never>?
     private var loadTask: Task<Void, Never>?
     private var retryRefresh = true
+    private var hasStartedRefresh = false
 
     init(client: SoundCloudClient, auth: AuthController, store: FeedCacheStore = FeedCacheStore()) {
         self.client = client
@@ -50,6 +51,14 @@ final class FeedController: ObservableObject {
     }
 
     func load() async { await load(refresh: true) }
+
+    /// Refresh once per session, on the first visit to the page.
+    func loadIfNeeded() async {
+        await restoreCache()
+        guard !hasStartedRefresh else { return }
+        await load()
+    }
+
     func loadMore() async { await load(refresh: false) }
     func retry() async { await load(refresh: retryRefresh) }
 
@@ -65,6 +74,7 @@ final class FeedController: ObservableObject {
               refresh || !cache.hasLoadedPage || cache.nextPageURL != nil else { return }
         let session = sessionID
         retryRefresh = refresh
+        if refresh { hasStartedRefresh = true }
         isLoading = true
         errorMessage = nil
         let task = Task { @MainActor in
@@ -121,5 +131,6 @@ final class FeedController: ObservableObject {
         isLoading = false
         errorMessage = nil
         retryRefresh = true
+        hasStartedRefresh = false
     }
 }

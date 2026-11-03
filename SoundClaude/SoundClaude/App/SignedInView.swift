@@ -7,6 +7,7 @@ struct SignedInView: View {
     @State private var selectedDestination: SidebarDestination?
     private let selectionStore = SidebarSelectionStore()
     @State private var artistTabSelections = ArtistTabSelections()
+    @State private var rootScrollPositions = RootScrollPositions()
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
     @State private var initialDetailArtworkRotation: Bool?
     @State private var playlistTrack: SoundCloudTrack?
@@ -350,20 +351,14 @@ struct SignedInView: View {
 
     // Keep browser history as data. Rendering a native stack of all visited pages
     // makes layout and row updates grow with browsing depth, even when pages hide.
-    // Retain visited top-level pages to preserve their content and scroll position.
+    // Top-level pages unmount too, so a page away from view costs nothing.
+    // Only their scroll offsets stay behind.
     private var selectedView: some View {
         NavigationStack {
-            CurrentNavigationPage(route: path.last, retainsRoot: true) {
-                RetainedRootPages(
-                    selections: SidebarDestination.libraryDestinations,
-                    selection: selectedDestination ?? .feed,
-                    isActive: path.isEmpty
-                ) { destination, active in
-                    rootView(destination, isActive: active)
-                        .environment(\.contentAnimationsPaused, isShowingVisualizer || !active)
-                        .environment(\.contentHoverEnabled, active && !isShowingVisualizer)
-                }
-                .navigationTitle((selectedDestination ?? .feed).title)
+            CurrentNavigationPage(route: path.last) {
+                rootView(selectedDestination ?? .feed)
+                    .environment(\.rememberedScrollPosition, rootScrollPositions.position(for: destinationID))
+                    .navigationTitle((selectedDestination ?? .feed).title)
             } destination: { route in
                 routeView(route)
                     .environment(\.initialDetailArtworkRotation, initialDetailArtworkRotation)
@@ -520,7 +515,7 @@ struct SignedInView: View {
     }
 
     @ViewBuilder
-    private func rootView(_ destination: SidebarDestination, isActive: Bool) -> some View {
+    private func rootView(_ destination: SidebarDestination) -> some View {
         switch destination {
         case .feed:
             FeedView(
@@ -535,17 +530,17 @@ struct SignedInView: View {
                 user: user,
                 searchText: $searchText,
                 focusRequest: searchFocusRequest,
-                isActive: isActive,
                 onSearch: { query in
                     forwardPath.removeAll()
                     path.append(.search(query))
                 }
             )
+            // A request applies to one mount. Going Back must not refocus the field.
+            .onDisappear { searchFocusRequest = nil }
         case .history:
             HistoryView(
                 model: model,
                 searchText: $historySearchText,
-                isActive: isActive,
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist
             )
@@ -553,7 +548,6 @@ struct SignedInView: View {
             LikesView(
                 user: user,
                 searchText: $likesSearchText,
-                isActive: isActive,
                 likes: model.likes,
                 playback: model.playback,
                 analyzer: model.analyzer,
@@ -856,7 +850,7 @@ private struct QueueBlurModifier: AnimatableModifier {
     }
 }
 
-// Hidden pages retain their state without running continuous animation timelines.
+// Pages behind the visualizer retain their state without running continuous animation timelines.
 extension EnvironmentValues {
     @Entry var contentAnimationsPaused = false
 }
@@ -885,6 +879,18 @@ private final class ArtistTabSelections {
         let selection = ArtistTabSelection()
         tabs[historyID, default: [:]][artistURL] = selection
         return selection
+    }
+}
+
+// Scrolling writes these often, so keep them outside the navigation view's state.
+private final class RootScrollPositions {
+    private var positions: [SidebarDestination.ID: RememberedScrollPosition] = [:]
+
+    func position(for id: SidebarDestination.ID) -> RememberedScrollPosition {
+        if let position = positions[id] { return position }
+        let position = RememberedScrollPosition()
+        positions[id] = position
+        return position
     }
 }
 

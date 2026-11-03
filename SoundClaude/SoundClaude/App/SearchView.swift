@@ -15,7 +15,6 @@ struct SearchView: View {
     let user: SoundCloudUser
     @Binding var searchText: String
     let focusRequest: UUID?
-    var isActive = true
     let onSearch: (String) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -28,6 +27,7 @@ struct SearchView: View {
         ScrollbarReservedScrollView { contentSize in
             searchContent
                 .environment(\.searchViewportHeight, contentSize.height)
+                .remembersScrollPosition()
         }
         .background(alignment: .top) {
             RouteGradientBackdrop()
@@ -50,7 +50,6 @@ struct SearchView: View {
                 text: $searchText,
                 focusRequest: focusRequest,
                 dismissFocusRequest: dismissFocusRequest,
-                isActive: isActive,
                 onSubmit: { search(searchText) }
             )
             .frame(maxWidth: 400)
@@ -106,7 +105,6 @@ private struct SearchInputView: View {
     @Binding var text: String
     let focusRequest: UUID?
     let dismissFocusRequest: UUID
-    let isActive: Bool
     let onSubmit: () -> Void
 
     @FocusState private var isFocused: Bool
@@ -125,14 +123,11 @@ private struct SearchInputView: View {
             guard focusRequest != nil else { return }
             // Wait until the navigation stack has mounted the text field.
             await Task.yield()
-            guard !Task.isCancelled, isActive else { return }
+            guard !Task.isCancelled else { return }
             isFocused = true
         }
         .onChange(of: dismissFocusRequest) { _, _ in
             isFocused = false
-        }
-        .onChange(of: isActive) { _, active in
-            if !active { isFocused = false }
         }
         .onDisappear { isFocused = false }
     }

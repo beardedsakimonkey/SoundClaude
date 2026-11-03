@@ -116,6 +116,7 @@ test-focus:
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/App/RecentSearchStore.swift \
 		SoundClaude/SoundClaude/App/SearchView.swift \
+		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 		SoundClaude/SoundClaude/App/SearchTextField.swift \
 		SoundClaude/SoundClaude/App/ScrollbarReservedScrollView.swift \
 		SoundClaude/SoundClaude/App/RouteGradientBackdrop.swift \
