@@ -211,6 +211,7 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
             }
             .modifier(DetailArtworkTrackAnimation(trackURN: displayedTrack?.urn))
             .modifier(DetailArtworkRotation(
+                artworkSize: artworkSize,
                 isShowingArtwork: isShowingArtwork,
                 flattensOnHover: true
             ))

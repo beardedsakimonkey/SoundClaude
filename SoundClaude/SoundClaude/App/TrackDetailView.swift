@@ -330,6 +330,7 @@ private struct TrackDetailArtwork: View {
             onShowArtwork: { isShowingArtwork = true }
         )
         .modifier(DetailArtworkRotation(
+            artworkSize: artworkSize,
             isRotated: false,
             isShowingArtwork: isShowingArtwork,
             imageHover: isHoveringArtwork

@@ -443,14 +443,13 @@ extension EnvironmentValues {
 
 /// Rotates the artwork and its reflection together, resetting Y rotation on hover or while viewing artwork.
 struct DetailArtworkRotation: ViewModifier {
+    let artworkSize: CGFloat
     var transform = DetailArtworkTransform()
     var isRotated = true
     var isShowingArtwork = false
     var flattensOnHover = true
-    // When supplied, the image owns hover tracking instead of the larger header.
+    // When supplied, the image owns hover tracking instead of the unrotated square.
     var imageHover: Bool? = nil
-
-    private let hoverInsets = EdgeInsets(top: 20, leading: 10, bottom: -10, trailing: 0)
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
@@ -504,19 +503,47 @@ struct DetailArtworkRotation: ViewModifier {
         if imageHover != nil {
             artwork
         } else {
+            let outline = turnedArtworkOutline
+            let overhang = EdgeInsets(
+                top: max(-outline.boundingRect.minY, 0), leading: max(-outline.boundingRect.minX, 0),
+                bottom: 0, trailing: 0
+            )
             artwork
-                // Keep the adjusted hover bounds outside the transform.
-                .padding(hoverInsets)
+                // Hover events only arrive within the bounds, so grow them to reach the overhang.
+                .padding(overhang)
                 .contentShape(Rectangle())
-                .onContentHover { isHovering = $0 }
+                .onContentHover(in: outline.offsetBy(dx: overhang.leading, dy: overhang.top)) {
+                    isHovering = $0
+                }
                 // Preserve the artwork's original layout size.
-                .padding(EdgeInsets(
-                    top: -hoverInsets.top,
-                    leading: -hoverInsets.leading,
-                    bottom: -hoverInsets.bottom,
-                    trailing: -hoverInsets.trailing
-                ))
+                .padding(EdgeInsets(top: -overhang.top, leading: -overhang.leading, bottom: 0, trailing: 0))
         }
+    }
+
+    // The image's on-screen shape at the full turn, in layout coordinates. It stays fixed while
+    // flattening: following the animation would move the target from under the pointer and flicker.
+    private var turnedArtworkOutline: Path {
+        // rotation3DEffect projects the whole view, so its center and scale include the reflection slot.
+        let height = artworkSize + DetailArtworkView.reflectionSpacing + DetailArtworkView.reflectionSlotHeight
+        let center = CGPoint(x: artworkSize / 2, y: height / 2)
+        let angle = turn * .pi / 180
+        let depthScale = transform.perspective / max(artworkSize, height)
+
+        func projected(x: CGFloat, y: CGFloat) -> CGPoint {
+            let dx = x - center.x
+            let w = 1 + dx * sin(angle) * depthScale
+            return CGPoint(x: center.x + dx * cos(angle) / w, y: center.y + (y - center.y) / w)
+        }
+
+        var path = Path()
+        path.addLines([
+            projected(x: 0, y: 0),
+            projected(x: artworkSize, y: 0),
+            projected(x: artworkSize, y: artworkSize),
+            projected(x: 0, y: artworkSize)
+        ])
+        path.closeSubpath()
+        return path
     }
 
     // 0 when flat, 1 at the full configured turn.
