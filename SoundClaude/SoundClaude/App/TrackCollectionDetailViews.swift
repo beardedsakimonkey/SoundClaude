@@ -234,7 +234,7 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
                     }
                 }
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 10)
+                .padding(.top, 8)
                 if showsControls || currentTrack != nil {
                     VStack(alignment: .leading, spacing: 16) {
                         ViewThatFits(in: .horizontal) {

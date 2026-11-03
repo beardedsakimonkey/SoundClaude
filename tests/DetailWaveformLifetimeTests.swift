@@ -2,7 +2,11 @@ import AppKit
 import SwiftUI
 
 // Stand-ins isolate the production slot and overlay from networking and playback.
-struct SoundCloudTrack { let urn: String }
+enum TrackAccess { case playable, protected }
+struct SoundCloudTrack {
+    let urn: String
+    var access: TrackAccess = .playable
+}
 final class AppModel {}
 
 private final class WaveformTestApplication: NSApplication {
@@ -159,10 +163,10 @@ struct TrackWaveformView: View {
             .modifier(DetailWaveformOverlay(model: model, routeID: 0))
             .coordinateSpace(name: "viewport")
         }
-        let headers = NSHostingView(rootView: header(metadataHeight: 140, station: false))
+        let headers = NSHostingView(rootView: header(metadataHeight: 129, station: false))
         var baselineY: CGFloat?
         for width: CGFloat in [320, 700] {
-            for metadataHeight: CGFloat in [140, 157, 165, 140] {
+            for metadataHeight: CGFloat in [129, 157, 165, 129] {
                 headers.frame.size = CGSize(width: width, height: 600)
                 headers.rootView = header(metadataHeight: metadataHeight, station: metadataHeight == 157)
                 headers.layoutSubtreeIfNeeded()
