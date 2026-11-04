@@ -157,6 +157,9 @@ struct TrackListRow: View {
 
         return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
+                if track.access == .protected {
+                    ProtectedTrackIcon()
+                }
                 Button {
                     onSelectTrack(track)
                 } label: {
@@ -300,6 +303,18 @@ struct TrackListRow: View {
 
 /// Opacity for tracks whose streams only play in SoundCloud's own player.
 let protectedTrackOpacity = 0.55
+
+struct ProtectedTrackIcon: View {
+    var font: Font = .body
+
+    var body: some View {
+        Image(systemName: "lock.fill")
+            .font(font)
+            .imageScale(.small)
+            .contentHelp("This track can only be played on SoundCloud.")
+            .accessibilityLabel("Protected")
+    }
+}
 
 struct TrackPreviewBadge: View {
     var font: Font = .caption

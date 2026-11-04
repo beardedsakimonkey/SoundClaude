@@ -150,6 +150,9 @@ struct TrackCardView: View {
 
     private var trackTitle: some View {
         HStack(alignment: .center, spacing: 6) {
+            if track.access == .protected {
+                ProtectedTrackIcon(font: .title2.weight(.semibold))
+            }
             Button {
                 onSelectTrack(track)
             } label: {

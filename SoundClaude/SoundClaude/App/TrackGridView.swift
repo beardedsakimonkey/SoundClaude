@@ -282,6 +282,9 @@ struct TrackGridTile: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
+                    if track.access == .protected {
+                        ProtectedTrackIcon(font: .body.weight(.semibold))
+                    }
                     Button {
                         onSelectTrack(track)
                     } label: {

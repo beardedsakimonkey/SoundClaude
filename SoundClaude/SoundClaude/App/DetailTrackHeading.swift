@@ -54,21 +54,27 @@ struct DetailTrackHeading: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .hidden()
                 .overlay(alignment: Alignment(horizontal: .leading, vertical: .lastTextBaseline)) {
-                    Text(track.title)
-                        .font(Self.titleFont)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .foregroundStyle(.primary)
-                        .opacity(0.9)
-                        .underline(isCollection && isHoveringTitle)
-                        .textSelection(.disabled)
-                        .contentShape(Rectangle())
-                        .contextMenu {
-                            TrackStationMenuItem(track: track)
+                    HStack(alignment: .center, spacing: 8) {
+                        if track.access == .protected {
+                            ProtectedTrackIcon(font: Self.titleFont)
+                                .opacity(0.9)
                         }
-                        .onTapGesture { if isCollection { onSelectTrack(track) } }
-                        .onContentHover { isHoveringTitle = $0 }
-                        .accessibilityAction(named: "View track") { onSelectTrack(track) }
+                        Text(track.title)
+                            .font(Self.titleFont)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                            .foregroundStyle(.primary)
+                            .opacity(0.9)
+                            .underline(isCollection && isHoveringTitle)
+                            .textSelection(.disabled)
+                            .contentShape(Rectangle())
+                            .contextMenu {
+                                TrackStationMenuItem(track: track)
+                            }
+                            .onTapGesture { if isCollection { onSelectTrack(track) } }
+                            .onContentHover { isHoveringTitle = $0 }
+                            .accessibilityAction(named: "View track") { onSelectTrack(track) }
+                    }
                 }
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 ArtistLink(

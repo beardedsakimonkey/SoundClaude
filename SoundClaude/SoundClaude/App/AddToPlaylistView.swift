@@ -117,8 +117,13 @@ struct AddToPlaylistView: View {
                 size: 32
             )
             VStack(alignment: .leading, spacing: 4) {
-                Text(track.title)
-                    .opacity(0.95)
+                HStack(spacing: 6) {
+                    if track.access == .protected {
+                        ProtectedTrackIcon()
+                    }
+                    Text(track.title)
+                        .opacity(0.95)
+                }
                 Text(track.artist.username)
                     .font(.caption)
                     .foregroundStyle(.secondary)
