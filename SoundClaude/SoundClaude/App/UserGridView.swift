@@ -4,15 +4,25 @@ struct UserGridView: View {
     let users: [SoundCloudUser]
     let artworkLoader: ArtworkLoader
     let onSelectArtist: (SoundCloudUser) -> Void
+    var nextPageURL: URL? = nil
+    var onReachEnd: () async -> Void = {}
 
+    // Avoid nesting this in another lazy stack: while nested, scrolling hung the main
+    // thread in an endless lazy layout loop. An eager parent would build a footer spinner
+    // right away, so paging starts from the last card, which stays lazy.
     var body: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 164), spacing: 0)], spacing: 0) {
             ForEach(users, id: \.permalinkURL) { user in
+                let nextPage = users.last?.permalinkURL == user.permalinkURL ? nextPageURL : nil
                 UserGridCard(
                     user: user,
                     artworkLoader: artworkLoader,
                     onSelectArtist: onSelectArtist
                 )
+                // Keyed by URL so that a page of only duplicates still loads the next one.
+                .task(id: nextPage) {
+                    if nextPage != nil { await onReachEnd() }
+                }
             }
         }
         #if DEBUG
@@ -66,11 +76,13 @@ private struct UserGridCard: View {
                     Text(user.username)
                         .font(.headline)
                         .lineLimit(1)
-                    if let followersCount = user.followersCount {
-                        Text("\(followersCount.formatted()) \(followersCount == 1 ? "follower" : "followers")")
-                            .font(.caption)
-                            .foregroundStyle(colorScheme == .light ? HierarchicalShapeStyle.secondary : .tertiary)
-                    }
+                    // Keep the line when the count is unknown so that every card is the
+                    // same height, which keeps the grid's estimates for unbuilt rows accurate.
+                    Text(user.followersCount.map {
+                        "\($0.formatted()) \($0 == 1 ? "follower" : "followers")"
+                    } ?? " ")
+                    .font(.caption)
+                    .foregroundStyle(colorScheme == .light ? HierarchicalShapeStyle.secondary : .tertiary)
                 }
                 .multilineTextAlignment(.center)
             }

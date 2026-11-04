@@ -27,7 +27,7 @@ struct ArtistUsersView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 24) {
                 HStack(spacing: 6) {
                     if list == .followers {
                         Text("Followers of")
@@ -53,7 +53,11 @@ struct ArtistUsersView: View {
                 UserGridView(
                     users: users,
                     artworkLoader: model.artworkLoader,
-                    onSelectArtist: onSelectArtist
+                    onSelectArtist: onSelectArtist,
+                    nextPageURL: nextPageURL,
+                    onReachEnd: {
+                        if errorMessage == nil { await loadPage() }
+                    }
                 )
 
                 if let errorMessage {
@@ -67,11 +71,15 @@ struct ArtistUsersView: View {
                     LoadingSpinner()
                         .accessibilityLabel("Loading \(list.title.lowercased())")
                         .frame(maxWidth: .infinity)
-                        .task(id: nextPageURL) { await loadPage() }
+                        // With no cards yet, the grid can't ask for the next page.
+                        .task(id: nextPageURL) {
+                            if users.isEmpty { await loadPage() }
+                        }
                 } else if users.isEmpty {
                     EmptyStateView(list == .followers ? "No followers" : "Not following anyone")
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
             .scrollKeyNavigation()
         }

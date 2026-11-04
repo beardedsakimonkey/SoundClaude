@@ -163,67 +163,84 @@ private struct SearchResultList: View {
     var body: some View {
         Group {
             if isActive {
-                LazyVStack(alignment: .leading, spacing: 20) {
-                    switch category {
-                    case .tracks:
-                        ForEach(tracks) { track in
-                            TrackCardView(
-                                track: track, model: model,
-                                onSelectTrack: onSelectTrack,
-                                onSelectArtist: onSelectArtist,
-                                onPlayTrack: { track in
-                                    await model.play(track, queue: TrackQueue(
-                                        source: isTagSearch ? .tag(query) : isGenreSearch ? .genre(query) : .search(query),
-                                        tracks: tracks, nextPageURL: nextPageURL
-                                    ))
-                                }
-                            )
-                        }
-                    case .playlists:
-                        ForEach(playlists) { playlist in
-                            PlaylistCardView(
-                                playlist: playlist, model: model,
-                                playlists: model.playlists,
-                                onSelectPlaylist: onSelectPlaylist,
-                                onSelectTrack: onSelectTrack,
-                                onSelectArtist: onSelectArtist
-                            )
-                        }
-                    case .users:
-                        if !users.isEmpty {
-                            UserGridView(
-                                users: users,
-                                artworkLoader: model.artworkLoader,
-                                onSelectArtist: onSelectArtist
-                            )
-                        }
-                    }
-
-                    Group {
-                        if isLoading || (!hasLoaded && errorMessage == nil) {
-                            LoadingSpinner()
-                                .accessibilityLabel("Searching \(category.rawValue.lowercased())")
-                        } else if let errorMessage {
-                            VStack(spacing: 8) {
-                                Text(errorMessage).foregroundStyle(.secondary)
-                                Button("Try Again") { requestID = UUID() }
+                Group {
+                    if category == .users {
+                        VStack(alignment: .leading, spacing: 20) {
+                            if !users.isEmpty {
+                                UserGridView(
+                                    users: users,
+                                    artworkLoader: model.artworkLoader,
+                                    onSelectArtist: onSelectArtist,
+                                    nextPageURL: nextPageURL,
+                                    onReachEnd: {
+                                        if !isLoading, errorMessage == nil { requestID = UUID() }
+                                    }
+                                )
                             }
-                        } else if nextPageURL != nil {
-                            LoadingSpinner()
-                                .accessibilityLabel("Loading more \(category.rawValue.lowercased())")
-                                // Keep the request on the list so replacing this footer
-                                // with the loading state does not cancel the request.
-                                .onAppear { requestID = UUID() }
-                        } else if isEmpty {
-                            EmptyStateView("No \(category.rawValue.lowercased()) found")
+                            footer
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        LazyVStack(alignment: .leading, spacing: 20) {
+                            if category == .tracks {
+                                ForEach(tracks) { track in
+                                    TrackCardView(
+                                        track: track, model: model,
+                                        onSelectTrack: onSelectTrack,
+                                        onSelectArtist: onSelectArtist,
+                                        onPlayTrack: { track in
+                                            await model.play(track, queue: TrackQueue(
+                                                source: isTagSearch ? .tag(query) : isGenreSearch ? .genre(query) : .search(query),
+                                                tracks: tracks, nextPageURL: nextPageURL
+                                            ))
+                                        }
+                                    )
+                                }
+                            } else {
+                                ForEach(playlists) { playlist in
+                                    PlaylistCardView(
+                                        playlist: playlist, model: model,
+                                        playlists: model.playlists,
+                                        onSelectPlaylist: onSelectPlaylist,
+                                        onSelectTrack: onSelectTrack,
+                                        onSelectArtist: onSelectArtist
+                                    )
+                                }
+                            }
+                            footer
                         }
                     }
-                    .frame(maxWidth: .infinity)
                 }
                 .padding(.bottom, 20)
             }
         }
         .task(id: requestID) { await loadPage() }
+    }
+
+    private var footer: some View {
+        Group {
+            if isLoading || (!hasLoaded && errorMessage == nil) {
+                LoadingSpinner()
+                    .accessibilityLabel("Searching \(category.rawValue.lowercased())")
+            } else if let errorMessage {
+                VStack(spacing: 8) {
+                    Text(errorMessage).foregroundStyle(.secondary)
+                    Button("Try Again") { requestID = UUID() }
+                }
+            } else if nextPageURL != nil {
+                LoadingSpinner()
+                    .accessibilityLabel("Loading more \(category.rawValue.lowercased())")
+                    // Keep the request on the list so replacing this footer
+                    // with the loading state does not cancel the request.
+                    .onAppear {
+                        // The user grid's parent is eager, so its last card pages instead.
+                        if category != .users || users.isEmpty { requestID = UUID() }
+                    }
+            } else if isEmpty {
+                EmptyStateView("No \(category.rawValue.lowercased()) found")
+            }
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func loadPage() async {
