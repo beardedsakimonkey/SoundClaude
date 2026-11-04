@@ -15,8 +15,12 @@ struct TrackPlaybackIndicator: View {
         return TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !shouldAnimate)) { context in
             PlaybackIndicatorBars(
                 growth: showsBars ? 1 : 0,
-                cycle: PlaybackIndicatorClock.cycle(at: context.date, speed: Double(speed)),
-                animated: shouldAnimate
+                cycle: PlaybackIndicatorClock.cycle(
+                    at: context.date,
+                    speed: Double(speed),
+                    advancing: shouldAnimate
+                ),
+                usesStaticPose: reduceMotion
             )
             .fill(color)
             .frame(width: 10, height: 9)
@@ -33,20 +37,24 @@ struct TrackPlaybackIndicator: View {
 }
 
 /// Shared so every indicator stays in step, and rebased on speed changes so
-/// the bars keep their current position instead of jumping.
+/// the bars keep their current position instead of jumping. Holds its last
+/// value while stopped so pausing lowers the bars from where they were.
 private enum PlaybackIndicatorClock {
     private static let duration = 1.5
     private static var anchorDate = Date(timeIntervalSinceReferenceDate: 0)
     private static var anchorCycle = 0.0
     private static var speed = 1.0
+    private static var lastCycle = 0.0
 
-    static func cycle(at date: Date, speed newSpeed: Double) -> Double {
+    static func cycle(at date: Date, speed newSpeed: Double, advancing: Bool) -> Double {
+        guard advancing else { return lastCycle }
         if newSpeed != speed {
             anchorCycle = cycle(at: date)
             anchorDate = date
             speed = newSpeed
         }
-        return cycle(at: date)
+        lastCycle = cycle(at: date)
+        return lastCycle
     }
 
     private static func cycle(at date: Date) -> Double {
@@ -65,7 +73,7 @@ private struct PlaybackIndicatorBars: Shape {
 
     var growth: CGFloat
     let cycle: Double
-    let animated: Bool
+    let usesStaticPose: Bool
 
     var animatableData: CGFloat {
         get { growth }
@@ -82,7 +90,7 @@ private struct PlaybackIndicatorBars: Shape {
             let blend = CGFloat((1 - cos((position - Double(step)) * .pi)) / 2)
             let start = levels[step]
             let end = levels[(step + 1) % levels.count]
-            let level = animated ? (start + (end - start) * blend) * 7 : (index == 1 ? 7 : 3)
+            let level = usesStaticPose ? (index == 1 ? 7 : 3) : (start + (end - start) * blend) * 7
             let height = 2 + level * growth
             path.addPath(
                 UnevenRoundedRectangle(topLeadingRadius: 1, topTrailingRadius: 1)
