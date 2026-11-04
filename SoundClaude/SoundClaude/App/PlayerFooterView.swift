@@ -302,12 +302,24 @@ struct PlayerFooterView: View {
 private struct PlayerFooterPlayPauseButton: View {
     let playback: PlaybackController
 
+    // Pausing flips isPlaybackActive asynchronously, so withAnimation can't scope this to a click.
+    @State private var animatesIconChange = false
+
     var body: some View {
-        Button(action: playback.togglePlayPause) {
-            AnimatedPlayPauseIcon(isPlaybackActive: playback.isPlaybackActive, size: 28)
-                .frame(width: 44, height: 44)
-                .modifier(PlayerFooterButtonBackground())
+        Button {
+            // The Space shortcut also runs this action, so check what triggered it.
+            animatesIconChange = NSApp.currentEvent?.type == .leftMouseUp
+            playback.togglePlayPause()
+        } label: {
+            AnimatedPlayPauseIcon(
+                isPlaybackActive: playback.isPlaybackActive,
+                size: 28,
+                animatesChange: animatesIconChange
+            )
+            .frame(width: 44, height: 44)
+            .modifier(PlayerFooterButtonBackground())
         }
+        .onChange(of: playback.isPlaybackActive) { animatesIconChange = false }
         .keyboardShortcut(.space, modifiers: [])
         .disabled(playback.currentTrack == nil)
         .contentHelp(playback.isPlaybackActive ? "Pause" : "Play")

@@ -3,6 +3,7 @@ import SwiftUI
 struct AnimatedPlayPauseIcon: View {
     let isPlaybackActive: Bool
     let size: CGFloat
+    var animatesChange = true
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -14,7 +15,7 @@ struct AnimatedPlayPauseIcon: View {
                 .transition(reduceMotion ? .identity : .scale(scale: 0.01).combined(with: .opacity))
         }
         .animation(
-            reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.6),
+            reduceMotion || !animatesChange ? nil : .spring(response: 0.3, dampingFraction: 0.6),
             value: isPlaybackActive
         )
     }
