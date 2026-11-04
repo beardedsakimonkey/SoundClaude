@@ -32,19 +32,22 @@ struct SignedInView: View {
     }
 
     private var navigationSelection: NavigationSelection {
-        NavigationSelection(destination: selectedDestination ?? .feed, route: path.last)
+        NavigationSelection(destination: selectedDestination ?? .feed, route: currentRoute)
     }
 
     private var destinationID: SidebarDestination.ID {
         (selectedDestination ?? .feed).id
     }
 
-    private var path: [Route] {
+    private var currentRoute: Route? { path.last?.route }
+
+    private var path: [NavigationEntry] {
         get { navigationHistories[destinationID, default: NavigationHistory()].path }
         nonmutating set {
-            if path.last != newValue.last {
+            let newRoute = newValue.last?.route
+            if currentRoute != newRoute {
                 // Capture the source pose before replacing the page, including Back/Forward.
-                switch (path.last, newValue.last) {
+                switch (currentRoute, newRoute) {
                 case (.track, .playlist), (.track, .station):
                     initialDetailArtworkRotation = false
                 case (.playlist, .track), (.station, .track):
@@ -57,18 +60,18 @@ struct SignedInView: View {
         }
     }
 
-    private var forwardPath: [Route] {
+    private var forwardPath: [NavigationEntry] {
         get { navigationHistories[destinationID, default: NavigationHistory()].forwardPath }
         nonmutating set { navigationHistories[destinationID, default: NavigationHistory()].forwardPath = newValue }
     }
 
     private var currentPlaylistURN: String? {
-        guard case let .playlist(playlist) = path.last else { return nil }
+        guard case let .playlist(playlist) = currentRoute else { return nil }
         return playlist.urn
     }
 
     private var currentStationURN: String? {
-        guard case let .station(urn, _, _) = path.last else { return nil }
+        guard case let .station(urn, _, _) = currentRoute else { return nil }
         return urn
     }
 
@@ -120,7 +123,7 @@ struct SignedInView: View {
                         onSelectArtist: showArtist,
                         onSelectPlaylist: showPlaylist,
                         onSelectStation: { urn, title in
-                            if case let .station(currentURN, _, _) = path.last,
+                            if case let .station(currentURN, _, _) = currentRoute,
                                currentURN == urn { return }
                             showStation(urn, seedArtistName: title)
                         }
@@ -352,15 +355,16 @@ struct SignedInView: View {
     // Keep browser history as data. Rendering a native stack of all visited pages
     // makes layout and row updates grow with browsing depth, even when pages hide.
     // Top-level pages unmount too, so a page away from view costs nothing.
-    // Only their scroll offsets stay behind.
+    // Only their scroll offsets stay behind, as do those of the routes in history.
     private var selectedView: some View {
         NavigationStack {
-            CurrentNavigationPage(route: path.last) {
+            CurrentNavigationPage(route: currentRoute) {
                 rootView(selectedDestination ?? .feed)
                     .environment(\.rememberedScrollPosition, rootScrollPositions.position(for: destinationID))
                     .navigationTitle((selectedDestination ?? .feed).title)
             } destination: { route in
                 routeView(route)
+                    .environment(\.rememberedScrollPosition, path.last?.scrollPosition)
                     .environment(\.initialDetailArtworkRotation, initialDetailArtworkRotation)
                     .id(destinationID)
             }
@@ -371,13 +375,13 @@ struct SignedInView: View {
                         .ignoresSafeArea(edges: .top)
                 }
             }
-            .modifier(DetailWaveformOverlay(model: model, routeID: AnyHashable(path.last)))
+            .modifier(DetailWaveformOverlay(model: model, routeID: AnyHashable(currentRoute)))
             .modifier(DetailTrackHeadingOverlay(
-                artworkLoader: model.artworkLoader, routeID: AnyHashable(path.last)
+                artworkLoader: model.artworkLoader, routeID: AnyHashable(currentRoute)
             ))
-            .modifier(DetailPlayButtonOverlay(routeID: AnyHashable(path.last)))
-            .modifier(DetailLikeButtonOverlay(routeID: AnyHashable(path.last)))
-            .modifier(DetailSwapButtonOverlay(routeID: AnyHashable(path.last)))
+            .modifier(DetailPlayButtonOverlay(routeID: AnyHashable(currentRoute)))
+            .modifier(DetailLikeButtonOverlay(routeID: AnyHashable(currentRoute)))
+            .modifier(DetailSwapButtonOverlay(routeID: AnyHashable(currentRoute)))
             .modifier(NavigationPageActivity())
             .safeAreaPadding(.bottom, footerHeight)
             .mask { bottomFade }
@@ -401,6 +405,7 @@ struct SignedInView: View {
                     onSelectArtist: showArtist
                 )
                 .environment(\.searchViewportHeight, contentSize.height)
+                .remembersScrollPosition()
             }
             .background(alignment: .top) {
                 RouteGradientBackdrop()
@@ -417,6 +422,7 @@ struct SignedInView: View {
                     onSelectArtist: showArtist
                 )
                 .scrollKeyNavigation()
+                .remembersScrollPosition()
             }
             .background(alignment: .top) {
                 RouteGradientBackdrop()
@@ -433,6 +439,7 @@ struct SignedInView: View {
                     onSelectArtist: showArtist
                 )
                 .scrollKeyNavigation()
+                .remembersScrollPosition()
             }
             .background(alignment: .top) {
                 RouteGradientBackdrop()
@@ -445,8 +452,7 @@ struct SignedInView: View {
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist,
                 onSelectStation: { urn, seedTrack in
-                    forwardPath.removeAll()
-                    path.append(.station(
+                    push(.station(
                         urn,
                         seedTrack: seedTrack
                     ))
@@ -531,8 +537,7 @@ struct SignedInView: View {
                 searchText: $searchText,
                 focusRequest: searchFocusRequest,
                 onSearch: { query in
-                    forwardPath.removeAll()
-                    path.append(.search(query))
+                    push(.search(query))
                 }
             )
             // A request applies to one mount. Going Back must not refocus the field.
@@ -592,24 +597,26 @@ struct SignedInView: View {
         .labelStyle(.iconOnly)
     }
 
+    private func push(_ route: Route) {
+        forwardPath.removeAll()
+        path.append(NavigationEntry(route: route))
+    }
+
     private func showTagSearch(_ tag: String) {
         guard !tag.isEmpty else { return }
-        forwardPath.removeAll()
-        path.append(.tag(tag))
+        push(.tag(tag))
     }
 
     private func showGenreSearch(_ genre: String) {
         guard !genre.isEmpty else { return }
-        forwardPath.removeAll()
-        path.append(.genre(genre))
+        push(.genre(genre))
     }
 
     private func showTrack(_ track: SoundCloudTrack) {
         isShowingVisualizer = false
-        if case let .track(current) = path.last,
+        if case let .track(current) = currentRoute,
            current.urn == track.urn { return }
-        forwardPath.removeAll()
-        path.append(.track(track))
+        push(.track(track))
     }
 
     private func playLikes() async {
@@ -628,10 +635,9 @@ struct SignedInView: View {
     }
 
     private func showPlaylist(_ playlist: SoundCloudPlaylist) {
-        if case let .playlist(current) = path.last,
+        if case let .playlist(current) = currentRoute,
            current.urn == playlist.urn { return }
-        forwardPath.removeAll()
-        path.append(.playlist(playlist))
+        push(.playlist(playlist))
     }
 
     private func removeDeletedPlaylist(_ playlist: SoundCloudPlaylist) {
@@ -639,8 +645,8 @@ struct SignedInView: View {
         // Remove all visits, including forward history, so deletion cannot be undone by navigation.
         navigationHistories = navigationHistories.mapValues { history in
             var history = history
-            let isDeletedPlaylist: (Route) -> Bool = { route in
-                guard case let .playlist(candidate) = route else { return false }
+            let isDeletedPlaylist: (NavigationEntry) -> Bool = { entry in
+                guard case let .playlist(candidate) = entry.route else { return false }
                 return candidate.urn == playlist.urn
             }
             history.path.removeAll(where: isDeletedPlaylist)
@@ -654,7 +660,7 @@ struct SignedInView: View {
         switch model.queue.source {
         case let .station(urn):
             isShowingVisualizer = false
-            if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
+            if case let .station(currentURN, _, _) = currentRoute, currentURN == urn { return }
             showStation(urn, seedArtistName: model.queue.sourceTitle ?? "Station")
         default:
             isOpeningCurrentTrackStation = true
@@ -685,9 +691,8 @@ struct SignedInView: View {
                 return
             }
             isShowingVisualizer = false
-            if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
-            forwardPath.removeAll()
-            path.append(.station(urn, seedTrack: seedTrack))
+            if case let .station(currentURN, _, _) = currentRoute, currentURN == urn { return }
+            push(.station(urn, seedTrack: seedTrack))
         } catch {
             guard !Task.isCancelled else { return }
             if requiresCurrentTrack {
@@ -712,7 +717,7 @@ struct SignedInView: View {
                 return
             }
             isShowingVisualizer = false
-            if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
+            if case let .station(currentURN, _, _) = currentRoute, currentURN == urn { return }
             showStation(urn, seedArtistName: user.username)
         } catch is CancellationError {
         } catch {
@@ -745,7 +750,7 @@ struct SignedInView: View {
                 }
             }
         case let .station(urn):
-            if case let .station(currentURN, _, _) = path.last, currentURN == urn { return }
+            if case let .station(currentURN, _, _) = currentRoute, currentURN == urn { return }
             showStation(urn, seedArtistName: queue.sourceTitle ?? "Station")
         case .related:
             if let track = queue.sourceTrack { showTrack(track) }
@@ -759,9 +764,8 @@ struct SignedInView: View {
     }
 
     private func showQueueSourceRoute(_ route: Route) {
-        guard path.last != route else { return }
-        forwardPath.removeAll()
-        path.append(route)
+        guard currentRoute != route else { return }
+        push(route)
     }
 
     private func showQueueSourceArtist(_ artist: SoundCloudUser?, tab: ArtistDetailView.ContentTab) {
@@ -771,21 +775,18 @@ struct SignedInView: View {
     }
 
     private func showStation(_ urn: String, seedArtistName: String) {
-        forwardPath.removeAll()
-        path.append(.station(urn, seedArtistName: seedArtistName))
+        push(.station(urn, seedArtistName: seedArtistName))
     }
 
     private func showArtist(_ artist: SoundCloudUser) {
         isShowingVisualizer = false
-        if case let .artist(current) = path.last,
+        if case let .artist(current) = currentRoute,
            current.permalinkURL == artist.permalinkURL { return }
-        forwardPath.removeAll()
-        path.append(.artist(artist))
+        push(.artist(artist))
     }
 
     private func showArtistUsers(_ artist: SoundCloudUser, list: ArtistUserList) {
-        forwardPath.removeAll()
-        path.append(.artistUsers(artist, list))
+        push(.artistUsers(artist, list))
     }
 
     private func navigateBack() -> Bool {
@@ -794,20 +795,20 @@ struct SignedInView: View {
             return true
         }
 
-        guard let route = path.popLast() else {
+        guard let entry = path.popLast() else {
             return false
         }
 
-        forwardPath.append(route)
+        forwardPath.append(entry)
         return true
     }
 
     private func navigateForward() -> Bool {
-        guard let route = forwardPath.popLast() else {
+        guard let entry = forwardPath.popLast() else {
             return false
         }
 
-        path.append(route)
+        path.append(entry)
         return true
     }
 

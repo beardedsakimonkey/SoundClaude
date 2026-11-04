@@ -225,6 +225,47 @@ private struct LifetimePage: View {
         showRows(false)
         showRows(true)
         precondition(abs(scrollOffset() - 10) < 1, "Header offset was not restored: \(scrollOffset())")
+
+        // Detail pages refetch on remount, so the offset can be out of reach at first.
+        let loadingPosition = RememberedScrollPosition()
+        func loadingPage(rows: Int?) -> AnyView {
+            guard let rows else { return AnyView(Text("Route")) }
+            return AnyView(
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(0..<rows, id: \.self) { Text("Row \($0)").frame(height: 100) }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .remembersScrollPosition()
+                }
+                .environment(\.rememberedScrollPosition, loadingPosition)
+            )
+        }
+        func showLoading(rows: Int?) {
+            scrollHost.rootView = loadingPage(rows: rows)
+            settle()
+        }
+        showLoading(rows: 100)
+        scroll(to: 5000)
+        showLoading(rows: nil)
+        showLoading(rows: 2)
+        precondition(loadingPosition.offset == 5000, "Short content replaced the saved offset")
+        showLoading(rows: 30)
+        precondition(loadingPosition.offset == 5000, "A partial load replaced the saved offset")
+        showLoading(rows: 100)
+        precondition(abs(scrollOffset() - 5000) < 1, "Loaded content did not restore: \(scrollOffset())")
+
+        // Scrolling while the page loads wins over the saved offset.
+        showLoading(rows: nil)
+        showLoading(rows: 2)
+        NotificationCenter.default.post(
+            name: NSScrollView.willStartLiveScrollNotification,
+            object: descendant(NSScrollView.self, in: scrollHost)!
+        )
+        showLoading(rows: 100)
+        precondition(scrollOffset() < 5000, "Restoring overrode the user's scroll: \(scrollOffset())")
+        scroll(to: 700)
+        precondition(loadingPosition.offset == 700, "Saving did not resume after the user scrolled")
         print("Viewport, navigation lifetime, and scroll position tests passed")
     }
 }

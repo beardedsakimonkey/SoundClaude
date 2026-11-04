@@ -55,9 +55,16 @@ enum Route: Codable, Hashable {
     case artistUsers(SoundCloudUser, ArtistUserList)
 }
 
+/// One visit to a route. Going back returns to the visit's scroll position; visiting
+/// the same route again starts a new one at the top.
+struct NavigationEntry {
+    let route: Route
+    let scrollPosition = RememberedScrollPosition()
+}
+
 struct NavigationHistory {
-    var path: [Route] = []
-    var forwardPath: [Route] = []
+    var path: [NavigationEntry] = []
+    var forwardPath: [NavigationEntry] = []
 }
 
 // Persist only the visible page. All other tab, Back, and Forward history is transient.
@@ -67,7 +74,7 @@ struct NavigationSelection: Codable, Equatable {
 
     var navigationHistories: [SidebarDestination.ID: NavigationHistory] {
         guard let route else { return [:] }
-        return [destination.id: NavigationHistory(path: [route])]
+        return [destination.id: NavigationHistory(path: [NavigationEntry(route: route)])]
     }
 }
 

@@ -28,7 +28,7 @@ struct NavigationPageViewport: ViewModifier {
     }
 }
 
-/// A top-level page's scroll offset, kept outside the page so it survives unmounting.
+/// A page's scroll offset, kept outside the page so it survives unmounting.
 final class RememberedScrollPosition {
     /// The row at the top of the viewport and how far the viewport has scrolled into it.
     struct RowAnchor {
@@ -134,9 +134,13 @@ private struct ScrollPositionTracker: NSViewRepresentable {
     final class TrackerView: NSView {
         var position: RememberedScrollPosition?
         private var observers: [NSObjectProtocol] = []
+        private var inputMonitor: Any?
         private var restoreTarget: CGFloat?
         // SwiftUI can reset the offset and resize lazy content during its first layouts.
         private static let restoreDuration: TimeInterval = 0.3
+        // Pages refetch their contents when they remount. Scrolling to the end of what has
+        // loaded requests the next page, so an offset can take several requests to reach.
+        private static let restoreTimeout: TimeInterval = 10
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -180,15 +184,46 @@ private struct ScrollPositionTracker: NSViewRepresentable {
                 }
             } else if let offset = position.offset {
                 restoreTarget = offset
+                startMonitoringInput()
                 restore(in: scrollView)
             } else {
                 finishRestoring()
                 return
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.restoreDuration) { [weak self] in
+            scheduleRestoreCheck(in: scrollView, deadline: Date().addingTimeInterval(Self.restoreTimeout))
+        }
+
+        private func scheduleRestoreCheck(in scrollView: NSScrollView, deadline: Date) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.restoreDuration) { [weak self, weak scrollView] in
                 // A page that already unmounted must not end the next page's restore.
-                guard let self, !self.observers.isEmpty else { return }
-                self.finishRestoring()
+                guard let self, let scrollView, !self.observers.isEmpty else { return }
+                if let restoreTarget = self.restoreTarget, Date() < deadline,
+                   abs(scrollView.contentView.bounds.origin.y - restoreTarget) >= 1 {
+                    self.scheduleRestoreCheck(in: scrollView, deadline: deadline)
+                } else {
+                    self.finishRestoring()
+                }
+            }
+        }
+
+        // Restoring can outlast the page's arrival, so it must not fight the user. Live-scroll
+        // notifications miss mouse wheels and the keyboard, and a click can change the page's
+        // height. Momentum can carry over from scrolling the previous page.
+        private func startMonitoringInput() {
+            inputMonitor = NSEvent.addLocalMonitorForEvents(
+                matching: [.leftMouseDown, .keyDown, .scrollWheel]
+            ) { [weak self] event in
+                if event.type != .scrollWheel || event.momentumPhase.isEmpty {
+                    self?.finishRestoring()
+                }
+                return event
+            }
+        }
+
+        private func stopMonitoringInput() {
+            if let inputMonitor {
+                NSEvent.removeMonitor(inputMonitor)
+                self.inputMonitor = nil
             }
         }
 
@@ -200,17 +235,20 @@ private struct ScrollPositionTracker: NSViewRepresentable {
 
         deinit {
             observers.forEach(NotificationCenter.default.removeObserver)
+            stopMonitoringInput()
         }
 
         private func stopTracking() {
             observers.forEach(NotificationCenter.default.removeObserver)
             observers = []
+            stopMonitoringInput()
             restoreTarget = nil
             position?.scrollBy = nil
             position?.isSavingRows = false
         }
 
         private func finishRestoring() {
+            stopMonitoringInput()
             restoreTarget = nil
             position?.scrollBy = nil
             position?.isSavingRows = true

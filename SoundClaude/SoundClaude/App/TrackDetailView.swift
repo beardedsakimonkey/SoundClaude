@@ -202,6 +202,7 @@ struct TrackDetailView: View {
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding(24)
+            .remembersScrollPosition()
         }
     }
 

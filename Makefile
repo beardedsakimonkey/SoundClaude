@@ -188,6 +188,7 @@ test: test-playback-selection
 	swiftc -o /tmp/soundclaude-tests/sidebar-selection \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/App/SidebarDestination.swift \
+		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 		tests/SidebarSelectionTests.swift
 	/tmp/soundclaude-tests/sidebar-selection
 	swiftc -o /tmp/soundclaude-tests/queue-likes \
@@ -443,5 +444,6 @@ test-station-loading:
 		SoundClaude/SoundClaude/Support/MemoryCache.swift \
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
 		SoundClaude/SoundClaude/App/StationDetailView.swift \
+		SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 		tests/StationLoadingTests.swift
 	/tmp/soundclaude-tests/station-loading

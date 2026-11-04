@@ -82,6 +82,7 @@ struct ArtistUsersView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
             .scrollKeyNavigation()
+            .remembersScrollPosition()
         }
         .background(alignment: .top) {
             RouteGradientBackdrop()

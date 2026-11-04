@@ -83,6 +83,7 @@ struct StationDetailView: View {
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .padding(24)
+            .remembersScrollPosition()
         }
         .background(alignment: .top) {
             TrackCollectionBackdrop(collection: collection, model: model)
