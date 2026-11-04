@@ -226,7 +226,7 @@ struct TrackGridTile: View {
                     shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous),
                     showsBorder: false
                 )
-                .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.08 : 1)
+                .scaleEffect(isHoveringArtwork && track.access != .protected && !reduceMotion ? 1.08 : 1)
                 .clipShape(RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous))
                 .modifier(PlayerArtworkGlass(
                     cornerRadius: Self.artworkCornerRadius
