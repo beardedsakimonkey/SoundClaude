@@ -209,7 +209,7 @@ struct PlaylistCardView: View {
     }
 }
 
-// Keep hover state here so revealing the like button doesn't update the whole card.
+// Keep title hover state here so underlining doesn't update the whole card.
 private struct PlaylistCardTitleRow: View {
     let playlist: SoundCloudPlaylist
     let cardState: PlaylistCardState
@@ -217,14 +217,7 @@ private struct PlaylistCardTitleRow: View {
     let playlists: PlaylistsController
     let onSelect: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isHoveringRow = false
     @State private var isHoveringTitle = false
-    // Keeps the like button visible after the pointer leaves, until shortly after the
-    // latest click's request finishes.
-    @State private var likeClickID: UUID?
-
-    private var isLikeButtonVisible: Bool { cardState.isLiked || isHoveringRow || likeClickID != nil }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -248,14 +241,10 @@ private struct PlaylistCardTitleRow: View {
                 likeButton.hidden()
             } else {
                 likeButton
-                    .opacity(isLikeButtonVisible ? 1 : 0)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLikeButtonVisible)
             }
         }
         .font(.title2.weight(.semibold))
         .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .onContentHover { isHoveringRow = $0 }
     }
 
     private var likeButton: some View {
@@ -265,8 +254,6 @@ private struct PlaylistCardTitleRow: View {
             subject: "playlist: \(playlist.title)",
             size: .card
         ) {
-            let clickID = UUID()
-            likeClickID = clickID
             Task {
                 do {
                     try await playlists.toggleLike(playlist)
@@ -274,8 +261,6 @@ private struct PlaylistCardTitleRow: View {
                 } catch {
                     model.likeErrorMessage = error.localizedDescription
                 }
-                try? await Task.sleep(for: .seconds(1))
-                if likeClickID == clickID { likeClickID = nil }
             }
         }
     }
