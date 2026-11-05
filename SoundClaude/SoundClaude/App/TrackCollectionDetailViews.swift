@@ -414,7 +414,27 @@ struct TrackCollectionLikeButton: View {
     let isUpdating: Bool
     // Names the liked item, e.g. "playlist: Title".
     let subject: String
+    let size: Size
     let action: () -> Void
+
+    enum Size {
+        case header
+        case card
+
+        var iconFont: Font {
+            switch self {
+            case .header: .system(size: 11)
+            case .card: .system(size: 14)
+            }
+        }
+
+        var frame: CGSize {
+            switch self {
+            case .header: CGSize(width: 16, height: 14)
+            case .card: CGSize(width: 21, height: 19)
+            }
+        }
+    }
 
     var body: some View {
         let actionLabel = "\(isLiked ? "Unlike" : "Like") \(subject)"
@@ -423,7 +443,9 @@ struct TrackCollectionLikeButton: View {
             action()
         } label: {
             Image(systemName: isLiked ? "heart.fill" : "heart")
+                .font(size.iconFont)
                 .contentTransition(.symbolEffect(.replace))
+                .frame(width: size.frame.width, height: size.frame.height)
         }
         .buttonStyle(TrackCollectionLikeButtonStyle(isLiked: isLiked))
         .opacity(isUpdating ? 0.5 : 1)

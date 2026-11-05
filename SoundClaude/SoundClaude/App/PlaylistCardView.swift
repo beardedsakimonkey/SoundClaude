@@ -220,7 +220,7 @@ private struct PlaylistCardTitleRow: View {
     private var isLikeButtonVisible: Bool { cardState.isLiked || isHoveringRow || likeClickID != nil }
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 8) {
             Button(action: onSelect) {
                 Label {
                     Text(playlist.title)
@@ -255,7 +255,8 @@ private struct PlaylistCardTitleRow: View {
         TrackCollectionLikeButton(
             isLiked: cardState.isLiked,
             isUpdating: cardState.isUpdatingLike,
-            subject: "playlist: \(playlist.title)"
+            subject: "playlist: \(playlist.title)",
+            size: .card
         ) {
             let clickID = UUID()
             likeClickID = clickID
