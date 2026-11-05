@@ -24,16 +24,21 @@ final class PlaylistsController: ObservableObject {
         didSet { updateCardStates() }
     }
     @Published private(set) var likesErrorMessage: String?
-    @Published private(set) var updatingLikeURNs: Set<String> = [] {
+    @Published private(set) var pendingLikes: [String: Bool] = [:] {
         didSet { updateCardStates() }
     }
-    @Published private(set) var unlikingPlaylistURNs: Set<String> = []
+    var updatingLikeURNs: Set<String> { Set(pendingLikes.keys) }
+    var unlikingPlaylistURNs: Set<String> { Set(pendingLikes.filter { !$0.value }.keys) }
 
     @Published private(set) var updatingPlaylistURNs: Set<String> = []
     @Published private(set) var deletingPlaylistURNs: Set<String> = []
 
     var playlists: [SoundCloudPlaylist] { cache.playlists }
     var likedPlaylistURNs: Set<String> { Set(likedPlaylists.map(\.urn)) }
+
+    func isLiked(urn: String) -> Bool {
+        pendingLikes[urn] ?? likedPlaylistURNs.contains(urn)
+    }
 
     // Cards must not subscribe to changes from other playlists in a lazy list.
     private var cardStates: [String: PlaylistCardState] = [:]
@@ -55,8 +60,8 @@ final class PlaylistsController: ObservableObject {
         let contents = cache.contents[urn] ?? previews[urn]
         let isLoading = loadingPlaylistURNs.contains(urn)
         let errorMessage = playlistErrors[urn]
-        let isLiked = likedURNs.contains(urn)
-        let isUpdatingLike = !hasLoadedLikes || updatingLikeURNs.contains(urn)
+        let isLiked = pendingLikes[urn] ?? likedURNs.contains(urn)
+        let isUpdatingLike = !hasLoadedLikes || pendingLikes[urn] != nil
         if state.contents != contents { state.contents = contents }
         if state.isLoading != isLoading { state.isLoading = isLoading }
         if state.errorMessage != errorMessage { state.errorMessage = errorMessage }
@@ -561,13 +566,12 @@ final class PlaylistsController: ObservableObject {
     func toggleLike(_ playlist: SoundCloudPlaylist) async throws {
         guard !playlist.isPrivate else { return }
         await loadLikes()
-        guard hasLoadedLikes, updatingLikeURNs.insert(playlist.urn).inserted else { return }
-        let session = sessionID
-        defer { if sessionID == session { updatingLikeURNs.remove(playlist.urn) } }
+        guard hasLoadedLikes, pendingLikes[playlist.urn] == nil else { return }
         guard let accountID else { throw CancellationError() }
+        let session = sessionID
         let shouldLike = !likedPlaylistURNs.contains(playlist.urn)
-        if !shouldLike { unlikingPlaylistURNs.insert(playlist.urn) }
-        defer { if sessionID == session { unlikingPlaylistURNs.remove(playlist.urn) } }
+        pendingLikes[playlist.urn] = shouldLike
+        defer { if sessionID == session { pendingLikes.removeValue(forKey: playlist.urn) } }
         let token = try await accessToken(session: session)
         try await client.setPlaylistLiked(urn: playlist.urn, isLiked: shouldLike, accessToken: token)
         try checkSession(session)
@@ -614,8 +618,7 @@ final class PlaylistsController: ObservableObject {
         isLoadingLikes = false
         hasLoadedLikes = false
         likesErrorMessage = nil
-        updatingLikeURNs = []
-        unlikingPlaylistURNs = []
+        pendingLikes = [:]
         syncTask?.cancel()
         restoreTask?.cancel()
         for task in playlistTasks.values { task.cancel() }

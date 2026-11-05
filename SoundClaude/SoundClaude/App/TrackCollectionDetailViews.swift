@@ -418,13 +418,17 @@ struct TrackCollectionLikeButton: View {
 
     var body: some View {
         let actionLabel = "\(isLiked ? "Unlike" : "Like") \(subject)"
-        Button(action: action) {
+        Button {
+            guard !isUpdating else { return }
+            action()
+        } label: {
             Image(systemName: isLiked ? "heart.fill" : "heart")
                 .contentTransition(.symbolEffect(.replace))
         }
         .buttonStyle(TrackCollectionLikeButtonStyle(isLiked: isLiked))
-        .disabled(isUpdating)
+        .opacity(isUpdating ? 0.5 : 1)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
         .contentHelp(actionLabel)
         .accessibilityLabel(actionLabel)
         .accessibilityValue(isUpdating ? "Updating" : (isLiked ? "Liked" : "Not liked"))

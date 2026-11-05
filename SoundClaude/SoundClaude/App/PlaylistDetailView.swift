@@ -247,8 +247,8 @@ struct PlaylistDetailView: View {
     private var likeButton: some View {
         TrackCollectionLikeButton(
             isLiked: playlist.isSystemPlaylist
-                ? likes.likedStationURNs.contains(playlist.urn)
-                : playlists.likedPlaylistURNs.contains(playlist.urn),
+                ? likes.isStationLiked(urn: playlist.urn)
+                : playlists.isLiked(urn: playlist.urn),
             isUpdating: playlist.isSystemPlaylist
                 ? !likes.hasLoadedStationLikes || likes.updatingStationURNs.contains(playlist.urn)
                 : !playlists.hasLoadedLikes || playlists.updatingLikeURNs.contains(playlist.urn),

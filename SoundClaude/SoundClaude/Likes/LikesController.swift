@@ -28,7 +28,8 @@ final class LikesController {
     }
     private(set) var likedStationURNs: Set<String> = []
     private(set) var stationLikesErrorMessage: String?
-    private(set) var updatingStationURNs: Set<String> = []
+    private(set) var pendingStationLikes: [String: Bool] = [:]
+    var updatingStationURNs: Set<String> { Set(pendingStationLikes.keys) }
     private(set) var isLoadingStationLikes = false
     private(set) var hasLoadedStationLikes = false
     private var stationLikesTask: Task<Void, Error>?
@@ -184,12 +185,12 @@ final class LikesController {
 
     func toggleStationLike(urn: String, title: String? = nil) async throws {
         try await loadStationLikes()
-        guard let accountID, !updatingStationURNs.contains(urn) else { return }
+        guard let accountID, pendingStationLikes[urn] == nil else { return }
         let session = sessionID
         let shouldLike = !likedStationURNs.contains(urn)
-        updatingStationURNs.insert(urn)
+        pendingStationLikes[urn] = shouldLike
         defer {
-            if sessionID == session { updatingStationURNs.remove(urn) }
+            if sessionID == session { pendingStationLikes.removeValue(forKey: urn) }
         }
         let token = try await auth.validAccessToken()
         guard sessionID == session else { throw CancellationError() }
@@ -201,6 +202,10 @@ final class LikesController {
             likedStations.removeAll { $0.urn == urn }
         }
         try await store.saveStations(likedStations, accountID: accountID)
+    }
+
+    func isStationLiked(urn: String) -> Bool {
+        pendingStationLikes[urn] ?? likedStationURNs.contains(urn)
     }
 
     func likeCount(for track: SoundCloudTrack) -> Int? {
@@ -347,7 +352,7 @@ final class LikesController {
         stationLikesTask = nil
         likedStations = []
         stationLikesErrorMessage = nil
-        updatingStationURNs = []
+        pendingStationLikes = [:]
         hasLoadedStationLikes = false
         isLoadingStationLikes = false
         syncTask?.cancel()
