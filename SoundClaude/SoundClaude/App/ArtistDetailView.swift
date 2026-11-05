@@ -16,15 +16,17 @@ struct ArtistDetailView: View {
                 .padding(.horizontal, 12)
                 .frame(height: 28)
                 .background(.primary.opacity(0.12), in: shape)
-                .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.5)
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isEnabled)
+                .opacity(configuration.isPressed ? 0.8 : 1)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                    $0.opacity(isEnabled ? 1 : 0.5)
+                }
                 .overlay {
                     shape
                         .fill(.primary.opacity(isHovering && isEnabled ? 0.08 : 0))
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering && isEnabled)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
                 }
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering && isEnabled)
                 .contentShape(shape)
                 .onContentHover { isHovering = $0 }
         }
@@ -728,23 +730,18 @@ struct ArtistDetailView: View {
         return Button {
             Task { await toggleFollow() }
         } label: {
-            ZStack {
-                Label("Follow", systemImage: "person.badge.plus").hidden()
-                Label("Unfollow", systemImage: "person.badge.minus").hidden()
-
-                Label {
-                    Text(isFollowing == true ? "Unfollow" : "Follow")
-                } icon: {
-                    Image(systemName: isFollowing == true ? "person.badge.minus" : "person.badge.plus")
-                        .opacity(isLoadingFollow ? 0 : 1)
-                        .overlay {
-                            if isLoadingFollow {
-                                LoadingSpinner()
-                                    .controlSize(.mini)
-                                    .accessibilityHidden(true)
-                            }
+            Label {
+                Text(isFollowing == true ? "Unfollow" : "Follow")
+            } icon: {
+                Image(systemName: isFollowing == true ? "person.badge.minus" : "person.badge.plus")
+                    .opacity(isLoadingFollow ? 0 : 1)
+                    .overlay {
+                        if isLoadingFollow {
+                            LoadingSpinner()
+                                .controlSize(.mini)
+                                .accessibilityHidden(true)
                         }
-                }
+                    }
             }
         }
         .disabled(isFollowing == nil || isUpdatingFollow)
