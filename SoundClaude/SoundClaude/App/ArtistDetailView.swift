@@ -140,6 +140,16 @@ struct ArtistDetailView: View {
         var hasLoadedPlaylists = false
         var isLoadingPlaylists = false
         var playlistsErrorMessage: String?
+
+        /// Pages can be empty after filtering while later pages still hold tracks.
+        var mayHaveTracks: Bool {
+            !tracks.isEmpty || (tracksErrorMessage == nil && (!hasLoadedTracks || nextPageURL != nil))
+        }
+
+        var needsFirstTracks: Bool {
+            !isLoadingTracks && tracksErrorMessage == nil && tracks.isEmpty
+                && (!hasLoadedTracks || nextPageURL != nil)
+        }
     }
     @State private var isShowingArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
@@ -167,6 +177,15 @@ struct ArtistDetailView: View {
         _isFollowing = State(initialValue: model.cachedIsFollowingArtist(cached?.user ?? artist))
         _webProfiles = State(initialValue: model.cachedArtistWebProfiles(for: cached?.user ?? artist) ?? [])
         _isLoading = State(initialValue: cached == nil)
+        // Show a revisited artist's first track page without waiting a frame for load().
+        let contentState = ContentState()
+        if let page = model.cachedFirstArtistTrackPage(for: cached?.user ?? artist) {
+            var knownURNs = Set<String>()
+            contentState.tracks = page.tracks.filter { knownURNs.insert($0.urn).inserted }
+            contentState.nextPageURL = page.nextURL
+            contentState.hasLoadedTracks = true
+        }
+        _contentState = State(initialValue: contentState)
         let cachedHeader = model.cachedArtistHeader(for: artist)
         _headerImage = State(initialValue: cachedHeader?.image)
         _headerImageURL = State(initialValue: cachedHeader?.artworkURL)
@@ -209,8 +228,9 @@ struct ArtistDetailView: View {
             }
         }
         .task(id: artist.permalinkURL) { await load() }
-        .task(id: isShufflingTracks) {
-            if isShufflingTracks { await shuffleTracks() }
+        // A shuffle requested while tracks load starts once the first page settles.
+        .task(id: isShuffleReady) {
+            if isShuffleReady { await shuffleTracks() }
         }
         .task(id: artist.permalinkURL) {
             guard headerImage == nil, !isHeaderImageMissing else { return }
@@ -664,7 +684,7 @@ struct ArtistDetailView: View {
 
     private var artistActions: some View {
         HStack {
-            if !contentState.tracks.isEmpty || (!contentState.hasLoadedTracks && contentState.tracksErrorMessage == nil) {
+            if contentState.mayHaveTracks {
                 Button {
                     isShufflingTracks = true
                 } label: {
@@ -682,7 +702,7 @@ struct ArtistDetailView: View {
                             }
                     }
                 }
-                .disabled(contentState.tracks.isEmpty || isShufflingTracks)
+                .disabled(isShufflingTracks)
                 .contentHelp("Shuffle this artist’s tracks")
                 .accessibilityValue(isShufflingTracks ? "Starting shuffle playback" : "")
             }
@@ -709,6 +729,11 @@ struct ArtistDetailView: View {
                 _ = try? await model.station(urn: urn)
             }
         }
+    }
+
+    private var isShuffleReady: Bool {
+        isShufflingTracks
+            && (!contentState.tracks.isEmpty || !contentState.mayHaveTracks || errorMessage != nil)
     }
 
     private func shuffleTracks() async {
@@ -1184,7 +1209,10 @@ struct ArtistDetailView: View {
             let loaded = try await model.artistDetails(for: artist)
             try Task.checkCancellation()
             details = loaded
-            if !contentState.hasLoadedTracks { await loadTracks() }
+            // Fetch past empty pages so Shuffle knows whether the artist has tracks on any tab.
+            while !Task.isCancelled, contentState.needsFirstTracks {
+                await loadTracks()
+            }
         } catch {
             guard !Task.isCancelled else { return }
             errorMessage = error.localizedDescription

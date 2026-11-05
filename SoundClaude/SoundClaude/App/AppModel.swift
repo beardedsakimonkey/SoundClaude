@@ -748,11 +748,16 @@ final class AppModel {
         return page
     }
 
+    func cachedFirstArtistTrackPage(for artist: SoundCloudUser) -> SoundCloudTrackPage? {
+        guard let urn = artist.urn else { return nil }
+        return firstArtistTrackPageCache.value(forKey: urn as NSString)
+    }
+
     func artistTracks(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
         -> SoundCloudTrackPage {
         guard let urn = artist.urn else { throw SoundCloudError.invalidData }
         let cacheKey = urn as NSString
-        if pageURL == nil, let cachedPage = firstArtistTrackPageCache.value(forKey: cacheKey) {
+        if pageURL == nil, let cachedPage = cachedFirstArtistTrackPage(for: artist) {
             return cachedPage
         }
         let generation = firstArtistTrackPageCacheGeneration
