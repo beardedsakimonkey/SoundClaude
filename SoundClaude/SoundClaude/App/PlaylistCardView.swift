@@ -221,15 +221,15 @@ private struct PlaylistCardTitleRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            Image(systemName: "music.note.list")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+
             Button(action: onSelect) {
-                Label {
-                    Text(playlist.title)
-                        .underline(isHoveringTitle)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(1)
-                } icon: {
-                    Image(systemName: "music.note.list")
-                }
+                Text(playlist.title)
+                    .underline(isHoveringTitle)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(1)
             }
             .buttonStyle(.plain)
             .onContentHover { isHoveringTitle = $0 }
