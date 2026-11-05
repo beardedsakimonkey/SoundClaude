@@ -24,6 +24,11 @@ struct PlaylistCardView: View {
             ?? tracks.first
     }
     private var trackCount: Int { max(displayedPlaylist.trackCount ?? 0, tracks.count) }
+    /// Rows to reserve before the first page arrives, so the card keeps its final height.
+    private var displayedRowCount: Int {
+        if contents?.hasLoadedPage == true || errorMessage != nil { return tracks.count }
+        return max(displayedPlaylist.trackCount ?? 0, tracks.count)
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 20) {
@@ -84,6 +89,8 @@ struct PlaylistCardView: View {
                         .id(track.urn)
                         .frame(maxWidth: .infinity)
                     }
+                } else if displayedRowCount > 0 {
+                    Color.clear.frame(height: TrackWaveformView.Layout.compact.height)
                 }
 
                 trackList
@@ -114,7 +121,7 @@ struct PlaylistCardView: View {
                 trackRows(limit: isExpanded ? tracks.count : 5)
             }
         }
-        .frame(height: CGFloat(min(tracks.count, isExpanded ? 8 : 5)) * 40)
+        .frame(height: CGFloat(min(displayedRowCount, isExpanded ? 8 : 5)) * 40)
         .scrollDisabled(!isExpanded)
 
         if isExpanded || trackCount > 5 || contents?.nextPageURL != nil {
