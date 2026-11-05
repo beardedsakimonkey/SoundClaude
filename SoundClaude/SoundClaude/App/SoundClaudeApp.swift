@@ -37,7 +37,7 @@ struct SoundClaudeApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             PlaybackCommands(model: model, likes: model.likes)
-            CommandGroup(after: .help) {
+            CommandGroup(replacing: .help) {
                 Button("Keyboard Shortcuts") {
                     isShowingKeyboardShortcuts.toggle()
                 }
