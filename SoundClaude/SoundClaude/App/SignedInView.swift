@@ -6,7 +6,7 @@ struct SignedInView: View {
     private let model: AppModel
     @State private var selectedDestination: SidebarDestination?
     private let selectionStore = SidebarSelectionStore()
-    @State private var artistTabSelections = ArtistTabSelections()
+    @State private var artistTabSelections: ArtistTabSelections
     @State private var rootScrollPositions = RootScrollPositions()
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
     @State private var initialDetailArtworkRotation: Bool?
@@ -29,10 +29,27 @@ struct SignedInView: View {
         let selection = SidebarSelectionStore().restoreNavigation(for: user)
         _selectedDestination = State(initialValue: selection.destination)
         _navigationHistories = State(initialValue: selection.navigationHistories)
+        if case let .search(query) = selection.route, let category = selection.searchCategory {
+            model.rememberSearchCategory(category, for: query)
+        }
+        let artistTabSelections = ArtistTabSelections()
+        if case let .artist(artist) = selection.route, let tab = selection.artistTab {
+            artistTabSelections.selection(for: artist.permalinkURL, in: selection.destination.id).tab = tab
+        }
+        _artistTabSelections = State(initialValue: artistTabSelections)
     }
 
     private var navigationSelection: NavigationSelection {
-        NavigationSelection(destination: selectedDestination ?? .feed, route: currentRoute)
+        var selection = NavigationSelection(destination: selectedDestination ?? .feed, route: currentRoute)
+        switch currentRoute {
+        case let .search(query):
+            selection.searchCategory = model.searchCategory(for: query)
+        case let .artist(artist):
+            selection.artistTab = artistTabSelections.tabs[destinationID]?[artist.permalinkURL]?.tab
+        default:
+            break
+        }
+        return selection
     }
 
     private var destinationID: SidebarDestination.ID {
@@ -410,7 +427,9 @@ struct SignedInView: View {
                     model: model,
                     onSelectTrack: showTrack,
                     onSelectPlaylist: showPlaylist,
-                    onSelectArtist: showArtist
+                    onSelectArtist: showArtist,
+                    // Tab changes do not update the navigation tree, so save them here.
+                    onSelectCategory: { _ in selectionStore.save(navigationSelection, for: user) }
                 )
                 .environment(\.searchViewportHeight, contentSize.height)
                 .remembersScrollPosition()
@@ -511,7 +530,10 @@ struct SignedInView: View {
     }
 
     private func artistTabSelection(for artist: SoundCloudUser) -> ArtistTabSelection {
-        artistTabSelections.selection(for: artist.permalinkURL, in: destinationID)
+        let selection = artistTabSelections.selection(for: artist.permalinkURL, in: destinationID)
+        // Tab changes do not update the navigation tree, so save them here.
+        selection.onChange = { selectionStore.save(navigationSelection, for: user) }
+        return selection
     }
 
     private var bottomFade: some View {

@@ -10,6 +10,7 @@ struct SearchResultsView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
+    var onSelectCategory: (SearchCategory) -> Void = { _ in }
 
     @Environment(\.searchViewportHeight) private var searchViewportHeight
 
@@ -23,7 +24,8 @@ struct SearchResultsView: View {
         model: AppModel,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void,
-        onSelectArtist: @escaping (SoundCloudUser) -> Void
+        onSelectArtist: @escaping (SoundCloudUser) -> Void,
+        onSelectCategory: @escaping (SearchCategory) -> Void = { _ in }
     ) {
         self.query = query
         self.isGenreSearch = isGenreSearch
@@ -33,6 +35,7 @@ struct SearchResultsView: View {
         self.onSelectTrack = onSelectTrack
         self.onSelectPlaylist = onSelectPlaylist
         self.onSelectArtist = onSelectArtist
+        self.onSelectCategory = onSelectCategory
         let category: SearchCategory = isGenreSearch || isTagSearch ? .tracks : model.searchCategory(for: query)
         _tabSelection = State(initialValue: SearchTabSelection(category: category))
     }
@@ -46,6 +49,7 @@ struct SearchResultsView: View {
             if !isGenreSearch && !isTagSearch {
                 SearchTabs(selection: tabSelection) { category in
                     model.rememberSearchCategory(category, for: query)
+                    onSelectCategory(category)
                 }
                 .modifier(FadeInOnAppear())
             }
@@ -123,7 +127,7 @@ private struct SearchTabContent<Content: View>: View {
     }
 }
 
-enum SearchCategory: String, CaseIterable {
+enum SearchCategory: String, CaseIterable, Codable {
     case tracks = "Tracks"
     case playlists = "Playlists"
     case users = "Users"

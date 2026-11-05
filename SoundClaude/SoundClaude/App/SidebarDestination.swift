@@ -71,6 +71,10 @@ struct NavigationHistory {
 struct NavigationSelection: Codable, Equatable {
     var destination: SidebarDestination
     var route: Route? = nil
+    /// The visible search page's results tab.
+    var searchCategory: SearchCategory? = nil
+    /// The visible artist page's content tab.
+    var artistTab: ArtistDetailView.ContentTab? = nil
 
     var navigationHistories: [SidebarDestination.ID: NavigationHistory] {
         guard let route else { return [:] }

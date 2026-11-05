@@ -48,7 +48,7 @@ struct ArtistDetailView: View {
         }
     }
 
-    enum ContentTab: String, CaseIterable, Identifiable {
+    enum ContentTab: String, CaseIterable, Identifiable, Codable {
         case tracks = "Tracks"
         case reposts = "Reposts"
         case playlists = "Playlists"
@@ -1356,5 +1356,8 @@ struct ArtistDetailView: View {
 
 @Observable
 final class ArtistTabSelection {
-    var tab: ArtistDetailView.ContentTab = .tracks
+    var tab: ArtistDetailView.ContentTab = .tracks {
+        didSet { if tab != oldValue { onChange?() } }
+    }
+    @ObservationIgnored var onChange: (() -> Void)?
 }
