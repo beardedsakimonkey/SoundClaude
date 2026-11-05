@@ -14,9 +14,9 @@ struct SidebarView: View {
     let onPlayLikes: () async -> Void
     let onShuffleLikes: () async -> Void
     let onSelectStation: (SoundCloudStationLikePage.Station) -> Void
-    let onPlayStation: (SoundCloudStationLikePage.Station) async throws -> Void
+    let onPlayStation: (SoundCloudStationLikePage.Station, _ shuffle: Bool) async throws -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
-    let onPlayPlaylist: (SoundCloudPlaylist, PlaylistContents) async -> Void
+    let onPlayPlaylist: (SoundCloudPlaylist, PlaylistContents, _ shuffle: Bool) async -> Void
     let onDeletePlaylist: (SoundCloudPlaylist) -> Void
     let onSelectProfile: (SoundCloudUser) -> Void
     let onReselect: () -> Void
@@ -178,18 +178,10 @@ struct SidebarView: View {
                     }
                     .overlay(alignment: .trailing) {
                         if destination == .liked {
-                            Image(systemName: "shuffle")
-                                .frame(width: 28)
-                                .frame(maxHeight: .infinity)
-                                .contentShape(Rectangle())
-                                .modifier(SidebarForegroundHover(idleOpacity: 0.5))
-                                .modifier(SidebarMouseDownAction {
-                                    Task { await onShuffleLikes() }
-                                })
-                                .disabled(likes.tracks.isEmpty)
-                            .contentHelp("Shuffle likes")
-                            .accessibilityLabel("Shuffle likes")
-                            .padding(.trailing, 8)
+                            sidebarShuffleButton("Shuffle likes") {
+                                Task { await onShuffleLikes() }
+                            }
+                            .disabled(likes.tracks.isEmpty)
                         }
                     }
             }
@@ -292,52 +284,62 @@ struct SidebarView: View {
             sectionContents(isExpanded: isLikedStationsExpanded) {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(likes.likedStations) { station in
-                        Label {
-                            Text(station.displayTitle)
-                        } icon: {
-                            if station.isStation {
-                                StationPlayingIcon(
-                                    playback: playback, isCurrent: playbackSource == .station(station.urn)
-                                )
-                                .font(.system(size: 16))
-                                .frame(width: 28, height: 28)
-                            } else {
-                                Image(systemName: "music.note.list")
+                        let isStarting = startingStationURN == station.urn
+                        let isUpdating = likes.updatingStationURNs.contains(station.urn)
+                        let shuffleTitle = station.isStation ? "Shuffle station" : "Shuffle playlist"
+                        SidebarRowHoverReader { isHovered in
+                            let showsShuffle = isHovered && !isStarting && !isUpdating
+                            Label {
+                                Text(station.displayTitle)
+                            } icon: {
+                                if station.isStation {
+                                    StationPlayingIcon(
+                                        playback: playback, isCurrent: playbackSource == .station(station.urn)
+                                    )
                                     .font(.system(size: 16))
                                     .frame(width: 28, height: 28)
+                                } else {
+                                    Image(systemName: "music.note.list")
+                                        .font(.system(size: 16))
+                                        .frame(width: 28, height: 28)
+                                }
+                            }
+                            .lineLimit(1)
+                            .contentHelp(station.displayTitle)
+                            .padding(.trailing, isStarting || showsShuffle ? 32 : 0)
+                            .modifier(SidebarRowStyle(
+                                isSelected: false,
+                                usesPrimaryForeground: station.isStation
+                                    ? currentStationURN == station.urn : currentPlaylistURN == station.urn
+                            ) {
+                                onSelectStation(station)
+                            })
+                            .simultaneousGesture(TapGesture(count: 2).onEnded {
+                                startStation(station)
+                            })
+                            .accessibilityAction(named: station.isStation ? "Play station" : "Play playlist") {
+                                startStation(station)
+                            }
+                            .accessibilityAction(named: shuffleTitle) {
+                                startStation(station, shuffle: true)
+                            }
+                            .overlay(alignment: .trailing) {
+                                if isStarting {
+                                    LoadingSpinner()
+                                        .controlSize(.small)
+                                        .frame(width: 28, height: 28)
+                                        .padding(.trailing, 8)
+                                        .accessibilityLabel("Loading \(station.displayTitle) for playback")
+                                        .allowsHitTesting(false)
+                                } else if showsShuffle {
+                                    sidebarShuffleButton(shuffleTitle) {
+                                        startStation(station, shuffle: true)
+                                    }
+                                }
                             }
                         }
-                        .lineLimit(1)
-                        .contentHelp(station.displayTitle)
-                        .padding(.trailing, startingStationURN == station.urn ? 32 : 0)
-                        .modifier(SidebarRowStyle(
-                            isSelected: false,
-                            usesPrimaryForeground: station.isStation
-                                ? currentStationURN == station.urn : currentPlaylistURN == station.urn
-                        ) {
-                            onSelectStation(station)
-                        })
-                        .simultaneousGesture(TapGesture(count: 2).onEnded {
-                            startStation(station)
-                        })
-                        .accessibilityAction(named: station.isStation ? "Play station" : "Play playlist") {
-                            startStation(station)
-                        }
-                        .overlay(alignment: .trailing) {
-                            if startingStationURN == station.urn {
-                                LoadingSpinner()
-                                    .controlSize(.small)
-                                    .frame(width: 28, height: 28)
-                                    .padding(.trailing, 8)
-                                    .accessibilityLabel("Loading \(station.displayTitle) for playback")
-                                    .allowsHitTesting(false)
-                            }
-                        }
-                        .opacity(likes.updatingStationURNs.contains(station.urn) ? 0.5 : 1)
-                        .animation(
-                            reduceMotion ? nil : .easeInOut(duration: 0.2),
-                            value: likes.updatingStationURNs.contains(station.urn)
-                        )
+                        .opacity(isUpdating ? 0.5 : 1)
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
                         .contextMenu {
                             Button(
                                 station.isStation ? "Unlike station" : "Unlike playlist",
@@ -372,44 +374,56 @@ struct SidebarView: View {
         let contents = playlists.cache.contents[playlist.urn]
         let artworkURL = playlists.artworkURL(for: playlist)
         let isPendingRemoval = isUnliking || playlists.deletingPlaylistURNs.contains(playlist.urn)
+        let isStarting = startingPlaylistURN == playlist.urn
+        let isAddingTrack = addingToPlaylistURNs.contains(playlist.urn)
 
-        let row = Label {
-            Text(playlist.title)
-        } icon: {
-            TrackArtworkView(
-                artworkURL: artworkURL,
-                loader: artworkLoader,
-                size: 24,
-                shape: RoundedRectangle(cornerRadius: 6, style: .continuous),
-                showsBorder: false
-            )
-            .frame(width: 28)
-        }
-            .lineLimit(1)
-            .padding(.trailing, startingPlaylistURN == playlist.urn || addingToPlaylistURNs.contains(playlist.urn) ? 32 : 0)
-            .contentHelp(playlist.title)
-            .task(id: playlist.urn) { await playlists.loadArtwork(for: playlist) }
-            .modifier(SidebarRowStyle(
-                isSelected: false,
-                usesPrimaryForeground: currentPlaylistURN == playlist.urn
-            ) {
-                onSelectPlaylist(playlist)
-            })
-            .simultaneousGesture(TapGesture(count: 2).onEnded {
-                startPlaylist(playlist)
-            })
-            .accessibilityAction(named: "Play playlist") {
-                startPlaylist(playlist)
+        let row = SidebarRowHoverReader { isHovered in
+            let showsShuffle = isHovered && !isStarting && !isAddingTrack && !isPendingRemoval
+            Label {
+                Text(playlist.title)
+            } icon: {
+                TrackArtworkView(
+                    artworkURL: artworkURL,
+                    loader: artworkLoader,
+                    size: 24,
+                    shape: RoundedRectangle(cornerRadius: 6, style: .continuous),
+                    showsBorder: false
+                )
+                .frame(width: 28)
             }
-            .overlay(alignment: .trailing) {
-                if startingPlaylistURN == playlist.urn {
-                    LoadingSpinner()
-                        .controlSize(.small)
-                        .frame(width: 28, height: 28)
-                        .padding(.trailing, 8)
-                        .accessibilityLabel("Loading \(playlist.title) for playback")
+                .lineLimit(1)
+                .padding(.trailing, isStarting || isAddingTrack || showsShuffle ? 32 : 0)
+                .contentHelp(playlist.title)
+                .task(id: playlist.urn) { await playlists.loadArtwork(for: playlist) }
+                .modifier(SidebarRowStyle(
+                    isSelected: false,
+                    usesPrimaryForeground: currentPlaylistURN == playlist.urn
+                ) {
+                    onSelectPlaylist(playlist)
+                })
+                .simultaneousGesture(TapGesture(count: 2).onEnded {
+                    startPlaylist(playlist)
+                })
+                .accessibilityAction(named: "Play playlist") {
+                    startPlaylist(playlist)
                 }
-            }
+                .accessibilityAction(named: "Shuffle playlist") {
+                    startPlaylist(playlist, shuffle: true)
+                }
+                .overlay(alignment: .trailing) {
+                    if isStarting {
+                        LoadingSpinner()
+                            .controlSize(.small)
+                            .frame(width: 28, height: 28)
+                            .padding(.trailing, 8)
+                            .accessibilityLabel("Loading \(playlist.title) for playback")
+                    } else if showsShuffle {
+                        sidebarShuffleButton("Shuffle playlist") {
+                            startPlaylist(playlist, shuffle: true)
+                        }
+                    }
+                }
+        }
             .opacity(isPendingRemoval ? 0.5 : 1)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isPendingRemoval)
             .contextMenu {
@@ -446,7 +460,7 @@ struct SidebarView: View {
                         .fill(Color.accentColor.opacity(dropTargetURN == playlist.urn ? 0.18 : 0))
                 }
                 .overlay(alignment: .trailing) {
-                    if addingToPlaylistURNs.contains(playlist.urn), startingPlaylistURN != playlist.urn {
+                    if isAddingTrack, !isStarting {
                         LoadingSpinner()
                             .controlSize(.small)
                             .padding(.trailing, 8)
@@ -482,13 +496,13 @@ struct SidebarView: View {
         }
     }
 
-    private func startStation(_ station: SoundCloudStationLikePage.Station) {
+    private func startStation(_ station: SoundCloudStationLikePage.Station, shuffle: Bool = false) {
         guard startingStationURN == nil else { return }
         startingStationURN = station.urn
         Task { @MainActor in
             defer { startingStationURN = nil }
             do {
-                try await onPlayStation(station)
+                try await onPlayStation(station, shuffle)
             } catch {
                 guard !Task.isCancelled, !(error is CancellationError) else { return }
                 stationPlaybackError = "\(station.displayTitle): \(error.localizedDescription)"
@@ -508,7 +522,7 @@ struct SidebarView: View {
         }
     }
 
-    private func startPlaylist(_ playlist: SoundCloudPlaylist) {
+    private func startPlaylist(_ playlist: SoundCloudPlaylist, shuffle: Bool = false) {
         guard startingPlaylistURN == nil else { return }
         startingPlaylistURN = playlist.urn
         Task { @MainActor in
@@ -523,8 +537,20 @@ struct SidebarView: View {
                     ?? "This playlist has no playable tracks."
                 return
             }
-            await onPlayPlaylist(playlist, contents)
+            await onPlayPlaylist(playlist, contents, shuffle)
         }
+    }
+
+    private func sidebarShuffleButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Image(systemName: "shuffle")
+            .padding(.trailing, 10)
+            .frame(width: 38, alignment: .trailing)
+            .frame(maxHeight: .infinity)
+            .contentShape(Rectangle())
+            .modifier(SidebarForegroundHover(idleOpacity: 0.5))
+            .modifier(SidebarMouseDownAction(action: action))
+            .contentHelp(title)
+            .accessibilityLabel(title)
     }
 
     private func sectionContents<Content: View>(
@@ -688,6 +714,17 @@ private struct SidebarAccountHeader: View {
             .accessibilityLabel("Sign out")
         }
         .padding(.horizontal, 12)
+    }
+}
+
+// Owns a row's hover state so hovering one row does not invalidate the whole sidebar.
+private struct SidebarRowHoverReader<Content: View>: View {
+    @ViewBuilder let content: (_ isHovered: Bool) -> Content
+    @State private var isHovered = false
+
+    var body: some View {
+        content(isHovered)
+            .onContentHover { isHovered = $0 }
     }
 }
 

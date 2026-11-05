@@ -281,11 +281,14 @@ struct SignedInView: View {
                         showPlaylist(.systemPlaylist(urn: station.urn, title: station.displayTitle))
                     }
                 },
-                onPlayStation: { station in
+                onPlayStation: { station, shuffle in
                     let contents = try await model.station(urn: station.urn)
                     try Task.checkCancellation()
-                    guard let track = contents.tracks.first else {
+                    guard let track = shuffle ? contents.tracks.randomElement() : contents.tracks.first else {
                         throw SoundCloudError.api("This station has no playable tracks.")
+                    }
+                    if shuffle && !model.playback.isShuffleEnabled {
+                        model.toggleShuffle()
                     }
                     await model.play(track, queue: TrackQueue(
                         source: station.isStation ? .station(station.urn) : .playlist(station.urn),
@@ -294,9 +297,12 @@ struct SignedInView: View {
                     ))
                 },
                 onSelectPlaylist: showPlaylist,
-                onPlayPlaylist: { playlist, contents in
-                    guard let track = model.playback.isShuffleEnabled
+                onPlayPlaylist: { playlist, contents, shuffle in
+                    guard let track = shuffle || model.playback.isShuffleEnabled
                         ? contents.tracks.randomElement() : contents.tracks.first else { return }
+                    if shuffle && !model.playback.isShuffleEnabled {
+                        model.toggleShuffle()
+                    }
                     await model.play(track, queue: TrackQueue(
                         source: .playlist(playlist.urn),
                         tracks: contents.tracks,
