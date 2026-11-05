@@ -391,7 +391,7 @@ struct TrackCollectionTitleRow<Title: View, Actions: View>: View {
         HStack(spacing: 4) {
             title()
                 .labelStyle(.titleAndIcon)
-                .font(.body)
+                .font(.callout)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .padding(.horizontal, 12)
