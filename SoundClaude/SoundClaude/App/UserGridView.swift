@@ -54,22 +54,15 @@ private struct UserGridCard: View {
                     showsBorder: false,
                     showsPlaceholderIcon: false
                 )
-                .scaleEffect(
-                    isHovering && !reduceMotion ? 1.06 : 1
-                )
-                .animation(
-                    reduceMotion ? nil : .spring(response: 0.45, dampingFraction: 0.8),
-                    value: isHovering
-                )
+                .scaleEffect(isHovering && !reduceMotion ? 1.1 : 1)
                 .clipShape(Circle())
                 .modifier(PlayerArtworkGlass(
                     cornerRadius: 60
                 ))
-                .scaleEffect(
-                    isHovering && !reduceMotion ? 1.06 : 1
-                )
                 .animation(
-                    reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.6),
+                    reduceMotion ? nil : isHovering
+                        ? .spring(response: 0.35, dampingFraction: 0.75)
+                        : .spring(duration: 0.34, bounce: 0),
                     value: isHovering
                 )
                 VStack(spacing: 4) {
