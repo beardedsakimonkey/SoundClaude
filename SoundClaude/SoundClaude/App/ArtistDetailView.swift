@@ -372,6 +372,8 @@ struct ArtistDetailView: View {
                         artistActions
                             .labelStyle(.iconOnly)
                     }
+                    // Fade the row once, so resizing between label styles does not replay it.
+                    .modifier(FadeInOnAppear())
                 }
                 if canFollowArtist, let followErrorMessage {
                     VStack(alignment: .trailing, spacing: 8) {

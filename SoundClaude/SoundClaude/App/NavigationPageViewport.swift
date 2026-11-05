@@ -136,6 +136,7 @@ private struct ScrollPositionTracker: NSViewRepresentable {
         private var observers: [NSObjectProtocol] = []
         private var inputMonitor: Any?
         private var restoreTarget: CGFloat?
+        private var isRestoring = false
         // SwiftUI can reset the offset and resize lazy content during its first layouts.
         private static let restoreDuration: TimeInterval = 0.3
         // Pages refetch their contents when they remount. Scrolling to the end of what has
@@ -263,12 +264,16 @@ private struct ScrollPositionTracker: NSViewRepresentable {
         }
 
         private func restore(in scrollView: NSScrollView) {
-            guard let restoreTarget else { return }
+            // Moving the clip view posts bounds and frame changes synchronously. When AppKit or
+            // SwiftUI adjusts the origin in response, re-entering would recurse until the stack overflows.
+            guard let restoreTarget, !isRestoring else { return }
             let clipView = scrollView.contentView
             var proposed = clipView.bounds
             proposed.origin.y = restoreTarget
             let destination = clipView.constrainBoundsRect(proposed).origin
             guard destination != clipView.bounds.origin else { return }
+            isRestoring = true
+            defer { isRestoring = false }
             clipView.setBoundsOrigin(destination)
             scrollView.reflectScrolledClipView(clipView)
         }
