@@ -211,8 +211,7 @@ private struct StationSourceButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .foregroundStyle(Color.primary)
-                .opacity(0.9)
+                .trackCollectionTitleText()
                 .underline(isHovered)
                 .contentShape(Rectangle())
         }

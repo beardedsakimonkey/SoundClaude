@@ -152,7 +152,7 @@ struct PlaylistDetailView: View {
             TrackCollectionTitleRow {
                 Label {
                     Text(displayedPlaylist.title)
-                        .foregroundStyle(.secondary)
+                        .trackCollectionTitleText()
                 } icon: {
                     Image(systemName: "music.note.list")
                 }

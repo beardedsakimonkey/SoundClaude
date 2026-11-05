@@ -383,6 +383,12 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
     }
 }
 
+extension View {
+    func trackCollectionTitleText() -> some View {
+        foregroundStyle(Color.primary).opacity(0.9)
+    }
+}
+
 struct TrackCollectionTitleRow<Title: View, Actions: View>: View {
     @ViewBuilder let title: () -> Title
     @ViewBuilder let actions: () -> Actions
