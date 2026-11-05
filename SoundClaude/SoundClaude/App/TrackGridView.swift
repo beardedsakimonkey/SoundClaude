@@ -199,6 +199,8 @@ struct TrackGridTile: View {
     @State private var isHoveringTitle = false
     @State private var isHoveringMenu = false
     @State private var likeErrorMessage: String?
+    // Playback state flips asynchronously, so withAnimation can't scope this to a click.
+    @State private var animatesIconChange = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isCurrentTrack: Bool {
@@ -212,6 +214,7 @@ struct TrackGridTile: View {
 
         VStack(alignment: .leading, spacing: 8) {
             Button {
+                animatesIconChange = true
                 if isCurrentTrack {
                     playback.togglePlayPause()
                 } else {
@@ -238,7 +241,11 @@ struct TrackGridTile: View {
                     value: isHoveringArtwork
                 )
                 .overlay {
-                    AnimatedPlayPauseIcon(isPlaybackActive: isPlaybackActive, size: 32)
+                    AnimatedPlayPauseIcon(
+                        isPlaybackActive: isPlaybackActive,
+                        size: 32,
+                        animatesChange: animatesIconChange
+                    )
                         .foregroundStyle(.white)
                         .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
                         .scaleEffect(reduceMotion || isHoveringArtwork || isCurrentTrack ? 1 : 0.8)
@@ -252,6 +259,7 @@ struct TrackGridTile: View {
                 }
             }
             .buttonStyle(.plain)
+            .onChange(of: isPlaybackActive) { animatesIconChange = false }
             .disabled(track.access == .protected)
             .opacity(track.access == .protected ? protectedTrackOpacity : 1)
             .contentHelp(isPlaybackActive ? "Pause" : "Play")
