@@ -355,6 +355,8 @@ struct SignedInView: View {
     }
 
     private func openSearch() {
+        navigationHistories[SidebarDestination.search.id] = NavigationHistory()
+        artistTabSelections.tabs[SidebarDestination.search.id] = nil
         selectDestination(.search)
     }
 
@@ -821,9 +823,8 @@ struct SignedInView: View {
     // Pass the selection as a value. SwiftUI cannot compare a computed Binding,
     // so it would invalidate the sidebar on unrelated graph updates such as scrolling.
     private func selectDestination(_ destination: SidebarDestination) {
-        if destination == .search {
-            navigationHistories[destination.id] = NavigationHistory()
-            artistTabSelections.tabs[destination.id] = nil
+        if destination == .search,
+           navigationHistories[destination.id, default: NavigationHistory()].path.isEmpty {
             searchFocusRequest = UUID()
         }
         initialDetailArtworkRotation = nil
