@@ -147,43 +147,50 @@ struct SidebarView: View {
     private var sidebarContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(SidebarDestination.libraryDestinations) { destination in
-                Label {
-                    Text(destination.title)
-                } icon: {
-                    Image(systemName: destination.systemImage)
-                        .font(.system(size: 16))
-                        .frame(width: 28)
-                }
-                    .padding(.trailing, destination == .liked ? 32 : 0)
-                    .modifier(SidebarRowStyle(
-                        isSelected: selection == destination,
-                        usesPrimaryForeground: true,
-                        verticalPadding: 4
-                    ) {
-                        select(destination)
-                    })
-                    .simultaneousGesture(
-                        TapGesture(count: 2).onEnded {
-                            Task { await onPlayLikes() }
-                        },
-                        including: destination == .liked ? .all : .none
-                    )
-                    .accessibilityActions {
-                        if destination == .liked {
-                            Button("Play likes") {
+                SidebarRowHoverReader { isHovered in
+                    let showsShuffle = destination == .liked && isHovered
+                    Label {
+                        Text(destination.title)
+                    } icon: {
+                        Image(systemName: destination.systemImage)
+                            .font(.system(size: 16))
+                            .frame(width: 28)
+                    }
+                        .padding(.trailing, showsShuffle ? 32 : 0)
+                        .modifier(SidebarRowStyle(
+                            isSelected: selection == destination,
+                            usesPrimaryForeground: true,
+                            verticalPadding: 4
+                        ) {
+                            select(destination)
+                        })
+                        .simultaneousGesture(
+                            TapGesture(count: 2).onEnded {
                                 Task { await onPlayLikes() }
+                            },
+                            including: destination == .liked ? .all : .none
+                        )
+                        .accessibilityActions {
+                            if destination == .liked {
+                                Button("Play likes") {
+                                    Task { await onPlayLikes() }
+                                }
+                                .disabled(likes.tracks.isEmpty)
+                                Button("Shuffle likes") {
+                                    Task { await onShuffleLikes() }
+                                }
+                                .disabled(likes.tracks.isEmpty)
                             }
-                            .disabled(likes.tracks.isEmpty)
                         }
-                    }
-                    .overlay(alignment: .trailing) {
-                        if destination == .liked {
-                            sidebarShuffleButton("Shuffle likes") {
-                                Task { await onShuffleLikes() }
+                        .overlay(alignment: .trailing) {
+                            if showsShuffle {
+                                sidebarShuffleButton("Shuffle likes") {
+                                    Task { await onShuffleLikes() }
+                                }
+                                .disabled(likes.tracks.isEmpty)
                             }
-                            .disabled(likes.tracks.isEmpty)
                         }
-                    }
+                }
             }
             VStack(alignment: .leading, spacing: 0) {
                 sectionHeader("Playlists", isExpanded: $isPlaylistsExpanded, isLoading: playlists.isLoading)
