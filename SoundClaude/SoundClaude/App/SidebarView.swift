@@ -333,6 +333,7 @@ struct SidebarView: View {
                                         .allowsHitTesting(false)
                                 } else if showsShuffle {
                                     sidebarShuffleButton(shuffleTitle) {
+                                        onSelectStation(station)
                                         startStation(station, shuffle: true)
                                     }
                                 }
@@ -419,6 +420,7 @@ struct SidebarView: View {
                             .accessibilityLabel("Loading \(playlist.title) for playback")
                     } else if showsShuffle {
                         sidebarShuffleButton("Shuffle playlist") {
+                            onSelectPlaylist(playlist)
                             startPlaylist(playlist, shuffle: true)
                         }
                     }
