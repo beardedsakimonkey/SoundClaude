@@ -71,7 +71,7 @@ final class SkipIconView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         origin.position = CGPoint(x: bounds.midX, y: bounds.midY)
-        let scale = 13 / 55.04
+        let scale = 12 / 55.04
         origin.transform = CATransform3DMakeScale(isBackward ? -scale : scale, scale, 1)
         CATransaction.commit()
     }

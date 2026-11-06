@@ -301,16 +301,11 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
         displayedTrack: SoundCloudTrack?
     ) -> some View {
         let title = backward ? "Previous track" : "Next track"
-        return Button {
+        return DetailSkipButton(isBackward: backward) {
             navigateTrack(backward: backward, currentTrack: currentTrack, displayedTrack: displayedTrack)
-        } label: {
-            Label(title, systemImage: backward ? "backward.fill" : "forward.fill")
-                .frame(width: 44, height: 24)
         }
         .contentHelp(title)
-        .labelStyle(.iconOnly)
-        .font(.title3.weight(.semibold))
-        .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
+        .accessibilityLabel(title)
         .disabled(currentTrack == nil && collection.tracks.isEmpty)
         .detailSwapSlot(id: backward ? "previous" : "next", trackURN: displayedTrack?.urn, isCollection: true)
     }
@@ -374,6 +369,29 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
 
     private func playTrack(_ track: SoundCloudTrack) async {
         await model.play(track, queue: collection.queue())
+    }
+}
+
+// Each button owns its animation so a click does not update the whole detail view.
+private struct DetailSkipButton: View {
+    let isBackward: Bool
+    let action: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var animationTrigger = 0
+
+    var body: some View {
+        Button {
+            if !reduceMotion { animationTrigger &+= 1 }
+            action()
+        } label: {
+            AnimatedSkipIcon(isBackward: isBackward, trigger: animationTrigger, reduceMotion: reduceMotion)
+                .frame(width: 21, height: 13)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                .frame(width: 44, height: 24)
+        }
+        .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
     }
 }
 
