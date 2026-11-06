@@ -67,6 +67,38 @@ struct NavigationHistory {
     var forwardPath: [NavigationEntry] = []
 }
 
+enum SearchCategory: String, CaseIterable, Codable {
+    case tracks = "Tracks"
+    case playlists = "Playlists"
+    case users = "Users"
+
+    var systemImage: String {
+        switch self {
+        case .tracks: "music.note"
+        case .playlists: "music.note.list"
+        case .users: "person"
+        }
+    }
+}
+
+enum ArtistContentTab: String, CaseIterable, Identifiable, Codable {
+    case tracks = "Tracks"
+    case reposts = "Reposts"
+    case playlists = "Playlists"
+    case likes = "Likes"
+
+    var id: Self { self }
+
+    var systemImage: String {
+        switch self {
+        case .tracks: "music.note"
+        case .reposts: "arrow.2.squarepath"
+        case .playlists: "music.note.list"
+        case .likes: "heart"
+        }
+    }
+}
+
 // Persist only the visible page. All other tab, Back, and Forward history is transient.
 struct NavigationSelection: Codable, Equatable {
     var destination: SidebarDestination
@@ -74,7 +106,7 @@ struct NavigationSelection: Codable, Equatable {
     /// The visible search page's results tab.
     var searchCategory: SearchCategory? = nil
     /// The visible artist page's content tab.
-    var artistTab: ArtistDetailView.ContentTab? = nil
+    var artistTab: ArtistContentTab? = nil
 
     var navigationHistories: [SidebarDestination.ID: NavigationHistory] {
         guard let route else { return [:] }

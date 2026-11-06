@@ -127,20 +127,6 @@ private struct SearchTabContent<Content: View>: View {
     }
 }
 
-enum SearchCategory: String, CaseIterable, Codable {
-    case tracks = "Tracks"
-    case playlists = "Playlists"
-    case users = "Users"
-
-    var systemImage: String {
-        switch self {
-        case .tracks: "music.note"
-        case .playlists: "music.note.list"
-        case .users: "person"
-        }
-    }
-}
-
 private struct SearchResultList: View {
     let query: String
     let isGenreSearch: Bool

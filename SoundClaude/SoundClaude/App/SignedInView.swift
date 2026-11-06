@@ -798,7 +798,7 @@ struct SignedInView: View {
         push(route)
     }
 
-    private func showQueueSourceArtist(_ artist: SoundCloudUser?, tab: ArtistDetailView.ContentTab) {
+    private func showQueueSourceArtist(_ artist: SoundCloudUser?, tab: ArtistContentTab) {
         guard let artist else { return }
         artistTabSelection(for: artist).tab = tab
         showArtist(artist)

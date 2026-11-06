@@ -50,24 +50,6 @@ struct ArtistDetailView: View {
         }
     }
 
-    enum ContentTab: String, CaseIterable, Identifiable, Codable {
-        case tracks = "Tracks"
-        case reposts = "Reposts"
-        case playlists = "Playlists"
-        case likes = "Likes"
-
-        var id: Self { self }
-
-        var systemImage: String {
-            switch self {
-            case .tracks: "music.note"
-            case .reposts: "arrow.2.squarepath"
-            case .playlists: "music.note.list"
-            case .likes: "heart"
-            }
-        }
-    }
-
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -628,12 +610,12 @@ struct ArtistDetailView: View {
 
     private struct ArtistTabs: View {
         @Bindable var selection: ArtistTabSelection
-        let optionCount: (ContentTab) -> Int?
+        let optionCount: (ArtistContentTab) -> Int?
 
         var body: some View {
             TabPicker(
                 title: "Artist content",
-                options: ContentTab.allCases,
+                options: ArtistContentTab.allCases,
                 selection: $selection.tab,
                 optionCount: optionCount,
                 optionSystemImage: { $0.systemImage },
@@ -645,7 +627,7 @@ struct ArtistDetailView: View {
     // Read selection and build the list inside this leaf's observation scope.
     private struct ArtistTabContent<Content: View>: View {
         let selection: ArtistTabSelection
-        @ViewBuilder let content: (ContentTab) -> Content
+        @ViewBuilder let content: (ArtistContentTab) -> Content
 
         var body: some View {
             content(selection.tab)
@@ -655,7 +637,7 @@ struct ArtistDetailView: View {
         }
     }
 
-    private func tabContent(for tab: ContentTab) -> some View {
+    private func tabContent(for tab: ArtistContentTab) -> some View {
         VStack(alignment: .leading, spacing: 24) {
             if let message = model.errorMessage {
                 Label(message, systemImage: "exclamationmark.triangle")
@@ -674,7 +656,7 @@ struct ArtistDetailView: View {
         }
     }
 
-    private func tabCount(_ tab: ContentTab) -> Int? {
+    private func tabCount(_ tab: ArtistContentTab) -> Int? {
         let user = details?.user ?? artist
         return switch tab {
         case .tracks: user.trackCount
@@ -1383,7 +1365,7 @@ struct ArtistDetailView: View {
 
 @Observable
 final class ArtistTabSelection {
-    var tab: ArtistDetailView.ContentTab = .tracks {
+    var tab: ArtistContentTab = .tracks {
         didSet { if tab != oldValue { onChange?() } }
     }
     @ObservationIgnored var onChange: (() -> Void)?
