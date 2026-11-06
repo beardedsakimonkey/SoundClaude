@@ -18,10 +18,9 @@ struct PlayerSpeedControl: View {
                 .monospacedDigit()
                 .foregroundStyle(isShowingSpeed ? Color.orange : Color.primary)
                 .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
+                .modifier(PlayerSpeedHoverFeedback(color: .orange, isActive: isShowingSpeed, cornerRadius: 22))
         }
-        .buttonStyle(.plain)
-        .modifier(PlayerSpeedHoverFeedback(color: .orange, isActive: isShowingSpeed, cornerRadius: 22))
+        .buttonStyle(PlayerFooterButtonStyle())
         .keyboardShortcut("x", modifiers: [])
         .contentHelp("Playback speed and pitch (X)")
         .accessibilityLabel("Playback speed and pitch")

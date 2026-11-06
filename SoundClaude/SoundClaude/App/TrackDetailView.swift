@@ -566,11 +566,7 @@ struct TrackActionButtonStyle: ButtonStyle {
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovered)
             }
             .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.5)
-            .scaleEffect(configuration.isPressed && isEnabled && !reduceMotion ? 0.86 : 1)
-            .animation(
-                reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.65),
-                value: configuration.isPressed && isEnabled
-            )
+            .pressBounce(configuration.isPressed)
             // Keep the click area at its original size while the label scales.
             .contentShape(Capsule())
             .onContentHover { isHovering = $0 }

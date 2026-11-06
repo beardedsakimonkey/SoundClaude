@@ -205,8 +205,7 @@ struct PlayerFooterView: View {
                         .modifier(PlayerFooterButtonBackground(color: .accentColor, isActive: isShowingVisualizer))
                         .contentShape(Circle())
                 }
-                .buttonStyle(.plain)
-                .modifier(SpringPressEffect())
+                .buttonStyle(PlayerFooterButtonStyle())
                 .keyboardShortcut("v", modifiers: [])
                 .contentHelp(isShowingVisualizer ? "Hide visualizer (V)" : "Show visualizer (V)")
                 .accessibilityLabel(isShowingVisualizer ? "Hide visualizer" : "Show visualizer")
@@ -222,8 +221,7 @@ struct PlayerFooterView: View {
                         .modifier(PlayerFooterButtonBackground(color: .accentColor, isActive: isShowingQueue))
                         .contentShape(Circle())
                 }
-                .buttonStyle(.plain)
-                .modifier(SpringPressEffect())
+                .buttonStyle(PlayerFooterButtonStyle())
                 .keyboardShortcut("q", modifiers: [])
                 .contentHelp(isShowingQueue ? "Hide track queue (Q)" : "Show track queue (Q)")
                 .accessibilityLabel(isShowingQueue ? "Hide track queue" : "Show track queue")
@@ -569,20 +567,16 @@ private struct PlayerFooterArtworkButtonStyle: ButtonStyle {
     }
 }
 
-private struct PlayerFooterButtonStyle: ButtonStyle {
+struct PlayerFooterButtonStyle: ButtonStyle {
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        let isPressed = configuration.isPressed && isEnabled
-        return configuration.label
+        configuration.label
             .opacity(isEnabled ? 1 : 0.4)
-            .scaleEffect(isPressed && !reduceMotion ? 0.9 : 1)
-            .animation(
-                reduceMotion ? nil : .spring(response: 0.2, dampingFraction: 0.7),
-                value: isPressed
-            )
+            .pressBounce(configuration.isPressed)
+            // Keep the click area at its original size while the label scales.
+            .contentShape(Rectangle())
     }
 }
 
@@ -639,8 +633,7 @@ private struct PlayerFooterLikeButton: View {
                 .padding(.leading, 6)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .modifier(SpringPressEffect())
+        .buttonStyle(PlayerFooterButtonStyle())
         .disabled(track == nil)
         .opacity(isUpdating ? 0.5 : 1)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)

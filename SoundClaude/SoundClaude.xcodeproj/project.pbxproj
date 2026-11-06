@@ -63,7 +63,7 @@
 		A1000000000000000000001B /* PlayerFooterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000033 /* PlayerFooterView.swift */; };
 		402E5CBBFF434B839270458A /* PlayerVolumeControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0BA3CD5DBE44BB49D0B96B6 /* PlayerVolumeControl.swift */; };
 		02B5D93E397B5EA58490AD9F /* PlayerSpeedControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51EB047CDEF029DF063F292E /* PlayerSpeedControl.swift */; };
-		A10000000000000000000038 /* SpringGlassButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000038 /* SpringGlassButtonStyle.swift */; };
+		A10000000000000000000038 /* ButtonPressBounce.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000038 /* ButtonPressBounce.swift */; };
 		A10000000000000000000081 /* TabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000081 /* TabPicker.swift */; };
 		D92000000000000000000001 /* AnimatedPlayPauseIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D92000000000000000000002 /* AnimatedPlayPauseIcon.swift */; };
 		D92611060000000000000001 /* AnimatedSkipIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D92611060000000000000002 /* AnimatedSkipIcon.swift */; };
@@ -209,7 +209,7 @@
 		A20000000000000000000033 /* PlayerFooterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerFooterView.swift; sourceTree = "<group>"; };
 		E0BA3CD5DBE44BB49D0B96B6 /* PlayerVolumeControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerVolumeControl.swift; sourceTree = "<group>"; };
 		51EB047CDEF029DF063F292E /* PlayerSpeedControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerSpeedControl.swift; sourceTree = "<group>"; };
-		A20000000000000000000038 /* SpringGlassButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpringGlassButtonStyle.swift; sourceTree = "<group>"; };
+		A20000000000000000000038 /* ButtonPressBounce.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ButtonPressBounce.swift; sourceTree = "<group>"; };
 		A20000000000000000000081 /* TabPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabPicker.swift; sourceTree = "<group>"; };
 		D92000000000000000000002 /* AnimatedPlayPauseIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedPlayPauseIcon.swift; sourceTree = "<group>"; };
 		D92611060000000000000002 /* AnimatedSkipIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedSkipIcon.swift; sourceTree = "<group>"; };
@@ -401,7 +401,7 @@
 				A20000000000000000000033 /* PlayerFooterView.swift */,
 				E0BA3CD5DBE44BB49D0B96B6 /* PlayerVolumeControl.swift */,
 				51EB047CDEF029DF063F292E /* PlayerSpeedControl.swift */,
-				A20000000000000000000038 /* SpringGlassButtonStyle.swift */,
+				A20000000000000000000038 /* ButtonPressBounce.swift */,
 				A20000000000000000000081 /* TabPicker.swift */,
 				D92000000000000000000002 /* AnimatedPlayPauseIcon.swift */,
 				D92611060000000000000002 /* AnimatedSkipIcon.swift */,
@@ -699,7 +699,7 @@
 				A1000000000000000000001B /* PlayerFooterView.swift in Sources */,
 				402E5CBBFF434B839270458A /* PlayerVolumeControl.swift in Sources */,
 				02B5D93E397B5EA58490AD9F /* PlayerSpeedControl.swift in Sources */,
-				A10000000000000000000038 /* SpringGlassButtonStyle.swift in Sources */,
+				A10000000000000000000038 /* ButtonPressBounce.swift in Sources */,
 				A10000000000000000000081 /* TabPicker.swift in Sources */,
 				D92000000000000000000001 /* AnimatedPlayPauseIcon.swift in Sources */,
 				D92611060000000000000001 /* AnimatedSkipIcon.swift in Sources */,
