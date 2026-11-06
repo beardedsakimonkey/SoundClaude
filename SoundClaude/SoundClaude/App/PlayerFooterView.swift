@@ -268,18 +268,21 @@ struct PlayerFooterView: View {
                     .modifier(PlayerFooterButtonBackground(color: .green, isActive: playback.isShuffleEnabled))
                     .contentShape(Circle())
             }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: playback.isShuffleEnabled)
             .contentHelp(playback.isShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")
             .accessibilityLabel("Shuffle")
             .accessibilityValue(playback.isShuffleEnabled ? "On" : "Off")
 
             Button(action: playback.cycleRepeatMode) {
                 Image(systemName: playback.repeatMode == .one ? "repeat.1" : "repeat")
+                    .contentTransition(.symbolEffect(.replace))
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(playback.repeatMode != .off ? Color.cyan : Color.primary)
                     .frame(width: 32, height: 32)
                     .modifier(PlayerFooterButtonBackground(color: .cyan, isActive: playback.repeatMode != .off))
                     .contentShape(Circle())
             }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: playback.repeatMode)
             .contentHelp("\(playback.repeatMode.nextAction) (R)")
             .accessibilityLabel("Repeat")
             .accessibilityValue(playback.repeatMode.label)
