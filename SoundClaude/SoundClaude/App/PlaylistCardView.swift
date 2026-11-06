@@ -8,6 +8,7 @@ struct PlaylistCardView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isExpanded = false
     @State private var isHoveringTrackToggle = false
     @State private var selectedTrackURN: String?
@@ -126,7 +127,9 @@ struct PlaylistCardView: View {
 
         if isExpanded || trackCount > 5 || contents?.nextPageURL != nil {
             Button(isExpanded ? "View fewer tracks" : "View \(trackCount) tracks") {
-                isExpanded.toggle()
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+                    isExpanded.toggle()
+                }
                 if isExpanded { Task { await playlists.loadPlaylist(playlist) } }
             }
             .buttonStyle(.plain)
