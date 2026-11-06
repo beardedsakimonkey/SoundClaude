@@ -233,41 +233,9 @@ struct TrackDetailView: View {
     }
 
     private func repostButton(for track: SoundCloudTrack, iconOnly: Bool) -> some View {
-        let isReposted = reposts.isReposted(track)
-        let repostCount = reposts.repostCount(for: track)
-        let hasCount = !iconOnly && (repostCount ?? 0) != 0
-
-        return Button {
-            Task {
-                do {
-                    try await reposts.toggleRepost(track)
-                } catch is CancellationError {
-                } catch {
-                    repostErrorMessage = error.localizedDescription
-                }
-            }
-        } label: {
-            Group {
-                if hasCount, let repostCount {
-                    Label(repostCount.formatted(.number), systemImage: "arrow.2.squarepath")
-                } else {
-                    Image(systemName: "arrow.2.squarepath")
-                }
-            }
-                .foregroundStyle(isReposted ? Color.green : Color.primary)
-                .labelStyle(.titleAndIcon)
-                .font(.title3.weight(.semibold))
-                .padding(.horizontal, hasCount ? 24 : 0)
-                .frame(width: hasCount ? nil : 44)
-                .frame(minHeight: 24)
+        TrackDetailRepostButton(track: track, reposts: reposts, iconOnly: iconOnly) { error in
+            repostErrorMessage = error.localizedDescription
         }
-        .buttonStyle(TrackActionButtonStyle(
-            fill: isReposted ? .green.opacity(0.12) : .primary.opacity(0.12)
-        ))
-        .disabled(reposts.isLoading || reposts.updatingTrackURNs.contains(track.urn))
-        .contentHelp(isReposted ? "Undo repost" : "Repost track")
-        .accessibilityLabel(isReposted ? "Undo repost" : "Repost track")
-        .accessibilityValue(isReposted ? "Reposted" : "Not reposted")
     }
 
     private func nonempty(_ value: String?) -> String? {
@@ -616,6 +584,75 @@ struct TrackDetailBackdrop: View {
             backdrop.backgroundExtensionEffect()
         } else {
             backdrop
+        }
+    }
+}
+
+private struct TrackDetailRepostButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let track: SoundCloudTrack
+    @ObservedObject var reposts: RepostsController
+    let iconOnly: Bool
+    let onError: (Error) -> Void
+
+    @State private var repostTaps = 0
+
+    private var isReposted: Bool { reposts.isReposted(track) }
+    // The initial load decides whether a tap adds or removes the repost.
+    private var isUpdating: Bool { reposts.isLoading || reposts.isUpdating(trackURN: track.urn) }
+    private var repostCount: Int? { reposts.repostCount(for: track) }
+
+    private var hasCount: Bool { !iconOnly && (repostCount ?? 0) != 0 }
+    private var actionLabel: String { isReposted ? "Undo repost" : "Repost track" }
+
+    var body: some View {
+        Button {
+            guard !isUpdating else { return }
+            if !isReposted { repostTaps += 1 }
+            Task {
+                do {
+                    try await reposts.toggleRepost(track)
+                } catch is CancellationError {
+                } catch {
+                    onError(error)
+                }
+            }
+        } label: {
+            ZStack {
+                label
+                    .opacity(isReposted ? 0 : 1)
+                    .accessibilityHidden(isReposted)
+                label
+                    .foregroundStyle(Color.green)
+                    .symbolEffect(.bounce, options: .nonRepeating, value: reduceMotion ? 0 : repostTaps)
+                    .opacity(isReposted ? 1 : 0)
+                    .accessibilityHidden(!isReposted)
+            }
+            .labelStyle(.titleAndIcon)
+            .font(.title3.weight(.semibold))
+            .padding(.horizontal, hasCount ? 24 : 0)
+            .frame(width: hasCount ? nil : 44)
+            .frame(minHeight: 24)
+        }
+        .buttonStyle(TrackActionButtonStyle(
+            fill: isReposted ? .green.opacity(0.12) : .primary.opacity(0.12)
+        ))
+        // Keep the button enabled so a pending request cannot interrupt its release spring.
+        .opacity(isUpdating ? 0.5 : 1)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isReposted)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
+        .contentHelp(actionLabel)
+        .accessibilityLabel(actionLabel)
+        .accessibilityValue(isUpdating ? "Updating" : (isReposted ? "Reposted" : "Not reposted"))
+    }
+
+    @ViewBuilder
+    private var label: some View {
+        if hasCount, let repostCount {
+            Label(repostCount.formatted(.number), systemImage: "arrow.2.squarepath")
+        } else {
+            Image(systemName: "arrow.2.squarepath")
         }
     }
 }

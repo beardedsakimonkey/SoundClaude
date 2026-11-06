@@ -4,8 +4,9 @@ import Foundation
 @MainActor
 final class RepostsController: ObservableObject {
     @Published private(set) var isLoading = false
-    @Published private(set) var updatingTrackURNs: Set<String> = []
     @Published private var repostedURNs: Set<String> = []
+    // Requested states shown before the server confirms them.
+    @Published private var pendingReposts: [String: Bool] = [:]
     @Published private var updatedCounts: [String: Int] = [:]
 
     private let client: SoundCloudClient
@@ -19,8 +20,12 @@ final class RepostsController: ObservableObject {
         self.auth = auth
     }
 
+    var updatingTrackURNs: Set<String> { Set(pendingReposts.keys) }
+
+    func isUpdating(trackURN: String) -> Bool { pendingReposts[trackURN] != nil }
+
     func isReposted(_ track: SoundCloudTrack) -> Bool {
-        repostedURNs.contains(track.urn)
+        pendingReposts[track.urn] ?? repostedURNs.contains(track.urn)
     }
 
     func repostCount(for track: SoundCloudTrack) -> Int? {
@@ -63,15 +68,17 @@ final class RepostsController: ObservableObject {
     }
 
     func toggleRepost(_ track: SoundCloudTrack) async throws {
+        guard pendingReposts[track.urn] == nil else { return }
         let session = sessionID
-        guard updatingTrackURNs.insert(track.urn).inserted else { return }
-        defer {
-            if sessionID == session { updatingTrackURNs.remove(track.urn) }
-        }
         // Load every page before deciding whether to add or remove a repost.
         try await load()
         guard sessionID == session else { throw CancellationError() }
+        guard pendingReposts[track.urn] == nil else { return }
         let shouldRepost = !isReposted(track)
+        pendingReposts[track.urn] = shouldRepost
+        defer {
+            if sessionID == session { pendingReposts.removeValue(forKey: track.urn) }
+        }
         let token = try await auth.validAccessToken()
         guard sessionID == session else { throw CancellationError() }
         try await client.setTrackReposted(urn: track.urn, isReposted: shouldRepost, accessToken: token)
@@ -94,6 +101,6 @@ final class RepostsController: ObservableObject {
         isLoading = false
         repostedURNs = []
         updatedCounts = [:]
-        updatingTrackURNs = []
+        pendingReposts = [:]
     }
 }

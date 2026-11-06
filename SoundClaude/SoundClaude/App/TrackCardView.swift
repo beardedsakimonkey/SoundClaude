@@ -264,7 +264,7 @@ struct TrackCardView: View {
             isSelected: isReposted,
             iconOnly: reposts.repostCount(for: track) == nil
         ))
-        .disabled(reposts.isLoading || reposts.updatingTrackURNs.contains(track.urn))
+        .disabled(reposts.isLoading || reposts.isUpdating(trackURN: track.urn))
         .contentHelp(isReposted ? "Undo repost" : "Repost track")
         .accessibilityLabel(isReposted ? "Undo repost" : "Repost track")
         .accessibilityValue(isReposted ? "Reposted" : "Not reposted")

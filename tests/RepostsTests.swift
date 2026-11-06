@@ -114,8 +114,12 @@ struct RepostsTests {
         precondition(controller.isReposted(track))
         precondition(controller.repostCount(for: track) == 5)
         RepostsURLProtocol.respond { _ in (401, "{}") }
+        let failedToggle = Task { try await controller.toggleRepost(track) }
+        while !controller.isUpdating(trackURN: track.urn) { await Task.yield() }
+        // The requested state shows before the server responds.
+        precondition(!controller.isReposted(track))
         do {
-            try await controller.toggleRepost(track)
+            try await failedToggle.value
             fatalError("Unauthorized mutation accepted")
         } catch SoundCloudError.unauthorized {}
         precondition(controller.isReposted(track))
