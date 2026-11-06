@@ -9,6 +9,8 @@ struct DetailLikeButton: View {
     let subject: String
     let onError: (Error) -> Void
 
+    @State private var likeTaps = 0
+
     private var isLiked: Bool { likes.isLiked(track) }
     private var isUpdating: Bool { likes.isUpdating(trackURN: track.urn) }
     private var likeCount: Int? { likes.likeCount(for: track) }
@@ -19,6 +21,7 @@ struct DetailLikeButton: View {
     var body: some View {
         Button {
             guard !isUpdating else { return }
+            if !isLiked { likeTaps += 1 }
             Task {
                 do {
                     try await likes.toggleLike(track)
@@ -33,6 +36,7 @@ struct DetailLikeButton: View {
                     .accessibilityHidden(isLiked)
                 label(systemImage: "heart.fill")
                     .foregroundStyle(Color.accentColor)
+                    .symbolEffect(.bounce, options: .nonRepeating, value: reduceMotion ? 0 : likeTaps)
                     .opacity(isLiked ? 1 : 0)
                     .accessibilityHidden(!isLiked)
             }

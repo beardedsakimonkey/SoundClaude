@@ -417,6 +417,8 @@ struct TrackCollectionLikeButton: View {
     let size: Size
     let action: () -> Void
 
+    @State private var likeTaps = 0
+
     enum Size {
         case header
         case card
@@ -440,11 +442,13 @@ struct TrackCollectionLikeButton: View {
         let actionLabel = "\(isLiked ? "Unlike" : "Like") \(subject)"
         Button {
             guard !isUpdating else { return }
+            if !isLiked { likeTaps += 1 }
             action()
         } label: {
             Image(systemName: isLiked ? "heart.fill" : "heart")
                 .font(size.iconFont)
                 .contentTransition(.symbolEffect(.replace))
+                .symbolEffect(.bounce, options: .nonRepeating, value: reduceMotion ? 0 : likeTaps)
                 .frame(width: size.frame.width, height: size.frame.height)
         }
         .buttonStyle(TrackCollectionLikeButtonStyle(isLiked: isLiked))

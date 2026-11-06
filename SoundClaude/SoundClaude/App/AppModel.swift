@@ -23,6 +23,7 @@ final class AppModel {
 
     private(set) var errorMessage: String?
     var likeErrorMessage: String?
+    private(set) var currentTrackLikeEvents = 0
     /// The embedded soundcloud.com sign-in page, while it is open.
     private(set) var websiteLogin: WebsiteLogin?
 
@@ -1034,6 +1035,7 @@ final class AppModel {
     func toggleCurrentTrackLike() {
         guard let track = playback.currentTrack,
               !likes.isUpdating(trackURN: track.urn) else { return }
+        if !likes.isLiked(track) { currentTrackLikeEvents += 1 }
         Task {
             do {
                 try await likes.toggleLike(track)

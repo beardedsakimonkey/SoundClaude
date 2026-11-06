@@ -616,6 +616,7 @@ private struct PlayerFooterLikeButton: View {
                 .contentTransition(.symbolEffect(.replace))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(isLiked ? Color.accentColor : Color.primary)
+                .symbolEffect(.bounce, options: .nonRepeating, value: model.currentTrackLikeEvents)
                 .frame(width: 32, height: 32)
                 .modifier(PlayerFooterButtonBackground(color: .accentColor, isActive: isLiked))
                 .padding(.leading, 6)
