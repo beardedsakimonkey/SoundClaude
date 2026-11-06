@@ -245,12 +245,7 @@ struct PlayerFooterView: View {
 
     private var transportButtons: some View {
         HStack(spacing: 6) {
-            Button(action: playback.previous) {
-                Image(systemName: "backward.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(width: 32, height: 32)
-                    .modifier(PlayerFooterButtonBackground())
-            }
+            PlayerFooterSkipButton(isBackward: true, action: playback.previous)
             .keyboardShortcut("p", modifiers: [])
             .contentHelp("Previous track (P)")
             .accessibilityLabel("Previous track")
@@ -259,12 +254,7 @@ struct PlayerFooterView: View {
             PlayerFooterPlayPauseButton(playback: playback)
                 .disabled(model.queue.tracks.isEmpty)
 
-            Button(action: playback.next) {
-                Image(systemName: "forward.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(width: 32, height: 32)
-                    .modifier(PlayerFooterButtonBackground())
-            }
+            PlayerFooterSkipButton(isBackward: false, action: playback.next)
             .keyboardShortcut("n", modifiers: [])
             .contentHelp("Next track (N)")
             .accessibilityLabel("Next track")
@@ -296,6 +286,30 @@ struct PlayerFooterView: View {
         }
     }
 
+}
+
+// Each button owns its animation so a click does not update the whole footer.
+private struct PlayerFooterSkipButton: View {
+    let isBackward: Bool
+    let action: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var animationTrigger = 0
+
+    var body: some View {
+        Button {
+            if !reduceMotion { animationTrigger &+= 1 }
+            action()
+        } label: {
+            AnimatedSkipIcon(isBackward: isBackward, trigger: animationTrigger, reduceMotion: reduceMotion)
+                .frame(width: 23, height: 14)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+                .frame(width: 32, height: 32)
+                .modifier(PlayerFooterButtonBackground())
+                .contentShape(Circle())
+        }
+    }
 }
 
 // Read playback state in its own body so toggling does not update the footer.

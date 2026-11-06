@@ -66,6 +66,7 @@
 		A10000000000000000000038 /* SpringGlassButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000038 /* SpringGlassButtonStyle.swift */; };
 		A10000000000000000000081 /* TabPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000081 /* TabPicker.swift */; };
 		D92000000000000000000001 /* AnimatedPlayPauseIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D92000000000000000000002 /* AnimatedPlayPauseIcon.swift */; };
+		D92611060000000000000001 /* AnimatedSkipIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = D92611060000000000000002 /* AnimatedSkipIcon.swift */; };
 		A1000000000000000000001C /* SignedOutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000034 /* SignedOutView.swift */; };
 		A1000000000000000000001D /* NavigationBackEventView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000035 /* NavigationBackEventView.swift */; };
 		694ECE0E6F2D4C3C8713E6C7 /* NonCollapsingSidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79F82E5A84874D2085A63E4B /* NonCollapsingSidebar.swift */; };
@@ -211,6 +212,7 @@
 		A20000000000000000000038 /* SpringGlassButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpringGlassButtonStyle.swift; sourceTree = "<group>"; };
 		A20000000000000000000081 /* TabPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabPicker.swift; sourceTree = "<group>"; };
 		D92000000000000000000002 /* AnimatedPlayPauseIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedPlayPauseIcon.swift; sourceTree = "<group>"; };
+		D92611060000000000000002 /* AnimatedSkipIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedSkipIcon.swift; sourceTree = "<group>"; };
 		A20000000000000000000034 /* SignedOutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedOutView.swift; sourceTree = "<group>"; };
 		A20000000000000000000035 /* NavigationBackEventView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationBackEventView.swift; sourceTree = "<group>"; };
 		79F82E5A84874D2085A63E4B /* NonCollapsingSidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NonCollapsingSidebar.swift; sourceTree = "<group>"; };
@@ -402,6 +404,7 @@
 				A20000000000000000000038 /* SpringGlassButtonStyle.swift */,
 				A20000000000000000000081 /* TabPicker.swift */,
 				D92000000000000000000002 /* AnimatedPlayPauseIcon.swift */,
+				D92611060000000000000002 /* AnimatedSkipIcon.swift */,
 				A20000000000000000000034 /* SignedOutView.swift */,
 				A20000000000000000000035 /* NavigationBackEventView.swift */,
 				79F82E5A84874D2085A63E4B /* NonCollapsingSidebar.swift */,
@@ -699,6 +702,7 @@
 				A10000000000000000000038 /* SpringGlassButtonStyle.swift in Sources */,
 				A10000000000000000000081 /* TabPicker.swift in Sources */,
 				D92000000000000000000001 /* AnimatedPlayPauseIcon.swift in Sources */,
+				D92611060000000000000001 /* AnimatedSkipIcon.swift in Sources */,
 				A1000000000000000000001C /* SignedOutView.swift in Sources */,
 				A1000000000000000000001D /* NavigationBackEventView.swift in Sources */,
 				694ECE0E6F2D4C3C8713E6C7 /* NonCollapsingSidebar.swift in Sources */,
