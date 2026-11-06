@@ -32,7 +32,7 @@ struct PlaylistDetailView: View {
     private var collection: TrackCollection {
         TrackCollection(
             kind: .playlist, urn: playlist.urn, title: displayedPlaylist.title, tracks: tracks,
-            nextPageURL: nextPageURL, fallbackArtworkURL: displayedPlaylist.artworkURL
+            nextPageURL: nextPageURL
         )
     }
 

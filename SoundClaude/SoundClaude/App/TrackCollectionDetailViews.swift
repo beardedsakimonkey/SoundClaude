@@ -7,7 +7,7 @@ struct TrackCollectionBackdrop: View {
 
     var body: some View {
         let backdrop = TrackArtworkBackdropView(
-            artworkURL: collection.artworkURL(in: model),
+            artworkURL: collection.displayedTrack(in: model)?.displayArtworkURL,
             loader: model.artworkLoader,
             fadesToBottom: false,
             animatesChanges: true
@@ -130,7 +130,6 @@ struct TrackCollection: Equatable {
     let tracks: [SoundCloudTrack]
     var nextPageURL: URL? = nil
     var seedTrack: SoundCloudTrack? = nil
-    var fallbackArtworkURL: URL? = nil
 
     var source: TrackQueue.Source { kind == .playlist ? .playlist(urn) : .station(urn) }
     var subject: String { kind == .playlist ? "playlist" : "station" }
@@ -148,11 +147,6 @@ struct TrackCollection: Equatable {
             return currentTrack
         }
         return tracks.first ?? seedTrack
-    }
-
-    @MainActor func artworkURL(in model: AppModel) -> URL? {
-        guard let track = displayedTrack(in: model) else { return fallbackArtworkURL }
-        return track.displayArtworkURL
     }
 
     func queue(leadingTrack: SoundCloudTrack? = nil) -> TrackQueue {
@@ -188,7 +182,7 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
     var body: some View {
         let currentTrack = collection.currentTrack(in: model)
         let displayedTrack = collection.displayedTrack(in: model)
-        let artworkURL = collection.artworkURL(in: model)
+        let artworkURL = displayedTrack?.displayArtworkURL
         let artworkTitle = displayedTrack?.title ?? collection.title
 
         HStack(alignment: .top, spacing: 24) {
