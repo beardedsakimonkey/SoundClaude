@@ -56,6 +56,7 @@ struct TrackWaveformView: View {
     @State private var hoverFraction: Double = 0
     @State private var isHovering = false
     @State private var pendingSeek: (trackURN: String, fraction: Double, id: UUID)?
+    @State private var playheadSweep: WaveformPlayheadSweep?
     @State private var loadingIndicatorTrackURN: String?
     @State private var commentsReadyAppearance: CommentsAppearance?
     @State private var commentsPresentedTrackURN: String?
@@ -160,6 +161,28 @@ struct TrackWaveformView: View {
         }
         .onChange(of: track?.urn) { _, _ in
             pendingSeek = nil
+            playheadSweep = nil
+        }
+        // Only the current track's waveform observes playhead jumps.
+        .onChange(of: isCurrentTrack ? playback.lastPlayheadJump : nil) { _, jump in
+            guard let jump, !reduceMotion, displayedDuration > 0 else { return }
+            let jumpedFrom = min(max(jump.fromTime / displayedDuration, 0), 1)
+            // Continue from the on-screen position when a sweep is mid-flight.
+            let now = Date.now
+            let fromProgress = playheadSweep?.progress(toward: jumpedFrom, at: now) ?? jumpedFrom
+            guard fromProgress != progress else { return }
+            playheadSweep = WaveformPlayheadSweep(
+                id: jump.id, fromProgress: fromProgress, startDate: now
+            )
+        }
+        .task(id: playheadSweep?.id) {
+            guard playheadSweep != nil else { return }
+            do {
+                try await Task.sleep(for: .seconds(WaveformPlayheadSweep.duration))
+            } catch {
+                return
+            }
+            playheadSweep = nil
         }
         .onChange(of: pausesBars, initial: true) { _, pauses in
             if pauses {
@@ -226,8 +249,10 @@ struct TrackWaveformView: View {
                 let renderedHoverFraction = hoverFraction
                 WaveformAnimatedCanvas(
                     amplitudes: amplitudes,
-                    hoverOpacity: showsHoverPreview ? (colorScheme == .light ? 0.35 : 0.3) : 0
-                ) { context, size, amplitudes, hoverOpacity in
+                    hoverOpacity: showsHoverPreview ? (colorScheme == .light ? 0.35 : 0.3) : 0,
+                    progress: renderedProgress,
+                    playheadSweep: playheadSweep
+                ) { context, size, amplitudes, hoverOpacity, progress in
                     guard size.width > 0, size.height > 0 else { return }
                     let geometry = renderCache.geometry(
                         amplitudes: amplitudes, size: size, layout: layout
@@ -256,7 +281,6 @@ struct TrackWaveformView: View {
                             .resolve(in: context.environment).cgColor
                     let shadow = Color.black.opacity(colorScheme == .light ? 0.4 : 0.9)
                         .resolve(in: context.environment).cgColor
-                    let progress = renderedProgress
 
                     // Clip once outside the color layer so progress and hover
                     // cannot change antialiasing along the bar outline.
@@ -711,6 +735,7 @@ struct TrackWaveformView: View {
 
     private func seek(to fraction: Double) {
         guard isEnabled, let track else { return }
+        playheadSweep = nil
         if isCurrentTrack {
             pendingSeek = nil
             playback.seek(toFraction: fraction)
@@ -909,11 +934,33 @@ private final class WaveformRenderCache {
     }
 }
 
+// Sweeps the progress fill from where a discrete jump started.
+// The sweep is driven by time rather than a SwiftUI animation, so the
+// playback clock's non-animated updates cannot cut it short.
+private struct WaveformPlayheadSweep: Equatable {
+    let id: UUID
+    let fromProgress: Double
+    let startDate: Date
+
+    private static let spring = Spring(duration: 0.5, bounce: 0)
+    static var duration: TimeInterval { spring.settlingDuration }
+
+    // Ease toward the live position, which keeps advancing during the sweep.
+    func progress(toward target: Double, at date: Date) -> Double {
+        let elapsed = date.timeIntervalSince(startDate)
+        guard elapsed < Self.duration else { return target }
+        let eased = min(max(Self.spring.value(target: 1.0, time: max(elapsed, 0)), 0), 1)
+        return fromProgress + (target - fromProgress) * eased
+    }
+}
+
 // Canvas drawing needs explicit animatable inputs for bar heights and hover.
 private struct WaveformAnimatedCanvas: View, Animatable {
     var amplitudes: WaveformAmplitudes
     var hoverOpacity: Double
-    var renderer: (inout GraphicsContext, CGSize, WaveformAmplitudes, Double) -> Void
+    let progress: Double
+    let playheadSweep: WaveformPlayheadSweep?
+    var renderer: (inout GraphicsContext, CGSize, WaveformAmplitudes, Double, Double) -> Void
 
     var animatableData: AnimatablePair<WaveformAmplitudes, Double> {
         get { AnimatablePair(amplitudes, hoverOpacity) }
@@ -928,18 +975,22 @@ private struct WaveformAnimatedCanvas: View, Animatable {
     private static let tileWidth: CGFloat = 512
 
     var body: some View {
-        GeometryReader { geometry in
-            let size = geometry.size
-            let tileCount = max(Int((size.width / Self.tileWidth).rounded(.up)), 1)
-            ZStack(alignment: .topLeading) {
-                ForEach(0..<tileCount, id: \.self) { tile in
-                    let minX = CGFloat(tile) * Self.tileWidth
-                    Canvas { context, _ in
-                        context.translateBy(x: -minX, y: 0)
-                        renderer(&context, size, amplitudes, hoverOpacity)
+        // Ticks only while a playhead sweep is running.
+        TimelineView(.animation(paused: playheadSweep == nil)) { timeline in
+            let renderedProgress = playheadSweep?.progress(toward: progress, at: timeline.date) ?? progress
+            GeometryReader { geometry in
+                let size = geometry.size
+                let tileCount = max(Int((size.width / Self.tileWidth).rounded(.up)), 1)
+                ZStack(alignment: .topLeading) {
+                    ForEach(0..<tileCount, id: \.self) { tile in
+                        let minX = CGFloat(tile) * Self.tileWidth
+                        Canvas { context, _ in
+                            context.translateBy(x: -minX, y: 0)
+                            renderer(&context, size, amplitudes, hoverOpacity, renderedProgress)
+                        }
+                        .frame(width: max(min(Self.tileWidth, size.width - minX), 0), height: size.height)
+                        .offset(x: minX)
                     }
-                    .frame(width: max(min(Self.tileWidth, size.width - minX), 0), height: size.height)
-                    .offset(x: minX)
                 }
             }
         }

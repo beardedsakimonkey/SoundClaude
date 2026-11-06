@@ -168,7 +168,7 @@ private struct PlaybackCommands: Commands {
 
             ForEach(0..<10, id: \.self) { digit in
                 Button("Seek to \(digit * 10)%") {
-                    model.playback.seek(toFraction: Double(digit) / 10)
+                    model.playback.jump(toFraction: Double(digit) / 10)
                 }
                 .keyboardShortcut(KeyEquivalent(Character(String(digit))), modifiers: [])
                 .disabled(model.playback.currentTrack == nil)

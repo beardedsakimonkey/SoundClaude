@@ -47,6 +47,16 @@ final class PlaybackController {
     }
 
     private(set) var trackChangeDirection: TrackChangeDirection = .forward
+
+    struct PlayheadJump: Equatable {
+        let id = UUID()
+        let fromTime: Double
+    }
+
+    /// Set by discrete jumps (previous restarting the track, number keys),
+    /// so waveforms can sweep the playhead instead of snapping.
+    private(set) var lastPlayheadJump: PlayheadJump?
+
     private(set) var currentTrack: SoundCloudTrack? {
         didSet { updateCurrentTrackSelection() }
     }
@@ -766,17 +776,28 @@ final class PlaybackController {
     func restartIfLoaded(_ track: SoundCloudTrack) -> Bool {
         guard currentTrack?.urn == track.urn,
               player.currentItem?.status == .readyToPlay else { return false }
-        seek(to: 0)
+        restartFromBeginning()
         play()
         return true
     }
 
     func previous() {
         if currentTime > 3 {
-            seek(to: 0)
+            restartFromBeginning()
         } else {
             onPrevious?()
         }
+    }
+
+    private func restartFromBeginning() {
+        lastPlayheadJump = PlayheadJump(fromTime: currentTime)
+        seek(to: 0)
+    }
+
+    /// Seek for a discrete jump that waveforms should sweep to.
+    func jump(toFraction fraction: Double) {
+        lastPlayheadJump = PlayheadJump(fromTime: currentTime)
+        seek(toFraction: fraction)
     }
 
     private func seekIfNeeded() {
