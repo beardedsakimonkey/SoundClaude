@@ -315,7 +315,7 @@ struct SignedInView: View {
                 },
                 onSelectPlaylist: showPlaylist,
                 onPlayPlaylist: { playlist, contents, shuffle in
-                    guard let track = shuffle || model.playback.isShuffleEnabled
+                    guard let track = shuffle
                         ? contents.tracks.randomElement() : contents.tracks.first else { return }
                     if shuffle && !model.playback.isShuffleEnabled {
                         model.toggleShuffle()
