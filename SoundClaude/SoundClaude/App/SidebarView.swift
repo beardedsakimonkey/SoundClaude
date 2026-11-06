@@ -683,42 +683,46 @@ private struct SidebarAccountHeader: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            HStack(spacing: 8) {
-                TrackArtworkView(
-                    artworkURL: user.avatarURL,
-                    loader: artworkLoader,
-                    size: 24,
-                    showsBorder: false,
-                    showsPlaceholderIcon: false
-                )
-                .clipShape(Circle())
-                .overlay {
-                    Circle()
-                        .strokeBorder(.white.opacity(0.2), lineWidth: 1)
-                }
-                Text(user.username)
-                    .font(.callout.weight(.medium))
-                    .underline(isProfileHovered)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            .contentShape(Rectangle())
-            .modifier(SidebarMouseDownAction {
+            Button {
                 onSelectProfile(user)
-            })
+            } label: {
+                HStack(spacing: 8) {
+                    TrackArtworkView(
+                        artworkURL: user.avatarURL,
+                        loader: artworkLoader,
+                        size: 24,
+                        showsBorder: false,
+                        showsPlaceholderIcon: false
+                    )
+                    .clipShape(Circle())
+                    .overlay {
+                        Circle()
+                            .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                    }
+                    Text(user.username)
+                        .font(.callout.weight(.medium))
+                        .underline(isProfileHovered)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
             .onContentHover { isProfileHovered = $0 }
             .contentHelp("View profile: \(user.username)")
             .accessibilityLabel("View profile: \(user.username)")
 
             Spacer(minLength: 0)
 
-            Image(systemName: "rectangle.portrait.and.arrow.right")
-                .frame(width: 28, height: 28)
-                .contentShape(Circle())
-                .modifier(SidebarForegroundHover(idleOpacity: 0.5))
-                .modifier(SidebarMouseDownAction {
-                    Task { await onSignOut() }
-                })
+            Button {
+                Task { await onSignOut() }
+            } label: {
+                Image(systemName: "rectangle.portrait.and.arrow.right")
+                    .frame(width: 28, height: 28)
+                    .contentShape(Circle())
+                    .modifier(SidebarForegroundHover(idleOpacity: 0.5))
+            }
+            .buttonStyle(.plain)
             .contentHelp("Sign out")
             .accessibilityLabel("Sign out")
         }
