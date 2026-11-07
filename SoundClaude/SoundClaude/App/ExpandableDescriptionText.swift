@@ -84,14 +84,24 @@ struct ExpandableDescriptionText: View {
                 Button(isExpanded ? "Show less" : "Show more") {
                     isExpanded.toggle()
                 }
-                .buttonStyle(.link)
-                .fontWeight(.semibold)
+                .buttonStyle(ShowMoreButtonStyle())
                 .brightness(isHoveringToggle ? 0.1 : 0)
                 .opacity(isHoveringToggle ? 1 : 0.9)
                 .onContentHover { isHoveringToggle = $0 }
                 .accessibilityHint(isExpanded ? "Collapse description" : "Expand description")
             }
         }
+    }
+}
+
+private struct ShowMoreButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .fontWeight(.semibold)
+            .foregroundStyle(.link)
+            .contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .pressBounce(configuration.isPressed)
     }
 }
 

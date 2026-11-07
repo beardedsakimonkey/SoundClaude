@@ -844,6 +844,7 @@ private struct CommentReplyButtonStyle: ButtonStyle {
             .foregroundStyle(isHovering ? .secondary : .tertiary)
             .contentShape(Rectangle())
             .opacity(configuration.isPressed ? 0.75 : 1)
+            .pressBounce(configuration.isPressed)
             .onContentHover { isHovering = $0 }
     }
 }
@@ -1019,7 +1020,6 @@ private struct CommentTimestampButtonStyle: ButtonStyle {
     let color: Color
 
     @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovering = false
 
     func makeBody(configuration: Configuration) -> some View {
@@ -1031,6 +1031,7 @@ private struct CommentTimestampButtonStyle: ButtonStyle {
             .background(color.opacity(isHighlighted ? 0.24 : 0.12), in: Capsule())
             .contentShape(Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.5)
+            .pressBounce(configuration.isPressed)
             .onContentHover { isHovering = $0 }
     }
 }
