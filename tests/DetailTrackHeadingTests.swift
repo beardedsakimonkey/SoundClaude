@@ -13,6 +13,10 @@ struct SoundCloudTrack {
     var access: TrackAccess = .playable
 }
 struct ArtworkLoader {}
+struct ProtectedTrackIcon: View {
+    var font: Font = .body
+    var body: some View { Image(systemName: "lock.fill").font(font) }
+}
 struct ArtistLink: View {
     let artist: SoundCloudUser
     var artworkLoader: ArtworkLoader? = nil
@@ -22,9 +26,13 @@ struct ArtistLink: View {
     @StateObject private var lifetime = HeadingLifetime()
     var body: some View { let _ = lifetime; HStack(spacing: 8) { Color.clear.frame(width: 24, height: 24); Button(artist.username) { onSelect(artist) }.lineLimit(1) } }
 }
+enum PrefetchTarget { case track(SoundCloudTrack) }
 extension View {
     func onContentHover(_ action: @escaping (Bool) -> Void) -> some View { onHover(perform: action) }
     func contentHelp(_ text: String) -> some View { help(text) }
+    func prefetch(_ target: PrefetchTarget?, onHover: ((Bool) -> Void)? = nil) -> some View {
+        self.onHover { onHover?($0) }
+    }
 }
 
 private final class HeadingLifetime: ObservableObject {

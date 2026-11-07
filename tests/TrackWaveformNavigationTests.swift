@@ -3,9 +3,11 @@ import Observation
 import SwiftUI
 
 // Run the production waveform and navigation overlay with deterministic services.
+enum TrackAccess { case playable, protected }
 struct SoundCloudTrack {
     let urn: String
     var waveformURL: URL? = URL(string: "https://example.com/waveform")
+    var access: TrackAccess = .playable
     var displayArtworkURL: URL? { nil }
     var durationMilliseconds: Int { 120_000 }
 }
@@ -19,6 +21,11 @@ struct SoundCloudWaveform: Equatable {
 @Observable final class PlaybackController {
     subscript(isCurrentTrack urn: String) -> Bool { currentTrack?.urn == urn }
     enum Direction { case forward, backward }
+    struct PlayheadJump: Equatable {
+        let id = UUID()
+        let fromTime: Double
+    }
+    var lastPlayheadJump: PlayheadJump?
     var currentTrack: SoundCloudTrack? = SoundCloudTrack(urn: "same")
     var isPlaybackActive = true
     var isLoading = false
@@ -32,7 +39,7 @@ struct SoundCloudWaveform: Equatable {
 struct ArtworkAccent {
     let red = 0.5, green = 0.5, blue = 0.5
     static let fallback = ArtworkAccent()
-    func contrasted(isDark: Bool, increasedContrast: Bool) -> Self { self }
+    func contrasted(isDark: Bool, increasedContrast: Bool, minimumContrast: Double = 3.0) -> Self { self }
 }
 final class ArtworkLoader {
     func accentColor(for url: URL) async throws -> ArtworkAccent { .fallback }

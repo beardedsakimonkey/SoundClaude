@@ -23,6 +23,7 @@ enum SoundCloudError: Error { case invalidData }
 }
 @MainActor @Observable final class LikesController {
     var likedStationURNs: Set<String> = []
+    func isStationLiked(urn: String) -> Bool { likedStationURNs.contains(urn) }
     var updatingStationURNs: Set<String> = []
     var isLoadingStationLikes = false
     func loadStationLikes() async throws {}
@@ -99,16 +100,21 @@ struct TrackCollectionLikeButton: View {
     let isUpdating: Bool
     let isLoading: Bool
     let subject: String
+    let size: Size
     let action: () -> Void
+    enum Size { case header }
     var body: some View { EmptyView() }
 }
 struct OpenInSoundCloudButton: View {
     let url: URL?
     var body: some View { EmptyView() }
 }
+enum PrefetchTarget { case track(SoundCloudTrack) }
 extension View {
     func contentHelp(_ text: String) -> some View { self }
     func onContentHover(_ action: @escaping (Bool) -> Void) -> some View { self }
+    func trackCollectionTitleText() -> some View { self }
+    func prefetch(_ target: PrefetchTarget?, onHover: ((Bool) -> Void)? = nil) -> some View { self }
 }
 
 @main struct StationLoadingTests {

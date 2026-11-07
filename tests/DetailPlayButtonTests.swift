@@ -6,8 +6,11 @@ private final class ButtonLifetime: ObservableObject {
     init() { Self.creations += 1 }
 }
 
+@MainActor final class PlaybackController { var isPlaybackActive = false }
+
 struct TrackActionButtonStyle: ButtonStyle {
     let fill: Color
+    var dimsOnHover = false
     @StateObject private var lifetime = ButtonLifetime()
 
     func makeBody(configuration: Configuration) -> some View {

@@ -7,10 +7,14 @@ struct CurrentNavigationPage<Route: Hashable, Root: View, Destination: View>: Vi
     @ViewBuilder let destination: (Route) -> Destination
 
     var body: some View {
-        if let route {
-            destination(route).id(route)
-        } else {
-            root()
+        // Without a container, the page's identity change also resets the
+        // overlays applied to this view, remounting the shared detail waveform.
+        ZStack {
+            if let route {
+                destination(route).id(route)
+            } else {
+                root()
+            }
         }
     }
 }

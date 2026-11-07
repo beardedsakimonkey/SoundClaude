@@ -16,9 +16,13 @@ struct ArtistLink: View {
     let onSelect: (SoundCloudUser) -> Void
     var body: some View { Button(artist.username) { onSelect(artist) }.lineLimit(1) }
 }
+enum PrefetchTarget { case track(SoundCloudTrack) }
 extension View {
     func onContentHover(_ action: @escaping (Bool) -> Void) -> some View { onHover(perform: action) }
     func contentHelp(_ text: String) -> some View { help(text) }
+    func prefetch(_ target: PrefetchTarget?, onHover: ((Bool) -> Void)? = nil) -> some View {
+        self.onHover { onHover?($0) }
+    }
 }
 
 @main
