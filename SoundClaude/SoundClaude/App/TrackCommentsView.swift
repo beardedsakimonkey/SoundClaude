@@ -482,10 +482,19 @@ private struct TrackCommentAvatar: View {
             } label: {
                 thumbnail
             }
-            .buttonStyle(.plain)
+            // The sheet opens on mouse up; a press skips the hover delay.
+            .buttonStyle(TrackCommentAvatarButtonStyle {
+                Task { await prefetchFullSizePicture() }
+            })
             .contentShape(Circle())
             .onContentHover(in: Circle().path(in: CGRect(x: 0, y: 0, width: 40, height: 40))) {
                 isHovering = $0
+            }
+            .task(id: isHovering ? user.avatarURL : nil) {
+                guard isHovering else { return }
+                try? await Task.sleep(for: .milliseconds(150))
+                guard !Task.isCancelled else { return }
+                await prefetchFullSizePicture()
             }
             .contentHelp("View full-size picture")
             .accessibilityLabel("View full-size picture of \(user.username)")
@@ -500,6 +509,29 @@ private struct TrackCommentAvatar: View {
         } else {
             thumbnail
         }
+    }
+
+    // Seed the sheet's cache so it opens with the picture instead of a spinner.
+    // Hover and press share the loader's in-flight request, so this fetches once.
+    private func prefetchFullSizePicture() async {
+        guard let url = user.avatarURL,
+              cachedFullSizePicture?.sourceURL != url,
+              // Opening the sheet retries failed prefetches.
+              let data = try? await loader.data(for: url, rendition: .original),
+              cachedFullSizePicture?.sourceURL != url else { return }
+        cachedFullSizePicture = CachedFullSizeArtwork(sourceURL: url, data: data)
+    }
+}
+
+private struct TrackCommentAvatarButtonStyle: ButtonStyle {
+    let onPress: () -> Void
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .onChange(of: configuration.isPressed) { _, isPressed in
+                if isPressed { onPress() }
+            }
     }
 }
 
