@@ -36,7 +36,7 @@ struct SoundClaudeApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
-            PlaybackCommands(model: model, likes: model.likes)
+            PlaybackCommands(model: model)
             CommandGroup(replacing: .help) {
                 Button("Keyboard Shortcuts") {
                     isShowingKeyboardShortcuts.toggle()
@@ -103,7 +103,6 @@ struct SoundClaudeApp: App {
 // Menu state must not invalidate the window content.
 private struct PlaybackCommands: Commands {
     let model: AppModel
-    let likes: LikesController
 
     var body: some Commands {
         CommandMenu("Playback") {
@@ -141,9 +140,7 @@ private struct PlaybackCommands: Commands {
                 model.toggleCurrentTrackLike()
             }
             .keyboardShortcut("l", modifiers: [])
-            .disabled(model.playback.currentTrack.map {
-                likes.isUpdating(trackURN: $0.urn)
-            } ?? true)
+            .disabled(model.playback.currentTrack == nil)
 
             Button("Seek Back 5 Seconds") {
                 model.playback.seek(by: -5)

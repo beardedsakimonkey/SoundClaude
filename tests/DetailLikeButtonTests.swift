@@ -51,10 +51,10 @@ extension View {
 
     @MainActor static func runTests() async {
         var selectedRoute: Int?
-        func page(route: Int, trackURN: String = "same", enabled: Bool = true, iconOnly: Bool = false) -> some View {
+        func page(route: Int, trackURN: String = "same", pending: Bool = false, iconOnly: Bool = false) -> some View {
             let likes = LikesController()
             likes.liked = route != 0
-            likes.updatingTrackURNs = enabled ? [] : [trackURN]
+            likes.updatingTrackURNs = pending ? [trackURN] : []
             likes.onToggle = { selectedRoute = route }
             return CurrentNavigationPage(route: route) {
                 Color.clear
@@ -105,8 +105,9 @@ extension View {
         window.contentView = host
         window.makeKeyAndOrderFront(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
-        for (route, enabled, iconOnly) in [(1, true, false), (2, true, true), (0, true, false), (2, false, false)] {
-            host.rootView = page(route: route, enabled: enabled, iconOnly: iconOnly)
+        // Pending clicks still reach the controller so a second click can undo the first.
+        for (route, pending, iconOnly) in [(1, false, false), (2, false, true), (0, false, false), (2, true, false)] {
+            host.rootView = page(route: route, pending: pending, iconOnly: iconOnly)
             selectedRoute = nil
             await layout()
             try? await Task.sleep(for: .milliseconds(400))
@@ -126,7 +127,7 @@ extension View {
                 }
             }
             await layout()
-            precondition(selectedRoute == (enabled ? route : nil),
+            precondition(selectedRoute == route,
                          "The shared button must use the current page's action and pending update state")
         }
         window.orderOut(nil)

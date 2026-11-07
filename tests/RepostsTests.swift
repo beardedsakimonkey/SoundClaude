@@ -113,6 +113,27 @@ struct RepostsTests {
         try await controller.toggleRepost(track)
         precondition(controller.isReposted(track))
         precondition(controller.repostCount(for: track) == 5)
+
+        // A second click while pending undoes the first once it finishes.
+        let gate = DispatchSemaphore(value: 0)
+        let methods = RequestLog()
+        RepostsURLProtocol.respond { request in
+            precondition(request.url?.path == "/me/track_reposts/1")
+            methods.append(request.httpMethod ?? "")
+            if request.httpMethod == "DELETE" { gate.wait() }
+            return (200, "")
+        }
+        let doubleToggle = Task { try await controller.toggleRepost(track) }
+        while !controller.isUpdating(trackURN: track.urn) { await Task.yield() }
+        precondition(!controller.isReposted(track))
+        try await controller.toggleRepost(track)
+        precondition(controller.isReposted(track) && controller.isUpdating(trackURN: track.urn))
+        gate.signal()
+        try await doubleToggle.value
+        precondition(methods.values == ["DELETE", "PUT"])
+        precondition(controller.isReposted(track) && controller.repostCount(for: track) == 5)
+        precondition(controller.updatingTrackURNs.isEmpty)
+
         RepostsURLProtocol.respond { _ in (401, "{}") }
         let failedToggle = Task { try await controller.toggleRepost(track) }
         while !controller.isUpdating(trackURN: track.urn) { await Task.yield() }
@@ -144,6 +165,13 @@ struct RepostsTests {
         precondition(!controller.isReposted(track))
         print("Repost API and state checks passed")
     }
+}
+
+private final class RequestLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var log: [String] = []
+    var values: [String] { lock.withLock { log } }
+    func append(_ value: String) { lock.withLock { log.append(value) } }
 }
 
 private final class RepostsURLProtocol: URLProtocol {

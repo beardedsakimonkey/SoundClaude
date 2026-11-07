@@ -251,8 +251,9 @@ struct PlaylistDetailView: View {
                 ? likes.isStationLiked(urn: playlist.urn)
                 : playlists.isLiked(urn: playlist.urn),
             isUpdating: playlist.isSystemPlaylist
-                ? !likes.hasLoadedStationLikes || likes.updatingStationURNs.contains(playlist.urn)
-                : !playlists.hasLoadedLikes || playlists.updatingLikeURNs.contains(playlist.urn),
+                ? likes.updatingStationURNs.contains(playlist.urn)
+                : playlists.updatingLikeURNs.contains(playlist.urn),
+            isLoading: playlist.isSystemPlaylist ? !likes.hasLoadedStationLikes : !playlists.hasLoadedLikes,
             subject: "playlist: \(displayedPlaylist.title)",
             size: .header
         ) {

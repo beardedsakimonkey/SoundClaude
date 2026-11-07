@@ -39,7 +39,9 @@ final class SoundCloudClient {
         try await setPlaylistLike(urn, isLiked)
     }
     var setLike: () async throws -> Void = {}
+    var likeRequests: [Bool] = []
     func setTrackLiked(urn: String, isLiked: Bool, accessToken: String) async throws {
+        likeRequests.append(isLiked)
         try await setLike()
     }
 }
@@ -616,8 +618,11 @@ struct QueueAndLikesTests {
         }
         let stationLike = Task { try await likes.toggleStationLike(urn: stationURN, title: "New station") }
         while stationMutation == nil { await Task.yield() }
-        // Duplicate clicks do not issue a second mutation.
+        // Clicks that cancel out while pending do not issue a second mutation.
         try await likes.toggleStationLike(urn: stationURN)
+        precondition(!likes.isStationLiked(urn: stationURN))
+        try await likes.toggleStationLike(urn: stationURN)
+        precondition(likes.isStationLiked(urn: stationURN))
         stationMutation?.resume()
         try await stationLike.value
         precondition(likes.likedStationURNs == [stationURN])
@@ -650,15 +655,53 @@ struct QueueAndLikesTests {
         } onChange: {
             selectedTrackUpdates.increment()
         }
+        client.likeRequests = []
         client.setLike = {
+            guard client.likeRequests.count == 1 else { return }
             precondition(likes.isLiked(countedTrack))
             precondition(likes.updatingTrackURNs.contains(countedTrack.urn))
             precondition(!likes.tracks.contains(countedTrack))
-            // A second click while pending must not send another request.
+            // A second click while pending flips the target; the first caller sends it.
+            try await likes.toggleLike(countedTrack)
+            precondition(!likes.isLiked(countedTrack))
+            precondition(likes.updatingTrackURNs.contains(countedTrack.urn))
+        }
+        try await likes.toggleLike(countedTrack)
+        precondition(client.likeRequests == [true, false])
+        precondition(likes.updatingTrackURNs.isEmpty)
+        precondition(!likes.isLiked(countedTrack) && likes.likeCount(for: countedTrack) == 1_234)
+        precondition(!likes.tracks.contains(countedTrack))
+
+        // Clicks that cancel out before the request finishes send nothing more.
+        client.likeRequests = []
+        client.setLike = {
+            guard client.likeRequests.count == 1 else { return }
+            try await likes.toggleLike(countedTrack)
             try await likes.toggleLike(countedTrack)
         }
         try await likes.toggleLike(countedTrack)
+        precondition(client.likeRequests == [true])
+        precondition(likes.isLiked(countedTrack) && likes.likeCount(for: countedTrack) == 1_235)
+
+        // A failed follow-up keeps the state the server already confirmed.
+        client.likeRequests = []
+        client.setLike = {
+            if client.likeRequests.count == 1 {
+                try await likes.toggleLike(countedTrack)
+            } else {
+                throw SoundCloudError.invalidData
+            }
+        }
+        do {
+            try await likes.toggleLike(countedTrack)
+            fatalError("Failed like accepted")
+        } catch SoundCloudError.invalidData {}
+        precondition(client.likeRequests == [false, true])
         precondition(likes.updatingTrackURNs.isEmpty)
+        precondition(!likes.isLiked(countedTrack) && likes.likeCount(for: countedTrack) == 1_234)
+
+        client.setLike = {}
+        try await likes.toggleLike(countedTrack)
         precondition(likes.isLiked(countedTrack) && likes.likeCount(for: countedTrack) == 1_235)
         client.setLike = {
             precondition(!likes.isLiked(countedTrack))

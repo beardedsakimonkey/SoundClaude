@@ -164,7 +164,8 @@ struct StationDetailView: View {
             } actions: {
                 TrackCollectionLikeButton(
                     isLiked: likes.isStationLiked(urn: urn),
-                    isUpdating: likes.isLoadingStationLikes || likes.updatingStationURNs.contains(urn),
+                    isUpdating: likes.updatingStationURNs.contains(urn),
+                    isLoading: likes.isLoadingStationLikes,
                     subject: "station: \(title)",
                     size: .header
                 ) {

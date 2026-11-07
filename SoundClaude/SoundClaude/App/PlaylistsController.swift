@@ -61,12 +61,14 @@ final class PlaylistsController: ObservableObject {
         let isLoading = loadingPlaylistURNs.contains(urn)
         let errorMessage = playlistErrors[urn]
         let isLiked = pendingLikes[urn] ?? likedURNs.contains(urn)
-        let isUpdatingLike = !hasLoadedLikes || pendingLikes[urn] != nil
+        let isUpdatingLike = pendingLikes[urn] != nil
+        let isLoadingLike = !hasLoadedLikes
         if state.contents != contents { state.contents = contents }
         if state.isLoading != isLoading { state.isLoading = isLoading }
         if state.errorMessage != errorMessage { state.errorMessage = errorMessage }
         if state.isLiked != isLiked { state.isLiked = isLiked }
         if state.isUpdatingLike != isUpdatingLike { state.isUpdatingLike = isUpdatingLike }
+        if state.isLoadingLike != isLoadingLike { state.isLoadingLike = isLoadingLike }
     }
 
     func artworkURL(for playlist: SoundCloudPlaylist) -> URL? {
@@ -563,25 +565,38 @@ final class PlaylistsController: ObservableObject {
         await task.value
     }
 
+    /// Clicks during a pending request flip its target; see `syncToggle`.
     func toggleLike(_ playlist: SoundCloudPlaylist) async throws {
         guard !playlist.isPrivate else { return }
         await loadLikes()
-        guard hasLoadedLikes, pendingLikes[playlist.urn] == nil else { return }
+        guard hasLoadedLikes else { return }
         guard let accountID else { throw CancellationError() }
+        let urn = playlist.urn
+        let isSyncing = pendingLikes[urn] != nil
+        pendingLikes[urn] = !isLiked(urn: urn)
+        guard !isSyncing else { return }
         let session = sessionID
-        let shouldLike = !likedPlaylistURNs.contains(playlist.urn)
-        pendingLikes[playlist.urn] = shouldLike
-        defer { if sessionID == session { pendingLikes.removeValue(forKey: playlist.urn) } }
-        let token = try await accessToken(session: session)
-        try await client.setPlaylistLiked(urn: playlist.urn, isLiked: shouldLike, accessToken: token)
+        let initial = likedPlaylistURNs.contains(urn)
+        let (confirmed, error) = await syncToggle(from: initial, target: { pendingLikes[urn] }) { isLiked in
+            let token = try await accessToken(session: session)
+            try await client.setPlaylistLiked(urn: urn, isLiked: isLiked, accessToken: token)
+            try checkSession(session)
+        }
+        guard sessionID == session else { throw error ?? CancellationError() }
+        if confirmed != initial { applyLike(playlist, isLiked: confirmed) }
+        // Clear before saving so a click during the save starts a new request.
+        pendingLikes.removeValue(forKey: urn)
+        if confirmed != initial { try? await save(accountID: accountID, session: session) }
+        if let error { throw error }
         try checkSession(session)
+    }
+
+    private func applyLike(_ playlist: SoundCloudPlaylist, isLiked shouldLike: Bool) {
         if shouldLike {
             likedPlaylists.insert(playlist, at: 0)
         } else {
             likedPlaylists.removeAll { $0.urn == playlist.urn }
         }
-        try? await save(accountID: accountID, session: session)
-        try checkSession(session)
     }
 
     private func accessToken(session: UUID) async throws -> String {
@@ -647,5 +662,6 @@ final class PlaylistCardState {
     fileprivate(set) var isLoading = false
     fileprivate(set) var errorMessage: String?
     fileprivate(set) var isLiked = false
-    fileprivate(set) var isUpdatingLike = true
+    fileprivate(set) var isUpdatingLike = false
+    fileprivate(set) var isLoadingLike = true
 }

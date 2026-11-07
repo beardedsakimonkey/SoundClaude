@@ -592,7 +592,7 @@ private struct TrackDetailRepostButton: View {
 
     var body: some View {
         Button {
-            guard !isUpdating else { return }
+            guard !reposts.isLoading else { return }
             if !isReposted { repostTaps += 1 }
             Task {
                 do {

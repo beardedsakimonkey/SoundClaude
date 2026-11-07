@@ -427,7 +427,10 @@ struct TrackCollectionLikeButton: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let isLiked: Bool
+    /// A request is pending. Clicks still toggle so a second click can undo the first.
     let isUpdating: Bool
+    /// The like state is unknown until the user's likes load, so clicks are ignored.
+    let isLoading: Bool
     // Names the liked item, e.g. "playlist: Title".
     let subject: String
     let size: Size
@@ -456,8 +459,9 @@ struct TrackCollectionLikeButton: View {
 
     var body: some View {
         let actionLabel = "\(isLiked ? "Unlike" : "Like") \(subject)"
+        let isDimmed = isUpdating || isLoading
         Button {
-            guard !isUpdating else { return }
+            guard !isLoading else { return }
             if !isLiked { likeTaps += 1 }
             action()
         } label: {
@@ -468,12 +472,12 @@ struct TrackCollectionLikeButton: View {
                 .frame(width: size.frame.width, height: size.frame.height)
         }
         .buttonStyle(TrackCollectionLikeButtonStyle(isLiked: isLiked))
-        .opacity(isUpdating ? 0.5 : 1)
+        .opacity(isDimmed ? 0.5 : 1)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isDimmed)
         .contentHelp(actionLabel)
         .accessibilityLabel(actionLabel)
-        .accessibilityValue(isUpdating ? "Updating" : (isLiked ? "Liked" : "Not liked"))
+        .accessibilityValue(isDimmed ? "Updating" : (isLiked ? "Liked" : "Not liked"))
     }
 }
 

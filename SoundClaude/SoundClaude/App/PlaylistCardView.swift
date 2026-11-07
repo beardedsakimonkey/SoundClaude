@@ -302,6 +302,7 @@ private struct PlaylistCardTitleRow: View {
         TrackCollectionLikeButton(
             isLiked: cardState.isLiked,
             isUpdating: cardState.isUpdatingLike,
+            isLoading: cardState.isLoadingLike,
             subject: "playlist: \(playlist.title)",
             size: .card
         ) {

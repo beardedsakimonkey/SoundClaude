@@ -955,8 +955,7 @@ final class AppModel {
     }
 
     func toggleCurrentTrackLike() {
-        guard let track = playback.currentTrack,
-              !likes.isUpdating(trackURN: track.urn) else { return }
+        guard let track = playback.currentTrack else { return }
         if !likes.isLiked(track) { currentTrackLikeEvents += 1 }
         Task {
             do {

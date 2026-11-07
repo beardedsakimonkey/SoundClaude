@@ -152,6 +152,7 @@ test: test-playback-selection
 		tests/APITestSupport.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
+		SoundClaude/SoundClaude/Support/ToggleSync.swift \
 		SoundClaude/SoundClaude/App/RepostsController.swift \
 		tests/RepostsTests.swift
 	/tmp/soundclaude-tests/reposts
@@ -201,6 +202,7 @@ test: test-playback-selection
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
 		SoundClaude/SoundClaude/Likes/LikesCache.swift \
+		SoundClaude/SoundClaude/Support/ToggleSync.swift \
 		SoundClaude/SoundClaude/Likes/LikesController.swift \
 		tests/QueueAndLikesTests.swift
 	/tmp/soundclaude-tests/queue-likes
@@ -232,6 +234,7 @@ test: test-playback-selection
 		SoundClaude/SoundClaude/App/LaunchMetrics.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 		SoundClaude/SoundClaude/App/PlaylistsCache.swift \
+		SoundClaude/SoundClaude/Support/ToggleSync.swift \
 		SoundClaude/SoundClaude/App/PlaylistsController.swift \
 		tests/PlaylistsCacheTests.swift
 	/tmp/soundclaude-tests/playlists-cache

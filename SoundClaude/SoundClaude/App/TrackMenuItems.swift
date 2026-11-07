@@ -80,6 +80,5 @@ struct TrackMenuItems: View {
                 }
             }
         }
-        .disabled(likes.isUpdating(trackURN: track.urn))
     }
 }

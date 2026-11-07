@@ -933,7 +933,7 @@ private struct CommentReplyButtonStyle: ButtonStyle {
 @MainActor @Observable
 final class TrackCommentLikes {
     private(set) var likes: [String: SoundCloudCommentLikes] = [:]
-    private(set) var pendingURNs: Set<String> = []
+    private var pendingURNs: Set<String> = []
 
     /// Comments missing from `loaded` have no likes.
     func merge(_ loaded: [String: SoundCloudCommentLikes], for comments: [SoundCloudComment]) {
@@ -942,22 +942,26 @@ final class TrackCommentLikes {
         }
     }
 
+    /// Clicks during a pending request flip the shown state; see `syncToggle`.
     func toggle(_ comment: SoundCloudComment, on track: SoundCloudTrack, model: AppModel) async {
-        guard !pendingURNs.contains(comment.urn), let current = likes[comment.urn] else { return }
-        pendingURNs.insert(comment.urn)
-        defer { pendingURNs.remove(comment.urn) }
-        let isLiked = !current.isLiked
-        likes[comment.urn] = SoundCloudCommentLikes(
-            count: max(0, current.count + (isLiked ? 1 : -1)), isLiked: isLiked
-        )
-        do {
+        let urn = comment.urn
+        guard let current = likes[urn] else { return }
+        likes[urn] = Self.toggled(current)
+        guard pendingURNs.insert(urn).inserted else { return }
+        defer { pendingURNs.remove(urn) }
+        let (confirmed, error) = await syncToggle(from: current.isLiked, target: { likes[urn]?.isLiked }) { isLiked in
             try await model.setCommentLiked(isLiked, comment: comment, on: track)
-        } catch {
-            likes[comment.urn] = current
-            if !(error is CancellationError) {
-                model.likeErrorMessage = error.localizedDescription
-            }
         }
+        guard let error else { return }
+        likes[urn] = confirmed == current.isLiked ? current : Self.toggled(current)
+        if !(error is CancellationError) {
+            model.likeErrorMessage = error.localizedDescription
+        }
+    }
+
+    private static func toggled(_ state: SoundCloudCommentLikes) -> SoundCloudCommentLikes {
+        let isLiked = !state.isLiked
+        return SoundCloudCommentLikes(count: max(0, state.count + (isLiked ? 1 : -1)), isLiked: isLiked)
     }
 }
 
@@ -975,12 +979,10 @@ private struct TrackCommentLikeButton: View {
         let state = likes.likes[comment.urn]
         let isLiked = state?.isLiked == true
         let count = state?.count ?? 0
-        let isUpdating = likes.pendingURNs.contains(comment.urn)
         let actionLabel = isLiked ? "Unlike comment" : "Like comment"
 
         VStack(spacing: 0) {
             Button {
-                guard !isUpdating else { return }
                 if !isLiked { likeTaps += 1 }
                 Task { await likes.toggle(comment, on: track, model: model) }
             } label: {

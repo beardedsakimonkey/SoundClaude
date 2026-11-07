@@ -97,6 +97,7 @@ struct StationPlayingIcon: View {
 struct TrackCollectionLikeButton: View {
     let isLiked: Bool
     let isUpdating: Bool
+    let isLoading: Bool
     let subject: String
     let action: () -> Void
     var body: some View { EmptyView() }

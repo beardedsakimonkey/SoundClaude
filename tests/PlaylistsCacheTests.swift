@@ -65,12 +65,14 @@ final class SoundCloudClient {
     var likeWrites: [Bool] = []
     var failLikeWrite = false
     var onLikeWrite: () -> Void = {}
+    var duringLikeWrite: () async -> Void = {}
     func likedPlaylists(accessToken: String, pageURL: URL?) async throws -> SoundCloudPlaylistPage {
         try await fetchLikes(pageURL)
     }
     func setPlaylistLiked(urn: String, isLiked: Bool, accessToken: String) async throws {
         likeWrites.append(isLiked)
         onLikeWrite()
+        await duringLikeWrite()
         if failLikeWrite { throw SoundCloudError.invalidData }
     }
     func playlists(accessToken: String, pageURL: URL?) async throws -> SoundCloudPlaylistPage {
@@ -488,6 +490,21 @@ struct PlaylistsCacheTests {
         precondition(controller.likedPlaylists == [publicPlaylist])
         try await controller.toggleLike(makePlaylist(1))
         precondition(client.likeWrites.count == 3)
+
+        // A second click while pending undoes the first once it finishes.
+        client.failLikeWrite = false
+        client.likeWrites = []
+        client.duringLikeWrite = {
+            guard client.likeWrites.count == 1 else { return }
+            try? await controller.toggleLike(publicPlaylist)
+            precondition(controller.isLiked(urn: publicPlaylist.urn))
+            precondition(controller.updatingLikeURNs == [publicPlaylist.urn])
+        }
+        try await controller.toggleLike(publicPlaylist)
+        client.duringLikeWrite = {}
+        precondition(client.likeWrites == [false, true])
+        precondition(controller.likedPlaylistURNs.contains(publicPlaylist.urn))
+        precondition(controller.updatingLikeURNs.isEmpty)
         controller.clear()
         try await store.save(baseline, accountID: "user:1")
         await controller.restoreCache()

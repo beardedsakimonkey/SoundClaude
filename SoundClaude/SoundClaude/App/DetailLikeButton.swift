@@ -20,7 +20,6 @@ struct DetailLikeButton: View {
 
     var body: some View {
         Button {
-            guard !isUpdating else { return }
             if !isLiked { likeTaps += 1 }
             Task {
                 do {

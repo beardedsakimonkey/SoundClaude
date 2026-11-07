@@ -183,25 +183,39 @@ final class LikesController {
         }
     }
 
+    /// Clicks during a pending request flip its target; see `syncToggle`.
     func toggleStationLike(urn: String, title: String? = nil) async throws {
         try await loadStationLikes()
-        guard let accountID, pendingStationLikes[urn] == nil else { return }
+        guard let accountID else { return }
+        let isSyncing = pendingStationLikes[urn] != nil
+        pendingStationLikes[urn] = !isStationLiked(urn: urn)
+        guard !isSyncing else { return }
         let session = sessionID
-        let shouldLike = !likedStationURNs.contains(urn)
-        pendingStationLikes[urn] = shouldLike
-        defer {
-            if sessionID == session { pendingStationLikes.removeValue(forKey: urn) }
+        let initial = likedStationURNs.contains(urn)
+        let (confirmed, error) = await syncToggle(from: initial, target: { pendingStationLikes[urn] }) { isLiked in
+            let token = try await auth.validAccessToken()
+            guard sessionID == session else { throw CancellationError() }
+            try await client.setPlaylistLiked(urn: urn, isLiked: isLiked, accessToken: token)
+            guard sessionID == session else { throw CancellationError() }
         }
-        let token = try await auth.validAccessToken()
-        guard sessionID == session else { throw CancellationError() }
-        try await client.setPlaylistLiked(urn: urn, isLiked: shouldLike, accessToken: token)
-        guard sessionID == session else { throw CancellationError() }
+        guard sessionID == session else { throw error ?? CancellationError() }
+        if confirmed != initial { applyStationLike(urn: urn, title: title, isLiked: confirmed) }
+        // Clear before saving so a click during the save starts a new request.
+        pendingStationLikes.removeValue(forKey: urn)
+        if let error {
+            if confirmed != initial { try? await store.saveStations(likedStations, accountID: accountID) }
+            throw error
+        }
+        guard confirmed != initial else { return }
+        try await store.saveStations(likedStations, accountID: accountID)
+    }
+
+    private func applyStationLike(urn: String, title: String?, isLiked shouldLike: Bool) {
         if shouldLike {
             likedStations.insert(.init(urn: urn, title: title), at: 0)
         } else {
             likedStations.removeAll { $0.urn == urn }
         }
-        try await store.saveStations(likedStations, accountID: accountID)
     }
 
     func isStationLiked(urn: String) -> Bool {
@@ -212,21 +226,36 @@ final class LikesController {
         state(for: track.urn).updatedCount ?? track.likesCount
     }
 
+    /// Clicks during a pending request flip its target; see `syncToggle`.
     func toggleLike(_ track: SoundCloudTrack) async throws {
         await restoreCache()
-        guard let accountID, pendingLikes[track.urn] == nil else { return }
+        guard let accountID else { return }
+        let urn = track.urn
+        let isSyncing = pendingLikes[urn] != nil
+        pendingLikes[urn] = !isLiked(track)
+        guard !isSyncing else { return }
         let session = sessionID
-        let shouldLike = !isLiked(track)
-        pendingLikes[track.urn] = shouldLike
-        do {
+        let initial = likedTrackURNs.contains(urn)
+        let (confirmed, error) = await syncToggle(from: initial, target: { pendingLikes[urn] }) { isLiked in
             let accessToken = try await auth.validAccessToken()
-            guard sessionID == session else { return }
-            try await client.setTrackLiked(urn: track.urn, isLiked: shouldLike, accessToken: accessToken)
-        } catch {
-            if sessionID == session { pendingLikes.removeValue(forKey: track.urn) }
+            guard sessionID == session else { throw CancellationError() }
+            try await client.setTrackLiked(urn: urn, isLiked: isLiked, accessToken: accessToken)
+            guard sessionID == session else { throw CancellationError() }
+        }
+        // Callers surface every error, so a session change ends the toggle quietly.
+        guard sessionID == session else { return }
+        if confirmed != initial { applyLike(track, isLiked: confirmed) }
+        // Clear before saving so a click during the save starts a new request.
+        pendingLikes.removeValue(forKey: urn)
+        if let error {
+            if confirmed != initial { try? await store.save(cache, accountID: accountID) }
             throw error
         }
-        guard sessionID == session else { return }
+        guard confirmed != initial else { return }
+        try await store.save(cache, accountID: accountID)
+    }
+
+    private func applyLike(_ track: SoundCloudTrack, isLiked shouldLike: Bool) {
         // Track details can remain cached after the like state changes.
         if let count = likeCount(for: track) {
             updatedLikeCounts[track.urn] = max(0, count + (shouldLike ? 1 : -1))
@@ -242,8 +271,6 @@ final class LikesController {
             cache.tracks.removeAll { $0.urn == track.urn }
         }
         tracks = cache.tracks
-        pendingLikes.removeValue(forKey: track.urn)
-        try await store.save(cache, accountID: accountID)
     }
 
     /// Sync on entry to Likes. Cached tracks remain playable during all requests.

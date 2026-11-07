@@ -241,7 +241,6 @@ struct TrackCardView: View {
             isSelected: isLiked,
             iconOnly: likes.likeCount(for: track) == nil
         ))
-        .disabled(likes.isUpdating(trackURN: track.urn))
         .contentHelp(isLiked ? "Unlike track" : "Like track")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
         .accessibilityValue(isLiked ? "Liked" : "Not liked")
@@ -266,7 +265,7 @@ struct TrackCardView: View {
             isSelected: isReposted,
             iconOnly: reposts.repostCount(for: track) == nil
         ))
-        .disabled(reposts.isLoading || reposts.isUpdating(trackURN: track.urn))
+        .disabled(reposts.isLoading)
         .contentHelp(isReposted ? "Undo repost" : "Repost track")
         .accessibilityLabel(isReposted ? "Undo repost" : "Repost track")
         .accessibilityValue(isReposted ? "Reposted" : "Not reposted")

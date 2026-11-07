@@ -67,22 +67,30 @@ final class RepostsController: ObservableObject {
         try await task.value
     }
 
+    /// Clicks during a pending request flip its target; see `syncToggle`.
     func toggleRepost(_ track: SoundCloudTrack) async throws {
-        guard pendingReposts[track.urn] == nil else { return }
         let session = sessionID
         // Load every page before deciding whether to add or remove a repost.
         try await load()
         guard sessionID == session else { throw CancellationError() }
-        guard pendingReposts[track.urn] == nil else { return }
-        let shouldRepost = !isReposted(track)
-        pendingReposts[track.urn] = shouldRepost
-        defer {
-            if sessionID == session { pendingReposts.removeValue(forKey: track.urn) }
+        let urn = track.urn
+        let isSyncing = pendingReposts[urn] != nil
+        pendingReposts[urn] = !isReposted(track)
+        guard !isSyncing else { return }
+        let initial = repostedURNs.contains(urn)
+        let (confirmed, error) = await syncToggle(from: initial, target: { pendingReposts[urn] }) { isReposted in
+            let token = try await auth.validAccessToken()
+            guard sessionID == session else { throw CancellationError() }
+            try await client.setTrackReposted(urn: urn, isReposted: isReposted, accessToken: token)
+            guard sessionID == session else { throw CancellationError() }
         }
-        let token = try await auth.validAccessToken()
-        guard sessionID == session else { throw CancellationError() }
-        try await client.setTrackReposted(urn: track.urn, isReposted: shouldRepost, accessToken: token)
-        guard sessionID == session else { throw CancellationError() }
+        guard sessionID == session else { throw error ?? CancellationError() }
+        if confirmed != initial { applyRepost(track, isReposted: confirmed) }
+        pendingReposts.removeValue(forKey: urn)
+        if let error { throw error }
+    }
+
+    private func applyRepost(_ track: SoundCloudTrack, isReposted shouldRepost: Bool) {
         if let count = repostCount(for: track) {
             updatedCounts[track.urn] = max(0, count + (shouldRepost ? 1 : -1))
         }
