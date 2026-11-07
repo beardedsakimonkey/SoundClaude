@@ -330,7 +330,7 @@ private struct TrackCommentComposer: View {
                 Button(action: reply != nil ? onCancel : discardDraft) {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary)
                 }
                 .buttonStyle(CommentIconButtonStyle())
                 .contentHelp(closeLabel)
@@ -889,6 +889,7 @@ private struct TrackCommentLikeButton: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var likeTaps = 0
+    @State private var isHovering = false
 
     var body: some View {
         let state = likes.likes[comment.urn]
@@ -907,12 +908,14 @@ private struct TrackCommentLikeButton: View {
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(
                         isLiked ? AnyShapeStyle(Color.accentColor)
-                            : count > 0 ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary)
+                            : count > 0 || isHovering ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary)
                     )
+                    .animation(.easeInOut(duration: 0.15), value: isHovering)
                     .symbolEffect(.bounce, options: .nonRepeating, value: reduceMotion ? 0 : likeTaps)
                     .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(CommentIconButtonStyle())
+            .onContentHover { isHovering = $0 }
             .contentHelp(actionLabel)
             .accessibilityLabel(actionLabel)
             .accessibilityValue(count == 1 ? "1 like" : "\(count) likes")
