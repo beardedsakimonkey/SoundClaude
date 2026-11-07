@@ -124,6 +124,7 @@ struct PlaylistCardView: View {
         }
         .frame(height: CGFloat(min(displayedRowCount, isExpanded ? 8 : 5)) * 40)
         .scrollDisabled(!isExpanded)
+        .scrollEdgeFade()
 
         if isExpanded || trackCount > 5 || contents?.nextPageURL != nil {
             Button(isExpanded ? "View fewer tracks" : "View \(trackCount) tracks") {
@@ -209,6 +210,51 @@ struct PlaylistCardView: View {
             tracks: loaded.tracks,
             nextPageURL: loaded.nextPageURL, sourceTitle: loaded.playlist.title
         ), loadRemainingTracks: true)
+    }
+}
+
+/// Fades the scroll view's top and bottom edges while more content lies beyond them.
+private struct ScrollEdgeFade: ViewModifier {
+    var length: CGFloat = 24
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var edges = Edges()
+
+    private struct Edges: Equatable {
+        var top = false
+        var bottom = false
+    }
+
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content
+                .onScrollGeometryChange(for: Edges.self) { geometry in
+                    let offset = geometry.contentOffset.y + geometry.contentInsets.top
+                    let maxOffset = geometry.contentSize.height - geometry.containerSize.height
+                        + geometry.contentInsets.top + geometry.contentInsets.bottom
+                    return Edges(top: offset > 1, bottom: offset < maxOffset - 1)
+                } action: { _, newEdges in
+                    edges = newEdges
+                }
+                .mask {
+                    VStack(spacing: 0) {
+                        LinearGradient(colors: [.black.opacity(edges.top ? 0 : 1), .black], startPoint: .top, endPoint: .bottom)
+                            .frame(height: length)
+                        Rectangle()
+                        LinearGradient(colors: [.black, .black.opacity(edges.bottom ? 0 : 1)], startPoint: .top, endPoint: .bottom)
+                            .frame(height: length)
+                    }
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: edges)
+                }
+        } else {
+            content
+        }
+    }
+}
+
+private extension View {
+    func scrollEdgeFade(length: CGFloat = 24) -> some View {
+        modifier(ScrollEdgeFade(length: length))
     }
 }
 
