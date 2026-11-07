@@ -16,7 +16,7 @@ actor ArtworkLoader {
     }
 
     private let client: SoundCloudClient
-    private let cache = MemoryCache<NSURL, Data>(
+    nonisolated private let cache = MemoryCache<NSURL, Data>(
         name: "Artwork Data",
         countLimit: 300,
         totalCostLimit: 32 * 1_024 * 1_024
@@ -80,6 +80,12 @@ actor ArtworkLoader {
               ] as CFDictionary) else { return nil }
         bitmaps.insert(bitmap, forKey: key, cost: bitmap.bytesPerRow * bitmap.height)
         return bitmap
+    }
+
+    /// Data that is already loaded, read without waiting on the actor so that a
+    /// view can open with it. A fallback rendition is cached under its own URL.
+    nonisolated func cachedData(for url: URL, rendition: Rendition = .source) -> Data? {
+        cache.value(forKey: resolvedURL(for: rendition, sourceURL: url) as NSURL)
     }
 
     func accentColor(for url: URL, rendition: Rendition = .source) async throws -> ArtworkAccent? {

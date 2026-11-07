@@ -213,7 +213,7 @@ struct TrackDetailView: View {
             repostButton(for: track, iconOnly: iconOnly)
                 .detailSwapSlot(id: "repost", trackURN: track.urn)
             if let stationURN = nonempty(track.stationURN) {
-                TrackDetailStationButton(urn: stationURN, model: model) {
+                TrackDetailStationButton(urn: stationURN) {
                     onSelectStation(stationURN, details?.track ?? track)
                 }
                 .detailSwapSlot(id: "station", trackURN: track.urn)
@@ -276,7 +276,6 @@ private struct TrackDetailArtwork: View {
 
     @State private var isShowingArtwork = false
     @State private var isHoveringArtwork = false
-    @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
     private var isArtworkHoverActive: Bool { isHoveringArtwork || isShowingArtwork }
 
@@ -320,20 +319,15 @@ private struct TrackDetailArtwork: View {
             FullSizeArtworkView(
                 title: track.title,
                 artworkURL: track.displayArtworkURL,
-                loader: model.artworkLoader,
-                cachedArtwork: $cachedFullSizeArtwork
+                loader: model.artworkLoader
             )
         }
     }
 }
 
-// Keep hover local so that only the visible copy prefetches, not the page's hidden sizing copy.
 private struct TrackDetailStationButton: View {
     let urn: String
-    let model: AppModel
     let action: () -> Void
-
-    @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
@@ -344,18 +338,8 @@ private struct TrackDetailStationButton: View {
         }
         .buttonStyle(TrackActionButtonStyle(fill: .primary.opacity(0.12)))
         .contentHelp("Open this track’s station")
-        .onContentHover { isHovering = $0 }
-        .task(id: isHovering ? urn : nil) {
-            guard isHovering else { return }
-            do {
-                try await Task.sleep(for: .milliseconds(150))
-                try Task.checkCancellation()
-                // Once started, the shared request can finish even if hover ends.
-                _ = try await model.station(urn: urn)
-            } catch {
-                // Navigation retries failed prefetches; leaving cancels the delay.
-            }
-        }
+        // Only the visible copy is hovered, not the page's hidden sizing copy.
+        .prefetch(.station(urn))
     }
 }
 

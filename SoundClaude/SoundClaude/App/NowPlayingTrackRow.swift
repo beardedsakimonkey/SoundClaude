@@ -36,7 +36,7 @@ struct NowPlayingTrackRow: View {
                                 .opacity(0.9)
                         }
                         .buttonStyle(.plain)
-                        .onContentHover { isHoveringTrackTitle = $0 }
+                        .prefetch(.track(track)) { isHoveringTrackTitle = $0 }
                         .contentHelp("View track: \(track.title)")
                         .accessibilityLabel("View track: \(track.title)")
                         if layout == .inline {

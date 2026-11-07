@@ -28,6 +28,7 @@
 		A10000000000000000000001 /* SoundClaudeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* SoundClaudeApp.swift */; };
 		A10000000000000000000002 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* AppModel.swift */; };
 		D100000000000000000000B1 /* AppModel+Prefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = D200000000000000000000B1 /* AppModel+Prefetch.swift */; };
+		D100000000000000000000B2 /* Prefetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = D200000000000000000000B2 /* Prefetch.swift */; };
 		A10000000000000000000004 /* AuthController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* AuthController.swift */; };
 		A10000000000000000000005 /* KeychainTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* KeychainTokenStore.swift */; };
 		A10000000000000000000007 /* SoundCloudClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* SoundCloudClient.swift */; };
@@ -160,6 +161,7 @@
 		A20000000000000000000001 /* SoundClaudeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundClaudeApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		D200000000000000000000B1 /* AppModel+Prefetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Prefetch.swift"; sourceTree = "<group>"; };
+		D200000000000000000000B2 /* Prefetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prefetch.swift; sourceTree = "<group>"; };
 		A20000000000000000000004 /* AuthController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthController.swift; sourceTree = "<group>"; };
 		A20000000000000000000005 /* KeychainTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainTokenStore.swift; sourceTree = "<group>"; };
 		A20000000000000000000007 /* SoundCloudClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundCloudClient.swift; sourceTree = "<group>"; };
@@ -332,6 +334,7 @@
 				A2000000000000000000002B /* KeyboardShortcutsView.swift */,
 				A20000000000000000000002 /* AppModel.swift */,
 				D200000000000000000000B1 /* AppModel+Prefetch.swift */,
+				D200000000000000000000B2 /* Prefetch.swift */,
 				F18C43A92B0549E7AD013802 /* LaunchMetrics.swift */,
 				A2000000000000000000003D /* PlaylistsController.swift */,
 				A20000000000000000000041 /* PlaylistsCache.swift */,
@@ -632,6 +635,7 @@
 				A10000000000000000000013 /* KeyboardShortcutsView.swift in Sources */,
 				A10000000000000000000002 /* AppModel.swift in Sources */,
 				D100000000000000000000B1 /* AppModel+Prefetch.swift in Sources */,
+				D100000000000000000000B2 /* Prefetch.swift in Sources */,
 				F18C43A92B0549E7AD013801 /* LaunchMetrics.swift in Sources */,
 				A1000000000000000000003D /* PlaylistsController.swift in Sources */,
 				A10000000000000000000041 /* PlaylistsCache.swift in Sources */,

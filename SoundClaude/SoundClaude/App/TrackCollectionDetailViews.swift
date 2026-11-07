@@ -177,7 +177,6 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isShowingArtwork = false
-    @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
     var body: some View {
         let currentTrack = collection.currentTrack(in: model)
@@ -257,8 +256,7 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
             FullSizeArtworkView(
                 title: artworkTitle,
                 artworkURL: artworkURL,
-                loader: model.artworkLoader,
-                cachedArtwork: $cachedFullSizeArtwork
+                loader: model.artworkLoader
             )
         }
     }

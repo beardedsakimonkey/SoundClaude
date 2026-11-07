@@ -148,7 +148,9 @@ struct StationDetailView: View {
                     StationSourceButton(
                         title: title,
                         isArtistStation: stationType == "Artist station",
-                        isOpeningSource: isOpeningSource
+                        isOpeningSource: isOpeningSource,
+                        // Without a seed track, the source is unknown until it is looked up.
+                        prefetch: seedTrack.map(PrefetchTarget.track)
                     ) {
                         if let seedTrack {
                             onSelectTrack(seedTrack)
@@ -205,6 +207,7 @@ private struct StationSourceButton: View {
     let title: String
     let isArtistStation: Bool
     let isOpeningSource: Bool
+    let prefetch: PrefetchTarget?
     let action: () -> Void
     @State private var isHovered = false
 
@@ -216,7 +219,7 @@ private struct StationSourceButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onContentHover { isHovered = $0 }
+        .prefetch(prefetch) { isHovered = $0 }
         .disabled(isOpeningSource)
         .contentHelp(isArtistStation ? "View station artist" : "View station track")
         .accessibilityLabel("\(isArtistStation ? "View artist" : "View track"): \(title)")

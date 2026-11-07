@@ -79,7 +79,10 @@ struct PlayerFooterView: View {
             VStack(alignment: .leading, spacing: 6) {
                 if let track = playback.currentTrack {
                     if let stationURN {
-                        PlayerFooterSourceButton(title: stationTitle, icon: "dot.radiowaves.left.and.right", kind: "station") {
+                        PlayerFooterSourceButton(
+                            title: stationTitle, icon: "dot.radiowaves.left.and.right", kind: "station",
+                            prefetch: .station(stationURN)
+                        ) {
                             onSelectStation(stationURN, stationTitle)
                         }
                         .id(stationURN)
@@ -98,6 +101,7 @@ struct PlayerFooterView: View {
                     }
                     PlayerFooterTrackTitleButton(
                         title: track.title,
+                        track: track,
                         lineLimit: stationURN != nil || currentPlaylist != nil || showsPreviewBadge ? 1 : 2
                     ) {
                         onSelectTrack(track)
@@ -160,6 +164,7 @@ struct PlayerFooterView: View {
             }
             .buttonStyle(PlayerFooterArtworkButtonStyle(shape: artworkShape))
             .contentShape(artworkShape)
+            .prefetch(.track(track))
             .trackDraggable(track)
             .contextMenu {
                 TrackMenuItems(
@@ -345,6 +350,7 @@ private struct PlayerFooterPlayPauseButton: View {
 // Each title owns its hover state so underlining does not update the footer.
 private struct PlayerFooterTrackTitleButton: View {
     let title: String
+    let track: SoundCloudTrack
     let lineLimit: Int
     let action: () -> Void
 
@@ -361,7 +367,7 @@ private struct PlayerFooterTrackTitleButton: View {
         }
         .buttonStyle(.plain)
         .keyboardShortcut("f", modifiers: [])
-        .onContentHover { isHovering = $0 }
+        .prefetch(.track(track)) { isHovering = $0 }
         .contentHelp("Focus current track (F)")
     }
 }
@@ -370,6 +376,8 @@ private struct PlayerFooterSourceButton: View {
     let title: String
     let icon: String
     let kind: String
+    // The playlist source has only a URN until its details load, so it does not prefetch.
+    var prefetch: PrefetchTarget? = nil
     let action: () -> Void
 
     @State private var isHoveringSource = false
@@ -387,7 +395,7 @@ private struct PlayerFooterSourceButton: View {
             .foregroundStyle(.secondary)
         }
         .buttonStyle(.plain)
-        .onContentHover { isHoveringSource = $0 }
+        .prefetch(prefetch) { isHoveringSource = $0 }
         .contentHelp("View \(kind): \(title)")
         .accessibilityLabel("View \(kind): \(title)")
     }

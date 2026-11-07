@@ -8,6 +8,8 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
     let optionCount: (Selection) -> Int?
     let optionSystemImage: (Selection) -> String?
     let allowsIconOnly: Bool
+    /// What to warm while a tab other than the selected one is hovered or pressed.
+    let prefetch: (Selection) -> PrefetchTarget?
 
     init(
         title: String,
@@ -15,7 +17,8 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
         selection: Binding<Selection>,
         optionCount: @escaping (Selection) -> Int? = { _ in nil },
         optionSystemImage: @escaping (Selection) -> String? = { _ in nil },
-        allowsIconOnly: Bool = false
+        allowsIconOnly: Bool = false,
+        prefetch: @escaping (Selection) -> PrefetchTarget? = { _ in nil }
     ) {
         self.title = title
         self.options = options
@@ -23,6 +26,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
         self.optionCount = optionCount
         self.optionSystemImage = optionSystemImage
         self.allowsIconOnly = allowsIconOnly
+        self.prefetch = prefetch
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -83,7 +87,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                 .buttonStyle(.plain)
                 .accessibilityLabel(optionTitle(option, isEmphasized: false))
                 .contentHelp(optionTitle(option, isEmphasized: false))
-                .onContentHover { isHovering in
+                .prefetch(isSelected ? nil : prefetch(option)) { isHovering in
                     if isHovering {
                         hoveredOption = option
                     } else if hoveredOption == option {

@@ -25,7 +25,7 @@ struct GenrePill: View {
     @Environment(\.searchGenre) private var searchGenre
 
     var body: some View {
-        SearchPill(text: genre, label: "Search tracks in genre: \(genre)") {
+        SearchPill(text: genre, label: "Search tracks in genre: \(genre)", prefetch: .search(genre, .genre)) {
             searchGenre(genre)
         }
     }
@@ -36,7 +36,7 @@ struct TagPill: View {
     @Environment(\.searchTag) private var searchTag
 
     var body: some View {
-        SearchPill(text: tag, label: "Search tracks tagged: \(tag)") {
+        SearchPill(text: tag, label: "Search tracks tagged: \(tag)", prefetch: .search(tag, .tag)) {
             searchTag(tag)
         }
     }
@@ -45,6 +45,7 @@ struct TagPill: View {
 private struct SearchPill: View {
     let text: String
     let label: String
+    let prefetch: PrefetchTarget
     let action: () -> Void
     @State private var isHovering = false
 
@@ -53,7 +54,7 @@ private struct SearchPill: View {
             PillLabel(text: text, isHovering: isHovering)
         }
         .buttonStyle(.plain)
-        .onContentHover { isHovering = $0 }
+        .prefetch(prefetch, .pressOnly) { isHovering = $0 }
         .fixedSize()
         .accessibilityLabel(label)
         .contentHelp(label)

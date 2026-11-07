@@ -1,6 +1,7 @@
 import Foundation
 
-final class MemoryCache<Key: NSObject, Value> {
+// NSCache is thread-safe, and the debug records are guarded by `lock`.
+final class MemoryCache<Key: NSObject, Value>: @unchecked Sendable {
     private final class Entry: NSObject {
         let value: Value
 

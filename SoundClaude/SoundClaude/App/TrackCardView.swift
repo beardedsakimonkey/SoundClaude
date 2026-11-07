@@ -45,6 +45,8 @@ struct TrackCardView: View {
                 )
             }
             .buttonStyle(.plain)
+            // The pointer crosses large artwork on its way elsewhere.
+            .prefetch(.track(track), .pressOnly)
             .opacity(track.access == .protected ? protectedTrackOpacity : 1)
             .trackDraggable(track)
             .contentHelp("View track or drag to a playlist")
@@ -165,7 +167,7 @@ struct TrackCardView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .onContentHover { isHoveringTitle = $0 }
+            .prefetch(.track(track)) { isHoveringTitle = $0 }
             .contentHelp(track.title)
             if track.access == .preview {
                 TrackPreviewBadge()

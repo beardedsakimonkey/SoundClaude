@@ -7,6 +7,7 @@ struct SignedInView: View {
     @State private var selectedDestination: SidebarDestination?
     private let selectionStore = SidebarSelectionStore()
     @State private var artistTabSelections: ArtistTabSelections
+    @State private var prefetcher: Prefetcher
     @State private var rootScrollPositions = RootScrollPositions()
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
     @State private var initialDetailArtworkRotation: Bool?
@@ -37,6 +38,7 @@ struct SignedInView: View {
             artistTabSelections.selection(for: artist.permalinkURL, in: selection.destination.id).tab = tab
         }
         _artistTabSelections = State(initialValue: artistTabSelections)
+        _prefetcher = State(initialValue: Prefetcher(model: model))
     }
 
     private var navigationSelection: NavigationSelection {
@@ -188,6 +190,13 @@ struct SignedInView: View {
         }
         .environment(\.searchGenre, showGenreSearch)
         .environment(\.searchTag, showTagSearch)
+        .environment(\.prefetcher, prefetcher)
+        // An artist page reopens on the tab last chosen in this destination.
+        .onChange(of: destinationID, initial: true) { _, id in
+            prefetcher.rememberedArtistTab = { [artistTabSelections] artist in
+                artistTabSelections.tabs[id]?[artist.permalinkURL]?.tab
+            }
+        }
         .background {
             CurrentStationShortcut(
                 playback: model.playback,

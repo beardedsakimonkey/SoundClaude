@@ -85,7 +85,8 @@ private struct UserGridCard: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onContentHover { isHovering = $0 }
+        // The pointer sweeps across cards in the grid, so only a press prefetches.
+        .prefetch(.artist(user), .pressOnly) { isHovering = $0 }
         .contentHelp("View profile: \(user.username)")
         .accessibilityLabel("View profile: \(user.username)")
         .modifier(UserFadeIn())

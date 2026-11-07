@@ -72,7 +72,7 @@ struct DetailTrackHeading: View {
                                 TrackStationMenuItem(track: track)
                             }
                             .onTapGesture { if isCollection { onSelectTrack(track) } }
-                            .onContentHover { isHoveringTitle = $0 }
+                            .prefetch(isCollection ? .track(track) : nil) { isHoveringTitle = $0 }
                             .accessibilityAction(named: "View track") { onSelectTrack(track) }
                     }
                 }

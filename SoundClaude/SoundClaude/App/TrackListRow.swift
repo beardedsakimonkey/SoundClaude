@@ -171,7 +171,7 @@ struct TrackListRow: View {
                 .buttonStyle(.plain)
                 .font(titleFont)
                 .opacity(0.95)
-                .onContentHover { isHoveringTitle = $0 }
+                .prefetch(.track(track)) { isHoveringTitle = $0 }
                 if track.access == .preview {
                     TrackPreviewBadge()
                 }

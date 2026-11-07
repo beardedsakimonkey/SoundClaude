@@ -174,7 +174,6 @@ struct ArtistDetailView: View {
         }
     }
     @State private var isShowingArtwork = false
-    @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
 
     init(
         artist: SoundCloudUser,
@@ -275,8 +274,7 @@ struct ArtistDetailView: View {
             FullSizeArtworkView(
                 title: details?.user.username ?? artist.username,
                 artworkURL: details?.user.avatarURL ?? artist.avatarURL,
-                loader: model.artworkLoader,
-                cachedArtwork: $cachedFullSizeArtwork
+                loader: model.artworkLoader
             )
         }
         #if DEBUG
@@ -378,7 +376,7 @@ struct ArtistDetailView: View {
                 .padding(.bottom, -12)
 
                 HStack {
-                    ArtistTabs(selection: tabSelection, optionCount: tabCount)
+                    ArtistTabs(selection: tabSelection, artist: details.user, optionCount: tabCount)
                     .font(.body.weight(.semibold))
                     .layoutPriority(1)
                     .modifier(FadeInOnAppear())
@@ -558,7 +556,7 @@ struct ArtistDetailView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .modifier(RelatedArtistHover())
+                    .modifier(RelatedArtistHover(artist: user))
                     .contentHelp("View artist: \(user.username)")
                 }
             }
@@ -646,6 +644,7 @@ struct ArtistDetailView: View {
 
     private struct ArtistTabs: View {
         @Bindable var selection: ArtistTabSelection
+        let artist: SoundCloudUser
         let optionCount: (ArtistContentTab) -> Int?
 
         var body: some View {
@@ -655,7 +654,8 @@ struct ArtistDetailView: View {
                 selection: $selection.tab,
                 optionCount: optionCount,
                 optionSystemImage: { $0.systemImage },
-                allowsIconOnly: true
+                allowsIconOnly: true,
+                prefetch: { [artist] in .artistTab(artist, $0) }
             )
         }
     }
@@ -742,13 +742,7 @@ struct ArtistDetailView: View {
             onSelectStation(urn, details?.user.username ?? artist.username)
         }
         .contentHelp("Open this artist’s station")
-        .onContentHover { isHovering in
-            guard isHovering, let urn = nonempty(details?.user.stationURN) else { return }
-            Task {
-                // A failed prefetch can be retried when the station opens.
-                _ = try? await model.station(urn: urn)
-            }
-        }
+        .prefetch(nonempty(details?.user.stationURN).map(PrefetchTarget.station))
     }
 
     private var isShuffleReady: Bool {
@@ -879,9 +873,10 @@ struct ArtistDetailView: View {
                 }
                 .buttonStyle(ArtistPictureButtonStyle())
                 .contentShape(Circle())
-                .onContentHover(in: Circle().path(in: CGRect(
-                    x: 0, y: 0, width: pictureSize, height: pictureSize
-                ))) { isHoveringArtwork = $0 }
+                .prefetch(
+                    avatarURL.map(PrefetchTarget.fullSizeImage),
+                    in: Circle().path(in: CGRect(x: 0, y: 0, width: pictureSize, height: pictureSize))
+                ) { isHoveringArtwork = $0 }
                 .contentHelp("View full-size artist picture")
                 .accessibilityLabel("View full-size picture of \(user.username)")
             } else {
@@ -1203,6 +1198,7 @@ struct ArtistDetailView: View {
     }
 
     private struct RelatedArtistHover: ViewModifier {
+        let artist: SoundCloudUser
         @State private var isHovering = false
 
         func body(content: Content) -> some View {
@@ -1212,7 +1208,7 @@ struct ArtistDetailView: View {
                         .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
                         .animation(.easeInOut(duration: 0.15), value: isHovering)
                 }
-                .onContentHover { isHovering = $0 }
+                .prefetch(.artist(artist)) { isHovering = $0 }
         }
     }
 

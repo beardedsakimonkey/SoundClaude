@@ -44,6 +44,8 @@ struct PlaylistCardView: View {
                 )
             }
             .buttonStyle(.plain)
+            // The pointer crosses large artwork on its way elsewhere.
+            .prefetch(.playlist(displayedPlaylist), .pressOnly)
             .accessibilityLabel("Open playlist: \(displayedPlaylist.title)")
             .trackContextMenu(
                 track: waveformTrack,
@@ -281,7 +283,7 @@ private struct PlaylistCardTitleRow: View {
                     .lineLimit(1)
             }
             .buttonStyle(.plain)
-            .onContentHover { isHoveringTitle = $0 }
+            .prefetch(.playlist(playlist)) { isHoveringTitle = $0 }
             .contentHelp(playlist.title)
             .accessibilityLabel("Playlist, \(playlist.title)")
 

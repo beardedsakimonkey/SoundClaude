@@ -317,7 +317,10 @@ struct SidebarView: View {
                             .modifier(SidebarRowStyle(
                                 isSelected: false,
                                 usesPrimaryForeground: station.isStation
-                                    ? currentStationURN == station.urn : currentPlaylistURN == station.urn
+                                    ? currentStationURN == station.urn : currentPlaylistURN == station.urn,
+                                prefetch: station.isStation
+                                    ? .station(station.urn)
+                                    : .playlist(.systemPlaylist(urn: station.urn, title: station.displayTitle))
                             ) {
                                 onSelectStation(station)
                             })
@@ -405,7 +408,8 @@ struct SidebarView: View {
                 .task(id: playlist.urn) { await playlists.loadArtwork(for: playlist) }
                 .modifier(SidebarRowStyle(
                     isSelected: false,
-                    usesPrimaryForeground: currentPlaylistURN == playlist.urn
+                    usesPrimaryForeground: currentPlaylistURN == playlist.urn,
+                    prefetch: .playlist(playlist)
                 ) {
                     onSelectPlaylist(playlist)
                 })
@@ -745,6 +749,7 @@ private struct SidebarRowStyle: ViewModifier {
     let isSelected: Bool
     var usesPrimaryForeground = false
     var verticalPadding: CGFloat = 2
+    var prefetch: PrefetchTarget? = nil
     let onSelect: () -> Void
 
     func body(content: Content) -> some View {
@@ -756,6 +761,8 @@ private struct SidebarRowStyle: ViewModifier {
             .padding(.vertical, verticalPadding)
             .contentShape(Rectangle())
             .modifier(SidebarMouseDownAction(action: onSelect))
+            // Rows open on mouse down, so a press is already too late to prefetch.
+            .prefetch(prefetch, .hoverOnly)
             .modifier(SidebarForegroundHover(isSelected: isSelected, usesPrimaryForeground: usesPrimaryForeground))
             .background {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)

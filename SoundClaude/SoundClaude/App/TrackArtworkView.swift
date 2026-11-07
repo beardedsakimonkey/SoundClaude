@@ -186,18 +186,12 @@ private struct ArtworkExpandIndicator: ViewModifier {
     }
 }
 
-struct CachedFullSizeArtwork {
-    let sourceURL: URL
-    let data: Data
-}
-
 struct FullSizeArtworkView: View {
     let title: String
     let artworkURL: URL?
     let loader: ArtworkLoader
 
     @Environment(\.dismiss) private var dismiss
-    @Binding private var cachedArtwork: CachedFullSizeArtwork?
     @State private var image: NSImage?
     @State private var isLoading: Bool
     @State private var errorMessage: String?
@@ -205,17 +199,16 @@ struct FullSizeArtworkView: View {
     init(
         title: String,
         artworkURL: URL?,
-        loader: ArtworkLoader,
-        cachedArtwork: Binding<CachedFullSizeArtwork?>
+        loader: ArtworkLoader
     ) {
         self.title = title
         self.artworkURL = artworkURL
         self.loader = loader
-        _cachedArtwork = cachedArtwork
 
-        let cachedImage = cachedArtwork.wrappedValue.flatMap { cached in
-            cached.sourceURL == artworkURL ? NSImage(data: cached.data) : nil
-        }
+        // Prefetched or previously viewed artwork opens at its size, without a spinner.
+        let cachedImage = artworkURL
+            .flatMap { loader.cachedData(for: $0, rendition: .original) }
+            .flatMap(NSImage.init(data:))
         _image = State(initialValue: cachedImage)
         _isLoading = State(initialValue: cachedImage == nil)
     }
@@ -314,10 +307,6 @@ struct FullSizeArtworkView: View {
             guard let loadedImage = NSImage(data: data) else {
                 throw ArtworkLoadError.invalidImage
             }
-            cachedArtwork = CachedFullSizeArtwork(
-                sourceURL: artworkURL,
-                data: data
-            )
             image = loadedImage
         } catch {
             guard !Task.isCancelled else { return }
@@ -734,7 +723,7 @@ struct DetailArtworkView: View {
     private var artworkStack: some View {
         VStack(spacing: Self.reflectionSpacing) {
             draggableArtworkControl
-                .onContentHover { onImageHover?($0) }
+                .prefetch(artworkURL.map(PrefetchTarget.fullSizeImage)) { onImageHover?($0) }
                 .contextMenu {
                     if let track {
                         TrackMenuItems(

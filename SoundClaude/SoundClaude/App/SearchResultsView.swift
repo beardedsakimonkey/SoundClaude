@@ -47,7 +47,7 @@ struct SearchResultsView: View {
                 .textSelection(.enabled)
                 .modifier(FadeInOnAppear())
             if !isGenreSearch && !isTagSearch {
-                SearchTabs(selection: tabSelection) { category in
+                SearchTabs(query: query, selection: tabSelection) { category in
                     model.rememberSearchCategory(category, for: query)
                     onSelectCategory(category)
                 }
@@ -88,6 +88,7 @@ private final class SearchTabSelection {
 }
 
 private struct SearchTabs: View {
+    let query: String
     let selection: SearchTabSelection
     let onSelect: (SearchCategory) -> Void
 
@@ -103,7 +104,8 @@ private struct SearchTabs: View {
                     onSelect($0)
                 }
             ),
-            optionSystemImage: { $0.systemImage }
+            optionSystemImage: { $0.systemImage },
+            prefetch: { [query] in .searchTab(query, $0) }
         )
     }
 }

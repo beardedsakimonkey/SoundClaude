@@ -39,7 +39,7 @@ struct ArtistLink: View {
         }
         .buttonStyle(.plain)
         .artistContextMenu(artist: artist)
-        .onContentHover { isHovering = $0 }
+        .prefetch(.artist(artist)) { isHovering = $0 }
         .contentHelp(helpTitle)
         .accessibilityLabel("\(helpTitle): \(artist.username)")
     }

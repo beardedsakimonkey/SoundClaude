@@ -306,7 +306,7 @@ struct TrackGridTile: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .onContentHover { isHoveringTitle = $0 }
+                    .prefetch(.track(track)) { isHoveringTitle = $0 }
                     .contentHelp(track.title)
                     if track.access == .preview {
                         TrackPreviewBadge()
