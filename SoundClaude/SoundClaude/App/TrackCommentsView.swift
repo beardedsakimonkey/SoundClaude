@@ -70,6 +70,7 @@ struct TrackCommentsView: View {
     @State private var pageTask: Task<Void, Never>?
     @State private var errorMessage: String?
     @State private var likes = TrackCommentLikes()
+    @State private var replies = TrackCommentReplies()
     @State private var artworkAccent: ArtworkAccent?
     @State private var accentArtworkURL: URL?
     @Environment(\.colorScheme) private var colorScheme
@@ -95,8 +96,10 @@ struct TrackCommentsView: View {
                     track: track,
                     model: model,
                     likes: likes,
+                    replies: replies,
                     timestampColor: rowTimestampColor,
-                    onSelectArtist: onSelectArtist
+                    onSelectArtist: onSelectArtist,
+                    onReplyAdded: addReply
                 )
                 .modifier(FadeInOnAppear())
             }
@@ -175,6 +178,20 @@ struct TrackCommentsView: View {
             }
     }
 
+    // The new reply joins the end of its parent's thread, as the threaded endpoint lists it.
+    private func addReply(_ reply: SoundCloudComment, to parent: SoundCloudComment) {
+        let threadURN = parentURNs[parent.urn].flatMap { urn in
+            comments.contains { $0.urn == urn } ? urn : nil
+        } ?? parent.urn
+        comments.removeAll { $0.urn == reply.urn }
+        comments.append(reply)
+        parentURNs[reply.urn] = threadURN
+        likes.merge([:], for: [reply])
+        updateSortedComments()
+        replies.close(parent)
+        onCommentAdded()
+    }
+
     private func startLoadingPage() {
         guard pageTask == nil else { return }
         pageTask = Task {
@@ -226,13 +243,32 @@ struct TrackCommentsView: View {
     }
 }
 
+/// The comment a reply answers. As on the website, a reply is an ordinary comment that
+/// takes its thread's track time and starts with a mention of the comment's author.
+private struct TrackCommentReplyTarget {
+    let mention: String
+    let timestampMilliseconds: Int
+
+    init?(_ comment: SoundCloudComment) {
+        guard let permalink = comment.user?.permalinkURL.lastPathComponent, !permalink.isEmpty,
+              // Untimed comments never form threads, so a reply to one would not appear under it.
+              let timestamp = comment.timestampMilliseconds else { return nil }
+        mention = "@\(permalink): "
+        timestampMilliseconds = timestamp
+    }
+}
+
 // Keep composer interaction state local so hover, focus, and typing do not update the list.
 private struct TrackCommentComposer: View {
     let track: SoundCloudTrack
     let model: AppModel
+    let reply: TrackCommentReplyTarget?
+    /// Changes each time the user asks to reply again while this composer is open.
+    let focusRequest: Int
+    let onCancel: () -> Void
     let onCommentAdded: (SoundCloudComment) -> Void
 
-    @State private var draft = ""
+    @State private var draft: String
     @FocusState private var isCommentFocused: Bool
     @State private var isCommentHovered = false
     @State private var commentTimestampMilliseconds: Int?
@@ -241,111 +277,55 @@ private struct TrackCommentComposer: View {
 
     private static let avatarSize: CGFloat = 28
 
+    init(
+        track: SoundCloudTrack,
+        model: AppModel,
+        reply: TrackCommentReplyTarget? = nil,
+        focusRequest: Int = 0,
+        onCancel: @escaping () -> Void = {},
+        onCommentAdded: @escaping (SoundCloudComment) -> Void
+    ) {
+        self.track = track
+        self.model = model
+        self.reply = reply
+        self.focusRequest = focusRequest
+        self.onCancel = onCancel
+        self.onCommentAdded = onCommentAdded
+        _draft = State(initialValue: reply?.mention ?? "")
+        _commentTimestampMilliseconds = State(initialValue: reply?.timestampMilliseconds)
+    }
+
+    // An open reply composer always shows its controls; the top one shows them while
+    // in use or holding a draft.
     private var showsComposerControls: Bool {
-        isCommentHovered || isCommentFocused || isPosting
+        showsComposerBackground || isPosting
+    }
+
+    private var showsComposerBackground: Bool {
+        reply != nil || !draft.isEmpty || isCommentFocused || isCommentHovered
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                if case let .signedIn(user) = model.auth.state {
-                    TrackArtworkView(
-                        artworkURL: user.avatarURL,
-                        loader: model.artworkLoader,
-                        size: Self.avatarSize,
-                        shape: RoundedRectangle(cornerRadius: Self.avatarSize / 2),
-                        showsBorder: false,
-                        showsPlaceholderIcon: false
-                    )
-                    .clipShape(Circle())
-                    .overlay {
-                        Circle()
-                            .strokeBorder(.white.opacity(0.2), lineWidth: 1)
-                            .allowsHitTesting(false)
+            HStack(spacing: 6) {
+                field
+                    // The top composer's X sits beside the capsule, so it appearing
+                    // does not narrow the field.
+                    .frame(maxWidth: reply == nil ? 320 : .infinity)
+                if showsCloseButton {
+                    Button(action: reply != nil ? onCancel : discardDraft) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.secondary)
                     }
-                }
-
-                TextField("", text: $draft)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 14))
-                    // Keep the placeholder outside the native field's focus layout.
-                    .overlay(alignment: .leading) {
-                        if draft.isEmpty {
-                            Text(commentPlaceholder)
-                                .foregroundStyle(.tertiary)
-                                .lineLimit(1)
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    .focused($isCommentFocused)
-                    .onChange(of: isCommentFocused) { _, isFocused in
-                        guard isFocused, !isPosting else { return }
-                        commentTimestampMilliseconds = model.playback.currentTrack?.urn == track.urn
-                            ? Int(max(0, model.playback.currentTime) * 1_000) : nil
-                    }
-                    .modifier(PreventAutomaticSearchFocus())
-                    .onExitCommand { isCommentFocused = false }
-                    .onSubmit { Task { await postComment() } }
-                    .accessibilityLabel("Comment")
+                    .buttonStyle(CommentIconButtonStyle())
+                    .contentHelp(closeLabel)
+                    .accessibilityLabel(closeLabel)
                     .disabled(isPosting)
-
-                Button {
-                    Task { await postComment() }
-                } label: {
-                    ZStack {
-                        if isPosting {
-                            LoadingSpinner()
-                                .controlSize(.small)
-                        } else {
-                            Image(systemName: "paperplane.fill")
-                                .font(.system(size: 13, weight: .semibold))
-                        }
-                    }
-                    .frame(width: 26, height: 26)
-                    .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.primary)
-                .accessibilityLabel(isPosting ? "Posting comment" : "Send comment")
-                .contentHelp("Send comment (Return)")
-                .disabled(isPosting || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .opacity(showsComposerControls ? 1 : 0)
-                .allowsHitTesting(showsComposerControls)
-                .accessibilityHidden(!showsComposerControls)
-                .animation(.easeInOut(duration: 0.15), value: showsComposerControls)
-            }
-            .padding(5)
-            .background {
-                Capsule()
-                    .fill(.primary.opacity(isCommentFocused || isCommentHovered ? 0.06 : 0))
-                    .animation(
-                        .easeInOut(duration: 0.15),
-                        value: isCommentFocused || isCommentHovered
-                    )
-            }
-            .contentShape(Capsule())
-            .onTapGesture {
-                guard !isPosting else { return }
-                isCommentFocused = true
-            }
-            .onContentHover { isCommentHovered = $0 }
-            .overlay {
-                Capsule()
-                    .strokeBorder(
-                        .primary.opacity(showsComposerControls ? (isCommentFocused ? 0.35 : 0.15) : 0),
-                        lineWidth: 1
-                    )
-                    .allowsHitTesting(false)
-                    .animation(.easeInOut(duration: 0.15), value: showsComposerControls)
-            }
-            .background {
-                SearchOutsideClickView(isFocused: isCommentFocused) {
-                    isCommentFocused = false
+                    .transition(.opacity)
                 }
             }
-            // Align the avatar with the rows while keeping the capsule's inset.
-            .padding(.leading, -5)
+            .animation(.easeInOut(duration: 0.15), value: showsCloseButton)
 
             if let postingErrorMessage {
                 Text(postingErrorMessage)
@@ -353,13 +333,167 @@ private struct TrackCommentComposer: View {
                     .textSelection(.enabled)
             }
         }
-        .frame(maxWidth: 320, alignment: .leading)
+        // Replies get more room: they start with a mention and sit further in.
+        .frame(
+            minWidth: reply != nil ? 320 : nil,
+            maxWidth: reply != nil ? 480 : nil,
+            alignment: .leading
+        )
+        .onAppear {
+            // A reply composer opens because the user asked to write one. Wait a turn:
+            // while the Reply click is still being handled, the request focuses the
+            // list's top composer instead of this one.
+            guard reply != nil else { return }
+            DispatchQueue.main.async { isCommentFocused = true }
+        }
+        .onChange(of: focusRequest) { _, _ in
+            DispatchQueue.main.async { isCommentFocused = true }
+        }
         #if DEBUG
         .debugViewUpdates("TrackCommentComposer")
         #endif
     }
 
+    private var field: some View {
+        HStack(spacing: 10) {
+            if case let .signedIn(user) = model.auth.state {
+                TrackArtworkView(
+                    artworkURL: user.avatarURL,
+                    loader: model.artworkLoader,
+                    size: Self.avatarSize,
+                    shape: RoundedRectangle(cornerRadius: Self.avatarSize / 2),
+                    showsBorder: false,
+                    showsPlaceholderIcon: false
+                )
+                .clipShape(Circle())
+                .overlay {
+                    Circle()
+                        .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+            }
+
+            textField
+
+            Button {
+                Task { await postComment() }
+            } label: {
+                ZStack {
+                    if isPosting {
+                        LoadingSpinner()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                }
+                .frame(width: 26, height: 26)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.primary)
+            .accessibilityLabel(isPosting ? "Posting \(noun)" : "Send \(noun)")
+            .contentHelp("Send \(noun) (Return)")
+            .disabled(isPosting || !hasMessage)
+            .opacity(showsComposerControls ? 1 : 0)
+            .allowsHitTesting(showsComposerControls)
+            .accessibilityHidden(!showsComposerControls)
+            .animation(.easeInOut(duration: 0.15), value: showsComposerControls)
+        }
+        .padding(5)
+        .background {
+            Capsule()
+                .fill(.primary.opacity(showsComposerBackground ? 0.06 : 0))
+                .animation(.easeInOut(duration: 0.15), value: showsComposerBackground)
+        }
+        .contentShape(Capsule())
+        .onTapGesture {
+            guard !isPosting else { return }
+            isCommentFocused = true
+        }
+        .onContentHover { isCommentHovered = $0 }
+        .overlay {
+            Capsule()
+                .strokeBorder(
+                    .primary.opacity(showsComposerControls ? (isCommentFocused ? 0.35 : 0.15) : 0),
+                    lineWidth: 1
+                )
+                .allowsHitTesting(false)
+                .animation(.easeInOut(duration: 0.15), value: showsComposerControls)
+        }
+        .background {
+            SearchOutsideClickView(isFocused: isCommentFocused) {
+                isCommentFocused = false
+            }
+        }
+        // Align the avatar with the rows while keeping the capsule's inset.
+        .padding(.leading, -5)
+    }
+
+    @ViewBuilder private var textField: some View {
+        let field = TextField("", text: $draft)
+            .textFieldStyle(.plain)
+            .font(.system(size: 14))
+            // Keep the placeholder outside the native field's focus layout.
+            .overlay(alignment: .leading) {
+                if draft.isEmpty {
+                    Text(commentPlaceholder)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
+            .focused($isCommentFocused)
+            .onChange(of: isCommentFocused) { _, isFocused in
+                guard isFocused, !isPosting else { return }
+                if reply != nil {
+                    moveInsertionPointToEnd()
+                } else {
+                    commentTimestampMilliseconds = model.playback.currentTrack?.urn == track.urn
+                        ? Int(max(0, model.playback.currentTime) * 1_000) : nil
+                }
+            }
+            .onExitCommand {
+                // Close a reply that has nothing beyond its mention; otherwise keep the draft.
+                if let reply, draft.trimmingCharacters(in: .whitespaces)
+                    == reply.mention.trimmingCharacters(in: .whitespaces) || !hasMessage {
+                    onCancel()
+                } else {
+                    isCommentFocused = false
+                }
+            }
+            .onSubmit { Task { await postComment() } }
+            .accessibilityLabel(reply != nil ? "Reply" : "Comment")
+            .disabled(isPosting)
+
+        // A reply field is opened on purpose, so it may take focus as it appears.
+        if reply == nil {
+            field.modifier(PreventAutomaticSearchFocus())
+        } else {
+            field
+        }
+    }
+
+    private var noun: String { reply != nil ? "reply" : "comment" }
+
+    private var showsCloseButton: Bool { reply != nil || !draft.isEmpty }
+
+    private var closeLabel: String { reply != nil ? "Cancel reply" : "Discard comment" }
+
+    private func discardDraft() {
+        draft = ""
+        postingErrorMessage = nil
+        isCommentFocused = false
+        commentTimestampMilliseconds = nil
+    }
+
+    private var hasMessage: Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private var commentPlaceholder: String {
+        if reply != nil { return "Write a reply" }
         guard isCommentFocused, let commentTimestampMilliseconds else {
             return "Write a comment"
         }
@@ -368,8 +502,17 @@ private struct TrackCommentComposer: View {
         return "Write a comment at \(timestamp)"
     }
 
+    // A focused text field selects all its text; put the insertion point after the mention instead.
+    private func moveInsertionPointToEnd() {
+        DispatchQueue.main.async {
+            guard let editor = NSApp.keyWindow?.firstResponder as? NSTextView,
+                  editor.isFieldEditor, editor.string == draft else { return }
+            editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))
+        }
+    }
+
     private func postComment() async {
-        guard !isPosting, !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard !isPosting, hasMessage else { return }
         isPosting = true
         postingErrorMessage = nil
         defer { isPosting = false }
@@ -377,9 +520,11 @@ private struct TrackCommentComposer: View {
             let comment = try await model.addTrackComment(
                 for: track, body: draft, timestampMilliseconds: commentTimestampMilliseconds
             )
-            draft = ""
             isCommentFocused = false
-            commentTimestampMilliseconds = nil
+            if reply == nil {
+                draft = ""
+                commentTimestampMilliseconds = nil
+            }
             onCommentAdded(comment)
         } catch {
             postingErrorMessage = error.localizedDescription
@@ -400,8 +545,10 @@ private struct TrackCommentRow: View {
     let track: SoundCloudTrack
     let model: AppModel
     let likes: TrackCommentLikes
+    let replies: TrackCommentReplies
     let timestampColor: Color
     let onSelectArtist: (SoundCloudUser) -> Void
+    let onReplyAdded: (SoundCloudComment, SoundCloudComment) -> Void
 
     private static let avatarSize: CGFloat = 50
     private static let replyAvatarSize: CGFloat = 36
@@ -410,15 +557,32 @@ private struct TrackCommentRow: View {
     private var avatarSize: CGFloat { isReply ? Self.replyAvatarSize : Self.avatarSize }
 
     var body: some View {
-        HStack(spacing: 16) {
-            content
-            TrackCommentLikeButton(comment: comment, track: track, model: model, likes: likes)
+        let replyTarget = TrackCommentReplyTarget(comment)
+
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 16) {
+                content(canReply: replyTarget != nil)
+                TrackCommentLikeButton(comment: comment, track: track, model: model, likes: likes)
+            }
+
+            if let replyTarget {
+                // Below the heart's row so opening it does not move the heart.
+                TrackCommentReplyComposerSlot(
+                    comment: comment,
+                    target: replyTarget,
+                    track: track,
+                    model: model,
+                    replies: replies,
+                    onReplyAdded: onReplyAdded
+                )
+                .padding(.leading, avatarSize + Self.avatarSpacing)
+            }
         }
         // Start replies under the body of the comment they answer.
         .padding(.leading, isReply ? Self.avatarSize + Self.avatarSpacing : 0)
     }
 
-    private var content: some View {
+    private func content(canReply: Bool) -> some View {
         HStack(alignment: .top, spacing: Self.avatarSpacing) {
             if let user = comment.user {
                 TrackCommentAvatar(user: user, loader: model.artworkLoader, size: avatarSize)
@@ -439,6 +603,12 @@ private struct TrackCommentRow: View {
                     .foregroundStyle(.primary.opacity(0.95))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
+
+                if canReply {
+                    Button("Reply") { replies.open(comment) }
+                        .buttonStyle(CommentReplyButtonStyle())
+                        .accessibilityLabel("Reply to \(comment.user?.username ?? "comment")")
+                }
             }
             // Center short comments on the avatar; taller ones stay top-aligned.
             .frame(minHeight: avatarSize, alignment: .leading)
@@ -509,6 +679,74 @@ private struct TrackCommentRow: View {
     }
 }
 
+/// Which comments have a reply composer open. Each comment's state is observed only by
+/// its own composer slot, so opening a reply does not update the list or the other rows.
+@MainActor
+final class TrackCommentReplies {
+    private var states: [String: TrackCommentReplyState] = [:]
+
+    func state(for comment: SoundCloudComment) -> TrackCommentReplyState {
+        if let state = states[comment.urn] { return state }
+        let state = TrackCommentReplyState()
+        states[comment.urn] = state
+        return state
+    }
+
+    func open(_ comment: SoundCloudComment) {
+        let state = state(for: comment)
+        state.isOpen = true
+        state.focusRequest += 1
+    }
+
+    func close(_ comment: SoundCloudComment) {
+        states[comment.urn]?.isOpen = false
+    }
+}
+
+@MainActor @Observable
+final class TrackCommentReplyState {
+    fileprivate(set) var isOpen = false
+    /// Changes each time the user clicks Reply, so an open composer takes focus again.
+    fileprivate(set) var focusRequest = 0
+}
+
+private struct TrackCommentReplyComposerSlot: View {
+    let comment: SoundCloudComment
+    let target: TrackCommentReplyTarget
+    let track: SoundCloudTrack
+    let model: AppModel
+    let replies: TrackCommentReplies
+    let onReplyAdded: (SoundCloudComment, SoundCloudComment) -> Void
+
+    var body: some View {
+        let state = replies.state(for: comment)
+        if state.isOpen {
+            TrackCommentComposer(
+                track: track,
+                model: model,
+                reply: target,
+                focusRequest: state.focusRequest,
+                onCancel: { replies.close(comment) },
+                onCommentAdded: { onReplyAdded($0, comment) }
+            )
+            .modifier(FadeInOnAppear())
+        }
+    }
+}
+
+private struct CommentReplyButtonStyle: ButtonStyle {
+    @State private var isHovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(isHovering ? .secondary : .tertiary)
+            .contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .onContentHover { isHovering = $0 }
+    }
+}
+
 /// Like state for one comment list. Rows read it only in their hearts, so a toggle
 /// does not update the list or the rest of the row.
 @MainActor @Observable
@@ -570,7 +808,7 @@ private struct TrackCommentLikeButton: View {
                     .symbolEffect(.bounce, options: .nonRepeating, value: reduceMotion ? 0 : likeTaps)
                     .contentTransition(.symbolEffect(.replace))
             }
-            .buttonStyle(CommentLikeButtonStyle())
+            .buttonStyle(CommentIconButtonStyle())
             .contentHelp(actionLabel)
             .accessibilityLabel(actionLabel)
             .accessibilityValue(count == 1 ? "1 like" : "\(count) likes")
@@ -591,7 +829,7 @@ private struct TrackCommentLikeButton: View {
     }
 }
 
-private struct CommentLikeButtonStyle: ButtonStyle {
+private struct CommentIconButtonStyle: ButtonStyle {
     @State private var isHovering = false
 
     func makeBody(configuration: Configuration) -> some View {
