@@ -889,7 +889,10 @@ private struct TrackCommentLikeButton: View {
             } label: {
                 Image(systemName: isLiked ? "heart.fill" : "heart")
                     .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(isLiked ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(
+                        isLiked ? AnyShapeStyle(Color.accentColor)
+                            : count > 0 ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary)
+                    )
                     .symbolEffect(.bounce, options: .nonRepeating, value: reduceMotion ? 0 : likeTaps)
                     .contentTransition(.symbolEffect(.replace))
             }
