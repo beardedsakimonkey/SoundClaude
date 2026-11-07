@@ -33,12 +33,12 @@ struct TrackListRow: View {
         let isPlaybackActive = isCurrentTrack
             ? playback.isPlaybackActive : isStartingPlayback
 
-        HStack(spacing: 12) {
+        HStack(spacing: isCompact ? 12 : 14) {
             Button(action: playOrPauseTrack) {
                 TrackArtworkView(
                     artworkURL: track.displayArtworkURL,
                     loader: artworkLoader,
-                    size: isCompact ? 32 : 44,
+                    size: isCompact ? 40 : 50,
                 )
                 .overlay {
                     ZStack {
@@ -46,7 +46,7 @@ struct TrackListRow: View {
                             .fill(.black.opacity(0.45))
                         ZStack {
                             Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")
-                                .font(.system(size: isCompact ? 16 : 20, weight: .semibold))
+                                .font(.system(size: isCompact ? 19 : 22, weight: .semibold))
                                 .foregroundStyle(.white)
                                 .opacity(0.9)
                                 .id(isPlaybackActive)
@@ -77,7 +77,7 @@ struct TrackListRow: View {
             Group {
                 if showsMetadata {
                     Text(duration)
-                        .font(.caption.monospacedDigit())
+                        .font((isCompact ? Font.caption : .subheadline).monospacedDigit())
                         .foregroundStyle(.secondary)
                         .fixedSize()
                         // Keep the duration's width so hover does not change text truncation.
@@ -155,10 +155,10 @@ struct TrackListRow: View {
         let showsPlaybackIndicator = isCurrentTrack && playback.isPlaybackActive
         let isLiked = likes.isLiked(track)
 
-        return VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: isCompact ? 4 : 5) {
             HStack(spacing: 6) {
                 if track.access == .protected {
-                    ProtectedTrackIcon()
+                    ProtectedTrackIcon(font: titleFont)
                 }
                 Button {
                     onSelectTrack(track)
@@ -169,6 +169,7 @@ struct TrackListRow: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .font(titleFont)
                 .opacity(0.95)
                 .onContentHover { isHoveringTitle = $0 }
                 if track.access == .preview {
@@ -194,11 +195,15 @@ struct TrackListRow: View {
             let showsLikeIndicator = showsMetadata && (likeCount != nil || isLiked)
             if showsArtist || showsLikeIndicator {
                 metadataLine(likeCount: likeCount, isLiked: isLiked, showsLikeIndicator: showsLikeIndicator)
-                    .font(.subheadline)
+                    .font(isCompact ? .subheadline : .callout)
                     .foregroundStyle(.secondary)
             }
         }
         .lineLimit(1)
+    }
+
+    private var titleFont: Font {
+        isCompact ? .body : .system(size: 14)
     }
 
     private func metadataLine(likeCount: Int?, isLiked: Bool, showsLikeIndicator: Bool) -> some View {
@@ -221,7 +226,7 @@ struct TrackListRow: View {
                         Text(likeCount.formatted())
                     }
                 }
-                .font(.system(size: 9))
+                .font(.system(size: isCompact ? 9 : 10))
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(
                     [isLiked ? "Liked" : nil, likeCount.map { "\($0.formatted()) likes" }]

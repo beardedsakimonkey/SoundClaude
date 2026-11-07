@@ -496,7 +496,7 @@ struct ArtistDetailView: View {
                             TrackArtworkView(
                                 artworkURL: user.avatarURL,
                                 loader: model.artworkLoader,
-                                size: 44,
+                                size: 50,
                                 showsBorder: false,
                                 showsPlaceholderIcon: false
                             )

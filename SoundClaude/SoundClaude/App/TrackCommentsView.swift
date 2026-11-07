@@ -74,7 +74,7 @@ struct TrackCommentsView: View {
     var body: some View {
         let rowTimestampColor = timestampColor
 
-        LazyVStack(alignment: .leading, spacing: 24) {
+        LazyVStack(alignment: .leading, spacing: 28) {
             TrackCommentComposer(track: track, model: model) { comment in
                 comments.removeAll { $0.urn == comment.urn }
                 comments.insert(comment, at: 0)
@@ -360,26 +360,29 @@ private struct TrackCommentRow: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 14) {
             if let user = comment.user {
                 TrackCommentAvatar(user: user, loader: model.artworkLoader)
             } else {
                 Image(systemName: "person.crop.circle")
                     .resizable()
-                    .frame(width: 40, height: 40)
+                    .frame(width: 50, height: 50)
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 header
 
                 ArtistMentionText(comment.body, onSelectArtist: onSelectArtist)
+                    .font(.system(size: 14))
                     .textSelection(.enabled)
                     .foregroundStyle(.primary.opacity(0.95))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            // Center short comments on the avatar; taller ones stay top-aligned.
+            .frame(minHeight: 50, alignment: .leading)
         }
     }
 
@@ -390,7 +393,7 @@ private struct TrackCommentRow: View {
                     artist: user,
                     onSelect: onSelectArtist
                 )
-                .font(.subheadline)
+                .font(.body)
                 .fontWeight(.medium)
                 .opacity(0.85)
                 // Truncate the relative age before the username.
@@ -404,12 +407,12 @@ private struct TrackCommentRow: View {
                 let seconds = timestamp / 1_000
                 let timeLabel = "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
                 Text("at")
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .fixedSize()
                 if track.access == .protected {
                     Text(timeLabel)
-                        .font(.caption.monospacedDigit().weight(.semibold))
+                        .font(.subheadline.monospacedDigit().weight(.semibold))
                         .fixedSize()
                         .foregroundStyle(timestampColor)
                         .opacity(protectedTrackOpacity)
@@ -425,7 +428,7 @@ private struct TrackCommentRow: View {
                         Text(timeLabel)
                     }
                     .buttonStyle(CommentTimestampButtonStyle(color: timestampColor))
-                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .font(.subheadline.monospacedDigit().weight(.semibold))
                     .fixedSize()
                     .foregroundStyle(timestampColor)
                     .contentHelp("Jump to \(timeLabel)")
@@ -438,7 +441,7 @@ private struct TrackCommentRow: View {
                     accessibilityPrefix: "Posted",
                     showsSeparator: false
                 )
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
@@ -460,7 +463,7 @@ private struct TrackCommentAvatar: View {
         let thumbnail = TrackArtworkView(
             artworkURL: user.avatarURL,
             loader: loader,
-            size: 40,
+            size: 50,
             showsBorder: false,
             showsPlaceholderIcon: false
         )
@@ -487,7 +490,7 @@ private struct TrackCommentAvatar: View {
                 Task { await prefetchFullSizePicture() }
             })
             .contentShape(Circle())
-            .onContentHover(in: Circle().path(in: CGRect(x: 0, y: 0, width: 40, height: 40))) {
+            .onContentHover(in: Circle().path(in: CGRect(x: 0, y: 0, width: 50, height: 50))) {
                 isHovering = $0
             }
             .task(id: isHovering ? user.avatarURL : nil) {
