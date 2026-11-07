@@ -66,6 +66,7 @@ struct TrackCommentsView: View {
     // Owned by the list, not the spinner, so scrolling the spinner away does not cancel it.
     @State private var pageTask: Task<Void, Never>?
     @State private var errorMessage: String?
+    @State private var likes = TrackCommentLikes()
     @State private var artworkAccent: ArtworkAccent?
     @State private var accentArtworkURL: URL?
     @Environment(\.colorScheme) private var colorScheme
@@ -78,6 +79,7 @@ struct TrackCommentsView: View {
             TrackCommentComposer(track: track, model: model) { comment in
                 comments.removeAll { $0.urn == comment.urn }
                 comments.insert(comment, at: 0)
+                likes.merge([:], for: [comment])
                 updateSortedComments()
                 onCommentAdded()
             }
@@ -88,6 +90,7 @@ struct TrackCommentsView: View {
                     comment: comment,
                     track: track,
                     model: model,
+                    likes: likes,
                     timestampColor: rowTimestampColor,
                     onSelectArtist: onSelectArtist
                 )
@@ -165,6 +168,14 @@ struct TrackCommentsView: View {
         }
     }
 
+    // Hearts appear when their page's likes arrive; a failure leaves them hidden.
+    private func loadLikes(for page: [SoundCloudComment]) {
+        Task { [likes] in
+            guard let loaded = try? await model.commentLikes(for: track, comments: page) else { return }
+            likes.merge(loaded, for: page)
+        }
+    }
+
     private func loadPage() async {
         guard !isLoading, !hasLoaded || nextPageURL != nil else { return }
         isLoading = true
@@ -183,6 +194,7 @@ struct TrackCommentsView: View {
             if !newComments.isEmpty {
                 comments.append(contentsOf: newComments)
                 updateSortedComments()
+                loadLikes(for: newComments)
             }
             if let pageURL { loadedPageURLs.insert(pageURL) }
             nextPageURL = page.nextURL
@@ -359,10 +371,18 @@ private struct TrackCommentRow: View {
     let comment: SoundCloudComment
     let track: SoundCloudTrack
     let model: AppModel
+    let likes: TrackCommentLikes
     let timestampColor: Color
     let onSelectArtist: (SoundCloudUser) -> Void
 
     var body: some View {
+        HStack(spacing: 16) {
+            content
+            TrackCommentLikeButton(comment: comment, track: track, model: model, likes: likes)
+        }
+    }
+
+    private var content: some View {
         HStack(alignment: .top, spacing: 14) {
             if let user = comment.user {
                 TrackCommentAvatar(user: user, loader: model.artworkLoader)
@@ -450,6 +470,102 @@ private struct TrackCommentRow: View {
             Spacer(minLength: 0)
         }
         .lineLimit(1)
+    }
+}
+
+/// Like state for one comment list. Rows read it only in their hearts, so a toggle
+/// does not update the list or the rest of the row.
+@MainActor @Observable
+final class TrackCommentLikes {
+    private(set) var likes: [String: SoundCloudCommentLikes] = [:]
+    private(set) var pendingURNs: Set<String> = []
+
+    /// Comments missing from `loaded` have no likes.
+    func merge(_ loaded: [String: SoundCloudCommentLikes], for comments: [SoundCloudComment]) {
+        for comment in comments where !pendingURNs.contains(comment.urn) {
+            likes[comment.urn] = loaded[comment.urn] ?? SoundCloudCommentLikes(count: 0, isLiked: false)
+        }
+    }
+
+    func toggle(_ comment: SoundCloudComment, on track: SoundCloudTrack, model: AppModel) async {
+        guard !pendingURNs.contains(comment.urn), let current = likes[comment.urn] else { return }
+        pendingURNs.insert(comment.urn)
+        defer { pendingURNs.remove(comment.urn) }
+        let isLiked = !current.isLiked
+        likes[comment.urn] = SoundCloudCommentLikes(
+            count: max(0, current.count + (isLiked ? 1 : -1)), isLiked: isLiked
+        )
+        do {
+            try await model.setCommentLiked(isLiked, comment: comment, on: track)
+        } catch {
+            likes[comment.urn] = current
+            if !(error is CancellationError) {
+                model.likeErrorMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
+private struct TrackCommentLikeButton: View {
+    let comment: SoundCloudComment
+    let track: SoundCloudTrack
+    let model: AppModel
+    let likes: TrackCommentLikes
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var likeTaps = 0
+
+    var body: some View {
+        let state = likes.likes[comment.urn]
+        let isLiked = state?.isLiked == true
+        let count = state?.count ?? 0
+        let isUpdating = likes.pendingURNs.contains(comment.urn)
+        let actionLabel = isLiked ? "Unlike comment" : "Like comment"
+
+        VStack(spacing: 0) {
+            Button {
+                guard !isUpdating else { return }
+                if !isLiked { likeTaps += 1 }
+                Task { await likes.toggle(comment, on: track, model: model) }
+            } label: {
+                Image(systemName: isLiked ? "heart.fill" : "heart")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(isLiked ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+                    .symbolEffect(.bounce, options: .nonRepeating, value: reduceMotion ? 0 : likeTaps)
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(CommentLikeButtonStyle())
+            .contentHelp(actionLabel)
+            .accessibilityLabel(actionLabel)
+            .accessibilityValue(count == 1 ? "1 like" : "\(count) likes")
+
+            // Reserve the count's line so hearts align across rows.
+            Text(count.formatted(.number.notation(.compactName)))
+                .font(.caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .opacity(count > 0 ? 1 : 0)
+                .accessibilityHidden(true)
+        }
+        .frame(width: 36)
+        .opacity(state == nil ? 0 : 1)
+        .allowsHitTesting(state != nil)
+        .accessibilityHidden(state == nil)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: state == nil)
+    }
+}
+
+private struct CommentLikeButtonStyle: ButtonStyle {
+    @State private var isHovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .frame(width: 28, height: 28)
+            .background(.primary.opacity(isHovering ? 0.08 : 0), in: Circle())
+            .contentShape(Circle())
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .onContentHover { isHovering = $0 }
+            .animation(.easeInOut(duration: 0.15), value: isHovering)
     }
 }
 

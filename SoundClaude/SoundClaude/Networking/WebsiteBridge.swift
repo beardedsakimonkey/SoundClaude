@@ -27,6 +27,10 @@ final class WebsiteBridge: NSObject, WKNavigationDelegate, WKScriptMessageHandle
         // Send only what soundcloud.com sends. DataDome blocks writes that carry the client's
         // `Accept: application/json; charset=utf-8`, and the page supplies the rest itself.
         var headers = ["Authorization": request.value(forHTTPHeaderField: "Authorization") ?? ""]
+        // The website names itself to graph.soundcloud.com with this header.
+        if let client = request.value(forHTTPHeaderField: "Apollographql-Client-Name") {
+            headers["Apollographql-Client-Name"] = client
+        }
         if request.httpBody != nil {
             // The website sends JSON without a charset, and forms with jQuery's default type.
             let type = request.value(forHTTPHeaderField: "Content-Type") ?? ""

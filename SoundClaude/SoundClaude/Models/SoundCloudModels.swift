@@ -414,6 +414,11 @@ struct SoundCloudComment: Decodable, Identifiable, Sendable {
     }
 }
 
+struct SoundCloudCommentLikes: Equatable, Sendable {
+    var count: Int
+    var isLiked: Bool
+}
+
 struct SoundCloudCommentPage: Decodable, Sendable {
     let comments: [SoundCloudComment]
     let nextURL: URL?

@@ -159,6 +159,90 @@ struct CommentsTests {
             _ = try await client.trackComments(urn: "soundcloud:tracks:1", accessToken: "test-token")
             fatalError("Repeated page URL was accepted")
         } catch SoundCloudError.invalidData {}
+
+        // Comment likes are GraphQL reactions on graph.soundcloud.com.
+        func graphQLBody(_ request: URLRequest) -> [String: Any] {
+            precondition(request.httpMethod == "POST")
+            precondition(request.url?.host == "graph.soundcloud.com" && request.url?.path == "/graphql")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            precondition(request.value(forHTTPHeaderField: "Apollographql-Client-Name") == "v2")
+            var body = request.httpBody ?? Data()
+            if let stream = request.httpBodyStream {
+                stream.open()
+                defer { stream.close() }
+                var buffer = [UInt8](repeating: 0, count: 1024)
+                while stream.hasBytesAvailable {
+                    let count = stream.read(&buffer, maxLength: buffer.count)
+                    if count <= 0 { break }
+                    body.append(contentsOf: buffer.prefix(count))
+                }
+            }
+            return try! JSONSerialization.jsonObject(with: body) as! [String: Any]
+        }
+        CommentsURLProtocol.respond { request in
+            let body = graphQLBody(request)
+            precondition(body["operationName"] as? String == "UserInteractions")
+            let variables = body["variables"] as! [String: Any]
+            precondition(variables["parentUrn"] as? String == "soundcloud:tracks:1")
+            precondition(variables["interactionTypeUrn"] as? String == "sc:interactiontype:reaction")
+            precondition(variables["targetUrns"] as? [String]
+                == ["soundcloud:comments:1", "soundcloud:comments:2", "soundcloud:comments:3"])
+            return (200, """
+                {"data":{"userInteractions":[
+                  {"targetUrn":"soundcloud:comments:1","userInteraction":"sc:interactiontypevalue:like",
+                   "interactionCounts":[{"count":3,"interactionTypeValueUrn":"sc:interactiontypevalue:like"}]},
+                  {"targetUrn":"soundcloud:comments:2","userInteraction":null,"interactionCounts":[]}
+                ]}}
+                """)
+        }
+        let likes = try await client.commentLikes(
+            trackURN: "soundcloud:tracks:1",
+            commentURNs: ["soundcloud:comments:1", "soundcloud:comments:2", "soundcloud:comments:3"],
+            accessToken: "test-token"
+        )
+        precondition(likes["soundcloud:comments:1"] == SoundCloudCommentLikes(count: 3, isLiked: true))
+        precondition(likes["soundcloud:comments:2"] == SoundCloudCommentLikes(count: 0, isLiked: false))
+        precondition(likes["soundcloud:comments:3"] == nil)
+
+        CommentsURLProtocol.respond { _ in fatalError("Empty like query was sent") }
+        let noLikes = try await client.commentLikes(
+            trackURN: "soundcloud:tracks:1", commentURNs: [], accessToken: "test-token"
+        )
+        precondition(noLikes.isEmpty)
+
+        // GraphQL reports failures in a 200 reply.
+        CommentsURLProtocol.respond { _ in
+            (200, #"{"errors":[{"message":"FORBIDDEN"}],"data":{"userInteractions":null}}"#)
+        }
+        do {
+            _ = try await client.commentLikes(
+                trackURN: "soundcloud:tracks:1", commentURNs: ["soundcloud:comments:1"], accessToken: "test-token"
+            )
+            fatalError("GraphQL error was accepted")
+        } catch let SoundCloudError.api(message) { precondition(message == "FORBIDDEN") }
+
+        for isLiked in [true, false] {
+            CommentsURLProtocol.respond { request in
+                let body = graphQLBody(request)
+                let operation = isLiked ? "UpsertInteraction" : "RemoveInteraction"
+                precondition(body["operationName"] as? String == operation)
+                precondition((body["query"] as! String).contains("mutation \(operation)("))
+                let input = (body["variables"] as! [String: Any])["input"] as! [String: String]
+                precondition(input == [
+                    "parentUrn": "soundcloud:tracks:1",
+                    "interactionTypeUrn": "sc:interactiontype:reaction",
+                    "interactionTypeValueUrn": "sc:interactiontypevalue:like",
+                    "targetUrn": "soundcloud:comments:2",
+                ])
+                return (200, isLiked
+                    ? #"{"data":{"upsertInteraction":{"targetUrn":"soundcloud:comments:2"}}}"#
+                    : #"{"data":{"removeInteraction":true}}"#)
+            }
+            try await client.setCommentLiked(
+                trackURN: "soundcloud:tracks:1", commentURN: "soundcloud:comments:2",
+                isLiked: isLiked, accessToken: "test-token"
+            )
+        }
         print("Comment decoding and API checks passed")
     }
 }

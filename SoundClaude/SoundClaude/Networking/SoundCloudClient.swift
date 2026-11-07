@@ -6,6 +6,8 @@ struct SoundCloudConfiguration: Sendable {
     /// Pins the website client ID. When nil, the client discovers it from soundcloud.com.
     var clientID: String? = nil
     let apiBaseURL = URL(string: "https://api-v2.soundcloud.com/")!
+    /// Newer website features, such as comment likes, use GraphQL instead of api-v2.
+    let graphQLURL = URL(string: "https://graph.soundcloud.com/graphql")!
     let websiteURL = URL(string: "https://soundcloud.com/")!
 }
 
@@ -62,6 +64,8 @@ actor SoundCloudClient {
     private static let likedTracksPageSize = 25
     private static let clientIDDefaultsKey = "SoundCloudWebsiteClientID"
     private static let trackBatchSize = 50
+    private static let reactionInteraction = "sc:interactiontype:reaction"
+    private static let likeInteractionValue = "sc:interactiontypevalue:like"
 
     private let configuration: SoundCloudConfiguration
     private let session: URLSession
@@ -582,6 +586,72 @@ actor SoundCloudClient {
         return page
     }
 
+    /// Comment likes are GraphQL "reaction" interactions; api-v2 comments omit them.
+    /// Comments missing from the reply have no likes.
+    func commentLikes(
+        trackURN: String,
+        commentURNs: [String],
+        accessToken: String
+    ) async throws -> [String: SoundCloudCommentLikes] {
+        guard !commentURNs.isEmpty else { return [:] }
+        let data = try await graphQL(
+            "UserInteractions",
+            query: """
+                query UserInteractions($parentUrn: String!, $interactionTypeUrn: String!, $targetUrns: [String!]!) {
+                  userInteractions(parentUrn: $parentUrn, interactionTypeUrn: $interactionTypeUrn, targetUrns: $targetUrns) {
+                    interactionCounts { count interactionTypeValueUrn }
+                    targetUrn
+                    userInteraction
+                  }
+                }
+                """,
+            variables: [
+                "parentUrn": trackURN,
+                "interactionTypeUrn": Self.reactionInteraction,
+                "targetUrns": commentURNs,
+            ],
+            accessToken: accessToken
+        )
+        let interactions = try decoder.decode(RawCommentInteractions.self, from: data)
+            .data?.userInteractions ?? []
+        var likes: [String: SoundCloudCommentLikes] = [:]
+        for interaction in interactions {
+            let count = interaction.interactionCounts?
+                .first { $0.interactionTypeValueUrn == Self.likeInteractionValue }?.count ?? 0
+            likes[interaction.targetUrn] = SoundCloudCommentLikes(
+                count: max(0, count),
+                isLiked: interaction.userInteraction == Self.likeInteractionValue
+            )
+        }
+        return likes
+    }
+
+    func setCommentLiked(
+        trackURN: String,
+        commentURN: String,
+        isLiked: Bool,
+        accessToken: String
+    ) async throws {
+        let operation = isLiked ? "UpsertInteraction" : "RemoveInteraction"
+        let selection = isLiked ? " { targetUrn }" : ""
+        try await graphQL(
+            operation,
+            query: """
+                mutation \(operation)($input: InteractionInput!) {
+                  \(isLiked ? "upsertInteraction" : "removeInteraction")(input: $input)\(selection)
+                }
+                """,
+            variables: ["input": [
+                "parentUrn": trackURN,
+                "interactionTypeUrn": Self.reactionInteraction,
+                "interactionTypeValueUrn": Self.likeInteractionValue,
+                "targetUrn": commentURN,
+            ]],
+            accessToken: accessToken,
+            isWrite: true
+        )
+    }
+
     func track(
         urn: String,
         secretToken: String?,
@@ -806,6 +876,26 @@ actor SoundCloudClient {
         return data
     }
 
+    /// GraphQL replies 200 even when an operation fails, with the reasons in `errors`.
+    @discardableResult
+    private func graphQL(
+        _ operation: String, query: String, variables: [String: Any],
+        accessToken: String, isWrite: Bool = false
+    ) async throws -> Data {
+        let json: [String: Any] = ["operationName": operation, "query": query, "variables": variables]
+        let (data, response) = try await authenticatedRequest(
+            url: configuration.graphQLURL, accessToken: accessToken, method: "POST",
+            body: (try JSONSerialization.data(withJSONObject: json), "application/json; charset=utf-8"),
+            // Queries pass DataDome from URLSession; mutations need the website.
+            viaWebsite: isWrite
+        )
+        try validate(response: response, data: data)
+        if let message = try? decoder.decode(APIErrorBody.self, from: data).message {
+            throw SoundCloudError.api(message)
+        }
+        return data
+    }
+
     private func trackPage(at url: URL, accessToken: String) async throws -> SoundCloudTrackPage {
         let page = try await get(RawTrackPage.self, url, accessToken: accessToken)
         try validateNextURL(page.nextURL, after: url)
@@ -863,9 +953,11 @@ actor SoundCloudClient {
         accessToken: String,
         method: String = "GET",
         body: (data: Data, type: String)? = nil,
+        viaWebsite: Bool? = nil,
         isRetry: Bool = false
     ) async throws -> (Data, HTTPURLResponse) {
-        try validateAPIURL(url)
+        let isGraphQL = url == configuration.graphQLURL
+        if !isGraphQL { try validateAPIURL(url) }
         let clientID = try await currentClientID()
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             throw SoundCloudError.unexpectedURL
@@ -885,8 +977,9 @@ actor SoundCloudClient {
         request.setValue("OAuth \(accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("https://soundcloud.com", forHTTPHeaderField: "Origin")
         request.setValue("https://soundcloud.com/", forHTTPHeaderField: "Referer")
+        if isGraphQL { request.setValue("v2", forHTTPHeaderField: "Apollographql-Client-Name") }
         // DataDome blocks api-v2 writes that don't come from a soundcloud.com page.
-        let (data, response) = if method != "GET", let websiteTransport {
+        let (data, response) = if viaWebsite ?? (method != "GET"), let websiteTransport {
             try await websiteTransport(request)
         } else {
             try await send(request)
@@ -896,7 +989,8 @@ actor SoundCloudClient {
         if [401, 403].contains(response.statusCode), !isRetry, configuration.clientID == nil,
            try await refreshClientID() != clientID {
             return try await authenticatedRequest(
-                url: url, accessToken: accessToken, method: method, body: body, isRetry: true
+                url: url, accessToken: accessToken, method: method, body: body,
+                viaWebsite: viaWebsite, isRetry: true
             )
         }
         return (data, response)
@@ -1024,4 +1118,23 @@ actor SoundCloudClient {
 /// A playlist's track list, where later entries are ID-only stubs.
 private struct RawPlaylistTracks: Decodable {
     let tracks: [RawTrack]
+}
+
+private struct RawCommentInteractions: Decodable {
+    struct Payload: Decodable {
+        let userInteractions: [Interaction]?
+    }
+
+    struct Interaction: Decodable {
+        let targetUrn: String
+        let userInteraction: String?
+        let interactionCounts: [Count]?
+    }
+
+    struct Count: Decodable {
+        let count: Int
+        let interactionTypeValueUrn: String
+    }
+
+    let data: Payload?
 }

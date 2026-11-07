@@ -529,6 +529,22 @@ final class AppModel {
         return comment
     }
 
+    func commentLikes(for track: SoundCloudTrack, comments: [SoundCloudComment]) async throws
+        -> [String: SoundCloudCommentLikes] {
+        let accessToken = try await auth.validAccessToken()
+        return try await client.commentLikes(
+            trackURN: track.urn, commentURNs: comments.map(\.urn), accessToken: accessToken
+        )
+    }
+
+    func setCommentLiked(_ isLiked: Bool, comment: SoundCloudComment, on track: SoundCloudTrack)
+        async throws {
+        let accessToken = try await auth.validAccessToken()
+        try await client.setCommentLiked(
+            trackURN: track.urn, commentURN: comment.urn, isLiked: isLiked, accessToken: accessToken
+        )
+    }
+
     func trackComments(for track: SoundCloudTrack, pageURL: URL? = nil) async throws
         -> SoundCloudCommentPage {
         if let pageURL {
