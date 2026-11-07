@@ -29,6 +29,7 @@ final class AppModel {
     let playlists: PlaylistsController
     let feed: FeedController
     let artworkLoader: ArtworkLoader
+    let commentDrafts = TrackCommentDraftStore()
 
     private(set) var errorMessage: String?
     var likeErrorMessage: String?
@@ -293,6 +294,7 @@ final class AppModel {
         stationCache.reset()
         stationMetadataCache.reset()
         loadingStations.removeAll()
+        commentDrafts.removeAll()
         errorMessage = nil
         await auth.signOut()
     }

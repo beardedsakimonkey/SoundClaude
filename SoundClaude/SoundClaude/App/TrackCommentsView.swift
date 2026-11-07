@@ -71,18 +71,21 @@ struct TrackCommentsView: View {
     @State private var pageTask: Task<Void, Never>?
     @State private var errorMessage: String?
     @State private var likes = TrackCommentLikes()
-    @State private var replies = TrackCommentReplies()
     @State private var artworkAccent: ArtworkAccent?
     @State private var accentArtworkURL: URL?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    // Kept by the model so unsent drafts survive leaving the page.
+    private var drafts: TrackCommentDrafts { model.commentDrafts.drafts(for: track) }
+    private var replies: TrackCommentReplies { drafts.replies }
+
     var body: some View {
         let rowTimestampColor = timestampColor
 
         LazyVStack(alignment: .leading, spacing: 20) {
-            TrackCommentComposer(track: track, model: model) { comment in
+            TrackCommentComposer(track: track, model: model, savedDraft: drafts.comment) { comment in
                 comments.removeAll { $0.urn == comment.urn }
                 comments.insert(comment, at: 0)
                 likes.merge([:], for: [comment])
@@ -131,7 +134,10 @@ struct TrackCommentsView: View {
         .onChange(of: sortOrder) { _, _ in
             updateSortedComments()
         }
-        .onDisappear { pageTask?.cancel() }
+        .onDisappear {
+            pageTask?.cancel()
+            model.commentDrafts.prune(track)
+        }
         .task {
             if !hasLoaded { await loadPage() }
         }
@@ -279,6 +285,8 @@ private struct TrackCommentComposer: View {
     let track: SoundCloudTrack
     let model: AppModel
     let reply: TrackCommentReplyTarget?
+    /// Outlives the composer; the composer edits its own copy and writes each change back.
+    let savedDraft: TrackCommentDraft
     /// Changes each time the user asks to reply again while this composer is open.
     let focusRequest: Int
     let onCancel: () -> Void
@@ -297,6 +305,7 @@ private struct TrackCommentComposer: View {
         track: SoundCloudTrack,
         model: AppModel,
         reply: TrackCommentReplyTarget? = nil,
+        savedDraft: TrackCommentDraft,
         focusRequest: Int = 0,
         onCancel: @escaping () -> Void = {},
         onCommentAdded: @escaping (SoundCloudComment) -> Void
@@ -304,11 +313,14 @@ private struct TrackCommentComposer: View {
         self.track = track
         self.model = model
         self.reply = reply
+        self.savedDraft = savedDraft
         self.focusRequest = focusRequest
         self.onCancel = onCancel
         self.onCommentAdded = onCommentAdded
-        _draft = State(initialValue: reply?.mention ?? "")
-        _commentTimestampMilliseconds = State(initialValue: reply?.timestampMilliseconds)
+        _draft = State(initialValue: savedDraft.text ?? reply?.mention ?? "")
+        _commentTimestampMilliseconds = State(
+            initialValue: reply?.timestampMilliseconds ?? savedDraft.timestampMilliseconds
+        )
     }
 
     // An open reply composer always shows its controls; the top one shows them while
@@ -350,11 +362,17 @@ private struct TrackCommentComposer: View {
         }
         .frame(maxWidth: 480, alignment: .leading)
         .onAppear {
-            // A reply composer opens because the user asked to write one. Wait a turn:
-            // while the Reply click is still being handled, the request focuses the
-            // list's top composer instead of this one.
-            guard reply != nil else { return }
+            // A reply composer opens because the user asked to write one; one restored
+            // on returning to the page does not take focus. Wait a turn: while the Reply
+            // click is still being handled, the request focuses the list's top composer
+            // instead of this one.
+            guard savedDraft.focusesOnAppear else { return }
+            savedDraft.focusesOnAppear = false
             DispatchQueue.main.async { isCommentFocused = true }
+        }
+        .onChange(of: draft) { _, draft in savedDraft.text = draft }
+        .onChange(of: commentTimestampMilliseconds) { _, timestamp in
+            savedDraft.timestampMilliseconds = timestamp
         }
         .onChange(of: focusRequest) { _, _ in
             DispatchQueue.main.async { isCommentFocused = true }
@@ -533,6 +551,10 @@ private struct TrackCommentComposer: View {
                 for: track, body: draft, timestampMilliseconds: commentTimestampMilliseconds
             )
             isCommentFocused = false
+            // Clear the saved draft directly: if the user left the page while posting,
+            // this composer is gone and its changes no longer reach it.
+            savedDraft.text = nil
+            savedDraft.timestampMilliseconds = nil
             if reply == nil {
                 draft = ""
                 commentTimestampMilliseconds = nil
@@ -735,14 +757,23 @@ final class TrackCommentReplies {
         return state
     }
 
+    var hasOpenComposer: Bool { states.values.contains { $0.isOpen } }
+
     func open(_ comment: SoundCloudComment) {
         let state = state(for: comment)
+        if !state.isOpen { state.draft.focusesOnAppear = true }
         state.isOpen = true
         state.focusRequest += 1
     }
 
     func close(_ comment: SoundCloudComment) {
-        states[comment.urn]?.isOpen = false
+        guard let state = states[comment.urn] else { return }
+        state.isOpen = false
+        state.draft = TrackCommentDraft()
+    }
+
+    func removeClosed() {
+        states = states.filter { $0.value.isOpen }
     }
 }
 
@@ -751,6 +782,53 @@ final class TrackCommentReplyState {
     fileprivate(set) var isOpen = false
     /// Changes each time the user clicks Reply, so an open composer takes focus again.
     fileprivate(set) var focusRequest = 0
+    @ObservationIgnored fileprivate(set) var draft = TrackCommentDraft()
+}
+
+/// Unsent comments and replies by track, so leaving a track's page and coming back
+/// restores them.
+@MainActor
+final class TrackCommentDraftStore {
+    private var tracks: [String: TrackCommentDrafts] = [:]
+
+    func drafts(for track: SoundCloudTrack) -> TrackCommentDrafts {
+        if let drafts = tracks[track.urn] { return drafts }
+        let drafts = TrackCommentDrafts()
+        tracks[track.urn] = drafts
+        return drafts
+    }
+
+    /// Forgets what a page no longer showing kept for comments without a draft.
+    func prune(_ track: SoundCloudTrack) {
+        guard let drafts = tracks[track.urn] else { return }
+        drafts.replies.removeClosed()
+        if drafts.isEmpty { tracks[track.urn] = nil }
+    }
+
+    func removeAll() {
+        tracks.removeAll()
+    }
+}
+
+@MainActor
+final class TrackCommentDrafts {
+    let comment = TrackCommentDraft()
+    let replies = TrackCommentReplies()
+
+    var isEmpty: Bool {
+        (comment.text ?? "").isEmpty && !replies.hasOpenComposer
+    }
+}
+
+/// A composer's unsent text. Not observed, so typing does not update other views.
+@MainActor
+final class TrackCommentDraft {
+    /// nil until the composer changes it; a reply then starts with its mention.
+    var text: String?
+    var timestampMilliseconds: Int?
+    /// Set when the user asks to reply, so the composer takes focus as it opens but not
+    /// when it is restored.
+    var focusesOnAppear = false
 }
 
 private struct TrackCommentReplyComposerSlot: View {
@@ -770,6 +848,7 @@ private struct TrackCommentReplyComposerSlot: View {
                 track: track,
                 model: model,
                 reply: target,
+                savedDraft: state.draft,
                 focusRequest: state.focusRequest,
                 onCancel: {
                     withAnimation(reduceMotion ? nil : TrackCommentReplies.animation) {
