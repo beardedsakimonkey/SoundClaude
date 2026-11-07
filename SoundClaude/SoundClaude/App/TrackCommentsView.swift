@@ -207,19 +207,21 @@ private struct TrackCommentComposer: View {
     @State private var isPosting = false
     @State private var postingErrorMessage: String?
 
+    private static let avatarSize: CGFloat = 28
+
     private var showsComposerControls: Bool {
         isCommentHovered || isCommentFocused || isPosting
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 if case let .signedIn(user) = model.auth.state {
                     TrackArtworkView(
                         artworkURL: user.avatarURL,
                         loader: model.artworkLoader,
-                        size: 24,
-                        shape: RoundedRectangle(cornerRadius: 12),
+                        size: Self.avatarSize,
+                        shape: RoundedRectangle(cornerRadius: Self.avatarSize / 2),
                         showsBorder: false,
                         showsPlaceholderIcon: false
                     )
@@ -233,6 +235,7 @@ private struct TrackCommentComposer: View {
 
                 TextField("", text: $draft)
                     .textFieldStyle(.plain)
+                    .font(.system(size: 14))
                     // Keep the placeholder outside the native field's focus layout.
                     .overlay(alignment: .leading) {
                         if draft.isEmpty {
@@ -264,10 +267,10 @@ private struct TrackCommentComposer: View {
                                 .controlSize(.small)
                         } else {
                             Image(systemName: "paperplane.fill")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.system(size: 13, weight: .semibold))
                         }
                     }
-                    .frame(width: 24, height: 24)
+                    .frame(width: 26, height: 26)
                     .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -318,7 +321,7 @@ private struct TrackCommentComposer: View {
                     .textSelection(.enabled)
             }
         }
-        .frame(maxWidth: 280, alignment: .leading)
+        .frame(maxWidth: 320, alignment: .leading)
         #if DEBUG
         .debugViewUpdates("TrackCommentComposer")
         #endif

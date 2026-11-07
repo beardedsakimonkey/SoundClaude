@@ -106,7 +106,7 @@ struct TrackListRow: View {
                 }
             }
         }
-        .padding(.vertical, isCompact ? 4 : 6)
+        .padding(.vertical, isCompact ? 5 : 7)
         .padding(.horizontal, 8)
         .contentShape(Rectangle())
         .trackDraggable(track)
