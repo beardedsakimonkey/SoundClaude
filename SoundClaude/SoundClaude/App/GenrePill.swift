@@ -61,18 +61,25 @@ private struct SearchPill: View {
     }
 }
 
-private struct PillLabel: View {
+struct PillLabel: View {
+    enum Size {
+        case regular
+        case large
+    }
+
     let text: String
     var isHovering = false
+    var size: Size = .regular
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: size == .large ? 3 : 2) {
             Text("#")
             Text(text)
+                .foregroundStyle(size == .large || isHovering ? Color.primary : Color.secondary)
         }
-        .font(.caption)
+        .font(size == .large ? .title3 : .caption)
         .foregroundStyle(isHovering ? Color.primary : Color.secondary)
-        .padding(.horizontal, 8)
+        .padding(.horizontal, size == .large ? 12 : 8)
         .padding(.vertical, 4)
         .overlay {
             Capsule()

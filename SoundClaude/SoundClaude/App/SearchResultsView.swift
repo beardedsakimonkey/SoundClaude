@@ -42,10 +42,24 @@ struct SearchResultsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(isTagSearch ? "Tracks tagged “\(query)”" : isGenreSearch ? "Tracks in “\(query)”" : "Results for “\(query)”")
-                .font(.title2.weight(.semibold))
-                .textSelection(.enabled)
-                .modifier(FadeInOnAppear())
+            Group {
+                if isTagSearch || isGenreSearch {
+                    let title = isTagSearch ? "Tracks tagged" : "Tracks in"
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(title)
+                            .font(.title2.weight(.semibold))
+                        PillLabel(text: query, size: .large)
+                            .fixedSize()
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(title) \(query)")
+                } else {
+                    Text("Results for “\(query)”")
+                        .font(.title2.weight(.semibold))
+                        .textSelection(.enabled)
+                }
+            }
+            .modifier(FadeInOnAppear())
             if !isGenreSearch && !isTagSearch {
                 SearchTabs(query: query, selection: tabSelection) { category in
                     model.rememberSearchCategory(category, for: query)
