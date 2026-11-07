@@ -8,6 +8,15 @@ struct CachedArtistHeader {
     let image: NSImage
 }
 
+struct ArtistFirstPages {
+    var tracks: SoundCloudTrackPage?
+    var reposts: SoundCloudTrackPage?
+    var repostedPlaylists: SoundCloudPlaylistPage?
+    var playlists: SoundCloudPlaylistPage?
+    var likes: SoundCloudTrackPage?
+    var likedPlaylists: SoundCloudPlaylistPage?
+}
+
 @MainActor
 @Observable
 final class AppModel {
@@ -59,7 +68,13 @@ final class AppModel {
     // The detail list and waveform markers both read the first comment page.
     private let firstCommentPageCache = RequestCache<TrackCacheKey, SoundCloudCommentPage>(name: "First Comment Pages", countLimit: 20)
     private let firstRelatedTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Related Track Pages", countLimit: 20)
+    // Artist pages open on any tab, so each tab's first page is cached separately.
     private let firstArtistTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Track Pages", countLimit: 20)
+    private let firstArtistRepostPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Repost Pages", countLimit: 20)
+    private let firstArtistPlaylistRepostPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Artist Playlist Repost Pages", countLimit: 20)
+    private let firstArtistPlaylistPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Artist Playlist Pages", countLimit: 20)
+    private let firstArtistLikePageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Like Pages", countLimit: 20)
+    private let firstArtistPlaylistLikePageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Artist Playlist Like Pages", countLimit: 20)
     // Keep initial search pages across Back/Forward navigation without unbounded growth.
     private let firstSearchTrackPageCache = RequestCache<SearchTrackCacheKey, SoundCloudTrackPage>(name: "First Search Track Pages", countLimit: 20)
     private let firstSearchPlaylistPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Search Playlist Pages", countLimit: 20)
@@ -265,6 +280,11 @@ final class AppModel {
         firstCommentPageCache.reset()
         firstRelatedTrackPageCache.reset()
         firstArtistTrackPageCache.reset()
+        firstArtistRepostPageCache.reset()
+        firstArtistPlaylistRepostPageCache.reset()
+        firstArtistPlaylistPageCache.reset()
+        firstArtistLikePageCache.reset()
+        firstArtistPlaylistLikePageCache.reset()
         firstSearchTrackPageCache.reset()
         firstSearchPlaylistPageCache.reset()
         firstSearchUserPageCache.reset()
@@ -648,6 +668,19 @@ final class AppModel {
         searchCategoryCache.insert(category, forKey: query as NSString)
     }
 
+    func cachedFirstSearchTrackPage(query: String? = nil, genres: String? = nil, tags: String? = nil)
+        -> SoundCloudTrackPage? {
+        firstSearchTrackPageCache.cached(SearchTrackCacheKey(query: query, genres: genres, tags: tags))
+    }
+
+    func cachedFirstSearchPlaylistPage(query: String) -> SoundCloudPlaylistPage? {
+        firstSearchPlaylistPageCache.cached(query as NSString)
+    }
+
+    func cachedFirstSearchUserPage(query: String) -> SoundCloudUserPage? {
+        firstSearchUserPageCache.cached(query as NSString)
+    }
+
     func searchTracks(query: String? = nil, genres: String? = nil, tags: String? = nil, pageURL: URL? = nil) async throws -> SoundCloudTrackPage {
         if let pageURL {
             let accessToken = try await auth.validAccessToken()
@@ -682,77 +715,75 @@ final class AppModel {
         }
     }
 
-    func cachedFirstArtistTrackPage(for artist: SoundCloudUser) -> SoundCloudTrackPage? {
-        guard let urn = artist.urn else { return nil }
-        return firstArtistTrackPageCache.cached(urn as NSString)
+    /// The first page of each content tab that is already cached, so the page can show them at once.
+    func cachedFirstArtistPages(for artist: SoundCloudUser) -> ArtistFirstPages {
+        guard let urn = artist.urn as NSString? else { return ArtistFirstPages() }
+        return ArtistFirstPages(
+            tracks: firstArtistTrackPageCache.cached(urn),
+            reposts: firstArtistRepostPageCache.cached(urn),
+            repostedPlaylists: firstArtistPlaylistRepostPageCache.cached(urn),
+            playlists: firstArtistPlaylistPageCache.cached(urn),
+            likes: firstArtistLikePageCache.cached(urn),
+            likedPlaylists: firstArtistPlaylistLikePageCache.cached(urn)
+        )
     }
 
     func artistTracks(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
         -> SoundCloudTrackPage {
-        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
-        if let pageURL {
-            let accessToken = try await auth.validAccessToken()
-            return try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
-        }
-        return try await firstArtistTrackPageCache.value(for: urn as NSString) { [auth, client] in
-            let accessToken = try await auth.validAccessToken()
-            return try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: nil)
+        try await artistPage(artist, pageURL: pageURL, firstPages: firstArtistTrackPageCache) { [client] in
+            try await client.artistTracks(urn: $0, accessToken: $1, pageURL: $2)
         }
     }
 
     func artistReposts(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
         -> SoundCloudTrackPage {
-        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
-        let accessToken = try await auth.validAccessToken()
-        return try await client.artistReposts(
-            urn: urn,
-            accessToken: accessToken,
-            pageURL: pageURL
-        )
+        try await artistPage(artist, pageURL: pageURL, firstPages: firstArtistRepostPageCache) { [client] in
+            try await client.artistReposts(urn: $0, accessToken: $1, pageURL: $2)
+        }
     }
 
     func artistPlaylistReposts(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
         -> SoundCloudPlaylistPage {
-        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
-        let accessToken = try await auth.validAccessToken()
-        return try await client.artistPlaylistReposts(
-            urn: urn,
-            accessToken: accessToken,
-            pageURL: pageURL
-        )
+        try await artistPage(artist, pageURL: pageURL, firstPages: firstArtistPlaylistRepostPageCache) { [client] in
+            try await client.artistPlaylistReposts(urn: $0, accessToken: $1, pageURL: $2)
+        }
     }
 
     func artistPlaylistLikes(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
         -> SoundCloudPlaylistPage {
-        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
-        let accessToken = try await auth.validAccessToken()
-        return try await client.artistPlaylistLikes(
-            urn: urn,
-            accessToken: accessToken,
-            pageURL: pageURL
-        )
+        try await artistPage(artist, pageURL: pageURL, firstPages: firstArtistPlaylistLikePageCache) { [client] in
+            try await client.artistPlaylistLikes(urn: $0, accessToken: $1, pageURL: $2)
+        }
     }
 
     func artistLikes(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
         -> SoundCloudTrackPage {
-        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
-        let accessToken = try await auth.validAccessToken()
-        return try await client.artistLikes(
-            urn: urn,
-            accessToken: accessToken,
-            pageURL: pageURL
-        )
+        try await artistPage(artist, pageURL: pageURL, firstPages: firstArtistLikePageCache) { [client] in
+            try await client.artistLikes(urn: $0, accessToken: $1, pageURL: $2)
+        }
     }
 
     func artistPlaylists(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
         -> SoundCloudPlaylistPage {
+        try await artistPage(artist, pageURL: pageURL, firstPages: firstArtistPlaylistPageCache) { [client] in
+            try await client.artistPlaylists(urn: $0, accessToken: $1, pageURL: $2)
+        }
+    }
+
+    // Later pages are not cached: the page that requested them keeps them.
+    private func artistPage<Page>(
+        _ artist: SoundCloudUser,
+        pageURL: URL?,
+        firstPages: RequestCache<NSString, Page>,
+        fetch: @escaping @MainActor (_ urn: String, _ accessToken: String, _ pageURL: URL?) async throws -> Page
+    ) async throws -> Page {
         guard let urn = artist.urn else { throw SoundCloudError.invalidData }
-        let accessToken = try await auth.validAccessToken()
-        return try await client.artistPlaylists(
-            urn: urn,
-            accessToken: accessToken,
-            pageURL: pageURL
-        )
+        if let pageURL {
+            return try await fetch(urn, try await auth.validAccessToken(), pageURL)
+        }
+        return try await firstPages.value(for: urn as NSString) { [auth] in
+            try await fetch(urn, try await auth.validAccessToken(), nil)
+        }
     }
 
     enum StationSource {
@@ -977,12 +1008,18 @@ final class AppModel {
         guard let url = track.displayArtworkURL else { return }
         // The footer and the detail page use different renditions.
         async let footer = try? artworkLoader.image(for: url, rendition: .square300)
+        async let detail: Void = prefetchDetailArtwork(for: track)
+        _ = await (footer, detail)
+    }
+
+    func prefetchDetailArtwork(for track: SoundCloudTrack) async {
+        guard let url = track.displayArtworkURL else { return }
         async let detail = try? artworkLoader.image(for: url, rendition: .square500)
         // Prepare the source rendition too: the backdrop uses it rather
         // than square500. Cache the extracted accent, not just its JPEG data.
         async let backdrop = try? artworkLoader.image(for: url)
         async let accent = try? artworkLoader.accentColor(for: url)
-        _ = await (footer, detail, backdrop, accent)
+        _ = await (detail, backdrop, accent)
     }
 
     func navigateTrack(from track: SoundCloudTrack, offset: Int, queue: TrackQueue) {

@@ -146,7 +146,63 @@ private struct SearchResultList: View {
     @State private var hasLoaded = false
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var requestID = UUID()
+    /// nil until a page is requested after the first, which loads on appear.
+    @State private var requestID: UUID?
+
+    init(
+        query: String,
+        isGenreSearch: Bool,
+        isTagSearch: Bool,
+        category: SearchCategory,
+        isActive: Bool,
+        model: AppModel,
+        onSelectTrack: @escaping (SoundCloudTrack) -> Void,
+        onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void,
+        onSelectArtist: @escaping (SoundCloudUser) -> Void
+    ) {
+        self.query = query
+        self.isGenreSearch = isGenreSearch
+        self.isTagSearch = isTagSearch
+        self.category = category
+        self.isActive = isActive
+        self.model = model
+        self.onSelectTrack = onSelectTrack
+        self.onSelectPlaylist = onSelectPlaylist
+        self.onSelectArtist = onSelectArtist
+        // Show a revisited or prefetched first page without waiting a frame for loadPage().
+        let nextURL: URL?
+        switch category {
+        case .tracks:
+            let search = Self.trackSearch(query: query, isGenreSearch: isGenreSearch, isTagSearch: isTagSearch)
+            guard let page = model.cachedFirstSearchTrackPage(
+                query: search.query, genres: search.genres, tags: search.tags
+            ) else { return }
+            var known = Set<String>()
+            _tracks = State(initialValue: page.tracks.filter { known.insert($0.urn).inserted })
+            nextURL = page.nextURL
+        case .playlists:
+            guard let page = model.cachedFirstSearchPlaylistPage(query: query) else { return }
+            var known = Set<String>()
+            _playlists = State(initialValue: page.playlists.filter { known.insert($0.urn).inserted })
+            nextURL = page.nextURL
+        case .users:
+            guard let page = model.cachedFirstSearchUserPage(query: query) else { return }
+            var known = Set<URL>()
+            _users = State(initialValue: page.users.filter { known.insert($0.permalinkURL).inserted })
+            nextURL = page.nextURL
+        }
+        _nextPageURL = State(initialValue: nextURL)
+        _hasLoaded = State(initialValue: true)
+    }
+
+    private static func trackSearch(query: String, isGenreSearch: Bool, isTagSearch: Bool)
+        -> (query: String?, genres: String?, tags: String?) {
+        (
+            query: isGenreSearch || isTagSearch ? nil : query,
+            genres: isGenreSearch ? query : nil,
+            tags: isTagSearch ? query : nil
+        )
+    }
 
     private var isEmpty: Bool { tracks.isEmpty && playlists.isEmpty && users.isEmpty }
 
@@ -204,7 +260,11 @@ private struct SearchResultList: View {
                 .padding(.bottom, 20)
             }
         }
-        .task(id: requestID) { await loadPage() }
+        .task(id: requestID) {
+            // A seeded first page waits for the list's end before loading the next.
+            guard requestID != nil || !hasLoaded else { return }
+            await loadPage()
+        }
     }
 
     private var footer: some View {
@@ -243,11 +303,9 @@ private struct SearchResultList: View {
             let nextURL: URL?
             switch category {
             case .tracks:
+                let search = Self.trackSearch(query: query, isGenreSearch: isGenreSearch, isTagSearch: isTagSearch)
                 let page = try await model.searchTracks(
-                    query: isGenreSearch || isTagSearch ? nil : query,
-                    genres: isGenreSearch ? query : nil,
-                    tags: isTagSearch ? query : nil,
-                    pageURL: pageURL
+                    query: search.query, genres: search.genres, tags: search.tags, pageURL: pageURL
                 )
                 try Task.checkCancellation()
                 try validateNextPage(page.nextURL, requestedURL: pageURL)

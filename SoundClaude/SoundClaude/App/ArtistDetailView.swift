@@ -132,6 +132,46 @@ struct ArtistDetailView: View {
             !isLoadingTracks && tracksErrorMessage == nil && tracks.isEmpty
                 && (!hasLoadedTracks || nextPageURL != nil)
         }
+
+        /// Fills each tab whose first page is cached, so it shows without waiting
+        /// a frame for its load to start.
+        func seed(with pages: ArtistFirstPages) {
+            if let page = pages.tracks {
+                tracks = Self.unique(page.tracks, by: \.urn)
+                nextPageURL = page.nextURL
+                hasLoadedTracks = true
+            }
+            if let page = pages.reposts {
+                reposts = Self.unique(page.tracks, by: \.urn)
+                repostsNextPageURL = page.nextURL
+                hasLoadedReposts = true
+            }
+            if let page = pages.repostedPlaylists {
+                repostedPlaylists = Self.unique(page.playlists, by: \.urn)
+                repostedPlaylistsNextPageURL = page.nextURL
+                hasLoadedRepostedPlaylists = true
+            }
+            if let page = pages.playlists {
+                playlists = Self.unique(page.playlists, by: \.urn)
+                playlistsNextPageURL = page.nextURL
+                hasLoadedPlaylists = true
+            }
+            if let page = pages.likes {
+                likes = Self.unique(page.tracks, by: \.urn)
+                likesNextPageURL = page.nextURL
+                hasLoadedLikes = true
+            }
+            if let page = pages.likedPlaylists {
+                likedPlaylists = Self.unique(page.playlists, by: \.urn)
+                likedPlaylistsNextPageURL = page.nextURL
+                hasLoadedLikedPlaylists = true
+            }
+        }
+
+        private static func unique<Item>(_ items: [Item], by key: (Item) -> String) -> [Item] {
+            var seen = Set<String>()
+            return items.filter { seen.insert(key($0)).inserted }
+        }
     }
     @State private var isShowingArtwork = false
     @State private var cachedFullSizeArtwork: CachedFullSizeArtwork?
@@ -159,14 +199,9 @@ struct ArtistDetailView: View {
         _isFollowing = State(initialValue: model.cachedIsFollowingArtist(cached?.user ?? artist))
         _webProfiles = State(initialValue: model.cachedArtistWebProfiles(for: cached?.user ?? artist) ?? [])
         _isLoading = State(initialValue: cached == nil)
-        // Show a revisited artist's first track page without waiting a frame for load().
+        // Show revisited or prefetched first pages without waiting a frame for their loads.
         let contentState = ContentState()
-        if let page = model.cachedFirstArtistTrackPage(for: cached?.user ?? artist) {
-            var knownURNs = Set<String>()
-            contentState.tracks = page.tracks.filter { knownURNs.insert($0.urn).inserted }
-            contentState.nextPageURL = page.nextURL
-            contentState.hasLoadedTracks = true
-        }
+        contentState.seed(with: model.cachedFirstArtistPages(for: cached?.user ?? artist))
         _contentState = State(initialValue: contentState)
         let cachedHeader = model.cachedArtistHeader(for: artist)
         _headerImage = State(initialValue: cachedHeader?.image)
