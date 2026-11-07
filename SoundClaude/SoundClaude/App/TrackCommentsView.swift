@@ -76,6 +76,7 @@ struct TrackCommentsView: View {
     @State private var accentArtworkURL: URL?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let rowTimestampColor = timestampColor
@@ -189,8 +190,11 @@ struct TrackCommentsView: View {
         comments.append(reply)
         parentURNs[reply.urn] = threadURN
         likes.merge([:], for: [reply])
-        updateSortedComments()
-        replies.close(parent)
+        // The posted reply takes the closing composer's place in one move.
+        withAnimation(reduceMotion ? nil : TrackCommentReplies.animation) {
+            updateSortedComments()
+            replies.close(parent)
+        }
         onCommentCountChange(1)
     }
 
@@ -564,6 +568,7 @@ private struct TrackCommentRow: View {
     let onDeleted: (SoundCloudComment) -> Void
 
     @State private var isDeleting = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let avatarSize: CGFloat = 50
     private static let replyAvatarSize: CGFloat = 36
@@ -631,7 +636,11 @@ private struct TrackCommentRow: View {
                 if canReply || canDelete {
                     HStack(spacing: 12) {
                         if canReply {
-                            Button("Reply") { replies.open(comment) }
+                            Button("Reply") {
+                                withAnimation(reduceMotion ? nil : TrackCommentReplies.animation) {
+                                    replies.open(comment)
+                                }
+                            }
                                 .buttonStyle(CommentReplyButtonStyle())
                                 .accessibilityLabel("Reply to \(comment.user?.username ?? "comment")")
                         }
@@ -717,6 +726,10 @@ private struct TrackCommentRow: View {
 /// its own composer slot, so opening a reply does not update the list or the other rows.
 @MainActor
 final class TrackCommentReplies {
+    /// Opening and closing a composer animate in a transaction, so the rows below it
+    /// slide along with it instead of jumping.
+    static let animation = Animation.easeInOut(duration: 0.25)
+
     private var states: [String: TrackCommentReplyState] = [:]
 
     func state(for comment: SoundCloudComment) -> TrackCommentReplyState {
@@ -752,6 +765,8 @@ private struct TrackCommentReplyComposerSlot: View {
     let replies: TrackCommentReplies
     let onReplyAdded: (SoundCloudComment, SoundCloudComment) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         let state = replies.state(for: comment)
         if state.isOpen {
@@ -760,10 +775,15 @@ private struct TrackCommentReplyComposerSlot: View {
                 model: model,
                 reply: target,
                 focusRequest: state.focusRequest,
-                onCancel: { replies.close(comment) },
+                onCancel: {
+                    withAnimation(reduceMotion ? nil : TrackCommentReplies.animation) {
+                        replies.close(comment)
+                    }
+                },
                 onCommentAdded: { onReplyAdded($0, comment) }
             )
-            .modifier(FadeInOnAppear())
+            // Fades with the animated open and close; Reduce Motion shows it at once.
+            .transition(.opacity)
         }
     }
 }
@@ -824,7 +844,7 @@ private struct CommentReplyButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.subheadline.weight(.semibold))
+            .font(.subheadline.weight(.medium))
             .foregroundStyle(isHovering ? .secondary : .tertiary)
             .contentShape(Rectangle())
             .opacity(configuration.isPressed ? 0.75 : 1)
