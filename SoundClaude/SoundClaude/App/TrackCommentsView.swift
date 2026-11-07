@@ -463,8 +463,7 @@ private struct TrackCommentComposer: View {
             }
             .onExitCommand {
                 // Close a reply that has nothing beyond its mention; otherwise keep the draft.
-                if let reply, draft.trimmingCharacters(in: .whitespaces)
-                    == reply.mention.trimmingCharacters(in: .whitespaces) || !hasMessage {
+                if reply != nil, !hasMessage {
                     onCancel()
                 } else {
                     isCommentFocused = false
@@ -495,8 +494,14 @@ private struct TrackCommentComposer: View {
         commentTimestampMilliseconds = nil
     }
 
+    /// Whether the draft says anything beyond a reply's prefilled mention.
     private var hasMessage: Bool {
-        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        var message = Substring(draft)
+        if let mention = reply?.mention.trimmingCharacters(in: .whitespaces),
+           message.hasPrefix(mention) {
+            message = message.dropFirst(mention.count)
+        }
+        return !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var commentPlaceholder: String {
