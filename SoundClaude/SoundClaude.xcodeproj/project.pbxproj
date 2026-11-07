@@ -80,6 +80,7 @@
 		D922C0000000000000000003 /* WaveformShadingCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D922C0000000000000000004 /* WaveformShadingCache.swift */; };
 		D921C0000000000000000001 /* WaveformCommentIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = D921C0000000000000000002 /* WaveformCommentIndex.swift */; };
 		A1000000000000000000001F /* MemoryCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000037 /* MemoryCache.swift */; };
+		D100000000000000000000B0 /* RequestCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = D200000000000000000000B0 /* RequestCache.swift */; };
 		A10000000000000000000020 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* SwiftUI.framework */; };
 		A10000000000000000000021 /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* AppKit.framework */; };
 		A10000000000000000000022 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* AVFoundation.framework */; };
@@ -226,6 +227,7 @@
 		D922C0000000000000000004 /* WaveformShadingCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformShadingCache.swift; sourceTree = "<group>"; };
 		D921C0000000000000000002 /* WaveformCommentIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformCommentIndex.swift; sourceTree = "<group>"; };
 		A20000000000000000000037 /* MemoryCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryCache.swift; sourceTree = "<group>"; };
+		D200000000000000000000B0 /* RequestCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestCache.swift; sourceTree = "<group>"; };
 		A20000000000000000000039 /* ArtistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistDetailView.swift; sourceTree = "<group>"; };
 		A20000000000000000000072 /* ArtistUsersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistUsersView.swift; sourceTree = "<group>"; };
 		B719F96167384A598056BA02 /* UserGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserGridView.swift; sourceTree = "<group>"; };
@@ -538,6 +540,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000037 /* MemoryCache.swift */,
+				D200000000000000000000B0 /* RequestCache.swift */,
 				A20000000000000000000015 /* SoundClaude-Bridging-Header.h */,
 			);
 			path = Support;
@@ -707,6 +710,7 @@
 				A1000000000000000000001D /* NavigationBackEventView.swift in Sources */,
 				694ECE0E6F2D4C3C8713E6C7 /* NonCollapsingSidebar.swift in Sources */,
 				A1000000000000000000001F /* MemoryCache.swift in Sources */,
+				D100000000000000000000B0 /* RequestCache.swift in Sources */,
 				A10000000000000000000004 /* AuthController.swift in Sources */,
 				A10000000000000000000005 /* KeychainTokenStore.swift in Sources */,
 				A10000000000000000000007 /* SoundCloudClient.swift in Sources */,

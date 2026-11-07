@@ -143,6 +143,11 @@ test: test-playback-selection
 		SoundClaude/SoundClaude/Networking/ArtworkLoader.swift \
 		tests/ArtworkCacheTests.swift
 	/tmp/soundclaude-tests/artwork-cache
+	swiftc -o /tmp/soundclaude-tests/request-cache \
+		SoundClaude/SoundClaude/Support/MemoryCache.swift \
+		SoundClaude/SoundClaude/Support/RequestCache.swift \
+		tests/RequestCacheTests.swift
+	/tmp/soundclaude-tests/request-cache
 	swiftc -o /tmp/soundclaude-tests/reposts \
 		tests/APITestSupport.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \

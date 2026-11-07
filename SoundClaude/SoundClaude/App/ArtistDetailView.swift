@@ -171,6 +171,7 @@ struct ArtistDetailView: View {
         let cachedHeader = model.cachedArtistHeader(for: artist)
         _headerImage = State(initialValue: cachedHeader?.image)
         _headerImageURL = State(initialValue: cachedHeader?.artworkURL)
+        _isHeaderImageMissing = State(initialValue: model.isArtistHeaderKnownMissing(artist))
     }
 
     var body: some View {

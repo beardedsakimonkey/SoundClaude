@@ -49,38 +49,29 @@ final class AppModel {
     private(set) var queue = TrackQueue(source: .single, tracks: [])
     private let queueStore = TrackQueueStore()
     // These limits bound cache growth as liked-track pages load.
-    private let trackDetailsCache = MemoryCache<
-        TrackCacheKey,
-        SoundCloudTrackDetails
-    >(name: "Track Details", countLimit: 100)
-    private let waveformCache = MemoryCache<
-        NSURL,
-        SoundCloudWaveform
-    >(name: "Waveforms", countLimit: 50, totalCostLimit: 8 * 1_024 * 1_024)
-    @ObservationIgnored private var waveformRequests: [URL: (id: UUID, task: Task<SoundCloudWaveform, Error>)] = [:]
+    private let trackDetailsCache = RequestCache<TrackCacheKey, SoundCloudTrackDetails>(
+        name: "Track Details", countLimit: 100
+    )
+    private let waveformCache = RequestCache<NSURL, SoundCloudWaveform>(
+        name: "Waveforms", countLimit: 50, totalCostLimit: 8 * 1_024 * 1_024,
+        cost: { $0.samples.count * MemoryLayout<Int>.stride }
+    )
     // The detail list and waveform markers both read the first comment page.
-    private let firstCommentPageCache = MemoryCache<TrackCacheKey, SoundCloudCommentPage>(name: "First Comment Pages", countLimit: 20)
-    @ObservationIgnored private var firstCommentPageRequests: [TrackCacheKey: (id: UUID, task: Task<SoundCloudCommentPage, Error>)] = [:]
-    private let firstRelatedTrackPageCache = MemoryCache<NSString, SoundCloudTrackPage>(name: "First Related Track Pages", countLimit: 20)
-    @ObservationIgnored private var firstRelatedTrackPageCacheGeneration = UUID()
-    private let firstArtistTrackPageCache = MemoryCache<NSString, SoundCloudTrackPage>(name: "First Artist Track Pages", countLimit: 20)
-    @ObservationIgnored private var firstArtistTrackPageCacheGeneration = UUID()
+    private let firstCommentPageCache = RequestCache<TrackCacheKey, SoundCloudCommentPage>(name: "First Comment Pages", countLimit: 20)
+    private let firstRelatedTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Related Track Pages", countLimit: 20)
+    private let firstArtistTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Track Pages", countLimit: 20)
     // Keep initial search pages across Back/Forward navigation without unbounded growth.
-    private let firstSearchTrackPageCache = MemoryCache<SearchTrackCacheKey, SoundCloudTrackPage>(name: "First Search Track Pages", countLimit: 20)
-    private let firstSearchPlaylistPageCache = MemoryCache<NSString, SoundCloudPlaylistPage>(name: "First Search Playlist Pages", countLimit: 20)
-    private let firstSearchUserPageCache = MemoryCache<NSString, SoundCloudUserPage>(name: "First Search User Pages", countLimit: 20)
+    private let firstSearchTrackPageCache = RequestCache<SearchTrackCacheKey, SoundCloudTrackPage>(name: "First Search Track Pages", countLimit: 20)
+    private let firstSearchPlaylistPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Search Playlist Pages", countLimit: 20)
+    private let firstSearchUserPageCache = RequestCache<NSString, SoundCloudUserPage>(name: "First Search User Pages", countLimit: 20)
     private let searchCategoryCache = MemoryCache<NSString, SearchCategory>(name: "Search Categories", countLimit: 100)
-    @ObservationIgnored private var searchCacheGeneration = UUID()
-    private let artistDetailsCache = MemoryCache<NSURL, SoundCloudArtistDetails>(name: "Artist Details", countLimit: 100)
-    private let artistWebProfilesCache = MemoryCache<NSURL, [SoundCloudWebProfile]>(name: "Artist Web Profiles", countLimit: 100)
-    @ObservationIgnored private var artistWebProfilesCacheGeneration = UUID()
-    private let artistHeaderCache = MemoryCache<NSURL, CachedArtistHeader>(name: "Artist Headers", countLimit: 10)
+    private let artistDetailsCache = RequestCache<NSURL, SoundCloudArtistDetails>(name: "Artist Details", countLimit: 100)
+    private let artistWebProfilesCache = RequestCache<NSURL, [SoundCloudWebProfile]>(name: "Artist Web Profiles", countLimit: 100)
+    // nil records an artist without a profile header, so it is not looked up again.
+    private let artistHeaderCache = RequestCache<NSURL, CachedArtistHeader?>(name: "Artist Headers", countLimit: 10)
     var loadingStations: [String: SoundCloudStation] = [:]
-    private let stationMetadataCache = MemoryCache<NSString, RawSystemPlaylist>(name: "Station Metadata", countLimit: 10)
-    @ObservationIgnored private var stationMetadataRequests: [String: (id: UUID, task: Task<RawSystemPlaylist, Error>)] = [:]
-    private let stationCache = MemoryCache<NSString, SoundCloudStation>(name: "Stations", countLimit: 10)
-    @ObservationIgnored private var stationCacheGeneration = UUID()
-    @ObservationIgnored private var stationRequests: [String: (id: UUID, task: Task<SoundCloudStation, Error>)] = [:]
+    private let stationMetadataCache = RequestCache<NSString, RawSystemPlaylist>(name: "Station Metadata", countLimit: 10)
+    private let stationCache = RequestCache<NSString, SoundCloudStation>(name: "Stations", countLimit: 10)
 
     init() {
         let initialization = LaunchMetrics.begin("Model initialization")
@@ -266,33 +257,21 @@ final class AppModel {
         reposts.clear()
         playlists.clear()
         feed.clear()
-        trackDetailsCache.removeAll()
-        artistDetailsCache.removeAll()
-        artistWebProfilesCache.removeAll()
-        artistWebProfilesCacheGeneration = UUID()
-        for request in waveformRequests.values { request.task.cancel() }
-        waveformRequests.removeAll()
-        waveformCache.removeAll()
-        for request in firstCommentPageRequests.values { request.task.cancel() }
-        firstCommentPageRequests.removeAll()
-        firstCommentPageCache.removeAll()
-        firstRelatedTrackPageCache.removeAll()
-        firstRelatedTrackPageCacheGeneration = UUID()
-        firstArtistTrackPageCache.removeAll()
-        firstArtistTrackPageCacheGeneration = UUID()
-        firstSearchTrackPageCache.removeAll()
-        firstSearchPlaylistPageCache.removeAll()
-        firstSearchUserPageCache.removeAll()
+        // Responses still in flight from this session are not cached.
+        trackDetailsCache.reset()
+        artistDetailsCache.reset()
+        artistWebProfilesCache.reset()
+        waveformCache.reset()
+        firstCommentPageCache.reset()
+        firstRelatedTrackPageCache.reset()
+        firstArtistTrackPageCache.reset()
+        firstSearchTrackPageCache.reset()
+        firstSearchPlaylistPageCache.reset()
+        firstSearchUserPageCache.reset()
         searchCategoryCache.removeAll()
-        searchCacheGeneration = UUID()
-        artistHeaderCache.removeAll()
-        stationCache.removeAll()
-        stationMetadataCache.removeAll()
-        for request in stationMetadataRequests.values { request.task.cancel() }
-        stationMetadataRequests.removeAll()
-        stationCacheGeneration = UUID()
-        for request in stationRequests.values { request.task.cancel() }
-        stationRequests.removeAll()
+        artistHeaderCache.reset()
+        stationCache.reset()
+        stationMetadataCache.reset()
         loadingStations.removeAll()
         errorMessage = nil
         await auth.signOut()
@@ -502,20 +481,14 @@ final class AppModel {
 
     func trackDetails(for track: SoundCloudTrack) async throws
         -> SoundCloudTrackDetails {
-        let cacheKey = TrackCacheKey(track: track)
-        if let cachedDetails = trackDetailsCache.value(forKey: cacheKey) {
-            return cachedDetails
+        try await trackDetailsCache.value(for: TrackCacheKey(track: track)) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.track(
+                urn: track.urn,
+                secretToken: track.secretToken,
+                accessToken: accessToken
+            )
         }
-
-        let accessToken = try await auth.validAccessToken()
-        let details = try await client.track(
-            urn: track.urn,
-            secretToken: track.secretToken,
-            accessToken: accessToken
-        )
-        try Task.checkCancellation()
-        trackDetailsCache.insert(details, forKey: cacheKey)
-        return details
     }
 
     func addTrackComment(
@@ -528,9 +501,8 @@ final class AppModel {
             timestampMilliseconds: timestampMilliseconds, accessToken: accessToken
         )
         let cacheKey = TrackCacheKey(track: track)
-        firstCommentPageCache.removeValue(forKey: cacheKey)
-        firstCommentPageRequests[cacheKey] = nil
-        if var details = trackDetailsCache.value(forKey: cacheKey), let count = details.commentCount {
+        firstCommentPageCache.remove(cacheKey)
+        if var details = trackDetailsCache.cached(cacheKey), let count = details.commentCount {
             details.commentCount = count + 1
             trackDetailsCache.insert(details, forKey: cacheKey)
         }
@@ -547,70 +519,42 @@ final class AppModel {
             )
         }
 
-        let cacheKey = TrackCacheKey(track: track)
-        if let cachedPage = firstCommentPageCache.value(forKey: cacheKey) {
-            return cachedPage
+        // The detail list and the waveform markers share this request.
+        return try await firstCommentPageCache.value(for: TrackCacheKey(track: track)) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.trackComments(
+                urn: track.urn, secretToken: track.secretToken, accessToken: accessToken
+            )
         }
-        let request: (id: UUID, task: Task<SoundCloudCommentPage, Error>)
-        if let existing = firstCommentPageRequests[cacheKey] {
-            request = existing
-        } else {
-            request = (UUID(), Task { [auth, client] in
-                let accessToken = try await auth.validAccessToken()
-                return try await client.trackComments(
-                    urn: track.urn, secretToken: track.secretToken, accessToken: accessToken
-                )
-            })
-            firstCommentPageRequests[cacheKey] = request
-        }
-        defer {
-            if firstCommentPageRequests[cacheKey]?.id == request.id {
-                firstCommentPageRequests[cacheKey] = nil
-            }
-        }
-        // Not cancelled with the caller: the other comments view may share this request.
-        let page = try await request.task.value
-        // Sign-out or a new comment removes the request so a stale page is not cached.
-        if firstCommentPageRequests[cacheKey]?.id == request.id {
-            firstCommentPageCache.insert(page, forKey: cacheKey)
-        }
-        try Task.checkCancellation()
-        return page
     }
 
     func cachedTrackDetails(for track: SoundCloudTrack)
         -> SoundCloudTrackDetails? {
-        trackDetailsCache.value(forKey: TrackCacheKey(track: track))
+        trackDetailsCache.cached(TrackCacheKey(track: track))
     }
 
     func cachedArtistDetails(for artist: SoundCloudUser) -> SoundCloudArtistDetails? {
-        artistDetailsCache.value(forKey: artist.permalinkURL as NSURL)
+        artistDetailsCache.cached(artist.permalinkURL as NSURL)
     }
 
     func artistDetails(for artist: SoundCloudUser) async throws -> SoundCloudArtistDetails {
-        if let cached = cachedArtistDetails(for: artist) { return cached }
-        let accessToken = try await auth.validAccessToken()
-        let details = try await client.artist(artist, accessToken: accessToken)
-        try Task.checkCancellation()
-        artistDetailsCache.insert(details, forKey: artist.permalinkURL as NSURL)
-        return details
+        try await artistDetailsCache.value(for: artist.permalinkURL as NSURL) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.artist(artist, accessToken: accessToken)
+        }
     }
 
     func cachedArtistWebProfiles(for artist: SoundCloudUser) -> [SoundCloudWebProfile]? {
-        artistWebProfilesCache.value(forKey: artist.permalinkURL as NSURL)
+        artistWebProfilesCache.cached(artist.permalinkURL as NSURL)
     }
 
     func artistWebProfiles(for artist: SoundCloudUser) async throws -> [SoundCloudWebProfile] {
         if let cached = cachedArtistWebProfiles(for: artist) { return cached }
         guard let urn = artist.urn else { throw SoundCloudError.invalidData }
-        let generation = artistWebProfilesCacheGeneration
-        let accessToken = try await auth.validAccessToken()
-        let profiles = try await client.artistWebProfiles(urn: urn, accessToken: accessToken)
-        try Task.checkCancellation()
-        // A response from a previous session must not repopulate the cache.
-        guard generation == artistWebProfilesCacheGeneration else { throw CancellationError() }
-        artistWebProfilesCache.insert(profiles, forKey: artist.permalinkURL as NSURL)
-        return profiles
+        return try await artistWebProfilesCache.value(for: artist.permalinkURL as NSURL) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.artistWebProfiles(urn: urn, accessToken: accessToken)
+        }
     }
 
     func relatedArtists(for artist: SoundCloudUser) async throws -> [SoundCloudUser] {
@@ -658,27 +602,30 @@ final class AppModel {
         try await client.setArtistFollowed(urn: urn, isFollowed: isFollowed, accessToken: accessToken)
         guard requestID == followingRequestID else { throw CancellationError() }
         followingStatuses[urn] = isFollowed
-        // Refresh follower counts the next time an artist page opens.
+        // Refresh follower counts the next time an artist page opens. A request
+        // already in flight may predate the change, so it is not cached either.
         artistDetailsCache.removeAll()
     }
 
     func cachedArtistHeader(for artist: SoundCloudUser) -> CachedArtistHeader? {
-        artistHeaderCache.value(forKey: artist.permalinkURL as NSURL)
+        artistHeaderCache.cached(artist.permalinkURL as NSURL) ?? nil
+    }
+
+    /// Whether a previous lookup found that the artist has no profile header.
+    func isArtistHeaderKnownMissing(_ artist: SoundCloudUser) -> Bool {
+        guard case .some(nil) = artistHeaderCache.cached(artist.permalinkURL as NSURL) else {
+            return false
+        }
+        return true
     }
 
     func artistHeader(for artist: SoundCloudUser) async throws -> CachedArtistHeader? {
-        if let cached = cachedArtistHeader(for: artist) { return cached }
-        guard let url = try await client.artistHeaderURL(for: artist) else { return nil }
-        let data = try await artworkLoader.data(for: url)
-        try Task.checkCancellation()
-        guard let image = NSImage(data: data) else { throw SoundCloudError.invalidData }
-        let header = CachedArtistHeader(
-            artistURL: artist.permalinkURL,
-            artworkURL: url,
-            image: image
-        )
-        artistHeaderCache.insert(header, forKey: artist.permalinkURL as NSURL)
-        return header
+        try await artistHeaderCache.value(for: artist.permalinkURL as NSURL) { [client, artworkLoader] in
+            guard let url = try await client.artistHeaderURL(for: artist) else { return nil }
+            let data = try await artworkLoader.data(for: url)
+            guard let image = NSImage(data: data) else { throw SoundCloudError.invalidData }
+            return CachedArtistHeader(artistURL: artist.permalinkURL, artworkURL: url, image: image)
+        }
     }
 
     func artistUsers(
@@ -702,77 +649,55 @@ final class AppModel {
     }
 
     func searchTracks(query: String? = nil, genres: String? = nil, tags: String? = nil, pageURL: URL? = nil) async throws -> SoundCloudTrackPage {
+        if let pageURL {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.searchTracks(query: query, genres: genres, tags: tags, accessToken: accessToken, pageURL: pageURL)
+        }
         let cacheKey = SearchTrackCacheKey(query: query, genres: genres, tags: tags)
-        if pageURL == nil, let cached = firstSearchTrackPageCache.value(forKey: cacheKey) {
-            return cached
+        return try await firstSearchTrackPageCache.value(for: cacheKey) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.searchTracks(query: query, genres: genres, tags: tags, accessToken: accessToken, pageURL: nil)
         }
-        let generation = searchCacheGeneration
-        let accessToken = try await auth.validAccessToken()
-        let page = try await client.searchTracks(query: query, genres: genres, tags: tags, accessToken: accessToken, pageURL: pageURL)
-        try Task.checkCancellation()
-        guard generation == searchCacheGeneration else { throw CancellationError() }
-        if pageURL == nil {
-            firstSearchTrackPageCache.insert(page, forKey: cacheKey)
-        }
-        return page
     }
 
     func searchPlaylists(query: String, pageURL: URL? = nil) async throws -> SoundCloudPlaylistPage {
-        let cacheKey = query as NSString
-        if pageURL == nil, let cached = firstSearchPlaylistPageCache.value(forKey: cacheKey) {
-            return cached
+        if let pageURL {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.searchPlaylists(query: query, accessToken: accessToken, pageURL: pageURL)
         }
-        let generation = searchCacheGeneration
-        let accessToken = try await auth.validAccessToken()
-        let page = try await client.searchPlaylists(query: query, accessToken: accessToken, pageURL: pageURL)
-        try Task.checkCancellation()
-        guard generation == searchCacheGeneration else { throw CancellationError() }
-        if pageURL == nil {
-            firstSearchPlaylistPageCache.insert(page, forKey: cacheKey)
+        return try await firstSearchPlaylistPageCache.value(for: query as NSString) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.searchPlaylists(query: query, accessToken: accessToken, pageURL: nil)
         }
-        return page
     }
 
     func searchUsers(query: String, pageURL: URL? = nil) async throws -> SoundCloudUserPage {
-        let cacheKey = query as NSString
-        if pageURL == nil, let cached = firstSearchUserPageCache.value(forKey: cacheKey) {
-            return cached
+        if let pageURL {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.searchUsers(query: query, accessToken: accessToken, pageURL: pageURL)
         }
-        let generation = searchCacheGeneration
-        let accessToken = try await auth.validAccessToken()
-        let page = try await client.searchUsers(query: query, accessToken: accessToken, pageURL: pageURL)
-        try Task.checkCancellation()
-        guard generation == searchCacheGeneration else { throw CancellationError() }
-        if pageURL == nil {
-            firstSearchUserPageCache.insert(page, forKey: cacheKey)
+        return try await firstSearchUserPageCache.value(for: query as NSString) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.searchUsers(query: query, accessToken: accessToken, pageURL: nil)
         }
-        return page
     }
 
     func cachedFirstArtistTrackPage(for artist: SoundCloudUser) -> SoundCloudTrackPage? {
         guard let urn = artist.urn else { return nil }
-        return firstArtistTrackPageCache.value(forKey: urn as NSString)
+        return firstArtistTrackPageCache.cached(urn as NSString)
     }
 
     func artistTracks(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
         -> SoundCloudTrackPage {
         guard let urn = artist.urn else { throw SoundCloudError.invalidData }
-        let cacheKey = urn as NSString
-        if pageURL == nil, let cachedPage = cachedFirstArtistTrackPage(for: artist) {
-            return cachedPage
+        if let pageURL {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
         }
-        let generation = firstArtistTrackPageCacheGeneration
-        let accessToken = try await auth.validAccessToken()
-        let page = try await client.artistTracks(
-            urn: urn,
-            accessToken: accessToken,
-            pageURL: pageURL
-        )
-        // A response from a previous session must not repopulate the cache.
-        if pageURL == nil, generation == firstArtistTrackPageCacheGeneration {
-            firstArtistTrackPageCache.insert(page, forKey: cacheKey)
+        return try await firstArtistTrackPageCache.value(for: urn as NSString) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: nil)
         }
-        return page
     }
 
     func artistReposts(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
@@ -858,64 +783,31 @@ final class AppModel {
     }
 
     func cachedStation(urn: String) -> SoundCloudStation? {
-        stationCache.value(forKey: urn as NSString)
+        stationCache.cached(urn as NSString)
     }
 
     private func stationMetadata(urn: String) async throws -> RawSystemPlaylist {
-        if let cached = stationMetadataCache.value(forKey: urn as NSString) { return cached }
-        let generation = stationCacheGeneration
-        let request: (id: UUID, task: Task<RawSystemPlaylist, Error>)
-        if let existing = stationMetadataRequests[urn] {
-            request = existing
-        } else {
-            request = (UUID(), Task { [auth, client] in
-                let token = try await auth.validAccessToken()
-                return try await client.stationMetadata(urn: urn, accessToken: token)
-            })
-            stationMetadataRequests[urn] = request
+        try await stationMetadataCache.value(for: urn as NSString) { [auth, client] in
+            let token = try await auth.validAccessToken()
+            return try await client.stationMetadata(urn: urn, accessToken: token)
         }
-        defer {
-            if stationMetadataRequests[urn]?.id == request.id {
-                stationMetadataRequests[urn] = nil
-            }
-        }
-        let metadata = try await request.task.value
-        guard generation == stationCacheGeneration else { throw CancellationError() }
-        stationMetadataCache.insert(metadata, forKey: urn as NSString)
-        try Task.checkCancellation()
-        return metadata
     }
 
     func station(urn: String) async throws -> SoundCloudStation {
-        if let cached = cachedStation(urn: urn) { return cached }
-        let generation = stationCacheGeneration
-        let request: (id: UUID, task: Task<SoundCloudStation, Error>)
-        if let existing = stationRequests[urn] {
-            request = existing
-        } else {
-            request = (UUID(), Task { [weak self, auth, client] in
-                guard let self else { throw CancellationError() }
-                let metadata = try await self.stationMetadata(urn: urn)
-                let accessToken = try await auth.validAccessToken()
-                return try await client.hydrateStation(metadata, accessToken: accessToken) { [weak self] station in
-                    await self?.updateLoadingStation(station, urn: urn, generation: generation)
-                }
-            })
-            stationRequests[urn] = request
-        }
-        defer {
-            if stationRequests[urn]?.id == request.id {
-                stationRequests[urn] = nil
-                loadingStations[urn] = nil
+        // Hover prefetch and navigation share this request.
+        try await stationCache.value(for: urn as NSString) { [weak self, auth, client] in
+            guard let self else { throw CancellationError() }
+            // The finished station is cached as this returns, with no gap between them.
+            defer {
+                // Sign-out cancels the request and has already cleared loading stations.
+                if !Task.isCancelled { loadingStations[urn] = nil }
+            }
+            let metadata = try await stationMetadata(urn: urn)
+            let accessToken = try await auth.validAccessToken()
+            return try await client.hydrateStation(metadata, accessToken: accessToken) { [weak self] station in
+                await self?.updateLoadingStation(station, urn: urn)
             }
         }
-        // Keep hover prefetch and navigation on the same request.
-        let station = try await request.task.value
-        // A response from a previous session must not repopulate the cache.
-        guard generation == stationCacheGeneration else { throw CancellationError() }
-        stationCache.insert(station, forKey: urn as NSString)
-        try Task.checkCancellation()
-        return station
     }
 
     private func appendAvailableStationTracks(to queue: inout TrackQueue) {
@@ -925,8 +817,10 @@ final class AppModel {
         try? queue.append(SoundCloudTrackPage(tracks: station.tracks, nextURL: nil))
     }
 
-    private func updateLoadingStation(_ station: SoundCloudStation, urn: String, generation: UUID) {
-        guard generation == stationCacheGeneration else { return }
+    // Runs in the station request, so its cancellation is visible here.
+    private func updateLoadingStation(_ station: SoundCloudStation, urn: String) {
+        // Progress from a request cancelled by sign-out must not reach the new session.
+        guard !Task.isCancelled else { return }
         loadingStations[urn] = station
         guard queue.source == .station(urn) else { return }
         // Append deduplicates tracks and respects tracks removed by the user.
@@ -963,22 +857,14 @@ final class AppModel {
 
     func relatedTracks(for track: SoundCloudTrack, pageURL: URL? = nil) async throws
         -> SoundCloudTrackPage {
-        let cacheKey = track.urn as NSString
-        if pageURL == nil, let cachedPage = firstRelatedTrackPageCache.value(forKey: cacheKey) {
-            return cachedPage
+        if let pageURL {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.relatedTracks(urn: track.urn, accessToken: accessToken, pageURL: pageURL)
         }
-        let generation = firstRelatedTrackPageCacheGeneration
-        let accessToken = try await auth.validAccessToken()
-        let page = try await client.relatedTracks(
-            urn: track.urn,
-            accessToken: accessToken,
-            pageURL: pageURL
-        )
-        // A response from a previous session must not repopulate the cache.
-        if pageURL == nil, generation == firstRelatedTrackPageCacheGeneration {
-            firstRelatedTrackPageCache.insert(page, forKey: cacheKey)
+        return try await firstRelatedTrackPageCache.value(for: track.urn as NSString) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.relatedTracks(urn: track.urn, accessToken: accessToken, pageURL: nil)
         }
-        return page
     }
 
     func waveform(for track: SoundCloudTrack) async throws
@@ -992,40 +878,16 @@ final class AppModel {
         guard let waveformURL else {
             throw SoundCloudError.invalidData
         }
-        let cacheKey = waveformURL as NSURL
-        if let cachedWaveform = waveformCache.value(forKey: cacheKey) {
-            return cachedWaveform
+        // A cancelled prefetch may still serve a visible waveform.
+        return try await waveformCache.value(for: waveformURL as NSURL) { [client] in
+            try await client.waveform(from: waveformURL)
         }
-
-        let request: (id: UUID, task: Task<SoundCloudWaveform, Error>)
-        if let existing = waveformRequests[waveformURL] {
-            request = existing
-        } else {
-            request = (UUID(), Task { [client] in
-                try await client.waveform(from: waveformURL)
-            })
-            waveformRequests[waveformURL] = request
-        }
-        defer {
-            if waveformRequests[waveformURL]?.id == request.id {
-                waveformRequests[waveformURL] = nil
-            }
-        }
-        let waveform = try await request.task.value
-        // A cancelled prefetch may still serve a visible waveform. Sign-out
-        // removes the request so an old response cannot repopulate the cache.
-        if waveformRequests[waveformURL]?.id == request.id {
-            let cost = waveform.samples.count * MemoryLayout<Int>.stride
-            waveformCache.insert(waveform, forKey: cacheKey, cost: cost)
-        }
-        try Task.checkCancellation()
-        return waveform
     }
 
     func cachedWaveform(for track: SoundCloudTrack) -> SoundCloudWaveform? {
         guard let waveformURL = track.waveformURL
             ?? cachedTrackDetails(for: track)?.track.waveformURL else { return nil }
-        return waveformCache.value(forKey: waveformURL as NSURL)
+        return waveformCache.cached(waveformURL as NSURL)
     }
 
     func clearError() {
