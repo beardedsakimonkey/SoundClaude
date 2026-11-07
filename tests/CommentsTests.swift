@@ -108,7 +108,7 @@ struct CommentsTests {
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
             precondition(query.contains(URLQueryItem(name: "limit", value: "50")))
             precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "1")))
-            precondition(query.contains(URLQueryItem(name: "threaded", value: "0")))
+            precondition(query.contains(URLQueryItem(name: "threaded", value: "1")))
             precondition(query.contains(URLQueryItem(name: "secret_token", value: "s-private")))
             return (200, """
                 {"collection":[\(comment(timestamp: "4960"))],"next_href":"\(nextURL.absoluteString)"}
@@ -122,6 +122,29 @@ struct CommentsTests {
         }
         let lastPage = try await client.trackComments(urn: "soundcloud:tracks:1", accessToken: "test-token", pageURL: nextURL)
         precondition(lastPage.comments.isEmpty && lastPage.nextURL == nil)
+
+        func threaded(_ entries: [(Int, String)]) throws -> [SoundCloudComment] {
+            try entries.map { id, timestamp in
+                try decoder.decode(SoundCloudComment.self, from: Data("""
+                    {"id":\(id),"body":"","timestamp":\(timestamp)}
+                    """.utf8))
+            }
+        }
+        var threader = SoundCloudCommentThreader()
+        let first = threader.parentURNs(in: try threaded([
+            (1, "500"), (2, "500"), (3, "500"), (4, "900"), (5, "null"), (6, "null"), (7, "0"), (8, "0"),
+        ]))
+        precondition(first == [
+            "soundcloud:comments:2": "soundcloud:comments:1",
+            "soundcloud:comments:3": "soundcloud:comments:1",
+            "soundcloud:comments:8": "soundcloud:comments:7",
+        ])
+        // A thread split across pages continues from the previous page's last root.
+        let second = threader.parentURNs(in: try threaded([(9, "0"), (10, "500"), (11, "500")]))
+        precondition(second == [
+            "soundcloud:comments:9": "soundcloud:comments:7",
+            "soundcloud:comments:11": "soundcloud:comments:10",
+        ])
 
         for status in [401, 404, 429] {
             CommentsURLProtocol.respond { _ in (status, "{}") }

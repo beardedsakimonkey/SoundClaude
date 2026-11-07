@@ -58,7 +58,10 @@ struct TrackCommentsView: View {
     @AppStorage("commentSortOrder") private var sortOrder = CommentSortOrder.newest
     // Keep loaded order for stable sorting when dates or track times are equal.
     @State private var comments: [SoundCloudComment] = []
-    @State private var sortedComments: [SoundCloudComment] = []
+    // Reply URN to the URN of the comment that starts its thread.
+    @State private var parentURNs: [String: String] = [:]
+    @State private var threader = SoundCloudCommentThreader()
+    @State private var rows: [TrackCommentListRow] = []
     @State private var nextPageURL: URL?
     @State private var loadedPageURLs: Set<URL> = []
     @State private var hasLoaded = false
@@ -85,9 +88,10 @@ struct TrackCommentsView: View {
             }
             .modifier(FadeInOnAppear())
 
-            ForEach(sortedComments) { comment in
+            ForEach(rows) { row in
                 TrackCommentRow(
-                    comment: comment,
+                    comment: row.comment,
+                    isReply: row.isReply,
                     track: track,
                     model: model,
                     likes: likes,
@@ -156,8 +160,19 @@ struct TrackCommentsView: View {
         )
     }
 
+    // Sort threads by their first comment; replies stay in posted order beneath it.
     private func updateSortedComments() {
-        sortedComments = comments.sorted(by: sortOrder.precedes)
+        let urns = Set(comments.map(\.urn))
+        func parent(of comment: SoundCloudComment) -> String? {
+            parentURNs[comment.urn].flatMap { urns.contains($0) ? $0 : nil }
+        }
+        let replies = Dictionary(grouping: comments.filter { parent(of: $0) != nil }) { parent(of: $0)! }
+        rows = comments.filter { parent(of: $0) == nil }
+            .sorted(by: sortOrder.precedes)
+            .flatMap { root in
+                [TrackCommentListRow(comment: root, isReply: false)]
+                    + (replies[root.urn] ?? []).map { TrackCommentListRow(comment: $0, isReply: true) }
+            }
     }
 
     private func startLoadingPage() {
@@ -189,9 +204,14 @@ struct TrackCommentsView: View {
                nextURL == pageURL || loadedPageURLs.contains(nextURL) {
                 throw SoundCloudError.invalidData
             }
+            // Thread before dropping known comments so a known comment can still start a thread.
+            let pageParentURNs = threader.parentURNs(in: page.comments)
             var knownURNs = Set(comments.map(\.urn))
             let newComments = page.comments.filter { knownURNs.insert($0.urn).inserted }
             if !newComments.isEmpty {
+                for comment in newComments {
+                    parentURNs[comment.urn] = pageParentURNs[comment.urn]
+                }
                 comments.append(contentsOf: newComments)
                 updateSortedComments()
                 loadLikes(for: newComments)
@@ -367,29 +387,45 @@ private struct TrackCommentComposer: View {
     }
 }
 
+private struct TrackCommentListRow: Identifiable {
+    let comment: SoundCloudComment
+    let isReply: Bool
+
+    var id: String { comment.urn }
+}
+
 private struct TrackCommentRow: View {
     let comment: SoundCloudComment
+    let isReply: Bool
     let track: SoundCloudTrack
     let model: AppModel
     let likes: TrackCommentLikes
     let timestampColor: Color
     let onSelectArtist: (SoundCloudUser) -> Void
 
+    private static let avatarSize: CGFloat = 50
+    private static let replyAvatarSize: CGFloat = 36
+    private static let avatarSpacing: CGFloat = 14
+
+    private var avatarSize: CGFloat { isReply ? Self.replyAvatarSize : Self.avatarSize }
+
     var body: some View {
         HStack(spacing: 16) {
             content
             TrackCommentLikeButton(comment: comment, track: track, model: model, likes: likes)
         }
+        // Start replies under the body of the comment they answer.
+        .padding(.leading, isReply ? Self.avatarSize + Self.avatarSpacing : 0)
     }
 
     private var content: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: Self.avatarSpacing) {
             if let user = comment.user {
-                TrackCommentAvatar(user: user, loader: model.artworkLoader)
+                TrackCommentAvatar(user: user, loader: model.artworkLoader, size: avatarSize)
             } else {
                 Image(systemName: "person.crop.circle")
                     .resizable()
-                    .frame(width: 50, height: 50)
+                    .frame(width: avatarSize, height: avatarSize)
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
             }
@@ -405,7 +441,7 @@ private struct TrackCommentRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             // Center short comments on the avatar; taller ones stay top-aligned.
-            .frame(minHeight: 50, alignment: .leading)
+            .frame(minHeight: avatarSize, alignment: .leading)
         }
     }
 
@@ -573,6 +609,7 @@ private struct CommentLikeButtonStyle: ButtonStyle {
 private struct TrackCommentAvatar: View {
     let user: SoundCloudUser
     let loader: ArtworkLoader
+    let size: CGFloat
 
     @State private var isShowingPicture = false
     @State private var isHovering = false
@@ -581,7 +618,7 @@ private struct TrackCommentAvatar: View {
         let thumbnail = TrackArtworkView(
             artworkURL: user.avatarURL,
             loader: loader,
-            size: 50,
+            size: size,
             showsBorder: false,
             showsPlaceholderIcon: false
         )
@@ -607,7 +644,7 @@ private struct TrackCommentAvatar: View {
             .contentShape(Circle())
             .prefetch(
                 user.avatarURL.map(PrefetchTarget.fullSizeImage),
-                in: Circle().path(in: CGRect(x: 0, y: 0, width: 50, height: 50))
+                in: Circle().path(in: CGRect(x: 0, y: 0, width: size, height: size))
             ) { isHovering = $0 }
             .contentHelp("View full-size picture")
             .accessibilityLabel("View full-size picture of \(user.username)")

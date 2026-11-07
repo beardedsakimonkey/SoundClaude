@@ -576,8 +576,8 @@ actor SoundCloudClient {
         limit: Int = 50
     ) async throws -> SoundCloudCommentPage {
         let url = try pageURL ?? endpoint("tracks/\(try Self.id(urn))/comments", query: [
-            "threaded": "0",
-            "filter_replies": "0",
+            // Lists each reply after the comment it answers; unthreaded lists omit replies.
+            "threaded": "1",
             "limit": String(limit),
             "secret_token": secretToken,
         ])

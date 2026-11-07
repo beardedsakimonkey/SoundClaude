@@ -419,6 +419,26 @@ struct SoundCloudCommentLikes: Equatable, Sendable {
     var isLiked: Bool
 }
 
+/// Comments have no reply field. A reply takes its thread's track time, and the threaded
+/// endpoint lists it right after the comment that starts the thread, as the website reads it.
+struct SoundCloudCommentThreader {
+    private var root: (urn: String, timestamp: Int)?
+
+    /// Maps each reply's URN to its thread's first comment, continuing a thread from the
+    /// previous page. Untimed comments never form threads.
+    mutating func parentURNs(in page: [SoundCloudComment]) -> [String: String] {
+        var parents: [String: String] = [:]
+        for comment in page {
+            if let root, let timestamp = comment.timestampMilliseconds, timestamp == root.timestamp {
+                parents[comment.urn] = root.urn
+            } else {
+                root = comment.timestampMilliseconds.map { (comment.urn, $0) }
+            }
+        }
+        return parents
+    }
+}
+
 struct SoundCloudCommentPage: Decodable, Sendable {
     let comments: [SoundCloudComment]
     let nextURL: URL?
