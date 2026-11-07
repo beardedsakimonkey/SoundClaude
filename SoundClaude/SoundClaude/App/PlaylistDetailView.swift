@@ -207,6 +207,7 @@ struct PlaylistDetailView: View {
                         Text("by")
                         ArtistLink(
                             artist: displayedPlaylist.owner,
+                            showsVerifiedBadge: true,
                             onSelect: onSelectArtist
                         )
                     }

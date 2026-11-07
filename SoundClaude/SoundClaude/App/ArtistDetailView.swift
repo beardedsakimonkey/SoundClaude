@@ -1420,12 +1420,3 @@ final class ArtistTabSelection {
     }
     @ObservationIgnored var onChange: (() -> Void)?
 }
-
-private struct VerifiedBadge: View {
-    var body: some View {
-        Image(systemName: "checkmark.seal.fill")
-            .foregroundStyle(.white, .blue)
-            .contentHelp("Verified")
-            .accessibilityLabel("Verified")
-    }
-}

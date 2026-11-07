@@ -5,6 +5,7 @@ struct ArtistLink: View {
     var artworkLoader: ArtworkLoader? = nil
     var avatarSize: CGFloat = 24
     var showsAvatarBorder = false
+    var showsVerifiedBadge = false
     var helpTitle = "View artist"
     let onSelect: (SoundCloudUser) -> Void
 
@@ -31,9 +32,14 @@ struct ArtistLink: View {
                         }
                     }
                 }
-                Text(artist.username)
-                    .underline(isHovering)
-                    .lineLimit(1)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(artist.username)
+                        .underline(isHovering)
+                        .lineLimit(1)
+                    if showsVerifiedBadge, artist.isVerified == true {
+                        VerifiedBadge()
+                    }
+                }
             }
             .contentShape(Rectangle())
         }
@@ -42,6 +48,15 @@ struct ArtistLink: View {
         .prefetch(.artist(artist)) { isHovering = $0 }
         .contentHelp(helpTitle)
         .accessibilityLabel("\(helpTitle): \(artist.username)")
+    }
+}
+
+struct VerifiedBadge: View {
+    var body: some View {
+        Image(systemName: "checkmark.seal.fill")
+            .foregroundStyle(.white, .blue)
+            .contentHelp("Verified")
+            .accessibilityLabel("Verified")
     }
 }
 

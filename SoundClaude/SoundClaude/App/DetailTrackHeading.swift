@@ -79,7 +79,7 @@ struct DetailTrackHeading: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 ArtistLink(
                     artist: track.artist, artworkLoader: artworkLoader,
-                    showsAvatarBorder: true, onSelect: onSelectArtist
+                    showsAvatarBorder: true, showsVerifiedBadge: true, onSelect: onSelectArtist
                 )
                 .layoutPriority(1)
                 RelativeTimestampView(timestamp: track.createdAt, accessibilityPrefix: "Created")

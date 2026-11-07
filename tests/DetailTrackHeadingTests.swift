@@ -17,6 +17,7 @@ struct ArtistLink: View {
     let artist: SoundCloudUser
     var artworkLoader: ArtworkLoader? = nil
     var showsAvatarBorder = false
+    var showsVerifiedBadge = false
     let onSelect: (SoundCloudUser) -> Void
     @StateObject private var lifetime = HeadingLifetime()
     var body: some View { let _ = lifetime; HStack(spacing: 8) { Color.clear.frame(width: 24, height: 24); Button(artist.username) { onSelect(artist) }.lineLimit(1) } }
