@@ -12,6 +12,7 @@ struct SoundCloudUser: Codable, Sendable, Hashable {
     var playlistCount: Int? = nil
     var publicFavoritesCount: Int? = nil
     var stationURN: String? = nil
+    var isVerified: Bool? = nil
 
     enum CodingKeys: String, CodingKey {
         case urn
@@ -25,6 +26,7 @@ struct SoundCloudUser: Codable, Sendable, Hashable {
         case playlistCount = "playlist_count"
         case publicFavoritesCount = "public_favorites_count"
         case stationURN = "station_urn"
+        case isVerified = "verified"
     }
 }
 
@@ -827,9 +829,10 @@ struct RawUser: Decodable {
     let likesCount: Int?
     let countryCode: String?
     let stationURN: String?
+    let verified: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case urn, description, city, country
+        case urn, description, city, country, verified
         case likesCount = "likes_count"
         case countryCode = "country_code"
         case fullName = "full_name"
@@ -858,7 +861,8 @@ struct RawUser: Decodable {
             repostsCount: repostsCount,
             playlistCount: playlistCount,
             publicFavoritesCount: publicFavoritesCount ?? likesCount,
-            stationURN: stationURN
+            stationURN: stationURN,
+            isVerified: verified
         )
     }
 

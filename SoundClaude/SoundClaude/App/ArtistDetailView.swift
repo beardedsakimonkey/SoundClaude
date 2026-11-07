@@ -61,6 +61,8 @@ struct ArtistDetailView: View {
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectStation: (String, String) -> Void
 
+    private static let usernameCapHeight = NSFont.systemFont(ofSize: 36, weight: .semibold).capHeight
+
     @State private var isFollowing: Bool?
     @State private var isUpdatingFollow = false
     @State private var isShufflingTracks = false
@@ -318,11 +320,21 @@ struct ArtistDetailView: View {
                     HStack(alignment: .center, spacing: 24) {
                         artistPicture(for: details.user)
                         VStack(alignment: .leading, spacing: 10) {
-                            Text(details.user.username)
-                                .font(.system(size: 36, weight: .semibold))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.5)
-                                .textSelection(.enabled)
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(details.user.username)
+                                    .font(.system(size: 36, weight: .semibold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.5)
+                                    .textSelection(.enabled)
+                                if details.user.isVerified == true {
+                                    VerifiedBadge()
+                                        .font(.system(size: 24))
+                                        // Center on the name's cap height rather than its baseline.
+                                        .alignmentGuide(.firstTextBaseline) { d in
+                                            d[VerticalAlignment.center] + Self.usernameCapHeight / 2
+                                        }
+                                }
+                            }
                             if let fullName = nonempty(details.user.fullName) {
                                 Text(fullName)
                                     .font(.title3)
@@ -539,8 +551,13 @@ struct ArtistDetailView: View {
                             .accessibilityHidden(true)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(user.username)
-                                    .font(.body.weight(.semibold))
+                                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                    Text(user.username)
+                                    if user.isVerified == true {
+                                        VerifiedBadge()
+                                    }
+                                }
+                                .font(.body.weight(.semibold))
                                 ViewThatFits(in: .horizontal) {
                                     relatedArtistStatistics(user, showsTrackCount: true)
                                         .fixedSize(horizontal: true, vertical: false)
@@ -1402,4 +1419,13 @@ final class ArtistTabSelection {
         didSet { if tab != oldValue { onChange?() } }
     }
     @ObservationIgnored var onChange: (() -> Void)?
+}
+
+private struct VerifiedBadge: View {
+    var body: some View {
+        Image(systemName: "checkmark.seal.fill")
+            .foregroundStyle(.white, .blue)
+            .contentHelp("Verified")
+            .accessibilityLabel("Verified")
+    }
 }
