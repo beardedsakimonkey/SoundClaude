@@ -21,18 +21,15 @@ struct PreventAutomaticSearchFocus: ViewModifier {
 
 struct SearchOutsideClickView: NSViewRepresentable {
     let isFocused: Bool
-    let onOutsideClick: () -> Void
 
     func makeNSView(context: Context) -> MonitorView {
         let view = MonitorView()
         view.isFocused = isFocused
-        view.onOutsideClick = onOutsideClick
         return view
     }
 
     func updateNSView(_ nsView: MonitorView, context: Context) {
         nsView.isFocused = isFocused
-        nsView.onOutsideClick = onOutsideClick
     }
 
     static func dismantleNSView(_ nsView: MonitorView, coordinator: ()) {
@@ -41,7 +38,6 @@ struct SearchOutsideClickView: NSViewRepresentable {
 
     final class MonitorView: NSView {
         var isFocused = false
-        var onOutsideClick: (() -> Void)?
         private var monitor: Any?
 
         // The background observes clicks without taking part in hit testing.
@@ -65,8 +61,10 @@ struct SearchOutsideClickView: NSViewRepresentable {
                 let filterRect = self.bounds.intersection(self.visibleRect)
                 if !filterRect.contains(location) {
                     // End native text editing before the click can focus another control.
+                    // SwiftUI clears the field's focus state from this on its own; setting
+                    // it false as well lands after the click focuses another field, and
+                    // takes that focus away again.
                     window.makeFirstResponder(nil)
-                    self.onOutsideClick?()
                 }
                 return event
             }

@@ -431,9 +431,7 @@ private struct TrackCommentComposer: View {
                 .animation(.easeInOut(duration: 0.15), value: isCommentFocused)
         }
         .background {
-            SearchOutsideClickView(isFocused: isCommentFocused) {
-                isCommentFocused = false
-            }
+            SearchOutsideClickView(isFocused: isCommentFocused)
         }
         // Align the avatar with the rows while keeping the capsule's inset.
         .padding(.leading, -5)

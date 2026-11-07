@@ -67,9 +67,7 @@ struct SearchTextField: View {
             isFocused.wrappedValue = true
         })
         .background {
-            SearchOutsideClickView(isFocused: isFocused.wrappedValue) {
-                isFocused.wrappedValue = false
-            }
+            SearchOutsideClickView(isFocused: isFocused.wrappedValue)
         }
     }
 
