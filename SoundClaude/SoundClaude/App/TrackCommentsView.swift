@@ -74,7 +74,7 @@ struct TrackCommentsView: View {
     var body: some View {
         let rowTimestampColor = timestampColor
 
-        LazyVStack(alignment: .leading, spacing: 28) {
+        LazyVStack(alignment: .leading, spacing: 20) {
             TrackCommentComposer(track: track, model: model) { comment in
                 comments.removeAll { $0.urn == comment.urn }
                 comments.insert(comment, at: 0)
