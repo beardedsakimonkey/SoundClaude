@@ -1,8 +1,13 @@
 import SwiftUI
 
+extension Font {
+    static let sectionHeading = Font.title3.weight(.semibold)
+}
+
 struct CountedSectionHeader: View {
     let title: LocalizedStringKey
     let count: Int?
+    var font: Font = .sectionHeading
 
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
@@ -13,7 +18,7 @@ struct CountedSectionHeader: View {
                     .fontWeight(.regular)
             }
         }
-        .font(.headline)
+        .font(font)
         .opacity(0.96)
     }
 }

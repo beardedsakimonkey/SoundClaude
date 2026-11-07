@@ -58,7 +58,7 @@ struct SearchView: View {
             if !recentSearches.isEmpty {
                 HStack {
                     Text("Recent")
-                        .font(.headline)
+                        .font(.sectionHeading)
                     Spacer()
                     Button {
                         store.clear(for: user)

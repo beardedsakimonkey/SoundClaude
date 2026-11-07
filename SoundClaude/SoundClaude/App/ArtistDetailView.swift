@@ -391,7 +391,7 @@ struct ArtistDetailView: View {
                         if let description = nonempty(details.description) {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("About")
-                                    .font(.headline)
+                                    .font(.sectionHeading)
                                     .opacity(0.96)
                                 ExpandableDescriptionText(
                                     description: description,
@@ -474,7 +474,7 @@ struct ArtistDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Related")
-                    .font(.headline)
+                    .font(.sectionHeading)
                     .opacity(0.96)
                 Spacer()
                 Button("Refresh") {

@@ -36,7 +36,8 @@ struct AddToPlaylistView: View {
             trackHeader
             CountedSectionHeader(
                 title: "Playlists",
-                count: ownedPlaylists.isEmpty && playlists.isLoading ? nil : ownedPlaylists.count
+                count: ownedPlaylists.isEmpty && playlists.isLoading ? nil : ownedPlaylists.count,
+                font: .headline
             )
             ScrollView {
                 LazyVStack(spacing: Self.rowSpacing) {

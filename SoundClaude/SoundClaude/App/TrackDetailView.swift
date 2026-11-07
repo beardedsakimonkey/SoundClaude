@@ -403,7 +403,7 @@ private struct TrackDetailRelatedTracks: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Related tracks")
-                .font(.headline)
+                .font(.sectionHeading)
                 .opacity(0.96)
                 .modifier(FadeInOnAppear())
             if let message = model.errorMessage {
