@@ -12,6 +12,7 @@ struct SoundClaudeApp: App {
         #endif
         let launch = LaunchMetrics.begin("App initialization")
         defer { LaunchMetrics.end(launch) }
+        TextArrowKeys.install()
         let model = AppModel()
         _model = State(initialValue: model)
         _auth = ObservedObject(wrappedValue: model.auth)
@@ -97,6 +98,25 @@ struct SoundClaudeApp: App {
         LoadingSpinner()
             .accessibilityLabel(label)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// Arrow keys carry the function-key flag, so AppKit matches them against menu key equivalents
+// before the first responder sees them. Route them straight to a focused text view instead, so
+// the seek, track, and volume shortcuts don't swallow caret movement and selection.
+private enum TextArrowKeys {
+    private static var monitor: Any?
+
+    static func install() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard (123...126).contains(event.keyCode),
+                  event.modifierFlags.isDisjoint(with: [.command, .control]),
+                  let window = event.window, window.isKeyWindow,
+                  let text = window.firstResponder as? NSText else { return event }
+            text.keyDown(with: event)
+            return nil
+        }
     }
 }
 
