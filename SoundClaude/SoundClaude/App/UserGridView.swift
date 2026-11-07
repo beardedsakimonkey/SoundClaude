@@ -57,7 +57,8 @@ private struct UserGridCard: View {
                 .scaleEffect(isHovering && !reduceMotion ? 1.1 : 1)
                 .clipShape(Circle())
                 .modifier(PlayerArtworkGlass(
-                    cornerRadius: 60
+                    cornerRadius: 60,
+                    size: CGSize(width: 120, height: 120)
                 ))
                 .animation(
                     reduceMotion ? nil : isHovering

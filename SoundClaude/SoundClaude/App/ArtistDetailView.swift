@@ -857,7 +857,8 @@ struct ArtistDetailView: View {
             .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.12 : 1)
             .clipShape(Circle())
             .modifier(PlayerArtworkGlass(
-                cornerRadius: pictureSize / 2
+                cornerRadius: pictureSize / 2,
+                size: CGSize(width: pictureSize, height: pictureSize)
             ))
             .environment(\.playerArtworkGlassParameters, glassParameters)
             .animation(
