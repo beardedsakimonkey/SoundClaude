@@ -215,6 +215,10 @@ private struct PlayerSpeedSlider: View {
                         isFocused = true
                         value = speed(at: gesture.location, length: length)
                     }
+                    .onEnded { gesture in
+                        hoverLocation = CGRect(origin: .zero, size: geometry.size).contains(gesture.location)
+                            ? gesture.location : nil
+                    }
             )
             .onContentHover { isHovering = $0 }
             .onContinuousHover { phase in
