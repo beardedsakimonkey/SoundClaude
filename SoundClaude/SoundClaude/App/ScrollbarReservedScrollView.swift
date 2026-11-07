@@ -25,9 +25,7 @@ struct ScrollbarReservedScrollView<Content: View>: View {
                 content(contentSize)
                     // AppKit can defer its narrower width proposal until the first scroll.
                     .frame(width: contentSize.width, alignment: .topLeading)
-                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
-                        contentHeight = $0
-                    }
+                    .modifier(ContentHeightTracker(isEnabled: !reservesSpaceWhenContentFits, height: $contentHeight))
                     .frame(maxWidth: .infinity, alignment: .topLeading)
                     .background {
                         if enablesKeyboardNavigation {
@@ -39,6 +37,23 @@ struct ScrollbarReservedScrollView<Content: View>: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSScroller.preferredScrollerStyleDidChangeNotification)) { _ in
             scrollerStyle = NSScroller.preferredScrollerStyle
+        }
+    }
+}
+
+/// Content height is only read when space isn't always reserved. Tracking it otherwise
+/// re-runs the content closure every time a lazy stack re-estimates its height.
+private struct ContentHeightTracker: ViewModifier {
+    let isEnabled: Bool
+    @Binding var height: CGFloat
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                height = $0
+            }
+        } else {
+            content
         }
     }
 }
