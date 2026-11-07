@@ -85,21 +85,45 @@ struct SearchTextField: View {
 }
 
 // Own focus here so entering or leaving the filter does not update its parent page.
+// Typing edits a local draft; the parent's text (and its re-filter) follows after a
+// short pause, so fast typing doesn't re-render the whole track list per keystroke.
 struct TrackFilterField: View {
     @Binding var text: String
     let accessibilityLabel: String
 
     @FocusState private var isFocused: Bool
+    @State private var draft: String
+
+    private static let debounce: Duration = .milliseconds(100)
+
+    init(text: Binding<String>, accessibilityLabel: String) {
+        _text = text
+        self.accessibilityLabel = accessibilityLabel
+        _draft = State(initialValue: text.wrappedValue)
+    }
 
     var body: some View {
         SearchTextField(
             placeholder: "Filter",
-            text: $text,
+            text: $draft,
             isFocused: $isFocused,
             accessibilityLabel: accessibilityLabel,
             style: .compact,
             preventsAutomaticFocus: true
         )
         .onDisappear { isFocused = false }
+        // Adopt outside changes (e.g. the page resetting its filter).
+        .onChange(of: text) { _, newValue in
+            if draft != newValue { draft = newValue }
+        }
+        .task(id: draft) {
+            guard draft != text else { return }
+            // Clearing should restore the full list without delay.
+            if !draft.isEmpty {
+                try? await Task.sleep(for: Self.debounce)
+                if Task.isCancelled { return }
+            }
+            text = draft
+        }
     }
 }
