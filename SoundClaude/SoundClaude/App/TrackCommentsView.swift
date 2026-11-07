@@ -325,21 +325,20 @@ private struct TrackCommentComposer: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 field
-                    // The top composer's X sits beside the capsule, so it appearing
-                    // does not narrow the field.
-                    .frame(maxWidth: reply == nil ? 320 : .infinity)
-                if showsCloseButton {
-                    Button(action: reply != nil ? onCancel : discardDraft) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(CommentIconButtonStyle())
-                    .contentHelp(closeLabel)
-                    .accessibilityLabel(closeLabel)
-                    .disabled(isPosting)
-                    .transition(.opacity)
+                // The X keeps its slot while hidden, so it appearing does not narrow
+                // the field and both composers share one width.
+                Button(action: reply != nil ? onCancel : discardDraft) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
                 }
+                .buttonStyle(CommentIconButtonStyle())
+                .contentHelp(closeLabel)
+                .accessibilityLabel(closeLabel)
+                .disabled(isPosting)
+                .opacity(showsCloseButton ? 1 : 0)
+                .allowsHitTesting(showsCloseButton)
+                .accessibilityHidden(!showsCloseButton)
             }
             .animation(.easeInOut(duration: 0.15), value: showsCloseButton)
 
@@ -349,12 +348,7 @@ private struct TrackCommentComposer: View {
                     .textSelection(.enabled)
             }
         }
-        // Replies get more room: they start with a mention and sit further in.
-        .frame(
-            minWidth: reply != nil ? 320 : nil,
-            maxWidth: reply != nil ? 480 : nil,
-            alignment: .leading
-        )
+        .frame(minWidth: 320, maxWidth: 480, alignment: .leading)
         .onAppear {
             // A reply composer opens because the user asked to write one. Wait a turn:
             // while the Reply click is still being handled, the request focuses the
@@ -403,10 +397,8 @@ private struct TrackCommentComposer: View {
                             .font(.system(size: 13, weight: .semibold))
                     }
                 }
-                .frame(width: 26, height: 26)
-                .contentShape(Circle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(CommentIconButtonStyle())
             .foregroundStyle(.primary)
             .accessibilityLabel(isPosting ? "Posting \(noun)" : "Send \(noun)")
             .contentHelp("Send \(noun) (Return)")
@@ -436,6 +428,7 @@ private struct TrackCommentComposer: View {
                 )
                 .allowsHitTesting(false)
                 .animation(.easeInOut(duration: 0.15), value: showsComposerControls)
+                .animation(.easeInOut(duration: 0.15), value: isCommentFocused)
         }
         .background {
             SearchOutsideClickView(isFocused: isCommentFocused) {
@@ -938,14 +931,16 @@ private struct TrackCommentLikeButton: View {
 }
 
 private struct CommentIconButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
     @State private var isHovering = false
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .frame(width: 28, height: 28)
-            .background(.primary.opacity(isHovering ? 0.08 : 0), in: Circle())
+            .background(.primary.opacity(isHovering && isEnabled ? 0.08 : 0), in: Circle())
             .contentShape(Circle())
-            .opacity(configuration.isPressed ? 0.75 : 1)
+            .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
+            .pressBounce(configuration.isPressed)
             .onContentHover { isHovering = $0 }
             .animation(.easeInOut(duration: 0.15), value: isHovering)
     }
