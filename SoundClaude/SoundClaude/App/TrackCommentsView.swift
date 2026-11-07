@@ -348,7 +348,7 @@ private struct TrackCommentComposer: View {
                     .textSelection(.enabled)
             }
         }
-        .frame(minWidth: 320, maxWidth: 480, alignment: .leading)
+        .frame(maxWidth: 480, alignment: .leading)
         .onAppear {
             // A reply composer opens because the user asked to write one. Wait a turn:
             // while the Reply click is still being handled, the request focuses the
