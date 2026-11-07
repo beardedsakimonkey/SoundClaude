@@ -529,6 +529,17 @@ final class AppModel {
         return comment
     }
 
+    func deleteTrackComment(_ comment: SoundCloudComment, on track: SoundCloudTrack) async throws {
+        let accessToken = try await auth.validAccessToken()
+        try await client.deleteTrackComment(urn: comment.urn, accessToken: accessToken)
+        let cacheKey = TrackCacheKey(track: track)
+        firstCommentPageCache.remove(cacheKey)
+        if var details = trackDetailsCache.cached(cacheKey), let count = details.commentCount {
+            details.commentCount = max(0, count - 1)
+            trackDetailsCache.insert(details, forKey: cacheKey)
+        }
+    }
+
     func commentLikes(for track: SoundCloudTrack, comments: [SoundCloudComment]) async throws
         -> [String: SoundCloudCommentLikes] {
         let accessToken = try await auth.validAccessToken()

@@ -568,6 +568,10 @@ actor SoundCloudClient {
         return try decoder.decode(SoundCloudComment.self, from: data)
     }
 
+    func deleteTrackComment(urn: String, accessToken: String) async throws {
+        try await send("DELETE", endpoint("comments/\(try Self.id(urn))"), accessToken: accessToken)
+    }
+
     func trackComments(
         urn: String,
         secretToken: String? = nil,

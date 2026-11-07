@@ -266,6 +266,20 @@ struct CommentsTests {
                 isLiked: isLiked, accessToken: "test-token"
             )
         }
+        CommentsURLProtocol.respond { request in
+            precondition(request.httpMethod == "DELETE")
+            precondition(request.url?.path == "/comments/1234")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            return (200, "")
+        }
+        try await client.deleteTrackComment(urn: "soundcloud:comments:1234", accessToken: "test-token")
+        for status in [403, 404] {
+            CommentsURLProtocol.respond { _ in (status, "{}") }
+            do {
+                try await client.deleteTrackComment(urn: "soundcloud:comments:1234", accessToken: "test-token")
+                fatalError("Failed delete was accepted")
+            } catch SoundCloudError.api {}
+        }
         print("Comment decoding and API checks passed")
     }
 }

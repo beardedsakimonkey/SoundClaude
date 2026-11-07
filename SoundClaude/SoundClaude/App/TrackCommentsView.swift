@@ -53,7 +53,8 @@ struct TrackCommentsView: View {
     let model: AppModel
     let onSelectArtist: (SoundCloudUser) -> Void
 
-    let onCommentAdded: () -> Void
+    /// +1 when the user posts a comment, -1 when they delete one.
+    let onCommentCountChange: (Int) -> Void
 
     @AppStorage("commentSortOrder") private var sortOrder = CommentSortOrder.newest
     // Keep loaded order for stable sorting when dates or track times are equal.
@@ -85,7 +86,7 @@ struct TrackCommentsView: View {
                 comments.insert(comment, at: 0)
                 likes.merge([:], for: [comment])
                 updateSortedComments()
-                onCommentAdded()
+                onCommentCountChange(1)
             }
             .modifier(FadeInOnAppear())
 
@@ -99,7 +100,8 @@ struct TrackCommentsView: View {
                     replies: replies,
                     timestampColor: rowTimestampColor,
                     onSelectArtist: onSelectArtist,
-                    onReplyAdded: addReply
+                    onReplyAdded: addReply,
+                    onDeleted: deleteComment
                 )
                 .modifier(FadeInOnAppear())
             }
@@ -189,7 +191,17 @@ struct TrackCommentsView: View {
         likes.merge([:], for: [reply])
         updateSortedComments()
         replies.close(parent)
-        onCommentAdded()
+        onCommentCountChange(1)
+    }
+
+    // Replies to a deleted thread start stay in the list as comments of their own.
+    private func deleteComment(_ comment: SoundCloudComment) {
+        guard comments.contains(where: { $0.urn == comment.urn }) else { return }
+        comments.removeAll { $0.urn == comment.urn }
+        parentURNs[comment.urn] = nil
+        replies.close(comment)
+        updateSortedComments()
+        onCommentCountChange(-1)
     }
 
     private func startLoadingPage() {
@@ -549,6 +561,9 @@ private struct TrackCommentRow: View {
     let timestampColor: Color
     let onSelectArtist: (SoundCloudUser) -> Void
     let onReplyAdded: (SoundCloudComment, SoundCloudComment) -> Void
+    let onDeleted: (SoundCloudComment) -> Void
+
+    @State private var isDeleting = false
 
     private static let avatarSize: CGFloat = 50
     private static let replyAvatarSize: CGFloat = 36
@@ -556,12 +571,17 @@ private struct TrackCommentRow: View {
 
     private var avatarSize: CGFloat { isReply ? Self.replyAvatarSize : Self.avatarSize }
 
+    private var canDelete: Bool {
+        guard case let .signedIn(user) = model.auth.state, let urn = user.urn else { return false }
+        return comment.user?.urn == urn || track.artist.urn == urn
+    }
+
     var body: some View {
         let replyTarget = TrackCommentReplyTarget(comment)
 
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 16) {
-                content(canReply: replyTarget != nil)
+                content(canReply: replyTarget != nil, canDelete: canDelete)
                 TrackCommentLikeButton(comment: comment, track: track, model: model, likes: likes)
             }
 
@@ -578,11 +598,15 @@ private struct TrackCommentRow: View {
                 .padding(.leading, avatarSize + Self.avatarSpacing)
             }
         }
+        // Dim the comment, and keep it from being liked or answered, while it is deleted.
+        .opacity(isDeleting ? 0.4 : 1)
+        .disabled(isDeleting)
+        .animation(.easeInOut(duration: 0.15), value: isDeleting)
         // Start replies under the body of the comment they answer.
         .padding(.leading, isReply ? Self.avatarSize + Self.avatarSpacing : 0)
     }
 
-    private func content(canReply: Bool) -> some View {
+    private func content(canReply: Bool, canDelete: Bool) -> some View {
         HStack(alignment: .top, spacing: Self.avatarSpacing) {
             if let user = comment.user {
                 TrackCommentAvatar(user: user, loader: model.artworkLoader, size: avatarSize)
@@ -604,10 +628,20 @@ private struct TrackCommentRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
 
-                if canReply {
-                    Button("Reply") { replies.open(comment) }
-                        .buttonStyle(CommentReplyButtonStyle())
-                        .accessibilityLabel("Reply to \(comment.user?.username ?? "comment")")
+                if canReply || canDelete {
+                    HStack(spacing: 12) {
+                        if canReply {
+                            Button("Reply") { replies.open(comment) }
+                                .buttonStyle(CommentReplyButtonStyle())
+                                .accessibilityLabel("Reply to \(comment.user?.username ?? "comment")")
+                        }
+                        if canDelete {
+                            TrackCommentDeleteButton(
+                                comment: comment, track: track, model: model,
+                                isDeleting: $isDeleting, onDeleted: onDeleted
+                            )
+                        }
+                    }
                 }
             }
             // Center short comments on the avatar; taller ones stay top-aligned.
@@ -730,6 +764,57 @@ private struct TrackCommentReplyComposerSlot: View {
                 onCommentAdded: { onReplyAdded($0, comment) }
             )
             .modifier(FadeInOnAppear())
+        }
+    }
+}
+
+// Keep the confirmation and error local; only progress reaches the row, which dims.
+private struct TrackCommentDeleteButton: View {
+    let comment: SoundCloudComment
+    let track: SoundCloudTrack
+    let model: AppModel
+    @Binding var isDeleting: Bool
+    let onDeleted: (SoundCloudComment) -> Void
+
+    @State private var isConfirming = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        Button("Delete") { isConfirming = true }
+            .buttonStyle(CommentReplyButtonStyle())
+            .accessibilityLabel(isDeleting ? "Deleting comment" : "Delete comment")
+            .confirmationDialog(
+                "Delete this comment?",
+                isPresented: $isConfirming,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Comment", role: .destructive) {
+                    Task { await delete() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will permanently delete the comment from SoundCloud.")
+            }
+            .alert("Could not delete comment", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { errorMessage = nil }
+            } message: {
+                Text(errorMessage ?? "Please try again.")
+            }
+    }
+
+    private func delete() async {
+        guard !isDeleting else { return }
+        isDeleting = true
+        defer { isDeleting = false }
+        do {
+            try await model.deleteTrackComment(comment, on: track)
+            onDeleted(comment)
+        } catch is CancellationError {
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }

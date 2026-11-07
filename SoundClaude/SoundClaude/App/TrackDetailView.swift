@@ -164,9 +164,9 @@ struct TrackDetailView: View {
                                 track: details.track,
                                 model: model,
                                 onSelectArtist: onSelectArtist,
-                                onCommentAdded: {
+                                onCommentCountChange: { change in
                                     if let count = self.details?.commentCount {
-                                        self.details?.commentCount = count + 1
+                                        self.details?.commentCount = max(0, count + change)
                                     }
                                 }
                             )
