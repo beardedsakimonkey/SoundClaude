@@ -448,14 +448,10 @@ private struct PlayerFooterWaveform: View {
     let playback: PlaybackController
 
     private let waveformHeight: CGFloat = 50
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isHoveringWaveform = false
     @State private var waveformHorizontalInset: CGFloat = 0
 
     var body: some View {
         let canInteract = playback.currentTrack != nil && playback.errorMessage == nil
-        let raisesTimestamps = playback.currentTrack != nil
-            && !playback.isPlaybackActive && !isHoveringWaveform
 
         VStack(spacing: 4) {
             TrackWaveformView(
@@ -466,7 +462,6 @@ private struct PlayerFooterWaveform: View {
                 invertsBarsOnTrackChange: true,
                 collapsesBarsWhenPaused: true
             )
-            .onContentHover { isHoveringWaveform = $0 }
             .environment(\.contentHoverEnabled, canInteract)
             .disabled(!canInteract)
             .allowsHitTesting(canInteract)
@@ -477,7 +472,7 @@ private struct PlayerFooterWaveform: View {
             .accessibilityHidden(playback.currentTrack == nil)
             .padding(.horizontal, playback.currentTrack == nil ? 0 : waveformHorizontalInset)
             .font(.caption.monospacedDigit())
-            .foregroundStyle(playback.isPlaybackActive || isHoveringWaveform ? .secondary : .tertiary)
+            .foregroundStyle(.secondary)
             .overlay(alignment: .top) {
                 if let playbackError = playback.errorMessage {
                     Label(playbackError, systemImage: "exclamationmark.triangle")
@@ -493,17 +488,7 @@ private struct PlayerFooterWaveform: View {
                         .contentHelp(playbackError)
                 }
             }
-            // Follow the lower edge as centered bars collapse.
-            .offset(y: -4 - (raisesTimestamps
-                ? (TrackWaveformView.Layout.compact.availableBarHeight(for: waveformHeight)
-                    - TrackWaveformView.collapsedBarHeight) / 2 - 1
-                : 0))
-            .animation(
-                reduceMotion ? nil : (raisesTimestamps
-                    ? TrackWaveformView.barCollapseAnimation
-                    : TrackWaveformView.barExpandAnimation),
-                value: raisesTimestamps
-            )
+            .offset(y: -4)
         }
         .frame(maxWidth: .infinity)
         .onGeometryChange(for: CGFloat.self) { geometry in
