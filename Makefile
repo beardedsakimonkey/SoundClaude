@@ -420,6 +420,7 @@ SRC_track_waveform_navigation := \
 	SoundClaude/SoundClaude/App/TrackWaveformView.swift \
 	SoundClaude/SoundClaude/App/WaveformShadingCache.swift \
 	SoundClaude/SoundClaude/App/ContentHover.swift \
+	SoundClaude/SoundClaude/App/LoadingSpinner.swift \
 	tests/TrackWaveformNavigationTests.swift
 test-track-waveform-navigation:
 	@mkdir -p /tmp/soundclaude-tests
