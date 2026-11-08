@@ -920,10 +920,10 @@ private struct CommentReplyButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.subheadline.weight(.medium))
-            .foregroundStyle(isHovering ? .secondary : .tertiary)
+            .foregroundStyle(
+                configuration.isPressed ? .primary : isHovering ? .secondary : .tertiary
+            )
             .contentShape(Rectangle())
-            .opacity(configuration.isPressed ? 0.75 : 1)
-            .pressBounce(configuration.isPressed)
             .onContentHover { isHovering = $0 }
     }
 }

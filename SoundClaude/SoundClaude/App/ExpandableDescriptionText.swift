@@ -10,7 +10,6 @@ struct ExpandableDescriptionText: View {
     private let opacity = 0.9
 
     @State private var isExpanded = false
-    @State private var isHoveringToggle = false
     @State private var collapsedHeight: CGFloat = 0
     @State private var fullHeight: CGFloat = 0
 
@@ -85,9 +84,6 @@ struct ExpandableDescriptionText: View {
                     isExpanded.toggle()
                 }
                 .buttonStyle(ShowMoreButtonStyle())
-                .brightness(isHoveringToggle ? 0.1 : 0)
-                .opacity(isHoveringToggle ? 1 : 0.9)
-                .onContentHover { isHoveringToggle = $0 }
                 .accessibilityHint(isExpanded ? "Collapse description" : "Expand description")
             }
         }
@@ -95,13 +91,16 @@ struct ExpandableDescriptionText: View {
 }
 
 private struct ShowMoreButtonStyle: ButtonStyle {
+    @State private var isHovering = false
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .fontWeight(.semibold)
             .foregroundStyle(.link)
             .contentShape(Rectangle())
-            .opacity(configuration.isPressed ? 0.75 : 1)
-            .pressBounce(configuration.isPressed)
+            .opacity(configuration.isPressed || isHovering ? 0.9 : 0.75)
+            .brightness(configuration.isPressed ? 0.2 : 0)
+            .onContentHover { isHovering = $0 }
     }
 }
 
