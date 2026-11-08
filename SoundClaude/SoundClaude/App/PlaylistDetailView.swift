@@ -210,6 +210,7 @@ struct PlaylistDetailView: View {
                             showsVerifiedBadge: true,
                             onSelect: onSelectArtist
                         )
+                        .imageScale(.small)
                     }
                 }
             }
