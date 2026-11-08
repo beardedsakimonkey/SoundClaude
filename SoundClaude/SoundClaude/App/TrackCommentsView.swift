@@ -627,6 +627,9 @@ private struct TrackCommentRow: View {
         .animation(.easeInOut(duration: 0.15), value: isDeleting)
         // Start replies under the body of the comment they answer.
         .padding(.leading, isReply ? Self.avatarSize + Self.avatarSpacing : 0)
+        #if DEBUG
+        .debugViewUpdates("TrackCommentRow")
+        #endif
     }
 
     private func content(canReply: Bool, canDelete: Bool) -> some View {
