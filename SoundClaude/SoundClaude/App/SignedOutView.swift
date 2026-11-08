@@ -7,6 +7,7 @@ struct SignedOutView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var copiedSessionCommand = false
+    @State private var copySessionCommandCount = 0
     @State private var isHoveringCopyCommand = false
 
     private static let sessionCommand = "copy(document.cookie.split('; ').find(c => c.startsWith('oauth_token='))?.slice('oauth_token='.length) ?? '')"
@@ -150,9 +151,26 @@ struct SignedOutView: View {
                 Button {
                     NSPasteboard.general.clearContents()
                     copiedSessionCommand = NSPasteboard.general.setString(Self.sessionCommand, forType: .string)
+                    copySessionCommandCount += 1
                 } label: {
-                    Label(copiedSessionCommand ? "Command Copied" : "Copy Command",
-                          systemImage: copiedSessionCommand ? "checkmark" : "doc.on.doc")
+                    // Both titles stay in the layout and a hidden doc.on.doc reserves
+                    // the icon's size, so the button never resizes when the state flips.
+                    Label {
+                        ZStack(alignment: .leading) {
+                            Text("Copy Command")
+                                .opacity(copiedSessionCommand ? 0 : 1)
+                            Text("Command Copied")
+                                .opacity(copiedSessionCommand ? 1 : 0)
+                        }
+                    } icon: {
+                        Image(systemName: "doc.on.doc")
+                            .hidden()
+                            .overlay {
+                                Image(systemName: copiedSessionCommand ? "checkmark" : "doc.on.doc")
+                                    .contentTransition(.symbolEffect(.replace))
+                            }
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: copiedSessionCommand)
                 }
                 .overlay {
                     RoundedRectangle(cornerRadius: 5)
@@ -160,6 +178,12 @@ struct SignedOutView: View {
                         .allowsHitTesting(false)
                 }
                 .onHover { isHoveringCopyCommand = $0 }
+                .task(id: copySessionCommandCount) {
+                    guard copiedSessionCommand else { return }
+                    try? await Task.sleep(for: .seconds(2))
+                    guard !Task.isCancelled else { return }
+                    copiedSessionCommand = false
+                }
                 Text("4. Return here and import the copied session.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
