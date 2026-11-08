@@ -150,12 +150,7 @@ struct SignedOutView: View {
                     }
                     // Spacing 3 keeps the shortcuts as tight as a wrapped line of step 2.
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("2. Open the browser’s developer console.")
-                        // A hidden "2. " indents the shortcuts to line up with the step text.
-                        HStack(alignment: .firstTextBaseline, spacing: 0) {
-                            Text("2. ").hidden()
-                            Text("\(Text("⌥⌘J").foregroundStyle(.primary)) in Chrome or \(Text("⌥⌘K").foregroundStyle(.primary)) in Firefox")
-                        }
+                        Text("2. Open the browser’s developer console with \(Text("⌥⌘J").foregroundStyle(.primary)) in Chrome or \(Text("⌥⌘K").foregroundStyle(.primary)) in Firefox.")
                     }
                     Text("3. Paste and run this command to copy your session token.")
                 }
@@ -169,6 +164,18 @@ struct SignedOutView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(10)
                     .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+                    .overlay {
+                        // Flashes the block on each copy: a quick rise, then a slower fade.
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(colorScheme == .dark ? Color.white : Color.black.opacity(0.5))
+                            .keyframeAnimator(initialValue: 0.0, trigger: copySessionCommandCount) { shape, opacity in
+                                shape.opacity(opacity)
+                            } keyframes: { _ in
+                                CubicKeyframe(0.22, duration: 0.08)
+                                CubicKeyframe(0, duration: 0.5)
+                            }
+                            .allowsHitTesting(false)
+                    }
                 Button {
                     NSPasteboard.general.clearContents()
                     copiedSessionCommand = NSPasteboard.general.setString(Self.sessionCommand, forType: .string)
