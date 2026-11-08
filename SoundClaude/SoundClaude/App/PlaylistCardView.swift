@@ -251,10 +251,9 @@ private struct PlaylistCardSkeletonRows: View {
     let loader: ArtworkLoader
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isDimmed = false
 
     var body: some View {
-        // One opacity animation on the container, so loading cards don't redraw each row.
+        // One opacity pulse on the container, so loading cards don't redraw each row.
         VStack(alignment: .leading, spacing: 0) {
             ForEach(0..<count, id: \.self) { _ in
                 // The same fallback a track without artwork shows.
@@ -265,21 +264,10 @@ private struct PlaylistCardSkeletonRows: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .opacity(isDimmed ? 0.5 : 1)
+        // Pulses in phase with the loading waveform above.
+        .loadingPulse(isAnimating && !reduceMotion)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
-        .onAppear { updatePulse() }
-        .onChange(of: isAnimating) { _, _ in updatePulse() }
-    }
-
-    private func updatePulse() {
-        guard isAnimating, !reduceMotion else {
-            withAnimation(nil) { isDimmed = false }
-            return
-        }
-        withAnimation(.easeInOut(duration: 1).repeatForever(autoreverses: true)) {
-            isDimmed = true
-        }
     }
 }
 

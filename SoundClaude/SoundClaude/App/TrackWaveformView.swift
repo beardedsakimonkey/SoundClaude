@@ -370,10 +370,7 @@ struct TrackWaveformView: View {
                         : Self.barExpandAnimation),
                     value: barsAreCollapsed
                 )
-                .modifier(WaveformLoadingOpacity(
-                    isPulsing: shouldPulseBars,
-                    idleOpacity: shouldDimBars ? 0.5 : 1
-                ))
+                .loadingPulse(shouldPulseBars, idleOpacity: shouldDimBars ? 0.5 : 1)
                 .animation(
                     reduceMotion ? nil : .easeInOut(duration: 0.3),
                     value: shouldDimBars
@@ -830,23 +827,6 @@ struct TrackWaveformView: View {
 /// Marks the update that expands collapsed bars into a loaded waveform.
 private struct WaveformRevealKey: TransactionKey {
     static let defaultValue = false
-}
-
-private struct WaveformLoadingOpacity: ViewModifier {
-    @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
-
-    let isPulsing: Bool
-    let idleOpacity: Double
-    private let pulseDuration: TimeInterval = 1.2
-
-    func body(content: Content) -> some View {
-        // Pause frame updates outside loading, and resume on every new load.
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !isPulsing || contentAnimationsPaused)) { context in
-            let phase = context.date.timeIntervalSinceReferenceDate
-                .truncatingRemainder(dividingBy: pulseDuration) / pulseDuration
-            content.opacity(isPulsing ? 0.35 + 0.4 * abs(sin(phase * .pi)) : idleOpacity)
-        }
-    }
 }
 
 private struct WaveformStaggeredSpring: CustomAnimation {
