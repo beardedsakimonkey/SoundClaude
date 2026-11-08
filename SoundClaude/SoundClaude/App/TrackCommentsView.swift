@@ -222,10 +222,13 @@ struct TrackCommentsView: View {
         }
     }
 
-    // Hearts appear when their page's likes arrive; a failure leaves them hidden.
+    // Hearts show as outlines while their page's likes load; a failure hides them.
     private func loadLikes(for page: [SoundCloudComment]) {
         Task { [likes] in
-            guard let loaded = try? await model.commentLikes(for: track, comments: page) else { return }
+            guard let loaded = try? await model.commentLikes(for: track, comments: page) else {
+                likes.markUnavailable(page)
+                return
+            }
             likes.merge(loaded, for: page)
         }
     }
@@ -938,7 +941,15 @@ private struct CommentReplyButtonStyle: ButtonStyle {
 @MainActor @Observable
 final class TrackCommentLikes {
     private(set) var likes: [String: SoundCloudCommentLikes] = [:]
+    /// Comments whose likes failed to load; their hearts are hidden.
+    private(set) var unavailableURNs: Set<String> = []
     private var pendingURNs: Set<String> = []
+
+    func markUnavailable(_ comments: [SoundCloudComment]) {
+        for comment in comments where likes[comment.urn] == nil {
+            unavailableURNs.insert(comment.urn)
+        }
+    }
 
     /// Comments missing from `loaded` have no likes.
     func merge(_ loaded: [String: SoundCloudCommentLikes], for comments: [SoundCloudComment]) {
@@ -982,6 +993,7 @@ private struct TrackCommentLikeButton: View {
 
     var body: some View {
         let state = likes.likes[comment.urn]
+        let isUnavailable = likes.unavailableURNs.contains(comment.urn)
         let isLiked = state?.isLiked == true
         let count = state?.count ?? 0
         let actionLabel = isLiked ? "Unlike comment" : "Like comment"
@@ -1013,13 +1025,14 @@ private struct TrackCommentLikeButton: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .opacity(count > 0 ? 1 : 0)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: count > 0)
                 .accessibilityHidden(true)
         }
         .frame(width: 36)
-        .opacity(state == nil ? 0 : 1)
+        // Show an outline heart until the likes arrive; accept clicks only once they have.
+        .opacity(isUnavailable ? 0 : 1)
         .allowsHitTesting(state != nil)
-        .accessibilityHidden(state == nil)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: state == nil)
+        .accessibilityHidden(isUnavailable)
     }
 }
 
