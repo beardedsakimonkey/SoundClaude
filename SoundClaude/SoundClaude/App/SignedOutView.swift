@@ -9,6 +9,7 @@ struct SignedOutView: View {
     @State private var copiedSessionCommand = false
     @State private var copySessionCommandCount = 0
     @State private var isHoveringCopyCommand = false
+    @State private var isHoveringSoundCloudLink = false
 
     private static let sessionCommand = "copy(document.cookie.split('; ').find(c => c.startsWith('oauth_token='))?.slice('oauth_token='.length) ?? '')"
 
@@ -137,11 +138,23 @@ struct SignedOutView: View {
                     .font(.system(size: 16, weight: .medium))
                     .frame(minHeight: 30)
 
-                Text("1. Sign in at [soundcloud.com](https://soundcloud.com) in your browser.\n2. Open the browser’s developer console.\n3. Paste and run this command to copy your session token.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .lineSpacing(3)
-                    .fixedSize(horizontal: false, vertical: true)
+                // Step 1 is its own row so the link can be a separate view that tracks hover;
+                // spacing 3 matches the line spacing within the steps.
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(alignment: .firstTextBaseline, spacing: 0) {
+                        Text("1. Sign in at ")
+                        Link("soundcloud.com", destination: URL(string: "https://soundcloud.com")!)
+                            .foregroundStyle(Color(nsColor: .linkColor))
+                            .underline(isHoveringSoundCloudLink)
+                            .onHover { isHoveringSoundCloudLink = $0 }
+                        Text(" in your browser.")
+                    }
+                    Text("2. Open the browser’s developer console.\n3. Paste and run this command to copy your session token.")
+                }
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
                 Text(Self.highlightedSessionCommand)
                     .font(.system(size: 11, design: .monospaced))
                     .textSelection(.enabled)
