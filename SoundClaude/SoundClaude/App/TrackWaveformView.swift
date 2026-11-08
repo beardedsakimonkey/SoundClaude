@@ -370,10 +370,10 @@ struct TrackWaveformView: View {
                         : Self.barExpandAnimation),
                     value: barsAreCollapsed
                 )
-                .loadingPulse(shouldPulseBars, idleOpacity: shouldDimBars ? 0.5 : 1)
+                .loadingPulse(shouldPulseBars, idleOpacity: barsIdleOpacity)
                 .animation(
                     reduceMotion ? nil : .easeInOut(duration: 0.3),
-                    value: shouldDimBars
+                    value: barsIdleOpacity
                 )
                 .contentShape(Rectangle())
                 .onContinuousHover { phase in
@@ -599,6 +599,11 @@ struct TrackWaveformView: View {
 
     private var shouldDimBars: Bool {
         showsLoadingIndicator || !isCurrentTrack
+    }
+
+    private var barsIdleOpacity: Double {
+        if shouldDimBars { return 0.5 }
+        return layout == .detail && !playback.isPlaybackActive ? 0.75 : 1
     }
 
     private var shouldPulseBars: Bool {
