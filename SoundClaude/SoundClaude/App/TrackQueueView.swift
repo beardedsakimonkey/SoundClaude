@@ -63,7 +63,7 @@ struct TrackQueueView: View {
                     HStack(spacing: 6) {
                         Text("Playing from")
                             .font(.subheadline)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(.secondary)
                             .accessibilityHidden(true)
                         QueueSourceButton(label: sourceLabel, action: onSelectSource)
                             .id(sourceLabel.title)
@@ -208,7 +208,7 @@ private struct QueueSourceButton: View {
                     .truncationMode(.tail)
             }
             .font(.subheadline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.primary)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
