@@ -63,7 +63,7 @@ struct FeedView: View {
                                 onSelect: onSelectArtist
                             )
                             .fontWeight(.medium)
-                            .foregroundStyle(.primary.opacity(0.8))
+                            .foregroundStyle(.primary)
                             .layoutPriority(1)
                             Group {
                                 if item.isRepost {
@@ -72,15 +72,16 @@ struct FeedView: View {
                                 }
                                 Text(activityLabel(for: item))
                                     .fixedSize()
-                                TimelineView(.periodic(from: .now, by: 60)) { _ in
-                                    RelativeTimestampView(
-                                        date: item.createdAt,
-                                        accessibilityPrefix: activityLabel(for: item),
-                                        showsSeparator: false
-                                    )
-                                }
-                                .fixedSize()
                             }
+                            .foregroundStyle(.secondary)
+                            TimelineView(.periodic(from: .now, by: 60)) { _ in
+                                RelativeTimestampView(
+                                    date: item.createdAt,
+                                    accessibilityPrefix: activityLabel(for: item),
+                                    showsSeparator: false
+                                )
+                            }
+                            .fixedSize()
                             .foregroundStyle(colorScheme == .light ? .secondary : .tertiary)
                         }
                         .font(.system(size: 13))
