@@ -12,42 +12,43 @@ struct ArtistLink: View {
     @State private var isHovering = false
 
     var body: some View {
-        Button {
-            onSelect(artist)
-        } label: {
-            HStack(spacing: 8) {
-                if let artworkLoader {
-                    TrackArtworkView(
-                        artworkURL: artist.avatarURL,
-                        loader: artworkLoader,
-                        size: avatarSize,
-                        showsBorder: false,
-                        showsPlaceholderIcon: false
-                    )
-                    .clipShape(Circle())
-                    .overlay {
-                        if showsAvatarBorder {
-                            Circle()
-                                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+        // The badge sits outside the button so it shows its own tooltip.
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Button {
+                onSelect(artist)
+            } label: {
+                HStack(spacing: 8) {
+                    if let artworkLoader {
+                        TrackArtworkView(
+                            artworkURL: artist.avatarURL,
+                            loader: artworkLoader,
+                            size: avatarSize,
+                            showsBorder: false,
+                            showsPlaceholderIcon: false
+                        )
+                        .clipShape(Circle())
+                        .overlay {
+                            if showsAvatarBorder {
+                                Circle()
+                                    .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                            }
                         }
                     }
-                }
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(artist.username)
                         .underline(isHovering)
                         .lineLimit(1)
-                    if showsVerifiedBadge, artist.isVerified == true {
-                        VerifiedBadge()
-                    }
                 }
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .artistContextMenu(artist: artist)
+            .prefetch(.artist(artist)) { isHovering = $0 }
+            .contentHelp(helpTitle)
+            .accessibilityLabel("\(helpTitle): \(artist.username)")
+            if showsVerifiedBadge, artist.isVerified == true {
+                VerifiedBadge()
+            }
         }
-        .buttonStyle(.plain)
-        .artistContextMenu(artist: artist)
-        .prefetch(.artist(artist)) { isHovering = $0 }
-        .contentHelp(helpTitle)
-        .accessibilityLabel("\(helpTitle): \(artist.username)")
     }
 }
 

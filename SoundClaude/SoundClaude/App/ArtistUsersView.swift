@@ -36,9 +36,11 @@ struct ArtistUsersView: View {
                         artist: artist,
                         artworkLoader: model.artworkLoader,
                         showsAvatarBorder: true,
+                        showsVerifiedBadge: true,
                         helpTitle: "View profile",
                         onSelect: onSelectArtist
                     )
+                    .imageScale(.small)
                     if list == .following {
                         Text("is following")
                     }

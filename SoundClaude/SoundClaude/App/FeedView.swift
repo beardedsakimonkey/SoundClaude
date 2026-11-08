@@ -60,8 +60,10 @@ struct FeedView: View {
                                 artist: item.user,
                                 artworkLoader: model.artworkLoader,
                                 showsAvatarBorder: true,
+                                showsVerifiedBadge: true,
                                 onSelect: onSelectArtist
                             )
+                            .imageScale(.small)
                             .fontWeight(.medium)
                             .foregroundStyle(.primary)
                             .layoutPriority(1)

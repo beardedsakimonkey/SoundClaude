@@ -687,40 +687,41 @@ private struct SidebarAccountHeader: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Button {
-                onSelectProfile(user)
-            } label: {
-                HStack(spacing: 8) {
-                    TrackArtworkView(
-                        artworkURL: user.avatarURL,
-                        loader: artworkLoader,
-                        size: 24,
-                        showsBorder: false,
-                        showsPlaceholderIcon: false
-                    )
-                    .clipShape(Circle())
-                    .overlay {
-                        Circle()
-                            .strokeBorder(.white.opacity(0.2), lineWidth: 1)
-                    }
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+            // The badge sits outside the button so it shows its own tooltip.
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Button {
+                    onSelectProfile(user)
+                } label: {
+                    HStack(spacing: 8) {
+                        TrackArtworkView(
+                            artworkURL: user.avatarURL,
+                            loader: artworkLoader,
+                            size: 24,
+                            showsBorder: false,
+                            showsPlaceholderIcon: false
+                        )
+                        .clipShape(Circle())
+                        .overlay {
+                            Circle()
+                                .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                        }
                         Text(user.username)
                             .underline(isProfileHovered)
                             .lineLimit(1)
                             .truncationMode(.tail)
-                        if user.isVerified == true {
-                            VerifiedBadge()
-                                .imageScale(.small)
-                        }
                     }
-                    .font(.callout.weight(.medium))
+                    .contentShape(Rectangle())
                 }
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                .onContentHover { isProfileHovered = $0 }
+                .contentHelp("View profile: \(user.username)")
+                .accessibilityLabel("View profile: \(user.username)")
+                if user.isVerified == true {
+                    VerifiedBadge()
+                        .imageScale(.small)
+                }
             }
-            .buttonStyle(.plain)
-            .onContentHover { isProfileHovered = $0 }
-            .contentHelp("View profile: \(user.username)")
-            .accessibilityLabel("View profile: \(user.username)")
+            .font(.callout.weight(.medium))
 
             Spacer(minLength: 0)
 

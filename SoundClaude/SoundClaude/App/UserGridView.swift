@@ -67,9 +67,15 @@ private struct UserGridCard: View {
                     value: isHovering
                 )
                 VStack(spacing: 4) {
-                    Text(user.username)
-                        .font(.headline)
-                        .lineLimit(1)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(user.username)
+                            .lineLimit(1)
+                        if user.isVerified == true {
+                            VerifiedBadge()
+                                .imageScale(.small)
+                        }
+                    }
+                    .font(.headline)
                     // Keep the line when the count is unknown so that every card is the
                     // same height, which keeps the grid's estimates for unbuilt rows accurate.
                     Text(user.followersCount.map {
