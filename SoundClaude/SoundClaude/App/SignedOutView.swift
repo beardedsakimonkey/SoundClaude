@@ -10,23 +10,23 @@ struct SignedOutView: View {
     @State private var copySessionCommandCount = 0
     @State private var isHoveringSoundCloudLink = false
 
-    private static let sessionCommand = "copy(document.cookie.split('; ').find(c => c.startsWith('oauth_token='))?.slice('oauth_token='.length) ?? '')"
+    private static let sessionCommand = #"copy(document.cookie.match(/oauth_token=([^;]+)/)[1])"#
 
-    /// Minimal JS highlighting for `sessionCommand`: strings, calls, and operators.
+    /// Minimal JS highlighting for `sessionCommand`: regexes, numbers, and calls.
     private static let highlightedSessionCommand: AttributedString = {
-        let tokens = sessionCommand.matches(of: #/'[^']*'|[A-Za-z_]\w*|=>|\?\?|\?\.|./#).map { String($0.output) }
+        let tokens = sessionCommand.matches(of: #/\/[^\/]+\/|[A-Za-z_]\w*|\d+|./#).map { String($0.output) }
         var result = AttributedString()
         for (index, token) in tokens.enumerated() {
             var piece = AttributedString(token)
             let next = index + 1 < tokens.count ? tokens[index + 1] : ""
-            if token.hasPrefix("'") {
+            if token.hasPrefix("/") {
                 piece.foregroundColor = Color(nsColor: NSColor(name: nil) { appearance in
                     appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .systemYellow : .systemGreen
                 })
+            } else if token.first?.isNumber == true {
+                piece.foregroundColor = Color(nsColor: .systemPurple)
             } else if token.first?.isLetter == true, next == "(" {
                 piece.foregroundColor = Color(nsColor: .systemOrange)
-            } else if ["=>", "??", "?."].contains(token) {
-                piece.foregroundColor = Color(nsColor: .secondaryLabelColor)
             }
             result += piece
         }
@@ -140,7 +140,7 @@ struct SignedOutView: View {
                 // Step 1 is its own row so the link can be a separate view that tracks hover.
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 0) {
-                        Text("1. Open ")
+                        Text("1. Sign in to ")
                         Link("soundcloud.com", destination: URL(string: "https://soundcloud.com")!)
                             .foregroundStyle(Color(nsColor: .linkColor))
                             .underline(isHoveringSoundCloudLink)
