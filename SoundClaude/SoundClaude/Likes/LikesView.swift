@@ -4,12 +4,14 @@ import SwiftUI
 private enum LikesSortOrder: String, CaseIterable {
     case newest
     case oldest
+    case title
     case artist
 
     var title: String {
         switch self {
         case .newest: "Newest"
         case .oldest: "Oldest"
+        case .title: "Title"
         case .artist: "Artist"
         }
     }
@@ -143,6 +145,14 @@ struct LikesView: View {
             return tracks
         case .oldest:
             return Array(tracks.reversed())
+        case .title:
+            // Equal titles retain their newest-like order.
+            return tracks.sorted {
+                $0.title.precomposedStringWithCompatibilityMapping
+                    .localizedStandardCompare(
+                        $1.title.precomposedStringWithCompatibilityMapping
+                    ) == .orderedAscending
+            }
         case .artist:
             // Equal artist names retain their newest-like order.
             return tracks.sorted {
