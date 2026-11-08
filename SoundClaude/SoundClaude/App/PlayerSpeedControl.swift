@@ -34,7 +34,7 @@ struct PlayerSpeedControl: View {
                     Spacer()
                     HStack(spacing: 8) {
                         presetButton("Slower", semitones: -4)
-                        presetButton("Faster", semitones: 3)
+                        presetButton("Faster", semitones: 4)
                     }
                 }
                 PlayerSpeedSlider(value: Binding(
