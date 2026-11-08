@@ -337,8 +337,9 @@ struct TrackWaveformView: View {
                     }
                 }
                 .transaction { transaction in
-                    // Playlist bars must also ignore hover and inherited animations.
-                    if !animatesBarTransitions {
+                    // Playlist bars must also ignore hover and inherited animations,
+                    // except for loaded bars rising from the flat loading state.
+                    if !animatesBarTransitions, !transaction[WaveformRevealKey.self] {
                         transaction.animation = nil
                         transaction.disablesAnimations = true
                     }
@@ -604,7 +605,12 @@ struct TrackWaveformView: View {
     }
 
     private var shouldPulseBars: Bool {
-        showsLoadingIndicator && !reduceMotion
+        (showsLoadingIndicator || showsWaveformPlaceholder) && !reduceMotion
+    }
+
+    /// Flat bars kept visible until a track and its waveform arrive.
+    private var showsWaveformPlaceholder: Bool {
+        keepsBarsVisible && waveform == nil && errorMessage == nil
     }
 
     private var displayedCurrentTime: Double {
@@ -811,10 +817,19 @@ struct TrackWaveformView: View {
            let waveformTrackURN, waveformTrackURN != track.urn {
             barDirection *= -1
         }
-        waveformRouteID = routeID
-        waveformTrackURN = track.urn
-        waveform = loadedWaveform
+        var transaction = Transaction()
+        transaction[WaveformRevealKey.self] = revealsWaveformFromCollapse
+        withTransaction(transaction) {
+            waveformRouteID = routeID
+            waveformTrackURN = track.urn
+            waveform = loadedWaveform
+        }
     }
+}
+
+/// Marks the update that expands collapsed bars into a loaded waveform.
+private struct WaveformRevealKey: TransactionKey {
+    static let defaultValue = false
 }
 
 private struct WaveformLoadingOpacity: ViewModifier {

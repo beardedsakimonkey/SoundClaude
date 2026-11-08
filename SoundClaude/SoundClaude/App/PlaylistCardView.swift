@@ -75,33 +75,33 @@ struct PlaylistCardView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                if let track = waveformTrack {
+                if waveformTrack != nil || displayedRowCount > 0 {
                     HStack(spacing: 10) {
-                        playButton(for: track)
+                        if let track = waveformTrack {
+                            playButton(for: track)
+                        } else {
+                            Button {} label: {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .frame(width: 36, height: 36)
+                            }
+                            .buttonStyle(.bordered)
+                            .buttonBorderShape(.circle)
+                            .disabled(true)
+                            .accessibilityHidden(true)
+                        }
+                        // One view from the loading state on, so the flat bars it shows
+                        // before the first track and its waveform arrive can rise into them.
                         TrackWaveformView(
-                            track: track,
+                            track: waveformTrack,
                             model: model,
                             layout: .compact,
                             animatesBarTransitions: false,
+                            keepsBarsVisible: true,
                             onPlayTrack: play
                         )
-                        .id(track.urn)
                         .frame(maxWidth: .infinity)
-                    }
-                } else if displayedRowCount > 0 {
-                    HStack(spacing: 10) {
-                        Button {} label: {
-                            Image(systemName: "play.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                                .frame(width: 36, height: 36)
-                        }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.circle)
-                        .disabled(true)
-                        .accessibilityHidden(true)
-                        Color.clear
-                            .frame(maxWidth: .infinity)
-                            .frame(height: TrackWaveformView.Layout.compact.height)
+                        .allowsHitTesting(waveformTrack != nil)
                     }
                 }
 
@@ -140,7 +140,9 @@ struct PlaylistCardView: View {
         }
         .overlay(alignment: .top) {
             if showsSkeleton {
-                PlaylistCardSkeletonRows(count: min(displayedRowCount, 5), isAnimating: isLoading)
+                PlaylistCardSkeletonRows(
+                    count: min(displayedRowCount, 5), isAnimating: isLoading, loader: model.artworkLoader
+                )
                     .transition(.opacity)
             }
         }
@@ -241,6 +243,7 @@ struct PlaylistCardView: View {
 private struct PlaylistCardSkeletonRows: View {
     let count: Int
     let isAnimating: Bool
+    let loader: ArtworkLoader
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isDimmed = false
@@ -249,9 +252,8 @@ private struct PlaylistCardSkeletonRows: View {
         // One opacity animation on the container, so loading cards don't redraw each row.
         VStack(alignment: .leading, spacing: 0) {
             ForEach(0..<count, id: \.self) { _ in
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(.quaternary)
-                    .frame(width: 40, height: 40)
+                // The same fallback a track without artwork shows.
+                TrackArtworkView(artworkURL: nil, loader: loader, size: 40)
                     .padding(.vertical, 5)
                     .padding(.horizontal, 8)
                     .frame(height: TrackListRow.compactHeight)
