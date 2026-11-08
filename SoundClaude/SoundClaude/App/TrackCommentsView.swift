@@ -681,8 +681,10 @@ private struct TrackCommentRow: View {
             if let user = comment.user {
                 ArtistLink(
                     artist: user,
+                    showsVerifiedBadge: true,
                     onSelect: onSelectArtist
                 )
+                .imageScale(.small)
                 .font(.body)
                 .fontWeight(.medium)
                 .opacity(0.85)

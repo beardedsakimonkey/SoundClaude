@@ -703,11 +703,17 @@ private struct SidebarAccountHeader: View {
                         Circle()
                             .strokeBorder(.white.opacity(0.2), lineWidth: 1)
                     }
-                    Text(user.username)
-                        .font(.callout.weight(.medium))
-                        .underline(isProfileHovered)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(user.username)
+                            .underline(isProfileHovered)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        if user.isVerified == true {
+                            VerifiedBadge()
+                                .imageScale(.small)
+                        }
+                    }
+                    .font(.callout.weight(.medium))
                 }
                 .contentShape(Rectangle())
             }
