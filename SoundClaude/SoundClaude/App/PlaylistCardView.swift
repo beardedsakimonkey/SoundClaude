@@ -154,16 +154,21 @@ struct PlaylistCardView: View {
 
         if isExpanded || hasMoreTracks {
             Button(isExpanded ? "View fewer tracks" : "View \(trackCount) tracks") {
+                guard hasLoadedTracks else { return }
                 isExpanded.toggle()
                 if isExpanded { Task { await playlists.loadPlaylist(playlist) } }
             }
             .buttonStyle(.plain)
-            // Expanding before the first page arrives would reveal empty rows.
-            .disabled(!hasLoadedTracks)
-            .foregroundStyle(isHoveringTrackToggle && hasLoadedTracks ? Color.primary : Color.secondary)
+            .foregroundStyle(isHoveringTrackToggle ? Color.primary : Color.secondary)
             .font(.callout)
             .onContentHover { isHoveringTrackToggle = $0 }
             .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+            // Expanding before the first page arrives would reveal empty rows, so dim the
+            // toggle until then and fade it up with the rows. Dimmed by hand rather than
+            // with `.disabled`, whose styling change doesn't animate.
+            .opacity(hasLoadedTracks ? 1 : 0.4)
+            .allowsHitTesting(hasLoadedTracks)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: hasLoadedTracks)
             .padding(.vertical, 8)
         }
 
