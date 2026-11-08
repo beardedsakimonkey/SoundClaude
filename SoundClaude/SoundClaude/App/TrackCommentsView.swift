@@ -1109,7 +1109,11 @@ private struct CommentTimestampButtonStyle: ButtonStyle {
         configuration.label
             .padding(.horizontal, 5)
             .padding(.vertical, 1)
-            .background(color.opacity(isHighlighted ? 0.24 : 0.12), in: Capsule())
+            .background(color.opacity(0.12), in: Capsule())
+            .overlay {
+                Capsule()
+                    .strokeBorder(color.opacity(isHighlighted ? 0.6 : 0), lineWidth: 1)
+            }
             .contentShape(Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.5)
             .pressBounce(configuration.isPressed)
