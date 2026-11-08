@@ -214,6 +214,7 @@ struct PlaylistCardView: View {
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.circle)
+        .circularHoverHighlight()
         .contentHelp(isPlaying ? "Pause" : "Play")
         .accessibilityLabel("\(isPlaying ? "Pause" : "Play") \(track.title)")
     }

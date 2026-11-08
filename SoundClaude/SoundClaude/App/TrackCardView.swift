@@ -202,6 +202,7 @@ struct TrackCardView: View {
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.circle)
+        .circularHoverHighlight()
         .disabled(track.access == .protected)
         .contentHelp(isPlaying ? "Pause" : "Play")
         .accessibilityLabel("\(isPlaying ? "Pause" : "Play") \(track.title)")
@@ -319,6 +320,30 @@ private struct TrackStatisticButtonStyle: ButtonStyle {
             )
             .contentShape(Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.5)
+            .onContentHover { isHovering = $0 }
+    }
+}
+
+extension View {
+    func circularHoverHighlight() -> some View {
+        modifier(CircularHoverHighlight())
+    }
+}
+
+private struct CircularHoverHighlight: ViewModifier {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var isHovering = false
+
+    func body(content: Content) -> some View {
+        let isHighlighted = isHovering && isEnabled
+        content
+            .overlay {
+                Circle()
+                    .fill(Color.primary.opacity(isHighlighted ? 0.08 : 0))
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                    .animation(.easeInOut(duration: 0.15), value: isHighlighted)
+            }
             .onContentHover { isHovering = $0 }
     }
 }
