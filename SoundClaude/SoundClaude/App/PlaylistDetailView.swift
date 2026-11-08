@@ -51,10 +51,7 @@ struct PlaylistDetailView: View {
             .padding(24)
             .remembersScrollPosition()
         }
-        .background(alignment: .top) {
-            TrackCollectionBackdrop(collection: collection, model: model)
-                .ignoresSafeArea(edges: .top)
-        }
+        .preference(key: DetailBackdropPreferenceKey.self, value: collection.backdropSource)
         .navigationTitle(displayedPlaylist.title)
         .toolbar {
             if #available(macOS 26.0, *) {

@@ -402,9 +402,9 @@ struct SignedInView: View {
                     .environment(\.initialDetailArtworkRotation, initialDetailArtworkRotation)
                     .id(destinationID)
             }
-            .backgroundPreferenceValue(TrackDetailBackdropPreferenceKey.self) { source in
+            .backgroundPreferenceValue(DetailBackdropPreferenceKey.self) { source in
                 if let source {
-                    TrackDetailBackdrop(artworkURL: source.artworkURL, loader: model.artworkLoader)
+                    DetailBackdrop(source: source, model: model)
                         .frame(maxHeight: .infinity, alignment: .top)
                         .ignoresSafeArea(edges: .top)
                 }

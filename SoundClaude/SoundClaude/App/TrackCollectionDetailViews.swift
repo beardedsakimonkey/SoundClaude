@@ -1,13 +1,39 @@
 import SwiftUI
 
-// Reads playback state in its own body so track changes do not invalidate the page.
-struct TrackCollectionBackdrop: View {
-    let collection: TrackCollection
+enum DetailBackdropSource: Equatable {
+    case track(artworkURL: URL?)
+    // Resolved in the backdrop's body so playback changes do not invalidate the page.
+    case collection(TrackQueue.Source, seedTrack: SoundCloudTrack?, firstTrack: SoundCloudTrack?)
+}
+
+struct DetailBackdropPreferenceKey: PreferenceKey {
+    static let defaultValue: DetailBackdropSource? = nil
+
+    static func reduce(value: inout DetailBackdropSource?, nextValue: () -> DetailBackdropSource?) {
+        value = nextValue() ?? value
+    }
+}
+
+// Keep the backdrop outside the route identity so its image survives navigation
+// between detail pages and crossfades to the next page's artwork.
+struct DetailBackdrop: View {
+    let source: DetailBackdropSource
     let model: AppModel
+
+    private var artworkURL: URL? {
+        switch source {
+        case let .track(artworkURL):
+            artworkURL
+        case let .collection(source, seedTrack, firstTrack):
+            TrackCollection.displayedTrack(
+                source: source, seedTrack: seedTrack, firstTrack: firstTrack, in: model
+            )?.displayArtworkURL
+        }
+    }
 
     var body: some View {
         let backdrop = TrackArtworkBackdropView(
-            artworkURL: collection.displayedTrack(in: model)?.displayArtworkURL,
+            artworkURL: artworkURL,
             loader: model.artworkLoader,
             fadesToBottom: false,
             animatesChanges: true
@@ -141,12 +167,27 @@ struct TrackCollection: Equatable {
     }
 
     @MainActor func displayedTrack(in model: AppModel) -> SoundCloudTrack? {
-        if let currentTrack = currentTrack(in: model) { return currentTrack }
+        Self.displayedTrack(source: source, seedTrack: seedTrack, firstTrack: tracks.first, in: model)
+    }
+
+    @MainActor static func displayedTrack(
+        source: TrackQueue.Source,
+        seedTrack: SoundCloudTrack?,
+        firstTrack: SoundCloudTrack?,
+        in model: AppModel
+    ) -> SoundCloudTrack? {
+        if model.queue.source == source, let currentTrack = model.playback.currentTrack {
+            return currentTrack
+        }
         if let seedTrack, let currentTrack = model.playback.currentTrack,
            currentTrack.urn == seedTrack.urn {
             return currentTrack
         }
-        return tracks.first ?? seedTrack
+        return firstTrack ?? seedTrack
+    }
+
+    var backdropSource: DetailBackdropSource {
+        .collection(source, seedTrack: seedTrack, firstTrack: tracks.first)
     }
 
     func queue(leadingTrack: SoundCloudTrack? = nil) -> TrackQueue {

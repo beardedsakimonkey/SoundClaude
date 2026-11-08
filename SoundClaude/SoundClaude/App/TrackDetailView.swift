@@ -37,10 +37,8 @@ struct TrackDetailView: View {
     var body: some View {
         detailsView
         .preference(
-            key: TrackDetailBackdropPreferenceKey.self,
-            value: TrackDetailBackdropSource(
-                artworkURL: details?.track.displayArtworkURL ?? track.displayArtworkURL
-            )
+            key: DetailBackdropPreferenceKey.self,
+            value: .track(artworkURL: details?.track.displayArtworkURL ?? track.displayArtworkURL)
         )
         .navigationTitle(details?.track.title ?? track.title)
         .toolbar {
@@ -522,53 +520,6 @@ struct TrackActionButtonStyle: ButtonStyle {
             // Keep the click area at its original size while the label scales.
             .contentShape(Capsule())
             .onContentHover { isHovering = $0 }
-    }
-}
-
-struct TrackDetailBackdropSource: Equatable {
-    let artworkURL: URL?
-}
-
-struct TrackDetailBackdropPreferenceKey: PreferenceKey {
-    static let defaultValue: TrackDetailBackdropSource? = nil
-
-    static func reduce(value: inout TrackDetailBackdropSource?, nextValue: () -> TrackDetailBackdropSource?) {
-        value = nextValue() ?? value
-    }
-}
-
-// Keep the backdrop outside the route identity so its image survives track navigation.
-struct TrackDetailBackdrop: View {
-    let artworkURL: URL?
-    let loader: ArtworkLoader
-
-    @ViewBuilder
-    var body: some View {
-        let backdrop = TrackArtworkBackdropView(
-            artworkURL: artworkURL,
-            loader: loader,
-            fadesToBottom: false,
-            animatesChanges: true
-        )
-        .frame(height: 600)
-        .mask {
-            LinearGradient(
-                stops: [
-                    .init(color: .black, location: 0),
-                    .init(color: .black, location: 0.25),
-                    .init(color: .black.opacity(0.5), location: 0.65),
-                    .init(color: .clear, location: 1)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        }
-
-        if #available(macOS 26.0, *) {
-            backdrop.backgroundExtensionEffect()
-        } else {
-            backdrop
-        }
     }
 }
 

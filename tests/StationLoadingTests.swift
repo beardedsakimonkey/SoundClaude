@@ -36,6 +36,7 @@ struct TrackCollection {
     let title: String
     let tracks: [SoundCloudTrack]
     let seedTrack: SoundCloudTrack?
+    var backdropSource: Int { 0 }
 }
 @MainActor private enum Measurements { static var trackCounts: [Int] = [] }
 struct TrackCollectionHeader<Title: View, Footer: View>: View {
@@ -80,10 +81,9 @@ struct TrackCollectionLoadStatus: View {
     let onRetry: () -> Void
     var body: some View { EmptyView() }
 }
-struct TrackCollectionBackdrop: View {
-    let collection: TrackCollection
-    let model: AppModel
-    var body: some View { Color.clear }
+struct DetailBackdropPreferenceKey: PreferenceKey {
+    static let defaultValue = 0
+    static func reduce(value: inout Int, nextValue: () -> Int) { value = nextValue() }
 }
 struct TrackCollectionTitleRow<Title: View, Actions: View>: View {
     @ViewBuilder let title: () -> Title
