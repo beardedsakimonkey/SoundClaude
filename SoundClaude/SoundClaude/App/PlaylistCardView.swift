@@ -11,6 +11,7 @@ struct PlaylistCardView: View {
     @State private var isExpanded = false
     @State private var isHoveringTrackToggle = false
     @State private var selectedTrackURN: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var cardState: PlaylistCardState { playlists.cardState(for: playlist.urn) }
     private var contents: PlaylistContents? { cardState.contents }
@@ -47,7 +48,8 @@ struct PlaylistCardView: View {
                 onAddToQueue: model.addToQueue
             )
             .overlay(alignment: .bottomTrailing) {
-                if isLoading {
+                // Before the first page, the skeleton rows already show loading.
+                if isLoading, !showsSkeleton {
                     LoadingSpinner()
                         .accessibilityLabel("Loading playlist")
                         .controlSize(.small)
@@ -87,7 +89,20 @@ struct PlaylistCardView: View {
                         .frame(maxWidth: .infinity)
                     }
                 } else if displayedRowCount > 0 {
-                    Color.clear.frame(height: TrackWaveformView.Layout.compact.height)
+                    HStack(spacing: 10) {
+                        Button {} label: {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.circle)
+                        .disabled(true)
+                        .accessibilityHidden(true)
+                        Color.clear
+                            .frame(maxWidth: .infinity)
+                            .frame(height: TrackWaveformView.Layout.compact.height)
+                    }
                 }
 
                 trackList
@@ -111,6 +126,9 @@ struct PlaylistCardView: View {
     }
 
     private var hasMoreTracks: Bool { trackCount > 5 || contents?.nextPageURL != nil }
+    /// Rows are reserved for tracks that haven't arrived yet.
+    private var showsSkeleton: Bool { tracks.isEmpty && displayedRowCount > 0 }
+    private var hasLoadedTracks: Bool { contents?.hasLoadedPage == true }
 
     @ViewBuilder
     private var trackList: some View {
@@ -120,6 +138,13 @@ struct PlaylistCardView: View {
                 trackRows(limit: isExpanded ? tracks.count : 5)
             }
         }
+        .overlay(alignment: .top) {
+            if showsSkeleton {
+                PlaylistCardSkeletonRows(count: min(displayedRowCount, 5), isAnimating: isLoading)
+                    .transition(.opacity)
+            }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: showsSkeleton)
         .frame(height: CGFloat(min(displayedRowCount, isExpanded ? 8 : 5)) * TrackListRow.compactHeight)
         .scrollDisabled(!isExpanded)
         // While collapsed, fade the bottom to hint at the tracks behind the toggle.
@@ -131,7 +156,9 @@ struct PlaylistCardView: View {
                 if isExpanded { Task { await playlists.loadPlaylist(playlist) } }
             }
             .buttonStyle(.plain)
-            .foregroundStyle(isHoveringTrackToggle ? Color.primary : Color.secondary)
+            // Expanding before the first page arrives would reveal empty rows.
+            .disabled(!hasLoadedTracks)
+            .foregroundStyle(isHoveringTrackToggle && hasLoadedTracks ? Color.primary : Color.secondary)
             .font(.callout)
             .onContentHover { isHoveringTrackToggle = $0 }
             .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
@@ -207,6 +234,45 @@ struct PlaylistCardView: View {
             tracks: loaded.tracks,
             nextPageURL: loaded.nextPageURL, sourceTitle: loaded.playlist.title
         ), loadRemainingTracks: true)
+    }
+}
+
+/// Placeholder rows matching the compact `TrackListRow` layout, shown before the first page loads.
+private struct PlaylistCardSkeletonRows: View {
+    let count: Int
+    let isAnimating: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isDimmed = false
+
+    var body: some View {
+        // One opacity animation on the container, so loading cards don't redraw each row.
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(0..<count, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(.quaternary)
+                    .frame(width: 40, height: 40)
+                    .padding(.vertical, 5)
+                    .padding(.horizontal, 8)
+                    .frame(height: TrackListRow.compactHeight)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .opacity(isDimmed ? 0.5 : 1)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .onAppear { updatePulse() }
+        .onChange(of: isAnimating) { _, _ in updatePulse() }
+    }
+
+    private func updatePulse() {
+        guard isAnimating, !reduceMotion else {
+            withAnimation(nil) { isDimmed = false }
+            return
+        }
+        withAnimation(.easeInOut(duration: 1).repeatForever(autoreverses: true)) {
+            isDimmed = true
+        }
     }
 }
 
