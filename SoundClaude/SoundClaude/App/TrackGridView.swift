@@ -229,18 +229,11 @@ struct TrackGridTile: View {
                     shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous),
                     showsBorder: false
                 )
-                .scaleEffect(isHoveringArtwork && track.access != .protected && !reduceMotion ? 1.08 : 1)
-                .clipShape(RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous))
-                .modifier(PlayerArtworkGlass(
+                .modifier(ArtworkHoverZoom(
+                    isHovering: isHoveringArtwork && track.access != .protected,
                     cornerRadius: Self.artworkCornerRadius,
-                    size: CGSize(width: TrackGridMetrics.tileWidth, height: TrackGridMetrics.tileWidth)
+                    size: TrackGridMetrics.tileWidth
                 ))
-                .animation(
-                    reduceMotion ? nil : isHoveringArtwork
-                        ? .spring(response: 0.35, dampingFraction: 0.75)
-                        : .spring(duration: 0.34, bounce: 0),
-                    value: isHoveringArtwork
-                )
                 .overlay {
                     AnimatedPlayPauseIcon(
                         isPlaybackActive: isPlaybackActive,

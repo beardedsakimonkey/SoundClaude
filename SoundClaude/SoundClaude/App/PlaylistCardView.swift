@@ -33,19 +33,14 @@ struct PlaylistCardView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 20) {
-            Button {
+            PlaylistCardArtwork(
+                playlistURN: playlist.urn,
+                displayedPlaylist: displayedPlaylist,
+                tracks: tracks,
+                model: model
+            ) {
                 onSelectPlaylist(displayedPlaylist)
-            } label: {
-                PlaylistCardArtwork(
-                    playlistURN: playlist.urn,
-                    displayedPlaylist: displayedPlaylist,
-                    tracks: tracks,
-                    model: model
-                )
             }
-            .buttonStyle(.plain)
-            // The pointer crosses large artwork on its way elsewhere.
-            .prefetch(.playlist(displayedPlaylist), .pressOnly)
             .accessibilityLabel("Open playlist: \(displayedPlaylist.title)")
             .trackContextMenu(
                 track: waveformTrack,
@@ -319,12 +314,15 @@ private struct PlaylistCardTitleRow: View {
 }
 
 // Queue source and current-track metadata affect artwork independently of the
-// card's track list. Keep those broader subscriptions in this small subtree.
+// card's track list. Keep those broader subscriptions, and hover, in this small subtree.
 private struct PlaylistCardArtwork: View {
     let playlistURN: String
     let displayedPlaylist: SoundCloudPlaylist
     let tracks: [SoundCloudTrack]
     let model: AppModel
+    let onSelect: () -> Void
+
+    @State private var isHovering = false
 
     private var artworkURL: URL? {
         if let track = model.playback.currentTrack,
@@ -336,13 +334,25 @@ private struct PlaylistCardArtwork: View {
     }
 
     var body: some View {
-        TrackArtworkView(
-            artworkURL: artworkURL,
-            loader: model.artworkLoader,
-            size: 140,
-            rendition: .square500,
-            shape: RoundedRectangle(cornerRadius: 8, style: .continuous),
-            animatesChanges: true
-        )
+        Button(action: onSelect) {
+            TrackArtworkView(
+                artworkURL: artworkURL,
+                loader: model.artworkLoader,
+                size: Self.size,
+                rendition: .square500,
+                shape: RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous),
+                showsBorder: false,
+                animatesChanges: true
+            )
+            .modifier(ArtworkHoverZoom(
+                isHovering: isHovering, cornerRadius: Self.cornerRadius, size: Self.size
+            ))
+        }
+        .buttonStyle(.plain)
+        // The pointer crosses large artwork on its way elsewhere.
+        .prefetch(.playlist(displayedPlaylist), .pressOnly) { isHovering = $0 }
     }
+
+    static let size: CGFloat = 150
+    private static let cornerRadius: CGFloat = 10
 }

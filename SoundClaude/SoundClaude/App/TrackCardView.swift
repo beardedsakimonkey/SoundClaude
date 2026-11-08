@@ -33,20 +33,9 @@ struct TrackCardView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 20) {
-            Button {
+            TrackCardArtwork(track: track, loader: model.artworkLoader) {
                 onSelectTrack(track)
-            } label: {
-                TrackArtworkView(
-                    artworkURL: track.displayArtworkURL,
-                    loader: model.artworkLoader,
-                    size: 140,
-                    rendition: .square500,
-                    shape: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                )
             }
-            .buttonStyle(.plain)
-            // The pointer crosses large artwork on its way elsewhere.
-            .prefetch(.track(track), .pressOnly)
             .opacity(track.access == .protected ? protectedTrackOpacity : 1)
             .trackDraggable(track)
             .contentHelp("View track or drag to a playlist")
@@ -117,7 +106,7 @@ struct TrackCardView: View {
                 .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 140, alignment: .top)
+            .frame(height: TrackCardArtwork.size, alignment: .top)
         }
         .task {
             // Retry on click and show any error there, once for the selected card.
@@ -331,5 +320,36 @@ private struct TrackStatisticButtonStyle: ButtonStyle {
             .contentShape(Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.5)
             .onContentHover { isHovering = $0 }
+    }
+}
+
+// Keep hover state here so the zoom doesn't update the whole card.
+private struct TrackCardArtwork: View {
+    let track: SoundCloudTrack
+    let loader: ArtworkLoader
+    let onSelect: () -> Void
+
+    static let size: CGFloat = 150
+    private static let cornerRadius: CGFloat = 10
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: onSelect) {
+            TrackArtworkView(
+                artworkURL: track.displayArtworkURL,
+                loader: loader,
+                size: Self.size,
+                rendition: .square500,
+                shape: RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous),
+                showsBorder: false
+            )
+            .modifier(ArtworkHoverZoom(
+                isHovering: isHovering, cornerRadius: Self.cornerRadius, size: Self.size
+            ))
+        }
+        .buttonStyle(.plain)
+        // The pointer crosses large artwork on its way elsewhere.
+        .prefetch(.track(track), .pressOnly) { isHovering = $0 }
     }
 }

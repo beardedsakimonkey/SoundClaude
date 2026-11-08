@@ -152,3 +152,28 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
         )
     }
 }
+
+/// Zooms square artwork within its glass while hovered, as on the track grid tiles.
+struct ArtworkHoverZoom: ViewModifier {
+    let isHovering: Bool
+    let cornerRadius: CGFloat
+    let size: CGFloat
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(isHovering && !reduceMotion ? 1.08 : 1)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .modifier(PlayerArtworkGlass(
+                cornerRadius: cornerRadius,
+                size: CGSize(width: size, height: size)
+            ))
+            .animation(
+                reduceMotion ? nil : isHovering
+                    ? .spring(response: 0.35, dampingFraction: 0.75)
+                    : .spring(duration: 0.34, bounce: 0),
+                value: isHovering
+            )
+    }
+}
