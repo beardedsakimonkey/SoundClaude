@@ -154,7 +154,9 @@ struct PlaylistDetailView: View {
                     Text(displayedPlaylist.title)
                         .trackCollectionTitleText()
                 } icon: {
-                    Image(systemName: "music.note.list")
+                    PlaylistPlayingIcon(
+                        playback: model.playback, isCurrent: model.queue.source == .playlist(playlist.urn)
+                    )
                 }
                 .textSelection(.enabled)
                 .accessibilityLabel("Playlist, \(displayedPlaylist.title)")

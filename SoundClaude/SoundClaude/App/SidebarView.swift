@@ -841,3 +841,81 @@ struct StationPlayingIcon: View {
             )
     }
 }
+
+/// `music.note.list` has no left-to-right layer order for `.variableColor`, so this sweeps
+/// a mask across it with the timing of `.variableColor.iterative` on `StationPlayingIcon`.
+struct PlaylistPlayingIcon: View {
+    let playback: PlaybackController
+    let isCurrent: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
+    @State private var startDate: Date?
+    @State private var stopDate: Date?
+
+    var body: some View {
+        let isActive = isCurrent && playback.isPlaybackActive && !reduceMotion && !contentAnimationsPaused
+        let symbol = Image(systemName: "music.note.list")
+        TimelineView(.animation(paused: startDate == nil)) { context in
+            if let startDate {
+                symbol.mask {
+                    LinearGradient(
+                        stops: Self.sweepStops(
+                            elapsed: context.date.timeIntervalSince(startDate),
+                            sinceStop: stopDate.map { context.date.timeIntervalSince($0) }
+                        ),
+                        startPoint: UnitPoint(x: 0, y: 0.8),
+                        endPoint: UnitPoint(x: 1, y: 0.2)
+                    )
+                }
+            } else {
+                symbol
+            }
+        }
+        .task(id: isActive) {
+            if isActive {
+                startDate = .now
+                stopDate = nil
+            } else if startDate != nil {
+                // Keep sweeping while the dimming fades out, then stop the timeline.
+                stopDate = .now
+                try? await Task.sleep(for: .seconds(Self.fadeOut))
+                guard !Task.isCancelled else { return }
+                startDate = nil
+                stopDate = nil
+            }
+        }
+    }
+
+    private static let period = 2.2
+    private static let sweep = 0.65
+    private static let rise = 0.2
+    private static let hold = 0.2
+    private static let decay = 0.85
+    private static let idleOpacity = 0.35
+    private static let fadeIn = 0.3
+    private static let fadeOut = 0.4
+    private static let sampleCount = 16
+
+    private static func sweepStops(elapsed: TimeInterval, sinceStop: TimeInterval?) -> [Gradient.Stop] {
+        var dimming = min(1, max(0, elapsed / fadeIn))
+        if let sinceStop {
+            let progress = min(1, max(0, sinceStop / fadeOut))
+            dimming *= 1 - progress * progress * (3 - 2 * progress)
+        }
+        return (0..<sampleCount).map { index in
+            let location = Double(index) / Double(sampleCount - 1)
+            var local = (elapsed - location * sweep).truncatingRemainder(dividingBy: period)
+            if local < 0 { local += period }
+            let lit = idleOpacity + (1 - idleOpacity) * intensity(at: local)
+            let opacity = 1 - dimming * (1 - lit)
+            return Gradient.Stop(color: .black.opacity(opacity), location: location)
+        }
+    }
+
+    private static func intensity(at time: TimeInterval) -> Double {
+        if time < rise { return time / rise }
+        if time < rise + hold { return 1 }
+        let progress = min(1, (time - rise - hold) / decay)
+        return 1 - progress * progress * (3 - 2 * progress)
+    }
+}
