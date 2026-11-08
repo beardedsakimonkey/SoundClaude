@@ -1019,13 +1019,16 @@ private struct TrackCommentLikeButton: View {
             .accessibilityLabel(actionLabel)
             .accessibilityValue(count == 1 ? "1 like" : "\(count) likes")
 
-            // Reserve the count's line so hearts align across rows.
-            Text(count.formatted(.number.notation(.compactName)))
+            // Reserve the count's line so hearts align across rows. A hidden count reads 1, and
+            // only its opacity animates, so a first like fades in "1" (and an unlike fades it
+            // out) without cross-fading through "0".
+            Text(max(count, 1).formatted(.number.notation(.compactName)))
                 .font(.caption.weight(.semibold).monospacedDigit())
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                .opacity(count > 0 ? 1 : 0)
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: count > 0)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
+                    $0.opacity(count > 0 ? 1 : 0)
+                }
                 .accessibilityHidden(true)
         }
         .frame(width: 36)
