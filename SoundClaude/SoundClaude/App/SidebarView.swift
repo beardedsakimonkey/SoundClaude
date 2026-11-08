@@ -156,11 +156,11 @@ struct SidebarView: View {
                             .font(.system(size: 16))
                             .frame(width: 28)
                     }
-                        .padding(.trailing, showsShuffle ? 32 : 0)
                         .modifier(SidebarRowStyle(
                             isSelected: selection == destination,
                             usesPrimaryForeground: true,
-                            verticalPadding: 4
+                            verticalPadding: 4,
+                            fadesTrailingEdge: showsShuffle
                         ) {
                             select(destination)
                         })
@@ -313,14 +313,14 @@ struct SidebarView: View {
                             }
                             .lineLimit(1)
                             .contentHelp(station.displayTitle)
-                            .padding(.trailing, isStarting || showsShuffle ? 32 : 0)
                             .modifier(SidebarRowStyle(
                                 isSelected: false,
                                 usesPrimaryForeground: station.isStation
                                     ? currentStationURN == station.urn : currentPlaylistURN == station.urn,
                                 prefetch: station.isStation
                                     ? .station(station.urn)
-                                    : .playlist(.systemPlaylist(urn: station.urn, title: station.displayTitle))
+                                    : .playlist(.systemPlaylist(urn: station.urn, title: station.displayTitle)),
+                                fadesTrailingEdge: isStarting || showsShuffle
                             ) {
                                 onSelectStation(station)
                             })
@@ -403,13 +403,13 @@ struct SidebarView: View {
                 .frame(width: 28)
             }
                 .lineLimit(1)
-                .padding(.trailing, isStarting || isAddingTrack || showsShuffle ? 32 : 0)
                 .contentHelp(playlist.title)
                 .task(id: playlist.urn) { await playlists.loadArtwork(for: playlist) }
                 .modifier(SidebarRowStyle(
                     isSelected: false,
                     usesPrimaryForeground: currentPlaylistURN == playlist.urn,
-                    prefetch: .playlist(playlist)
+                    prefetch: .playlist(playlist),
+                    fadesTrailingEdge: isStarting || isAddingTrack || showsShuffle
                 ) {
                     onSelectPlaylist(playlist)
                 })
@@ -757,11 +757,25 @@ private struct SidebarRowStyle: ViewModifier {
     var usesPrimaryForeground = false
     var verticalPadding: CGFloat = 2
     var prefetch: PrefetchTarget? = nil
+    var fadesTrailingEdge = false
     let onSelect: () -> Void
 
     func body(content: Content) -> some View {
         content
             .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+            .mask {
+                if fadesTrailingEdge {
+                    HStack(spacing: 0) {
+                        Color.black
+                        LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: 24)
+                        // Clears the overlay, which sits in the last ~18pt of this frame.
+                        Color.clear.frame(width: 22)
+                    }
+                } else {
+                    Color.black
+                }
+            }
             // Indent inside the row so its background and hit target still reach the sidebar edge.
             .padding(.leading, 8 + SidebarView.sectionIndent)
             .padding(.trailing, 8)
