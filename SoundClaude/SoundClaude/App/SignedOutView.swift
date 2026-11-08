@@ -9,7 +9,28 @@ struct SignedOutView: View {
     @State private var copiedSessionCommand = false
     @State private var isHoveringCopyCommand = false
 
-    private let sessionCommand = "copy(document.cookie.split('; ').find(c => c.startsWith('oauth_token='))?.slice('oauth_token='.length) ?? '')"
+    private static let sessionCommand = "copy(document.cookie.split('; ').find(c => c.startsWith('oauth_token='))?.slice('oauth_token='.length) ?? '')"
+
+    /// Minimal JS highlighting for `sessionCommand`: strings, calls, and operators.
+    private static let highlightedSessionCommand: AttributedString = {
+        let tokens = sessionCommand.matches(of: #/'[^']*'|[A-Za-z_]\w*|=>|\?\?|\?\.|./#).map { String($0.output) }
+        var result = AttributedString()
+        for (index, token) in tokens.enumerated() {
+            var piece = AttributedString(token)
+            let next = index + 1 < tokens.count ? tokens[index + 1] : ""
+            if token.hasPrefix("'") {
+                piece.foregroundColor = Color(nsColor: NSColor(name: nil) { appearance in
+                    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .systemYellow : .systemGreen
+                })
+            } else if token.first?.isLetter == true, next == "(" {
+                piece.foregroundColor = Color(nsColor: .systemOrange)
+            } else if ["=>", "??", "?."].contains(token) {
+                piece.foregroundColor = Color(nsColor: .secondaryLabelColor)
+            }
+            result += piece
+        }
+        return result
+    }()
 
     var body: some View {
         GeometryReader { geometry in
@@ -18,9 +39,9 @@ struct SignedOutView: View {
                     header
                         .frame(minWidth: 220, maxWidth: .infinity)
                     signInOptions
-                        .frame(maxWidth: 440)
+                        .frame(maxWidth: 480)
                 }
-                .frame(maxWidth: 820)
+                .frame(maxWidth: 860)
                 .padding(32)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: geometry.size.height)
@@ -115,12 +136,12 @@ struct SignedOutView: View {
                     .font(.system(size: 16, weight: .medium))
                     .frame(minHeight: 30)
 
-                Text("1. Sign in at soundcloud.com in your browser.\n2. Open the browser’s developer console.\n3. Paste and run this command to copy your session token.")
+                Text("1. Sign in at [soundcloud.com](https://soundcloud.com) in your browser.\n2. Open the browser’s developer console.\n3. Paste and run this command to copy your session token.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(sessionCommand)
+                Text(Self.highlightedSessionCommand)
                     .font(.system(size: 11, design: .monospaced))
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
@@ -128,7 +149,7 @@ struct SignedOutView: View {
                     .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
                 Button {
                     NSPasteboard.general.clearContents()
-                    copiedSessionCommand = NSPasteboard.general.setString(sessionCommand, forType: .string)
+                    copiedSessionCommand = NSPasteboard.general.setString(Self.sessionCommand, forType: .string)
                 } label: {
                     Label(copiedSessionCommand ? "Command Copied" : "Copy Command",
                           systemImage: copiedSessionCommand ? "checkmark" : "doc.on.doc")
@@ -171,7 +192,7 @@ private struct SignedOutActionStyle: ButtonStyle {
     let isPrimary: Bool
     @Environment(\.isEnabled) private var isEnabled
     @State private var isHovering = false
-    private let primaryColor = Color(.sRGB, red: 1, green: 85.0 / 255.0, blue: 0, opacity: 1)
+    private let primaryColor = Color(.sRGB, red: 0.95, green: 0.5, blue: 0.06, opacity: 1)
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -180,9 +201,9 @@ private struct SignedOutActionStyle: ButtonStyle {
                     .fill(isPrimary
                         ? AnyShapeStyle(LinearGradient(
                             colors: [
-                                Color(.sRGB, red: 1, green: 0.51, blue: 0.05, opacity: 1),
+                                Color(.sRGB, red: 1, green: 0.59, blue: 0.24, opacity: 1),
                                 primaryColor,
-                                Color(.sRGB, red: 0.97, green: 0.28, blue: 0.02, opacity: 1)
+                                Color(.sRGB, red: 0.92, green: 0.45, blue: 0, opacity: 1)
                             ],
                             startPoint: .top,
                             endPoint: .bottom))
