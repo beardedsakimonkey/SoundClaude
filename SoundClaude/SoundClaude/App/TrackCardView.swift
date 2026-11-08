@@ -315,14 +315,19 @@ private struct TrackStatisticButtonStyle: ButtonStyle {
         let isHighlighted = isHovering && isEnabled
 
         configuration.label
-            .foregroundStyle(isSelected ? color : (isHighlighted ? Color.primary.opacity(0.8) : Color.secondary))
+            .foregroundStyle(
+                isSelected
+                    ? color.opacity(isHighlighted ? 1 : 0.9)
+                    : (isHighlighted ? Color.primary.opacity(0.8) : Color.secondary)
+            )
             .padding(.horizontal, iconOnly ? 5 : 10)
             .padding(.vertical, 5)
             .background(
-                isSelected ? color.opacity(0.12) : Color.primary.opacity(isHighlighted ? 0.1 : 0.06),
+                isSelected
+                    ? color.opacity(isHighlighted ? 0.18 : 0.12)
+                    : Color.primary.opacity(isHighlighted ? 0.1 : 0.06),
                 in: Capsule()
             )
-            .brightness(isHighlighted ? 0.05 : 0)
             .contentShape(Capsule())
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.5)
             .onContentHover { isHovering = $0 }
