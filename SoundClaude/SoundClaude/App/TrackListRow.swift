@@ -28,10 +28,13 @@ struct TrackListRow: View {
     @State private var isStartingPlayback = false
     @GestureState private var isPressed = false
 
+    static let artworkCornerRadius: CGFloat = 4
     private static let compactArtworkSize: CGFloat = 40
-    private static let compactVerticalPadding: CGFloat = 5
+    /// Even on all sides, so the artwork's corners sit concentric with the row's.
+    static let compactPadding: CGFloat = 6
+    private static let compactCornerRadius = artworkCornerRadius + compactPadding
     /// Height of a compact row, for containers sized to a number of rows.
-    static let compactHeight = compactArtworkSize + 2 * compactVerticalPadding
+    static let compactHeight = compactArtworkSize + 2 * compactPadding
 
     var body: some View {
         let isCurrentTrack = playback[isCurrentTrack: track.urn]
@@ -44,10 +47,11 @@ struct TrackListRow: View {
                     artworkURL: track.displayArtworkURL,
                     loader: artworkLoader,
                     size: isCompact ? Self.compactArtworkSize : 50,
+                    shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius),
                 )
                 .overlay {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 3)
+                        RoundedRectangle(cornerRadius: Self.artworkCornerRadius)
                             .fill(.black.opacity(0.45))
                         ZStack {
                             Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")
@@ -111,8 +115,8 @@ struct TrackListRow: View {
                 }
             }
         }
-        .padding(.vertical, isCompact ? Self.compactVerticalPadding : 7)
-        .padding(.horizontal, 8)
+        .padding(.vertical, isCompact ? Self.compactPadding : 7)
+        .padding(.horizontal, isCompact ? Self.compactPadding : 8)
         .contentShape(Rectangle())
         .trackDraggable(track)
         .contextMenu {
@@ -129,7 +133,7 @@ struct TrackListRow: View {
                 }
         )
         .background {
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: isCompact ? Self.compactCornerRadius : 8)
                 .fill(rowBackground)
         }
         .onContentHover { hovering in

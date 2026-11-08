@@ -257,10 +257,14 @@ private struct PlaylistCardSkeletonRows: View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(0..<count, id: \.self) { _ in
                 // The same fallback a track without artwork shows.
-                TrackArtworkView(artworkURL: nil, loader: loader, size: 40)
-                    .padding(.vertical, 5)
-                    .padding(.horizontal, 8)
-                    .frame(height: TrackListRow.compactHeight)
+                TrackArtworkView(
+                    artworkURL: nil,
+                    loader: loader,
+                    size: 40,
+                    shape: RoundedRectangle(cornerRadius: TrackListRow.artworkCornerRadius)
+                )
+                .padding(TrackListRow.compactPadding)
+                .frame(height: TrackListRow.compactHeight)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
