@@ -137,16 +137,17 @@ struct SignedOutView: View {
                     .font(.system(size: 16, weight: .medium))
                     .frame(minHeight: 30)
 
-                // Step 1 is its own row so the link can be a separate view that tracks hover.
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline, spacing: 0) {
-                        Text("1. Sign in to ")
+                    // Step 1 is laid out word by word so the link can be a separate view
+                    // that tracks hover while the sentence still wraps like a paragraph. 3.6 is a 13pt space.
+                    FlowLayout(spacing: 3.6, rowSpacing: 3) {
+                        ForEach(["1.", "Sign", "in", "to"], id: \.self) { Text($0) }
                         Link("soundcloud.com", destination: URL(string: "https://soundcloud.com")!)
                             .foregroundStyle(Color(nsColor: .linkColor))
                             .underline(isHoveringSoundCloudLink)
                             .onHover { isHoveringSoundCloudLink = $0 }
                             .buttonStyle(SignedOutLinkStyle())
-                        Text(" in your browser.")
+                        ForEach(["in", "your", "browser."], id: \.self) { Text($0) }
                     }
                     // Spacing 3 keeps the shortcuts as tight as a wrapped line of step 2.
                     VStack(alignment: .leading, spacing: 3) {
@@ -162,6 +163,7 @@ struct SignedOutView: View {
                     .font(.system(size: 11, design: .monospaced))
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
                     .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
                     .overlay {

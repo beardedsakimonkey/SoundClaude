@@ -123,7 +123,7 @@ struct PlaylistDetailView: View {
                 )
             }
             if !displayedPlaylist.tags.isEmpty {
-                TagLayout {
+                FlowLayout {
                     ForEach(Array(displayedPlaylist.tags.enumerated()), id: \.offset) { _, tag in
                         TagPill(tag: tag)
                     }

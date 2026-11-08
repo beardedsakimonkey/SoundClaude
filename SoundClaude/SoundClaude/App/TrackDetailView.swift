@@ -135,7 +135,7 @@ struct TrackDetailView: View {
                             .caseInsensitiveCompare(genre) != .orderedSame
                     }
                     if genre != nil || !tags.isEmpty {
-                        TagLayout {
+                        FlowLayout {
                             if let genre {
                                 GenrePill(genre: genre)
                             }

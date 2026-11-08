@@ -119,6 +119,7 @@
 		D100000000000000000000A0 /* CacheInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = D200000000000000000000A0 /* CacheInspector.swift */; };
 		D10000000000000000000091 /* NetworkActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = D20000000000000000000091 /* NetworkActivity.swift */; };
 		2866BC3D49FE472D883638AC /* GenrePill.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B2F18F1E7854AD7BBBC3442 /* GenrePill.swift */; };
+		D9A8BEB92B1C4420BFFB23CE /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = D68D1382C0444597849FEC91 /* FlowLayout.swift */; };
 		A10000000000000000000062 /* PlaylistCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000062 /* PlaylistCardView.swift */; };
 		EA5095DB820C4F7B9F932E11 /* TrackPlaybackIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 311A2AB195D74C16B3ECC0D7 /* TrackPlaybackIndicator.swift */; };
 		85566A7E7F294AF79697AAA5 /* NowPlayingTrackRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66440D2ACA42479790BD674C /* NowPlayingTrackRow.swift */; };
@@ -259,6 +260,7 @@
 		D200000000000000000000A0 /* CacheInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheInspector.swift; sourceTree = "<group>"; };
 		D20000000000000000000091 /* NetworkActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkActivity.swift; sourceTree = "<group>"; };
 		8B2F18F1E7854AD7BBBC3442 /* GenrePill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenrePill.swift; sourceTree = "<group>"; };
+		D68D1382C0444597849FEC91 /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
 		A20000000000000000000062 /* PlaylistCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistCardView.swift; sourceTree = "<group>"; };
 		311A2AB195D74C16B3ECC0D7 /* TrackPlaybackIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackPlaybackIndicator.swift; sourceTree = "<group>"; };
 		66440D2ACA42479790BD674C /* NowPlayingTrackRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingTrackRow.swift; sourceTree = "<group>"; };
@@ -373,6 +375,7 @@
 				D20000000000000000000091 /* NetworkActivity.swift */,
 				D200000000000000000000A0 /* CacheInspector.swift */,
 				8B2F18F1E7854AD7BBBC3442 /* GenrePill.swift */,
+				D68D1382C0444597849FEC91 /* FlowLayout.swift */,
 				A20000000000000000000062 /* PlaylistCardView.swift */,
 				311A2AB195D74C16B3ECC0D7 /* TrackPlaybackIndicator.swift */,
 				66440D2ACA42479790BD674C /* NowPlayingTrackRow.swift */,
@@ -675,6 +678,7 @@
 				D10000000000000000000091 /* NetworkActivity.swift in Sources */,
 				D100000000000000000000A0 /* CacheInspector.swift in Sources */,
 				2866BC3D49FE472D883638AC /* GenrePill.swift in Sources */,
+				D9A8BEB92B1C4420BFFB23CE /* FlowLayout.swift in Sources */,
 				A10000000000000000000062 /* PlaylistCardView.swift in Sources */,
 				EA5095DB820C4F7B9F932E11 /* TrackPlaybackIndicator.swift in Sources */,
 				85566A7E7F294AF79697AAA5 /* NowPlayingTrackRow.swift in Sources */,
