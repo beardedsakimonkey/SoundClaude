@@ -8,7 +8,6 @@ struct PlaylistCardView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isExpanded = false
     @State private var isHoveringTrackToggle = false
     @State private var selectedTrackURN: String?
@@ -111,6 +110,8 @@ struct PlaylistCardView: View {
         #endif
     }
 
+    private var hasMoreTracks: Bool { trackCount > 5 || contents?.nextPageURL != nil }
+
     @ViewBuilder
     private var trackList: some View {
         // Keep the row hierarchy stable so toggling preserves loaded artwork.
@@ -119,15 +120,14 @@ struct PlaylistCardView: View {
                 trackRows(limit: isExpanded ? tracks.count : 5)
             }
         }
-        .frame(height: CGFloat(min(displayedRowCount, isExpanded ? 8 : 5)) * 40)
+        .frame(height: CGFloat(min(displayedRowCount, isExpanded ? 8 : 5)) * TrackListRow.compactHeight)
         .scrollDisabled(!isExpanded)
-        .scrollEdgeFade()
+        // While collapsed, fade the bottom to hint at the tracks behind the toggle.
+        .scrollEdgeFade(fadesBottom: !isExpanded && hasMoreTracks)
 
-        if isExpanded || trackCount > 5 || contents?.nextPageURL != nil {
+        if isExpanded || hasMoreTracks {
             Button(isExpanded ? "View fewer tracks" : "View \(trackCount) tracks") {
-                withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
-                    isExpanded.toggle()
-                }
+                isExpanded.toggle()
                 if isExpanded { Task { await playlists.loadPlaylist(playlist) } }
             }
             .buttonStyle(.plain)
@@ -212,7 +212,9 @@ struct PlaylistCardView: View {
 
 /// Fades the scroll view's top and bottom edges while more content lies beyond them.
 private struct ScrollEdgeFade: ViewModifier {
-    var length: CGFloat = 24
+    var length: CGFloat = 32
+    /// Fades the bottom edge even when the content does not extend past it.
+    var fadesBottom = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var edges = Edges()
@@ -238,20 +240,27 @@ private struct ScrollEdgeFade: ViewModifier {
                         LinearGradient(colors: [.black.opacity(edges.top ? 0 : 1), .black], startPoint: .top, endPoint: .bottom)
                             .frame(height: length)
                         Rectangle()
-                        LinearGradient(colors: [.black, .black.opacity(edges.bottom ? 0 : 1)], startPoint: .top, endPoint: .bottom)
+                        LinearGradient(colors: [.black, .black.opacity(edges.bottom || fadesBottom ? 0 : 1)], startPoint: .top, endPoint: .bottom)
                             .frame(height: length)
                     }
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: edges)
                 }
         } else {
             content
+                .mask {
+                    VStack(spacing: 0) {
+                        Rectangle()
+                        LinearGradient(colors: [.black, .black.opacity(fadesBottom ? 0 : 1)], startPoint: .top, endPoint: .bottom)
+                            .frame(height: length)
+                    }
+                }
         }
     }
 }
 
 private extension View {
-    func scrollEdgeFade(length: CGFloat = 24) -> some View {
-        modifier(ScrollEdgeFade(length: length))
+    func scrollEdgeFade(length: CGFloat = 32, fadesBottom: Bool = false) -> some View {
+        modifier(ScrollEdgeFade(length: length, fadesBottom: fadesBottom))
     }
 }
 

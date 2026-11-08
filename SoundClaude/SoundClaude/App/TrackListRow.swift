@@ -28,6 +28,11 @@ struct TrackListRow: View {
     @State private var isStartingPlayback = false
     @GestureState private var isPressed = false
 
+    private static let compactArtworkSize: CGFloat = 40
+    private static let compactVerticalPadding: CGFloat = 5
+    /// Height of a compact row, for containers sized to a number of rows.
+    static let compactHeight = compactArtworkSize + 2 * compactVerticalPadding
+
     var body: some View {
         let isCurrentTrack = playback[isCurrentTrack: track.urn]
         let isPlaybackActive = isCurrentTrack
@@ -38,7 +43,7 @@ struct TrackListRow: View {
                 TrackArtworkView(
                     artworkURL: track.displayArtworkURL,
                     loader: artworkLoader,
-                    size: isCompact ? 40 : 50,
+                    size: isCompact ? Self.compactArtworkSize : 50,
                 )
                 .overlay {
                     ZStack {
@@ -106,7 +111,7 @@ struct TrackListRow: View {
                 }
             }
         }
-        .padding(.vertical, isCompact ? 5 : 7)
+        .padding(.vertical, isCompact ? Self.compactVerticalPadding : 7)
         .padding(.horizontal, 8)
         .contentShape(Rectangle())
         .trackDraggable(track)
