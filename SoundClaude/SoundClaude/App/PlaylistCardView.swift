@@ -47,19 +47,6 @@ struct PlaylistCardView: View {
                 likes: model.likes,
                 onAddToQueue: model.addToQueue
             )
-            .overlay(alignment: .bottomTrailing) {
-                // Before the first page, the skeleton rows already show loading.
-                if isLoading, !showsSkeleton {
-                    LoadingSpinner()
-                        .accessibilityLabel("Loading playlist")
-                        .controlSize(.small)
-                        .frame(width: 16, height: 16)
-                        .padding(8)
-                        .background(.regularMaterial, in: Circle())
-                        .padding(8)
-                        .allowsHitTesting(false)
-                }
-            }
 
             VStack(alignment: .leading, spacing: 6) {
                 PlaylistCardTitleRow(
