@@ -66,6 +66,7 @@ struct DetailSwapButtonSource: Identifiable {
     let trackURN: String?
     let isCollection: Bool
     let button: AnyView
+    let scrollTarget: DetailScrollTarget
 }
 
 struct DetailSwapButtonPreferenceKey: PreferenceKey {
@@ -79,13 +80,16 @@ struct DetailSwapButtonPreferenceKey: PreferenceKey {
 extension View {
     // The host does not inherit the page's environment, so the button must carry its own styling.
     func detailSwapSlot(id: String, trackURN: String?, isCollection: Bool = false) -> some View {
-        hidden()
-            .accessibilityHidden(true)
-            .anchorPreference(key: DetailSwapButtonPreferenceKey.self, value: .bounds) {
-                [DetailSwapButtonSource(
-                    id: id, bounds: $0, trackURN: trackURN, isCollection: isCollection, button: AnyView(self)
-                )]
-            }
+        DetailScrollSlot { scrollTarget in
+            hidden()
+                .accessibilityHidden(true)
+                .anchorPreference(key: DetailSwapButtonPreferenceKey.self, value: .bounds) {
+                    [DetailSwapButtonSource(
+                        id: id, bounds: $0, trackURN: trackURN, isCollection: isCollection,
+                        button: AnyView(self), scrollTarget: scrollTarget
+                    )]
+                }
+        }
     }
 }
 
@@ -100,6 +104,7 @@ struct DetailSwapButtonOverlay: ViewModifier {
                         ForEach(sources) { source in
                             let bounds = geometry[source.bounds]
                             source.button
+                                .overlay(DetailScrollForwarder(target: source.scrollTarget))
                                 .modifier(FadeInOnAppear())
                                 .geometryGroup()
                                 .frame(width: bounds.width, height: bounds.height)

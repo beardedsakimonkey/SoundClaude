@@ -204,7 +204,7 @@ struct TrackWaveformView: View {
         func descendants(_ view: NSView) -> [NSView] {
             [view] + view.subviews.flatMap(descendants)
         }
-        let forwarder = descendants(scrollingHost).compactMap { $0 as? DetailWaveformScrollView }.first!
+        let forwarder = descendants(scrollingHost).compactMap { $0 as? DetailScrollForwardingView }.first!
         let scrollView = forwarder.target!.anchor!.enclosingScrollView!
         let point = forwarder.convert(
             NSPoint(x: forwarder.bounds.midX, y: forwarder.bounds.midY), to: forwarder.superview

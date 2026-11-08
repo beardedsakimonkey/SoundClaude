@@ -10,17 +10,19 @@ struct DetailTrackHeadingSlot: View {
     let onSelectArtist: (SoundCloudUser) -> Void
 
     var body: some View {
-        DetailTrackHeading(
-            track: track, isCollection: isCollection, artworkLoader: artworkLoader,
-            onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist
-        )
-        .hidden()
-        .accessibilityHidden(true)
-        .anchorPreference(key: DetailTrackHeadingPreferenceKey.self, value: .bounds) {
-            DetailTrackHeadingSource(
-                bounds: $0, track: track, isCollection: isCollection, collectionURN: collectionURN,
+        DetailScrollSlot { scrollTarget in
+            DetailTrackHeading(
+                track: track, isCollection: isCollection, artworkLoader: artworkLoader,
                 onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist
             )
+            .hidden()
+            .accessibilityHidden(true)
+            .anchorPreference(key: DetailTrackHeadingPreferenceKey.self, value: .bounds) {
+                DetailTrackHeadingSource(
+                    bounds: $0, track: track, isCollection: isCollection, collectionURN: collectionURN,
+                    onSelectTrack: onSelectTrack, onSelectArtist: onSelectArtist, scrollTarget: scrollTarget
+                )
+            }
         }
     }
 }
@@ -101,6 +103,7 @@ struct DetailTrackHeadingSource {
     let collectionURN: String?
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
+    let scrollTarget: DetailScrollTarget
 }
 
 struct DetailTrackHeadingPreferenceKey: PreferenceKey {
@@ -130,6 +133,7 @@ struct DetailTrackHeadingOverlay: ViewModifier {
                         .id(source.track.urn)
                         .transition(source.isCollection ? .opacity : .identity)
                     }
+                    .overlay(DetailScrollForwarder(target: source.scrollTarget))
                     // Track changes fade only while staying in the same collection.
                     .animation(nil, value: source.collectionURN)
                     .animation(

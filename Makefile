@@ -343,7 +343,7 @@ test-playback-title:
 SRC_detail_waveform := \
 	SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 	SoundClaude/SoundClaude/App/DetailWaveformSlot.swift \
-	SoundClaude/SoundClaude/App/DetailWaveformScrollForwarder.swift \
+	SoundClaude/SoundClaude/App/DetailScrollForwarder.swift \
 	tests/DetailWaveformLifetimeTests.swift
 test-detail-waveform:
 	@mkdir -p /tmp/soundclaude-tests
@@ -367,6 +367,7 @@ SRC_detail_heading := \
 	SoundClaude/SoundClaude/App/DetailTrackHeading.swift \
 	SoundClaude/SoundClaude/App/TrackStationMenuItem.swift \
 	SoundClaude/SoundClaude/App/DetailNavigationAnimation.swift \
+	SoundClaude/SoundClaude/App/DetailScrollForwarder.swift \
 	SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
 	SoundClaude/SoundClaude/App/RelativeTimestampView.swift \
 	tests/DetailTrackHeadingTests.swift
@@ -381,6 +382,7 @@ SRC_detail_play_button := \
 	SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 	SoundClaude/SoundClaude/App/DetailPlayButton.swift \
 	SoundClaude/SoundClaude/App/DetailNavigationAnimation.swift \
+	SoundClaude/SoundClaude/App/DetailScrollForwarder.swift \
 	SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
 	tests/DetailPlayButtonTests.swift
 test-detail-play-button:
@@ -394,6 +396,7 @@ SRC_detail_like_button := \
 	SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 	SoundClaude/SoundClaude/App/DetailLikeButton.swift \
 	SoundClaude/SoundClaude/App/DetailNavigationAnimation.swift \
+	SoundClaude/SoundClaude/App/DetailScrollForwarder.swift \
 	SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
 	tests/DetailLikeButtonTests.swift
 test-detail-like-button:
@@ -406,6 +409,7 @@ test-detail-like-button:
 SRC_detail_swap_buttons := \
 	SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 	SoundClaude/SoundClaude/App/DetailNavigationAnimation.swift \
+	SoundClaude/SoundClaude/App/DetailScrollForwarder.swift \
 	SoundClaude/SoundClaude/App/FadeInOnAppear.swift \
 	tests/DetailSwapButtonTests.swift
 test-detail-swap-buttons:
@@ -418,7 +422,7 @@ test-detail-swap-buttons:
 SRC_track_waveform_navigation := \
 	SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 	SoundClaude/SoundClaude/App/DetailWaveformSlot.swift \
-	SoundClaude/SoundClaude/App/DetailWaveformScrollForwarder.swift \
+	SoundClaude/SoundClaude/App/DetailScrollForwarder.swift \
 	SoundClaude/SoundClaude/App/TrackWaveformView.swift \
 	SoundClaude/SoundClaude/App/WaveformShadingCache.swift \
 	SoundClaude/SoundClaude/App/ContentHover.swift \
@@ -432,7 +436,7 @@ test-track-waveform-navigation:
 .PHONY: test-waveform-comment-hover
 SRC_waveform_comment_hover := \
 	SoundClaude/SoundClaude/App/WaveformCommentsView.swift \
-	SoundClaude/SoundClaude/App/DetailWaveformScrollForwarder.swift \
+	SoundClaude/SoundClaude/App/DetailScrollForwarder.swift \
 	SoundClaude/SoundClaude/App/WaveformCommentIndex.swift \
 	SoundClaude/SoundClaude/App/ContentHover.swift \
 	SoundClaude/SoundClaude/App/FadeInOnAppear.swift \

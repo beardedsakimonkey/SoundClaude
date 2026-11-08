@@ -286,7 +286,7 @@ private struct WaveformCommentMarker: View, Equatable {
     @Binding var seekRequest: Double?
     let hoverSpace: Namespace.ID
     @Environment(\.waveformCommentArtistAction) private var onSelectArtist
-    @Environment(\.detailWaveformScrollTarget) private var scrollTarget
+    @Environment(\.detailScrollTarget) private var scrollTarget
     @Environment(\.colorScheme) private var colorScheme
 
     static func == (lhs: Self, rhs: Self) -> Bool {
@@ -350,7 +350,7 @@ private struct WaveformCommentMarker: View, Equatable {
                         // The bubble extends below the waveform's scroll handler.
                         .overlay {
                             if let scrollTarget {
-                                DetailWaveformScrollForwarder(target: scrollTarget)
+                                DetailScrollForwarder(target: scrollTarget)
                             }
                         }
                         .offset(y: 38)

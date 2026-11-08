@@ -146,7 +146,7 @@ struct WaveformCommentsView: View {
         func descendants(_ view: NSView) -> [NSView] {
             [view] + view.subviews.flatMap(descendants)
         }
-        let forwarder = descendants(scrollingHost).compactMap { $0 as? DetailWaveformScrollView }.first!
+        let forwarder = descendants(scrollingHost).compactMap { $0 as? DetailScrollForwardingView }.first!
         let scrollView = forwarder.target!.anchor!.enclosingScrollView!
         let readsBeforeScroll = Measurements.sampleReads
         precondition(readsBeforeScroll > 0, "Waveform was never drawn")

@@ -70,11 +70,16 @@ struct DetailLikeButton: View {
 extension DetailLikeButton {
     // Reserve the button's layout here while the navigation host owns its visible view.
     func detailSlot(trackURN: String, isCollection: Bool = false) -> some View {
-        hidden()
-            .accessibilityHidden(true)
-            .anchorPreference(key: DetailLikeButtonPreferenceKey.self, value: .bounds) {
-                DetailLikeButtonSource(bounds: $0, trackURN: trackURN, isCollection: isCollection, button: self)
-            }
+        DetailScrollSlot { scrollTarget in
+            hidden()
+                .accessibilityHidden(true)
+                .anchorPreference(key: DetailLikeButtonPreferenceKey.self, value: .bounds) {
+                    DetailLikeButtonSource(
+                        bounds: $0, trackURN: trackURN, isCollection: isCollection, button: self,
+                        scrollTarget: scrollTarget
+                    )
+                }
+        }
     }
 }
 
@@ -83,6 +88,7 @@ struct DetailLikeButtonSource {
     let trackURN: String
     let isCollection: Bool
     let button: DetailLikeButton
+    let scrollTarget: DetailScrollTarget
 }
 
 struct DetailLikeButtonPreferenceKey: PreferenceKey {
@@ -102,6 +108,7 @@ struct DetailLikeButtonOverlay: ViewModifier {
                 if let source {
                     let bounds = geometry[source.bounds]
                     source.button
+                        .overlay(DetailScrollForwarder(target: source.scrollTarget))
                         .modifier(FadeInOnAppear())
                         .geometryGroup()
                         .frame(width: bounds.width, height: bounds.height)

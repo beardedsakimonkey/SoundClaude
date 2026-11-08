@@ -30,12 +30,12 @@ struct DetailWaveformSlot: View {
     let track: SoundCloudTrack?
     var isCollection = false
     var onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
-    @State private var scrollTarget = DetailWaveformScrollTarget()
+    @State private var scrollTarget = DetailScrollTarget()
 
     var body: some View {
         Color.clear
             .frame(height: TrackWaveformView.Layout.detail.height)
-            .background(DetailWaveformScrollAnchor(target: scrollTarget))
+            .background(DetailScrollAnchor(target: scrollTarget))
             .allowsHitTesting(false)
             .accessibilityHidden(true)
             .anchorPreference(key: DetailWaveformPreferenceKey.self, value: .bounds) {
@@ -52,7 +52,7 @@ struct DetailWaveformSource {
     let track: SoundCloudTrack?
     let isCollection: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
-    let scrollTarget: DetailWaveformScrollTarget
+    let scrollTarget: DetailScrollTarget
 }
 
 struct DetailWaveformPreferenceKey: PreferenceKey {
@@ -79,8 +79,8 @@ struct DetailWaveformOverlay: ViewModifier {
                         isCollection: source.isCollection,
                         onPlayTrack: source.onPlayTrack
                     )
-                    .environment(\.detailWaveformScrollTarget, source.scrollTarget)
-                    .overlay(DetailWaveformScrollForwarder(target: source.scrollTarget))
+                    .environment(\.detailScrollTarget, source.scrollTarget)
+                    .overlay(DetailScrollForwarder(target: source.scrollTarget))
                     .modifier(DetailWaveformPlacement(bounds: source.bounds))
                 }
             }

@@ -77,12 +77,16 @@ struct DetailPlayButtonSlot: View {
     let action: () -> Void
 
     var body: some View {
-        DetailPlayButton(configuration: configuration, action: action)
-            .hidden()
-            .accessibilityHidden(true)
-            .anchorPreference(key: DetailPlayButtonPreferenceKey.self, value: .bounds) {
-                DetailPlayButtonSource(bounds: $0, configuration: configuration, action: action)
-            }
+        DetailScrollSlot { scrollTarget in
+            DetailPlayButton(configuration: configuration, action: action)
+                .hidden()
+                .accessibilityHidden(true)
+                .anchorPreference(key: DetailPlayButtonPreferenceKey.self, value: .bounds) {
+                    DetailPlayButtonSource(
+                        bounds: $0, configuration: configuration, action: action, scrollTarget: scrollTarget
+                    )
+                }
+        }
     }
 }
 
@@ -109,6 +113,7 @@ struct DetailPlayButtonSource {
     let bounds: Anchor<CGRect>
     let configuration: DetailPlayButtonConfiguration
     let action: () -> Void
+    let scrollTarget: DetailScrollTarget
 }
 
 struct DetailPlayButtonPreferenceKey: PreferenceKey {
@@ -128,6 +133,7 @@ struct DetailPlayButtonOverlay: ViewModifier {
                 if let source {
                     let bounds = geometry[source.bounds]
                     DetailPlayButton(configuration: source.configuration, action: source.action)
+                        .overlay(DetailScrollForwarder(target: source.scrollTarget))
                         .modifier(FadeInOnAppear())
                         .geometryGroup()
                         .frame(width: bounds.width, height: bounds.height)

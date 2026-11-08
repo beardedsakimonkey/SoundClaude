@@ -35,6 +35,11 @@ extension View {
     }
 }
 
+private final class HeadingTestApplication: NSApplication {
+    var testEvent: NSEvent?
+    override var currentEvent: NSEvent? { testEvent ?? super.currentEvent }
+}
+
 private final class HeadingLifetime: ObservableObject {
     static var creations = 0
     init() { Self.creations += 1 }
@@ -42,7 +47,7 @@ private final class HeadingLifetime: ObservableObject {
 
 @main struct DetailTrackHeadingTests {
     @MainActor static func main() {
-        let app = NSApplication.shared
+        let app = HeadingTestApplication.shared
         app.setActivationPolicy(.accessory)
         Task { @MainActor in
             await runTests()
@@ -135,6 +140,54 @@ private final class HeadingLifetime: ObservableObject {
             precondition(placeholder.fittingSize.height == loaded.fittingSize.height,
                          "Loading a track must not move the playback controls")
         }
-        print("Detail heading lifetime, title click, and loading layout tests passed")
+        // The heading is drawn above the page's scroll view, so wheel events over it
+        // must be returned to that scroll view.
+        let scrollingHost = NSHostingView(rootView:
+            ScrollView {
+                VStack(spacing: 0) {
+                    DetailTrackHeadingSlot(
+                        track: track, artworkLoader: ArtworkLoader(),
+                        onSelectTrack: { _ in }, onSelectArtist: { _ in }
+                    )
+                    Color.clear.frame(height: 1200)
+                }
+            }
+            .modifier(DetailTrackHeadingOverlay(artworkLoader: ArtworkLoader(), routeID: 0))
+        )
+        scrollingHost.frame.size = CGSize(width: 600, height: 400)
+        window.contentView = scrollingHost
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        scrollingHost.layoutSubtreeIfNeeded()
+        try? await Task.sleep(for: .milliseconds(400))
+        scrollingHost.layoutSubtreeIfNeeded()
+        func descendants(_ view: NSView) -> [NSView] {
+            [view] + view.subviews.flatMap(descendants)
+        }
+        let testApp = NSApplication.shared as! HeadingTestApplication
+        let wheel = NSEvent(cgEvent: CGEvent(
+            scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1,
+            wheel1: -60, wheel2: 0, wheel3: 0
+        )!)!
+        guard let forwarder = descendants(scrollingHost).compactMap({ $0 as? DetailScrollForwardingView }).first else {
+            preconditionFailure("The heading overlay must forward wheel events")
+        }
+        let scrollView = descendants(scrollingHost).compactMap { $0 as? NSScrollView }.first!
+        let artistPoint = forwarder.convert(NSPoint(x: 40, y: forwarder.bounds.maxY - 12), to: nil)
+        testApp.testEvent = wheel
+        let wheelTarget = scrollingHost.superview!.hitTest(scrollingHost.superview!.convert(artistPoint, from: nil))
+        precondition(wheelTarget === forwarder, "Wheel events over the heading must reach the forwarder")
+        let initialY = scrollView.contentView.bounds.minY
+        wheelTarget!.scrollWheel(with: wheel)
+        try? await Task.sleep(for: .milliseconds(250))
+        precondition(scrollView.contentView.bounds.minY > initialY, "Wheel event over the heading did not scroll the page")
+        testApp.testEvent = NSEvent.mouseEvent(
+            with: .leftMouseDown, location: artistPoint, modifierFlags: [], timestamp: 0,
+            windowNumber: window.windowNumber, context: nil, eventNumber: 0, clickCount: 1, pressure: 1
+        )
+        precondition(scrollingHost.superview!.hitTest(scrollingHost.superview!.convert(artistPoint, from: nil)) !== forwarder,
+                     "Clicks must pass through to the heading")
+        testApp.testEvent = nil
+        print("Detail heading lifetime, title click, loading layout, and scroll tests passed")
     }
 }
