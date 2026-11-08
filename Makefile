@@ -8,7 +8,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := release
 
-.PHONY: api build release debug quit-running run dist lsp icon test test-focus test-queue-drag test-navigation test-sidebar-resize test-playback-title test-now-playing test-detail-waveform test-detail-heading
+.PHONY: api build release debug quit-running run dist lsp test test-focus test-queue-drag test-navigation test-sidebar-resize test-playback-title test-now-playing test-detail-waveform test-detail-heading
 
 api:
 	@set -eu; \
@@ -102,12 +102,6 @@ lsp:
 		-derivedDataPath $(DERIVED_DATA_PATH) \
 		-resultBundlePath $(LSP_RESULT_BUNDLE) \
 		build
-
-icon:
-	sh scripts/generate-app-icon.sh
-	$(MAKE) build
-	touch "$(APP)"
-	/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$(abspath $(APP))"
 
 # Focus regression opens a temporary window and requires a macOS GUI session.
 SRC_focus := \
