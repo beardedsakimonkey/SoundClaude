@@ -278,7 +278,7 @@ struct PlayerFooterView: View {
 
             Button(action: playback.cycleRepeatMode) {
                 Image(systemName: playback.repeatMode == .one ? "repeat.1" : "repeat")
-                    .contentTransition(.symbolEffect(.replace))
+                    .contentTransition(playback.repeatMode == .one ? .symbolEffect(.replace) : .identity)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(playback.repeatMode != .off ? Color.cyan : Color.primary)
                     .frame(width: 32, height: 32)
