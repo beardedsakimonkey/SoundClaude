@@ -8,7 +8,6 @@ struct SignedOutView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var copiedSessionCommand = false
     @State private var copySessionCommandCount = 0
-    @State private var isHoveringCopyCommand = false
     @State private var isHoveringSoundCloudLink = false
 
     private static let sessionCommand = "copy(document.cookie.split('; ').find(c => c.startsWith('oauth_token='))?.slice('oauth_token='.length) ?? '')"
@@ -138,18 +137,27 @@ struct SignedOutView: View {
                     .font(.system(size: 16, weight: .medium))
                     .frame(minHeight: 30)
 
-                // Step 1 is its own row so the link can be a separate view that tracks hover;
-                // spacing 3 matches the line spacing within the steps.
-                VStack(alignment: .leading, spacing: 3) {
+                // Step 1 is its own row so the link can be a separate view that tracks hover.
+                VStack(alignment: .leading, spacing: 8) {
                     HStack(alignment: .firstTextBaseline, spacing: 0) {
-                        Text("1. Sign in at ")
+                        Text("1. Open ")
                         Link("soundcloud.com", destination: URL(string: "https://soundcloud.com")!)
                             .foregroundStyle(Color(nsColor: .linkColor))
                             .underline(isHoveringSoundCloudLink)
                             .onHover { isHoveringSoundCloudLink = $0 }
+                            .buttonStyle(SignedOutLinkStyle())
                         Text(" in your browser.")
                     }
-                    Text("2. Open the browser’s developer console.\n3. Paste and run this command to copy your session token.")
+                    // Spacing 3 keeps the shortcuts as tight as a wrapped line of step 2.
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("2. Open the browser’s developer console.")
+                        // A hidden "2. " indents the shortcuts to line up with the step text.
+                        HStack(alignment: .firstTextBaseline, spacing: 0) {
+                            Text("2. ").hidden()
+                            Text("\(Text("⌥⌘J").foregroundStyle(.primary)) in Chrome or \(Text("⌥⌘K").foregroundStyle(.primary)) in Firefox")
+                        }
+                    }
+                    Text("3. Paste and run this command to copy your session token.")
                 }
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
@@ -184,13 +192,12 @@ struct SignedOutView: View {
                             }
                     }
                     .animation(.easeInOut(duration: 0.2), value: copiedSessionCommand)
+                    .font(.system(size: 13))
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 28)
+                    .contentShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .overlay {
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(.primary.opacity(isHoveringCopyCommand ? 0.08 : 0))
-                        .allowsHitTesting(false)
-                }
-                .onHover { isHoveringCopyCommand = $0 }
+                .buttonStyle(SignedOutActionStyle(isPrimary: false, cornerRadius: 8))
                 .task(id: copySessionCommandCount) {
                     guard copiedSessionCommand else { return }
                     try? await Task.sleep(for: .seconds(2))
@@ -225,8 +232,16 @@ struct SignedOutView: View {
     }
 }
 
+private struct SignedOutLinkStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.6 : 1)
+    }
+}
+
 private struct SignedOutActionStyle: ButtonStyle {
     let isPrimary: Bool
+    var cornerRadius: CGFloat = 12
     @Environment(\.isEnabled) private var isEnabled
     @State private var isHovering = false
     private let primaryColor = Color(.sRGB, red: 0.95, green: 0.5, blue: 0.06, opacity: 1)
@@ -234,7 +249,7 @@ private struct SignedOutActionStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .background {
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: cornerRadius)
                     .fill(isPrimary
                         ? AnyShapeStyle(LinearGradient(
                             colors: [
@@ -248,12 +263,12 @@ private struct SignedOutActionStyle: ButtonStyle {
                                          startPoint: .top, endPoint: .bottom)))
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: cornerRadius)
                     .fill((isPrimary ? Color.white : Color.primary).opacity(isEnabled && isHovering ? 0.08 : 0))
                     .allowsHitTesting(false)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: cornerRadius)
                     .strokeBorder(.white.opacity(isPrimary ? 0.25 : 0.08), lineWidth: 1)
             }
             .shadow(color: isPrimary ? primaryColor.opacity(0.12) : .clear, radius: 18, y: 4)
