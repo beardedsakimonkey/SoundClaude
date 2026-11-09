@@ -9,8 +9,6 @@ struct RelativeTimestampView: View {
     var showsSeparator = true
     var systemImage: String? = nil
 
-    @State private var isShowingDate = false
-
     var hasTimestamp: Bool { parsedDate != nil }
 
     var body: some View {
@@ -28,21 +26,11 @@ struct RelativeTimestampView: View {
                 Text(prefix)
                     .accessibilityHidden(true)
             }
-            Button { isShowingDate = true } label: {
-                Text(relativeTime)
-                    .accessibilityLabel("\(accessibilityPrefix) \(relativeTime)")
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Show full date")
-            .onContentHover { isShowingDate = $0 }
-            .popover(isPresented: $isShowingDate, arrowEdge: .top) {
-                Text(date.formatted(date: .complete, time: .shortened))
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
-                    .fixedSize()
-                    .padding(12)
-            }
-            .onChange(of: date) { _, _ in isShowingDate = false }
+            let fullDate = date.formatted(date: .complete, time: .shortened)
+            Text(relativeTime)
+                .accessibilityLabel("\(accessibilityPrefix) \(relativeTime)")
+                .accessibilityValue(fullDate)
+                .contentHelp(fullDate)
         }
     }
 
