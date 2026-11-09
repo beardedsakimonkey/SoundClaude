@@ -102,12 +102,12 @@ struct LikesView: View {
                     .fixedSize(horizontal: true, vertical: false)
             }
             .lineLimit(1)
-            Spacer()
             if likes.isLoading {
                 LoadingSpinner()
                     .accessibilityLabel("Syncing likes")
                     .controlSize(.small)
             }
+            Spacer()
             searchBar
                 .frame(maxWidth: 200)
                 .padding(.leading, 8)
