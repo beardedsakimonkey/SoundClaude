@@ -13,5 +13,6 @@ struct EmptyStateView: View {
                 .font(.body.weight(.regular))
                 .foregroundStyle(.secondary)
         }
+        .geometryGroup()
     }
 }
