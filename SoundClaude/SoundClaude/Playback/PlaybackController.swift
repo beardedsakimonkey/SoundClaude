@@ -74,6 +74,7 @@ final class PlaybackController {
     private func updateCurrentTrackSelection() {
         let urn = currentTrack?.urn
         guard selectedTrackURN != urn else { return }
+        lastPlayheadJump = nil
         let changedURNs = [selectedTrackURN, urn].compactMap { $0 }
         for changedURN in changedURNs {
             selectionObservation.willSet(self, keyPath: \.[isCurrentTrack: changedURN])
