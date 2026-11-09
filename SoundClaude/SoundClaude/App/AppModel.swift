@@ -425,6 +425,12 @@ final class AppModel {
         guard queue.remove(track, currentURN: playback.currentTrack?.urn) else { return }
         shuffleQueueTask?.cancel()
         trackSelectionTask?.cancel()
+        if queue.tracks.isEmpty {
+            // Replace the queue too, so remaining pages or new likes cannot refill it.
+            playback.resetSession(preservingPlayback: false)
+            queue = TrackQueue(source: .single, tracks: [])
+            queue.setShuffle(playback.isShuffleEnabled, currentURN: nil)
+        }
         saveQueue()
         prefetchNextTrack()
     }
