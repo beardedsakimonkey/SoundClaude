@@ -6,7 +6,7 @@ enum SidebarDestination: Codable, Hashable, Identifiable {
     case liked
     case history
 
-    static let libraryDestinations: [Self] = [.search, .feed, .liked, .history]
+    static let libraryDestinations: [Self] = [.feed, .search, .liked, .history]
 
     var id: String {
         switch self {
