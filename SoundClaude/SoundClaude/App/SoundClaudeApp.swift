@@ -85,6 +85,7 @@ struct SoundClaudeApp: App {
             SignedOutView(
                 message: model.errorMessage ?? authFailureMessage,
                 importPhase: model.sessionImportPhase,
+                importFailureCount: model.importFailureCount,
                 onSignIn: model.beginSignIn,
                 onImportSession: { Task { await model.importCopiedSession() } }
             )

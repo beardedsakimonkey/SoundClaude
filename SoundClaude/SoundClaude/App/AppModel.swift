@@ -39,6 +39,8 @@ final class AppModel {
     /// Progress of a copied-session import, which keeps the signed-out view up
     /// until the import button has shown its outcome.
     private(set) var sessionImportPhase: SessionImportPhase?
+    /// Counts failed imports, so a retry that fails with the same message still registers.
+    private(set) var importFailureCount = 0
 
     enum SessionImportPhase {
         case importing
@@ -238,6 +240,7 @@ final class AppModel {
         guard sessionImportPhase == nil else { return }
         guard let copied = NSPasteboard.general.string(forType: .string) else {
             errorMessage = "Copy the oauth_token cookie value from your SoundCloud browser session first."
+            importFailureCount += 1
             return
         }
         let token = copied.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -245,18 +248,26 @@ final class AppModel {
               token.rangeOfCharacter(from: .whitespacesAndNewlines) == nil,
               !token.contains(";") else {
             errorMessage = "Copy only the oauth_token cookie value, then try again."
+            importFailureCount += 1
             return
         }
-        NSPasteboard.general.clearContents()
         sessionImportPhase = .importing
         cancelSignIn()
-        errorMessage = nil
+        // Any earlier error stays up through the retry, until an outcome replaces it.
         await auth.signIn(token: token)
         if case .signedIn = auth.state {
+            // The token stays copied until it works, so a failed import can be retried.
+            if NSPasteboard.general.string(forType: .string) == copied {
+                NSPasteboard.general.clearContents()
+            }
+            errorMessage = nil
             sessionImportPhase = .succeeded
             await finishSignIn()
             // Holds the checkmark on screen before the signed-in view takes over.
             try? await Task.sleep(for: .seconds(0.9))
+        } else {
+            if case let .failed(message) = auth.state { errorMessage = message }
+            importFailureCount += 1
         }
         sessionImportPhase = nil
     }

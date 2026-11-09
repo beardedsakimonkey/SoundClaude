@@ -3,6 +3,7 @@ import SwiftUI
 struct SignedOutView: View {
     let message: String?
     let importPhase: AppModel.SessionImportPhase?
+    let importFailureCount: Int
     let onSignIn: () -> Void
     let onImportSession: () -> Void
 
@@ -47,6 +48,7 @@ struct SignedOutView: View {
                         .introReveal(step: 2, isVisible: hasAppeared)
                 }
                 .frame(maxWidth: 860)
+                .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: message)
                 .padding(32)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: geometry.size.height)
@@ -56,7 +58,7 @@ struct SignedOutView: View {
                     Color(nsColor: .windowBackgroundColor)
                     RadialGradient(
                         stops: [
-                            .init(color: .gray.opacity(colorScheme == .dark ? 0.14 : 0.09), location: 0),
+                            .init(color: Color(.sRGB, red: 0.78, green: 0.5, blue: 0.28).opacity(colorScheme == .dark ? 0.14 : 0.09), location: 0),
                             .init(color: .gray.opacity(colorScheme == .dark ? 0.05 : 0.03), location: 0.45),
                             .init(color: .clear, location: 1)
                         ],
@@ -103,7 +105,40 @@ struct SignedOutView: View {
                 Rectangle().frame(height: 1)
             }
             .foregroundStyle(.secondary.opacity(0.4))
-            sessionCard
+            VStack(spacing: 12) {
+                sessionCard
+                importErrorMessage
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var importErrorMessage: some View {
+        if let message {
+            Label(message, systemImage: "exclamationmark.circle")
+                .font(.system(size: 13))
+                .foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 4)
+                .keyframeAnimator(initialValue: ErrorNudge(), trigger: importFailureCount) { label, nudge in
+                    label
+                        .offset(x: reduceMotion ? 0 : nudge.x)
+                        .opacity(reduceMotion ? nudge.opacity : 1)
+                } keyframes: { _ in
+                    KeyframeTrack(\.x) {
+                        CubicKeyframe(-6, duration: 0.07)
+                        CubicKeyframe(6, duration: 0.09)
+                        CubicKeyframe(-4, duration: 0.09)
+                        CubicKeyframe(3, duration: 0.08)
+                        CubicKeyframe(0, duration: 0.07)
+                    }
+                    KeyframeTrack(\.opacity) {
+                        CubicKeyframe(0.35, duration: 0.1)
+                        CubicKeyframe(1, duration: 0.3)
+                    }
+                }
+                .transition(.opacity)
         }
     }
 
@@ -260,12 +295,6 @@ struct SignedOutView: View {
                 }
                 .buttonStyle(SignedOutActionStyle(isPrimary: false))
                 .animation(.spring(duration: 0.4, bounce: 0.3), value: importPhase)
-                if let message {
-                    Label(message, systemImage: "exclamationmark.circle")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.red)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
             }
         }
         .padding(20)
@@ -302,6 +331,11 @@ private struct IntroReveal: ViewModifier {
                     .delay(0.1 + Double(step) * 0.08),
                 value: isVisible)
     }
+}
+
+private struct ErrorNudge {
+    var x: CGFloat = 0
+    var opacity: Double = 1
 }
 
 private struct SignedOutLinkStyle: ButtonStyle {
