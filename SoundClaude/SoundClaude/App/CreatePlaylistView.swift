@@ -159,10 +159,10 @@ struct PlaylistEditorView: View {
                 }
                 .frame(width: 210, height: 210)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(.white.opacity(0.15), lineWidth: 1)
-                }
+                .modifier(PlayerArtworkGlass(
+                    cornerRadius: 10,
+                    size: CGSize(width: 210, height: 210)
+                ))
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
