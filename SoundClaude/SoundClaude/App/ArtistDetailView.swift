@@ -450,9 +450,16 @@ struct ArtistDetailView: View {
                             .compactMap { nonempty($0) }
                             .joined(separator: ", ")
                         if !location.isEmpty {
-                            Label(location, systemImage: "mappin.and.ellipse")
-                                .foregroundStyle(.secondary)
-                                .textSelection(.enabled)
+                            HStack(spacing: 12) {
+                                Image(systemName: "mappin.and.ellipse")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 18, height: 18)
+                                    .accessibilityHidden(true)
+                                Text(location)
+                                    .textSelection(.enabled)
+                            }
+                            .foregroundStyle(.secondary)
                         }
                         if !webProfiles.isEmpty || webProfilesErrorMessage != nil {
                             profileLinks
