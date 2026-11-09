@@ -66,7 +66,13 @@ extension AppModel {
         async let picture: Void = warmImage(artist.avatarURL, rendition: .square500)
         async let tracks: Void = warmArtistTab(artist, .tracks)
         async let profiles: Void = warmArtistWebProfiles(artist)
-        _ = await (details, backdrop, picture, tracks, profiles)
+        async let related: Void = warmRelatedArtists(artist)
+        _ = await (details, backdrop, picture, tracks, profiles, related)
+    }
+
+    private func warmRelatedArtists(_ artist: SoundCloudUser) async {
+        guard let user = await artistWithURN(artist) else { return }
+        _ = try? await relatedArtists(for: user)
     }
 
     private func warmArtistBackdrop(_ artist: SoundCloudUser) async {

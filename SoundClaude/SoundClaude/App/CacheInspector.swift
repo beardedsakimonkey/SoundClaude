@@ -52,6 +52,7 @@ private enum CacheValue {
         case let page as SoundCloudUserPage: count(page.users.count, "user", hasMore: page.nextURL != nil)
         case let page as SoundCloudCommentPage: count(page.comments.count, "comment", hasMore: page.nextURL != nil)
         case let profiles as [SoundCloudWebProfile]: count(profiles.count, "profile")
+        case let users as [SoundCloudUser]: count(users.count, "user")
         case let waveform as SoundCloudWaveform: count(waveform.samples.count, "sample")
         case let station as SoundCloudStation: "\(station.title ?? "Untitled") – \(count(station.tracks.count, "track"))"
         case let station as RawSystemPlaylist: "\(station.title ?? "Untitled") – \(count(station.tracks.count, "track"))"

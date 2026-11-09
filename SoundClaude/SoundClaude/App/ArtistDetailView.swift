@@ -199,6 +199,8 @@ struct ArtistDetailView: View {
         _details = State(initialValue: cached)
         _isFollowing = State(initialValue: model.cachedIsFollowingArtist(cached?.user ?? artist))
         _webProfiles = State(initialValue: model.cachedArtistWebProfiles(for: cached?.user ?? artist) ?? [])
+        // Show revisited sidebar sections at once rather than fading them in again.
+        _relatedArtists = State(initialValue: model.cachedRelatedArtists(for: cached?.user ?? artist) ?? [])
         _isLoading = State(initialValue: cached == nil)
         // Show revisited or prefetched first pages without waiting a frame for their loads.
         let contentState = ContentState()
@@ -626,10 +628,14 @@ struct ArtistDetailView: View {
     }
 
     private func loadRelatedArtists() async {
-        relatedArtists = []
-        relatedArtistsPage = 0
         relatedArtistsErrorMessage = nil
         guard let user = details?.user, user.urn != nil else { return }
+        if let cached = model.cachedRelatedArtists(for: user) {
+            relatedArtists = cached
+            return
+        }
+        relatedArtists = []
+        relatedArtistsPage = 0
         isLoadingRelatedArtists = true
         defer { isLoadingRelatedArtists = false }
         do {

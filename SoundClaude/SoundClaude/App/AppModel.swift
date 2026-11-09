@@ -93,6 +93,7 @@ final class AppModel {
     private let searchCategoryCache = MemoryCache<NSString, SearchCategory>(name: "Search Categories", countLimit: 100)
     private let artistDetailsCache = RequestCache<NSURL, SoundCloudArtistDetails>(name: "Artist Details", countLimit: 100)
     private let artistWebProfilesCache = RequestCache<NSURL, [SoundCloudWebProfile]>(name: "Artist Web Profiles", countLimit: 100)
+    private let relatedArtistsCache = RequestCache<NSURL, [SoundCloudUser]>(name: "Related Artists", countLimit: 100)
     // nil records an artist without a profile header, so it is not looked up again.
     private let artistHeaderCache = RequestCache<NSURL, CachedArtistHeader?>(name: "Artist Headers", countLimit: 10)
     var loadingStations: [String: SoundCloudStation] = [:]
@@ -310,6 +311,7 @@ final class AppModel {
         trackDetailsCache.reset()
         artistDetailsCache.reset()
         artistWebProfilesCache.reset()
+        relatedArtistsCache.reset()
         waveformCache.reset()
         firstCommentPageCache.reset()
         firstRelatedTrackPageCache.reset()
@@ -645,10 +647,16 @@ final class AppModel {
         }
     }
 
+    func cachedRelatedArtists(for artist: SoundCloudUser) -> [SoundCloudUser]? {
+        relatedArtistsCache.cached(artist.permalinkURL as NSURL)
+    }
+
     func relatedArtists(for artist: SoundCloudUser) async throws -> [SoundCloudUser] {
         guard let urn = artist.urn else { throw SoundCloudError.invalidData }
-        let accessToken = try await auth.validAccessToken()
-        return try await client.relatedArtists(urn: urn, accessToken: accessToken)
+        return try await relatedArtistsCache.value(for: artist.permalinkURL as NSURL) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.relatedArtists(urn: urn, accessToken: accessToken)
+        }
     }
 
     func cachedIsFollowingArtist(_ artist: SoundCloudUser) -> Bool? {
