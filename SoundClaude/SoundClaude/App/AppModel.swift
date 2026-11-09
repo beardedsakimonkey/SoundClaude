@@ -36,6 +36,14 @@ final class AppModel {
     private(set) var currentTrackLikeEvents = 0
     /// The embedded soundcloud.com sign-in page, while it is open.
     private(set) var websiteLogin: WebsiteLogin?
+    /// Progress of a copied-session import, which keeps the signed-out view up
+    /// until the import button has shown its outcome.
+    private(set) var sessionImportPhase: SessionImportPhase?
+
+    enum SessionImportPhase {
+        case importing
+        case succeeded
+    }
 
     // Do not broadcast deferred history writes to every AppModel observer.
     private let history = HistoryState()
@@ -227,6 +235,7 @@ final class AppModel {
 
     /// Signs in with an oauth_token cookie value copied from a signed-in browser.
     func importCopiedSession() async {
+        guard sessionImportPhase == nil else { return }
         guard let copied = NSPasteboard.general.string(forType: .string) else {
             errorMessage = "Copy the oauth_token cookie value from your SoundCloud browser session first."
             return
@@ -239,17 +248,30 @@ final class AppModel {
             return
         }
         NSPasteboard.general.clearContents()
-        await signIn(token: token)
+        sessionImportPhase = .importing
+        cancelSignIn()
+        errorMessage = nil
+        await auth.signIn(token: token)
+        if case .signedIn = auth.state {
+            sessionImportPhase = .succeeded
+            await finishSignIn()
+            // Holds the checkmark on screen before the signed-in view takes over.
+            try? await Task.sleep(for: .seconds(0.9))
+        }
+        sessionImportPhase = nil
     }
 
     private func signIn(token: String) async {
         cancelSignIn()
         errorMessage = nil
         await auth.signIn(token: token)
-        if case .signedIn = auth.state {
-            await likes.restoreCache()
-            playback.discardRestoredLikeState()
-        }
+        await finishSignIn()
+    }
+
+    private func finishSignIn() async {
+        guard case .signedIn = auth.state else { return }
+        await likes.restoreCache()
+        playback.discardRestoredLikeState()
     }
 
     func signOut() async {

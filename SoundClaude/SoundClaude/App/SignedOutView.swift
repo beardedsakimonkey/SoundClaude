@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SignedOutView: View {
     let message: String?
+    let importPhase: AppModel.SessionImportPhase?
     let onSignIn: () -> Void
     let onImportSession: () -> Void
 
@@ -10,6 +11,7 @@ struct SignedOutView: View {
     @State private var copySessionCommandCount = 0
     @State private var isHoveringSoundCloudLink = false
     @State private var hasAppeared = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let sessionCommand = #"copy(document.cookie.match(/oauth_token=([^;]+)/)[1])"#
 
@@ -102,6 +104,33 @@ struct SignedOutView: View {
             }
             .foregroundStyle(.secondary.opacity(0.4))
             sessionCard
+        }
+    }
+
+    private var importButtonLabel: some View {
+        let transition: AnyTransition = reduceMotion
+            ? .opacity
+            : .scale(scale: 0.6).combined(with: .opacity)
+        return ZStack {
+            switch importPhase {
+            case nil:
+                Text("Import Copied Session")
+                    .transition(transition)
+            case .importing:
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel("Importing session")
+                    .transition(transition)
+            case .succeeded:
+                Label {
+                    Text("Signed In")
+                } icon: {
+                    Image(systemName: "checkmark")
+                        .fontWeight(.bold)
+                        .foregroundStyle(.green)
+                }
+                .transition(transition)
+            }
         }
     }
 
@@ -224,12 +253,13 @@ struct SignedOutView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button(action: onImportSession) {
-                    Text("Import Copied Session")
+                    importButtonLabel
                         .font(.system(size: 15, weight: .medium))
                         .frame(maxWidth: .infinity, minHeight: 40)
                         .contentShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(SignedOutActionStyle(isPrimary: false))
+                .animation(.spring(duration: 0.4, bounce: 0.3), value: importPhase)
                 if let message {
                     Label(message, systemImage: "exclamationmark.circle")
                         .font(.system(size: 13))

@@ -69,29 +69,42 @@ struct SoundClaudeApp: App {
         }
     }
 
+    /// The signed-out view stays up through a copied-session import, so its
+    /// button can show the outcome, and keeps one identity across failures.
+    private var showsSignedOutView: Bool {
+        if model.sessionImportPhase != nil { return true }
+        switch auth.state {
+        case .signedOut, .failed: return true
+        case .restoring, .signingIn, .signedIn: return false
+        }
+    }
+
     @ViewBuilder
     private var authStateView: some View {
-        switch auth.state {
-        case .signedOut:
+        if showsSignedOutView {
             SignedOutView(
-                message: model.errorMessage,
+                message: model.errorMessage ?? authFailureMessage,
+                importPhase: model.sessionImportPhase,
                 onSignIn: model.beginSignIn,
                 onImportSession: { Task { await model.importCopiedSession() } }
             )
-        case let .failed(message):
-            SignedOutView(
-                message: model.errorMessage ?? message,
-                onSignIn: model.beginSignIn,
-                onImportSession: { Task { await model.importCopiedSession() } }
-            )
-        case .restoring:
-            progressView(label: "Restoring SoundCloud session")
-        case .signingIn:
-            progressView(label: "Signing in to SoundCloud")
-        case let .signedIn(user):
-            SignedInView(user: user, model: model)
-                .onAppear { LaunchMetrics.markOnce("Signed-in view appeared") }
+        } else {
+            switch auth.state {
+            case .restoring:
+                progressView(label: "Restoring SoundCloud session")
+            case .signingIn:
+                progressView(label: "Signing in to SoundCloud")
+            case let .signedIn(user):
+                SignedInView(user: user, model: model)
+                    .onAppear { LaunchMetrics.markOnce("Signed-in view appeared") }
+            case .signedOut, .failed:
+                EmptyView()
+            }
         }
+    }
+
+    private var authFailureMessage: String? {
+        if case let .failed(message) = auth.state { message } else { nil }
     }
 
     private func progressView(label: String) -> some View {
