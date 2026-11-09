@@ -9,6 +9,7 @@ struct SignedOutView: View {
     @State private var copiedSessionCommand = false
     @State private var copySessionCommandCount = 0
     @State private var isHoveringSoundCloudLink = false
+    @State private var hasAppeared = false
 
     private static let sessionCommand = #"copy(document.cookie.match(/oauth_token=([^;]+)/)[1])"#
 
@@ -41,6 +42,7 @@ struct SignedOutView: View {
                         .frame(minWidth: 220, maxWidth: .infinity)
                     signInOptions
                         .frame(maxWidth: 480)
+                        .introReveal(step: 2, isVisible: hasAppeared)
                 }
                 .frame(maxWidth: 860)
                 .padding(32)
@@ -64,6 +66,7 @@ struct SignedOutView: View {
                 .ignoresSafeArea()
             }
         }
+        .onAppear { hasAppeared = true }
         #if DEBUG
         .debugViewUpdates("SignedOutView")
         #endif
@@ -76,13 +79,16 @@ struct SignedOutView: View {
                 .scaledToFit()
                 .frame(width: 128, height: 128)
                 .accessibilityHidden(true)
+                .introReveal(step: 0, isVisible: hasAppeared, scale: 0.9)
             Text("SoundClaude")
                 .font(.system(size: 34, weight: .semibold))
+                .introReveal(step: 1, isVisible: hasAppeared)
             Text("Sign in to access your SoundCloud library")
                 .font(.system(size: 17))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+                .introReveal(step: 2, isVisible: hasAppeared)
         }
     }
 
@@ -238,6 +244,33 @@ struct SignedOutView: View {
             RoundedRectangle(cornerRadius: 18)
                 .strokeBorder(.primary.opacity(0.08), lineWidth: 1)
         }
+    }
+}
+
+private extension View {
+    /// Fades and lifts the view into place once `isVisible` turns true, staggered by `step`.
+    func introReveal(step: Int, isVisible: Bool, scale: CGFloat = 1) -> some View {
+        modifier(IntroReveal(step: step, isVisible: isVisible, scale: scale))
+    }
+}
+
+private struct IntroReveal: ViewModifier {
+    let step: Int
+    let isVisible: Bool
+    let scale: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        let moves = !reduceMotion && !isVisible
+        content
+            .opacity(isVisible ? 1 : 0)
+            .blur(radius: moves ? 6 : 0)
+            .scaleEffect(moves ? scale : 1)
+            .offset(y: moves ? 12 : 0)
+            .animation(
+                (reduceMotion ? Animation.easeOut(duration: 0.3) : .spring(duration: 0.7, bounce: 0.15))
+                    .delay(0.1 + Double(step) * 0.08),
+                value: isVisible)
     }
 }
 
