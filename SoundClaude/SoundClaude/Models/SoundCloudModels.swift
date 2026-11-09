@@ -359,11 +359,13 @@ struct SoundCloudComment: Decodable, Identifiable, Sendable {
     let user: SoundCloudUser?
     let createdAt: Date?
     let timestampMilliseconds: Int?
+    /// Set on comments listed by user, which name the track they were posted on.
+    let track: SoundCloudTrack?
 
     var id: String { urn }
 
     enum CodingKeys: String, CodingKey {
-        case urn, id, body, user, timestamp
+        case urn, id, body, user, timestamp, track
         case createdAt = "created_at"
     }
 
@@ -376,6 +378,7 @@ struct SoundCloudComment: Decodable, Identifiable, Sendable {
         }
         body = try container.decode(String.self, forKey: .body)
         user = try container.decodeIfPresent(RawUser.self, forKey: .user)?.normalized()
+        track = (try? container.decodeIfPresent(RawTrack.self, forKey: .track))?.normalized()
 
         // The schema uses a string, but the API example uses a number.
         let timestamp: Double?

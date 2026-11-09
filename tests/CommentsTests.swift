@@ -123,6 +123,53 @@ struct CommentsTests {
         let lastPage = try await client.trackComments(urn: "soundcloud:tracks:1", accessToken: "test-token", pageURL: nextURL)
         precondition(lastPage.comments.isEmpty && lastPage.nextURL == nil)
 
+        // A user's comments embed their track. Comments on tracks that can't be opened are dropped.
+        let artistCommentsNextURL = URL(string: "https://api-v2.soundcloud.com/users/1/comments?offset=9&limit=20")!
+        func userComment(id: Int, track: String) -> String {
+            """
+            {"id":\(id),"body":"Nice","created_at":"2016-05-07T19:26:54Z","timestamp":128638,
+             "user":{"urn":"soundcloud:users:1","username":"Listener",
+                     "permalink_url":"https://soundcloud.com/listener"},
+             "track":\(track)}
+            """
+        }
+        let commentedTrack = """
+            {"id":41,"title":"Voca","permalink_url":"https://soundcloud.com/a/voca","policy":"MONETIZE",
+             "full_duration":213475,"duration":213388,
+             "user":{"urn":"soundcloud:users:2","username":"Artist",
+                     "permalink_url":"https://soundcloud.com/a"}}
+            """
+        let blockedTrack = commentedTrack.replacingOccurrences(of: "MONETIZE", with: "BLOCK")
+        CommentsURLProtocol.respond { request in
+            precondition(request.httpMethod == "GET")
+            precondition(request.url?.path == "/users/1/comments")
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            precondition(query.contains(URLQueryItem(name: "limit", value: "20")))
+            let collection = [
+                userComment(id: 1, track: commentedTrack),
+                userComment(id: 2, track: "null"),
+                userComment(id: 3, track: blockedTrack),
+                userComment(id: 4, track: "{}"),
+            ].joined(separator: ",")
+            return (200, "{\"collection\":[\(collection)],\"next_href\":\"\(artistCommentsNextURL.absoluteString)\"}")
+        }
+        let artistPage = try await client.artistComments(urn: "soundcloud:users:1", accessToken: "test-token")
+        precondition(artistPage.comments.map(\.urn) == ["soundcloud:comments:1"])
+        precondition(artistPage.comments[0].track?.urn == "soundcloud:tracks:41")
+        precondition(artistPage.comments[0].track?.artist.username == "Artist")
+        precondition(artistPage.nextURL == artistCommentsNextURL)
+        // An empty page can still lead to more comments.
+        CommentsURLProtocol.respond { request in
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            precondition(request.url?.path == "/users/1/comments")
+            precondition(items.contains(URLQueryItem(name: "offset", value: "9")))
+            return (200, "{\"collection\":[],\"next_href\":\"https://api-v2.soundcloud.com/users/1/comments?offset=5\"}")
+        }
+        let emptyArtistPage = try await client.artistComments(
+            urn: "soundcloud:users:1", accessToken: "test-token", pageURL: artistCommentsNextURL
+        )
+        precondition(emptyArtistPage.comments.isEmpty && emptyArtistPage.nextURL != nil)
+
         func threaded(_ entries: [(Int, String)]) throws -> [SoundCloudComment] {
             try entries.map { id, timestamp in
                 try decoder.decode(SoundCloudComment.self, from: Data("""

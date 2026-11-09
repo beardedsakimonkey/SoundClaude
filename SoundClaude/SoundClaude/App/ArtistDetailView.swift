@@ -58,6 +58,7 @@ struct ArtistDetailView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectUsers: (SoundCloudUser, ArtistUserList) -> Void
+    let onSelectComments: (SoundCloudUser) -> Void
     let onSelectPlaylist: (SoundCloudPlaylist) -> Void
     let onSelectStation: (String, String) -> Void
 
@@ -80,6 +81,9 @@ struct ArtistDetailView: View {
     private let relatedArtistsPageSize = 3
     @State private var isLoadingRelatedArtists = false
     @State private var relatedArtistsErrorMessage: String?
+    @State private var latestComments: [SoundCloudComment] = []
+    private static let latestCommentCount = 3
+    @State private var latestCommentsErrorMessage: String?
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var contentState = ContentState()
@@ -185,6 +189,7 @@ struct ArtistDetailView: View {
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
         onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void,
         onSelectUsers: @escaping (SoundCloudUser, ArtistUserList) -> Void,
+        onSelectComments: @escaping (SoundCloudUser) -> Void,
         onSelectStation: @escaping (String, String) -> Void
     ) {
         self.artist = artist
@@ -193,6 +198,7 @@ struct ArtistDetailView: View {
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
         self.onSelectUsers = onSelectUsers
+        self.onSelectComments = onSelectComments
         self.onSelectPlaylist = onSelectPlaylist
         self.onSelectStation = onSelectStation
         let cached = model.cachedArtistDetails(for: artist)
@@ -201,6 +207,10 @@ struct ArtistDetailView: View {
         _webProfiles = State(initialValue: model.cachedArtistWebProfiles(for: cached?.user ?? artist) ?? [])
         // Show revisited sidebar sections at once rather than fading them in again.
         _relatedArtists = State(initialValue: model.cachedRelatedArtists(for: cached?.user ?? artist) ?? [])
+        _latestComments = State(initialValue: Array(
+            (model.cachedFirstArtistCommentPage(for: cached?.user ?? artist)?.comments ?? [])
+                .prefix(Self.latestCommentCount)
+        ))
         _isLoading = State(initialValue: cached == nil)
         // Show revisited or prefetched first pages without waiting a frame for their loads.
         let contentState = ContentState()
@@ -273,6 +283,9 @@ struct ArtistDetailView: View {
         }
         .task(id: details?.user.urn) {
             await loadRelatedArtists()
+        }
+        .task(id: details?.user.urn) {
+            await loadLatestComments()
         }
         .sheet(isPresented: $isShowingArtwork) {
             FullSizeArtworkView(
@@ -467,8 +480,14 @@ struct ArtistDetailView: View {
                             profileLinks
                         }
                         if !relatedArtists.isEmpty || relatedArtistsErrorMessage != nil {
+                            // Fade only the section: an animated insertion would also
+                            // slide the sections below it.
                             relatedArtistsSection
-                                .transition(.opacity)
+                                .modifier(FadeInOnAppear())
+                        }
+                        if !latestComments.isEmpty || latestCommentsErrorMessage != nil {
+                            latestCommentsSection(details.user)
+                                .modifier(FadeInOnAppear())
                         }
                     }
                     .frame(width: min(320, max(0, contentSize.width - 72) * 0.3), alignment: .leading)
@@ -599,6 +618,44 @@ struct ArtistDetailView: View {
         }
     }
 
+    private func latestCommentsSection(_ user: SoundCloudUser) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Comments")
+                    .font(.sectionHeading)
+                    .opacity(0.96)
+                Spacer()
+                Button("View all") {
+                    onSelectComments(user)
+                }
+                .buttonStyle(.plain)
+                .font(.callout)
+                .modifier(HoverForeground(prefetch: .artistComments(user)))
+                .contentHelp("View all comments by \(user.username)")
+            }
+
+            ForEach(latestComments) { comment in
+                if let track = comment.track {
+                    ArtistCommentRow(
+                        comment: comment,
+                        track: track,
+                        bodyLineLimit: 3,
+                        showsTimestampBelow: true,
+                        onSelectTrack: onSelectTrack,
+                        onSelectArtist: onSelectArtist
+                    )
+                }
+            }
+
+            if let latestCommentsErrorMessage {
+                Text(latestCommentsErrorMessage)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Button("Retry comments") { Task { await loadLatestComments() } }
+            }
+        }
+    }
+
     private func relatedArtistStatistics(_ user: SoundCloudUser, showsTrackCount: Bool) -> some View {
         HStack(spacing: 12) {
             if let count = user.followersCount {
@@ -641,12 +698,23 @@ struct ArtistDetailView: View {
         do {
             let artists = try await model.relatedArtists(for: user)
             try Task.checkCancellation()
-            withAnimation(reduceMotion ? nil : .easeIn(duration: 0.25)) {
-                relatedArtists = artists
-            }
+            relatedArtists = artists
         } catch {
             guard !Task.isCancelled else { return }
             relatedArtistsErrorMessage = "Could not load related artists."
+        }
+    }
+
+    private func loadLatestComments() async {
+        latestCommentsErrorMessage = nil
+        guard let user = details?.user, user.urn != nil else { return }
+        do {
+            let page = try await model.artistComments(for: user)
+            try Task.checkCancellation()
+            latestComments = Array(page.comments.prefix(Self.latestCommentCount))
+        } catch {
+            guard !Task.isCancelled else { return }
+            latestCommentsErrorMessage = "Could not load comments."
         }
     }
 
@@ -1220,12 +1288,13 @@ struct ArtistDetailView: View {
     }
 
     private struct HoverForeground: ViewModifier {
+        var prefetch: PrefetchTarget? = nil
         @State private var isHovering = false
 
         func body(content: Content) -> some View {
             content
                 .foregroundStyle(isHovering ? .primary : .secondary)
-                .onContentHover { isHovering = $0 }
+                .prefetch(prefetch) { isHovering = $0 }
         }
     }
 

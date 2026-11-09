@@ -13,6 +13,7 @@ enum PrefetchTarget: Hashable {
     /// tab also needs `artistTab`.
     case artist(SoundCloudUser)
     case artistTab(SoundCloudUser, ArtistContentTab)
+    case artistComments(SoundCloudUser)
     /// Search results on the tab that the page will open on.
     case search(String, SearchScope)
     case searchTab(String, SearchCategory)
@@ -38,6 +39,8 @@ extension AppModel {
             await warmArtistPage(artist)
         case let .artistTab(artist, tab):
             await warmArtistTab(artist, tab)
+        case let .artistComments(artist):
+            _ = try? await artistComments(for: artist)
         case let .search(query, scope):
             let category = scope == .query ? searchCategory(for: query) : .tracks
             await warmSearch(query, scope: scope, category: category)
@@ -66,13 +69,15 @@ extension AppModel {
         async let picture: Void = warmImage(artist.avatarURL, rendition: .square500)
         async let tracks: Void = warmArtistTab(artist, .tracks)
         async let profiles: Void = warmArtistWebProfiles(artist)
-        async let related: Void = warmRelatedArtists(artist)
-        _ = await (details, backdrop, picture, tracks, profiles, related)
+        async let sidebar: Void = warmArtistSidebar(artist)
+        _ = await (details, backdrop, picture, tracks, profiles, sidebar)
     }
 
-    private func warmRelatedArtists(_ artist: SoundCloudUser) async {
+    private func warmArtistSidebar(_ artist: SoundCloudUser) async {
         guard let user = await artistWithURN(artist) else { return }
-        _ = try? await relatedArtists(for: user)
+        async let related = try? relatedArtists(for: user)
+        async let comments = try? artistComments(for: user)
+        _ = await (related, comments)
     }
 
     private func warmArtistBackdrop(_ artist: SoundCloudUser) async {

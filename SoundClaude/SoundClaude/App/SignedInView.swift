@@ -526,12 +526,20 @@ struct SignedInView: View {
                 onSelectArtist: showArtist,
                 onSelectPlaylist: showPlaylist,
                 onSelectUsers: showArtistUsers,
+                onSelectComments: showArtistComments,
                 onSelectStation: showStation
             )
             .id(artist.permalinkURL)
         case let .artistUsers(artist, list):
             ArtistUsersView(
                 artist: artist, list: list, model: model,
+                onSelectArtist: showArtist
+            )
+            .id(route)
+        case let .artistComments(artist):
+            ArtistCommentsView(
+                artist: artist, model: model,
+                onSelectTrack: showTrack,
                 onSelectArtist: showArtist
             )
             .id(route)
@@ -826,6 +834,10 @@ struct SignedInView: View {
 
     private func showArtistUsers(_ artist: SoundCloudUser, list: ArtistUserList) {
         push(.artistUsers(artist, list))
+    }
+
+    private func showArtistComments(_ artist: SoundCloudUser) {
+        push(.artistComments(artist))
     }
 
     private func navigateBack() -> Bool {

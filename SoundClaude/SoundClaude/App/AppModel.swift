@@ -78,6 +78,7 @@ final class AppModel {
     )
     // The detail list and waveform markers both read the first comment page.
     private let firstCommentPageCache = RequestCache<TrackCacheKey, SoundCloudCommentPage>(name: "First Comment Pages", countLimit: 20)
+    private let firstArtistCommentPageCache = RequestCache<NSURL, SoundCloudCommentPage>(name: "First Artist Comment Pages", countLimit: 20)
     private let firstRelatedTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Related Track Pages", countLimit: 20)
     // Artist pages open on any tab, so each tab's first page is cached separately.
     private let firstArtistTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Track Pages", countLimit: 20)
@@ -314,6 +315,7 @@ final class AppModel {
         relatedArtistsCache.reset()
         waveformCache.reset()
         firstCommentPageCache.reset()
+        firstArtistCommentPageCache.reset()
         firstRelatedTrackPageCache.reset()
         firstArtistTrackPageCache.reset()
         firstArtistRepostPageCache.reset()
@@ -565,6 +567,7 @@ final class AppModel {
         )
         let cacheKey = TrackCacheKey(track: track)
         firstCommentPageCache.remove(cacheKey)
+        firstArtistCommentPageCache.removeAll()
         if var details = trackDetailsCache.cached(cacheKey), let count = details.commentCount {
             details.commentCount = count + 1
             trackDetailsCache.insert(details, forKey: cacheKey)
@@ -577,6 +580,7 @@ final class AppModel {
         try await client.deleteTrackComment(urn: comment.urn, accessToken: accessToken)
         let cacheKey = TrackCacheKey(track: track)
         firstCommentPageCache.remove(cacheKey)
+        firstArtistCommentPageCache.removeAll()
         if var details = trackDetailsCache.cached(cacheKey), let count = details.commentCount {
             details.commentCount = max(0, count - 1)
             trackDetailsCache.insert(details, forKey: cacheKey)
@@ -734,6 +738,25 @@ final class AppModel {
         return try await client.artistUsers(
             urn: urn, list: list, accessToken: accessToken, pageURL: pageURL
         )
+    }
+
+    func cachedFirstArtistCommentPage(for artist: SoundCloudUser) -> SoundCloudCommentPage? {
+        firstArtistCommentPageCache.cached(artist.permalinkURL as NSURL)
+    }
+
+    func artistComments(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
+        -> SoundCloudCommentPage {
+        guard let urn = artist.urn else { throw SoundCloudError.invalidData }
+        if let pageURL {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.artistComments(urn: urn, accessToken: accessToken, pageURL: pageURL)
+        }
+
+        // The artist page's preview and the full list share this request.
+        return try await firstArtistCommentPageCache.value(for: artist.permalinkURL as NSURL) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.artistComments(urn: urn, accessToken: accessToken)
+        }
     }
 
     func searchCategory(for query: String) -> SearchCategory {

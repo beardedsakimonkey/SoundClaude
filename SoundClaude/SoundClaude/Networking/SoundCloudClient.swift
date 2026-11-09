@@ -591,6 +591,22 @@ actor SoundCloudClient {
         return page
     }
 
+    /// Newest first. Pages can be short or empty while later pages still hold comments.
+    func artistComments(
+        urn: String,
+        accessToken: String,
+        pageURL: URL? = nil
+    ) async throws -> SoundCloudCommentPage {
+        let url = try pageURL ?? endpoint("users/\(try Self.id(urn))/comments", query: ["limit": "20"])
+        let page = try await get(SoundCloudCommentPage.self, url, accessToken: accessToken)
+        try validateNextURL(page.nextURL, after: url)
+        // A comment on a removed or blocked track has nothing to link to.
+        return SoundCloudCommentPage(
+            comments: page.comments.filter { $0.track != nil },
+            nextURL: page.nextURL
+        )
+    }
+
     /// Comment likes are GraphQL "reaction" interactions; api-v2 comments omit them.
     /// Comments missing from the reply have no likes.
     func commentLikes(

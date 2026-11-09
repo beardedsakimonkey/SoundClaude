@@ -33,7 +33,8 @@ struct SidebarSelectionTests {
             .search("query"), .genre("Ambient"), .tag("live"), .track(track),
             .playlist(playlist), .station("station", seedTrack: track),
             .station("artist-station", seedArtistName: user.username),
-            .artist(user), .artistUsers(user, .followers), .artistUsers(user, .following)
+            .artist(user), .artistUsers(user, .followers), .artistUsers(user, .following),
+            .artistComments(user)
         ]
         for destination in SidebarDestination.libraryDestinations {
             for route in routes {
