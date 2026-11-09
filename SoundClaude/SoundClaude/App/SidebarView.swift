@@ -24,7 +24,8 @@ struct SidebarView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var isSidebarFocused: Bool
-    @State private var isShowingCreatePlaylist = false
+    @State private var newPlaylist: NewPlaylistRequest?
+    @State private var isNewPlaylistDropTarget = false
     @State private var dropTargetURN: String?
     @State private var addingToPlaylistURNs: Set<String> = []
     @State private var playlistDropError: String?
@@ -49,8 +50,12 @@ struct SidebarView: View {
         #endif
         sidebarList
         .navigationTitle("SoundClaude")
-        .sheet(isPresented: $isShowingCreatePlaylist) {
-            PlaylistEditorView(playlists: playlists, onSaved: onSelectPlaylist)
+        // The request carries its track, so the sheet cannot show the state from before a drop.
+        .sheet(item: $newPlaylist) { request in
+            PlaylistEditorView(
+                playlists: playlists, initialTrack: request.track,
+                artworkLoader: artworkLoader, onSaved: onSelectPlaylist
+            )
         }
         .sheet(item: $editingPlaylist) { playlist in
             PlaylistEditorView(playlists: playlists, playlist: playlist)
@@ -202,8 +207,16 @@ struct SidebarView: View {
                             .frame(width: 28, height: 28)
                     }
                         .modifier(SidebarRowStyle(isSelected: false) {
-                            isShowingCreatePlaylist = true
+                            newPlaylist = NewPlaylistRequest()
                         })
+                        .modifier(SidebarDropHighlight(isTargeted: isNewPlaylistDropTarget))
+                        .dropDestination(for: TrackPlaylistDrag.self) { items, _ in
+                            guard let item = items.first else { return false }
+                            isNewPlaylistDropTarget = false
+                            newPlaylist = NewPlaylistRequest(track: item.track)
+                            return true
+                        } isTargeted: { isNewPlaylistDropTarget = $0 }
+                        .accessibilityHint("Drop a track here to start a new playlist with it")
 
                     VStack(alignment: .leading, spacing: 0) {
                         ForEach(playlists.playlists) { playlist in
@@ -468,10 +481,7 @@ struct SidebarView: View {
 
         if isOwned {
             row
-                .background {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.accentColor.opacity(dropTargetURN == playlist.urn ? 0.18 : 0))
-                }
+                .modifier(SidebarDropHighlight(isTargeted: dropTargetURN == playlist.urn))
                 .overlay(alignment: .trailing) {
                     if isAddingTrack, !isStarting {
                         LoadingSpinner()
@@ -625,6 +635,22 @@ struct SidebarView: View {
             onReselect()
         } else {
             onSelect(destination)
+        }
+    }
+}
+
+private struct NewPlaylistRequest: Identifiable {
+    let id = UUID()
+    var track: SoundCloudTrack?
+}
+
+private struct SidebarDropHighlight: ViewModifier {
+    let isTargeted: Bool
+
+    func body(content: Content) -> some View {
+        content.background {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.accentColor.opacity(isTargeted ? 0.18 : 0))
         }
     }
 }

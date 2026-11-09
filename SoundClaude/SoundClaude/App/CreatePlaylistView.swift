@@ -6,6 +6,9 @@ struct PlaylistEditorView: View {
     @ObservedObject var playlists: PlaylistsController
     let onSaved: (SoundCloudPlaylist) -> Void
     let playlist: SoundCloudPlaylist?
+    /// The track a new playlist starts with, such as one dropped on the sidebar's New row.
+    let initialTrack: SoundCloudTrack?
+    let artworkLoader: ArtworkLoader?
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
     @State private var description = ""
@@ -19,9 +22,12 @@ struct PlaylistEditorView: View {
     @FocusState private var isTitleFocused: Bool
 
     init(playlists: PlaylistsController, playlist: SoundCloudPlaylist? = nil,
+         initialTrack: SoundCloudTrack? = nil, artworkLoader: ArtworkLoader? = nil,
          onSaved: @escaping (SoundCloudPlaylist) -> Void = { _ in }) {
         self.playlists = playlists
         self.playlist = playlist
+        self.initialTrack = initialTrack
+        self.artworkLoader = artworkLoader
         self.onSaved = onSaved
         _title = State(initialValue: playlist?.title ?? "")
         _description = State(initialValue: playlist?.description ?? "")
@@ -74,7 +80,7 @@ struct PlaylistEditorView: View {
                             } else {
                                 saved = try await playlists.createPlaylist(
                                     title: trimmedTitle, description: trimmedDescription, isPrivate: isPrivate,
-                                    artwork: artwork
+                                    artwork: artwork, track: initialTrack
                                 )
                             }
                             dismiss()
@@ -132,6 +138,15 @@ struct PlaylistEditorView: View {
                         Image(nsImage: artworkPreview)
                             .resizable()
                             .scaledToFill()
+                    } else if let url = initialTrack?.displayArtworkURL, let artworkLoader {
+                        TrackArtworkView(
+                            artworkURL: url,
+                            loader: artworkLoader,
+                            size: 210,
+                            rendition: .square500,
+                            shape: RoundedRectangle(cornerRadius: 10, style: .continuous),
+                            showsBorder: false
+                        )
                     } else if let url = playlist?.artworkURL, !removedArtwork {
                         AsyncImage(url: url) { image in
                             image.resizable().scaledToFill()

@@ -30,8 +30,11 @@ final class SoundCloudClient {
         deletedURNs.append(urn)
     }
     var failCreation = false
-    func createPlaylist(title: String, description: String, isPrivate: Bool, artwork: PlaylistArtwork? = nil, accessToken: String) async throws -> SoundCloudPlaylist {
+    var createdTrackURN: String?
+    func createPlaylist(title: String, description: String, isPrivate: Bool, artwork: PlaylistArtwork? = nil,
+                        trackURN: String? = nil, accessToken: String) async throws -> SoundCloudPlaylist {
         if failCreation { throw SoundCloudError.invalidData }
+        createdTrackURN = trackURN
         return makePlaylist(99, isPrivate: isPrivate)
     }
     var failUpdate = false
@@ -546,6 +549,14 @@ struct PlaylistsCacheTests {
         let created = try await controller.createPlaylist(title: "New", description: "", isPrivate: true)
         precondition(controller.playlists.first == created)
         precondition(controller.cache.contents[created.urn]?.isComplete == true)
+        precondition(client.createdTrackURN == nil)
+        // A playlist created from a dropped track starts with it.
+        let seeded = try await controller.createPlaylist(
+            title: "New", description: "", isPrivate: true, track: track(7)
+        )
+        precondition(client.createdTrackURN == track(7).urn)
+        precondition(controller.cache.contents[seeded.urn]?.tracks == [track(7)])
+        precondition(controller.cache.contents[seeded.urn]?.isComplete == true)
         let afterCreation = try await store.load(accountID: "user:1")
         precondition(afterCreation?.playlists.first == created)
         let beforeFailedCreation = controller.playlists

@@ -274,13 +274,17 @@ final class PlaylistsController: ObservableObject {
         await task.value
     }
 
-    func createPlaylist(title: String, description: String, isPrivate: Bool, artwork: PlaylistArtwork? = nil) async throws -> SoundCloudPlaylist {
+    func createPlaylist(
+        title: String, description: String, isPrivate: Bool, artwork: PlaylistArtwork? = nil,
+        track: SoundCloudTrack? = nil
+    ) async throws -> SoundCloudPlaylist {
         await restoreCache()
         let session = sessionID
         guard let accountID else { throw CancellationError() }
         let token = try await accessToken(session: session)
         let playlist = try await client.createPlaylist(
-            title: title, description: description, isPrivate: isPrivate, artwork: artwork, accessToken: token
+            title: title, description: description, isPrivate: isPrivate, artwork: artwork,
+            trackURN: track?.urn, accessToken: token
         )
         try checkSession(session)
         // Finish any list refresh before inserting so it cannot erase the new playlist.
@@ -288,7 +292,7 @@ final class PlaylistsController: ObservableObject {
         try checkSession(session)
         cache.playlists.removeAll { $0.urn == playlist.urn }
         cache.playlists.insert(playlist, at: 0)
-        cache.contents[playlist.urn] = PlaylistContents(playlist: playlist, hasLoadedPage: true)
+        cache.contents[playlist.urn] = PlaylistContents(playlist: playlist, tracks: track.map { [$0] } ?? [], hasLoadedPage: true)
         // Creation has succeeded remotely; a disk failure must not invite a duplicate POST.
         try? await save(accountID: accountID, session: session)
         try checkSession(session)

@@ -356,14 +356,15 @@ actor SoundCloudClient {
     // Artwork upload is not ported.
     func createPlaylist(
         title: String, description: String, isPrivate: Bool,
-        artwork: PlaylistArtwork? = nil, accessToken: String
+        artwork: PlaylistArtwork? = nil, trackURN: String? = nil, accessToken: String
     ) async throws -> SoundCloudPlaylist {
         guard artwork == nil else {
             throw SoundCloudError.api("Playlist artwork upload is not supported yet. Create the playlist without artwork.")
         }
+        let trackIDs = try trackURN.map { [Int(try Self.id($0))!] } ?? []
         let data = try await send("POST", endpoint("playlists"), accessToken: accessToken, json: [
             "playlist": ["title": title, "description": description,
-                         "sharing": isPrivate ? "private" : "public", "tracks": [Int]()],
+                         "sharing": isPrivate ? "private" : "public", "tracks": trackIDs],
         ])
         guard let playlist = try decoder.decode(RawPlaylist.self, from: data).normalized() else {
             throw SoundCloudError.invalidData

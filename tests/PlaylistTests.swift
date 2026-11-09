@@ -217,6 +217,15 @@ struct PlaylistTests {
             fatalError("Unauthorized creation was accepted")
         } catch SoundCloudError.unauthorized {}
 
+        PlaylistURLProtocol.respond { request in
+            precondition(playlistPayload(request)["tracks"] as? [Int] == [7])
+            return (201, playlist)
+        }
+        _ = try await client.createPlaylist(
+            title: "Mix", description: "", isPrivate: true,
+            trackURN: "soundcloud:tracks:7", accessToken: "test-token"
+        )
+
         for isPrivate in [true, false] {
             PlaylistURLProtocol.respond { request in
                 precondition(request.url?.path == "/playlists/42")
