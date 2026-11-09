@@ -108,15 +108,15 @@ struct LikesView: View {
                     .controlSize(.small)
             }
             Spacer()
-            searchBar
-                .frame(maxWidth: 200)
-                .padding(.leading, 8)
             SortMenu(
                 label: "Sort tracks",
                 selection: $sortOrder,
                 options: LikesSortOrder.allCases,
                 title: { $0.title }
             )
+            .padding(.leading, 8)
+            searchBar
+                .frame(maxWidth: 200)
             TrackLayoutPicker(trackLayout: $trackLayout)
         }
         .padding(20)
