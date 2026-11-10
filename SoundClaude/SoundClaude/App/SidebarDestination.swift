@@ -100,18 +100,45 @@ enum ArtistContentTab: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-// Persist only the visible page. All other tab, Back, and Forward history is transient.
+// Persist every tab's Back and Forward history. Scroll positions stay transient, so
+// restored pages start at the top.
 struct NavigationSelection: Codable, Equatable {
+    struct History: Codable, Equatable {
+        /// The most recent visits kept per stack, to bound what each navigation saves.
+        static let limit = 50
+
+        var path: [Route] = []
+        var forwardPath: [Route] = []
+
+        var routes: [Route] { path + forwardPath }
+    }
+
     var destination: SidebarDestination
-    var route: Route? = nil
-    /// The visible search page's results tab.
-    var searchCategory: SearchCategory? = nil
-    /// The visible artist page's content tab.
-    var artistTab: ArtistContentTab? = nil
+    var histories: [SidebarDestination.ID: History] = [:]
+    /// Results tabs of the search pages in `histories`. Tracks, the default, is omitted.
+    var searchCategories: [String: SearchCategory] = [:]
+    /// Content tabs of the artist pages in `histories`, by artist permalink.
+    var artistTabs: [SidebarDestination.ID: [URL: ArtistContentTab]] = [:]
+
+    init(destination: SidebarDestination, histories: [SidebarDestination.ID: NavigationHistory] = [:]) {
+        self.destination = destination
+        self.histories = histories.compactMapValues { history in
+            guard !history.path.isEmpty || !history.forwardPath.isEmpty else { return nil }
+            // Both stacks end with the visits nearest the visible page.
+            return History(
+                path: history.path.suffix(History.limit).map(\.route),
+                forwardPath: history.forwardPath.suffix(History.limit).map(\.route)
+            )
+        }
+    }
 
     var navigationHistories: [SidebarDestination.ID: NavigationHistory] {
-        guard let route else { return [:] }
-        return [destination.id: NavigationHistory(path: [NavigationEntry(route: route)])]
+        histories.mapValues { history in
+            NavigationHistory(
+                path: history.path.map { NavigationEntry(route: $0) },
+                forwardPath: history.forwardPath.map { NavigationEntry(route: $0) }
+            )
+        }
     }
 }
 
@@ -126,13 +153,9 @@ struct SidebarSelectionStore {
         guard let data = defaults.data(forKey: key(for: user)) else {
             return NavigationSelection(destination: .feed)
         }
-        let decoder = JSONDecoder()
-        if let selection = try? decoder.decode(NavigationSelection.self, from: data) {
-            return selection
-        }
-        // Keep the selected tab from versions that saved only the tab.
-        let destination = (try? decoder.decode(SidebarDestination.self, from: data)) ?? .feed
-        return NavigationSelection(destination: destination)
+        // Unreadable settings must not prevent startup.
+        return (try? JSONDecoder().decode(NavigationSelection.self, from: data))
+            ?? NavigationSelection(destination: .feed)
     }
 
     func save(_ destination: SidebarDestination, for user: SoundCloudUser) {

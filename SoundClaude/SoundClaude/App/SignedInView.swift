@@ -30,26 +30,38 @@ struct SignedInView: View {
         let selection = SidebarSelectionStore().restoreNavigation(for: user)
         _selectedDestination = State(initialValue: selection.destination)
         _navigationHistories = State(initialValue: selection.navigationHistories)
-        if case let .search(query) = selection.route, let category = selection.searchCategory {
+        for (query, category) in selection.searchCategories {
             model.rememberSearchCategory(category, for: query)
         }
         let artistTabSelections = ArtistTabSelections()
-        if case let .artist(artist) = selection.route, let tab = selection.artistTab {
-            artistTabSelections.selection(for: artist.permalinkURL, in: selection.destination.id).tab = tab
+        for (destinationID, tabs) in selection.artistTabs {
+            for (artistURL, tab) in tabs {
+                artistTabSelections.selection(for: artistURL, in: destinationID).tab = tab
+            }
         }
         _artistTabSelections = State(initialValue: artistTabSelections)
         _prefetcher = State(initialValue: Prefetcher(model: model))
     }
 
     private var navigationSelection: NavigationSelection {
-        var selection = NavigationSelection(destination: selectedDestination ?? .feed, route: currentRoute)
-        switch currentRoute {
-        case let .search(query):
-            selection.searchCategory = model.searchCategory(for: query)
-        case let .artist(artist):
-            selection.artistTab = artistTabSelections.tabs[destinationID]?[artist.permalinkURL]?.tab
-        default:
-            break
+        var selection = NavigationSelection(
+            destination: selectedDestination ?? .feed, histories: navigationHistories
+        )
+        // Save tab choices only for pages in the saved history, so they cannot accumulate.
+        for (destinationID, history) in selection.histories {
+            for route in history.routes {
+                switch route {
+                case let .search(query):
+                    let category = model.searchCategory(for: query)
+                    if category != .tracks { selection.searchCategories[query] = category }
+                case let .artist(artist):
+                    if let tab = artistTabSelections.tabs[destinationID]?[artist.permalinkURL]?.tab, tab != .tracks {
+                        selection.artistTabs[destinationID, default: [:]][artist.permalinkURL] = tab
+                    }
+                default:
+                    break
+                }
+            }
         }
         return selection
     }
