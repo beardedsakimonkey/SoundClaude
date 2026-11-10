@@ -224,21 +224,39 @@ struct SignedOutView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("2. Open the browser’s developer console with \(Text("⌥⌘J").foregroundStyle(.primary)) in Chrome or \(Text("⌥⌘K").foregroundStyle(.primary)) in Firefox.")
                     }
-                    Text("3. Paste and run this command to copy your session token.")
+                    Text("3. Click this command to copy it, then paste and run it in the console to copy your session token.")
                 }
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
-                Text(Self.highlightedSessionCommand)
-                    .font(.system(size: 11, design: .monospaced))
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button {
+                    NSPasteboard.general.clearContents()
+                    copiedSessionCommand = NSPasteboard.general.setString(Self.sessionCommand, forType: .string)
+                    copySessionCommandCount += 1
+                } label: {
+                    HStack(alignment: .top, spacing: 10) {
+                        Text(Self.highlightedSessionCommand)
+                            .font(.system(size: 11, design: .monospaced))
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        // A hidden doc.on.doc reserves the icon's size so the
+                        // block never resizes when the state flips.
+                        Image(systemName: "doc.on.doc")
+                            .hidden()
+                            .overlay {
+                                Image(systemName: copiedSessionCommand ? "checkmark" : "doc.on.doc")
+                                    .contentTransition(.symbolEffect(.replace))
+                            }
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .animation(.easeInOut(duration: 0.2), value: copiedSessionCommand)
+                            .accessibilityHidden(true)
+                    }
                     .padding(10)
-                    .background(.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
+                    .contentShape(RoundedRectangle(cornerRadius: 8))
                     .overlay {
-                        // Flashes the block on each copy: a quick rise, then a slower fade.
                         RoundedRectangle(cornerRadius: 8)
                             .fill(colorScheme == .dark ? Color.white : Color.black.opacity(0.5))
                             .keyframeAnimator(initialValue: 0.0, trigger: copySessionCommandCount) { shape, opacity in
@@ -249,35 +267,11 @@ struct SignedOutView: View {
                             }
                             .allowsHitTesting(false)
                     }
-                Button {
-                    NSPasteboard.general.clearContents()
-                    copiedSessionCommand = NSPasteboard.general.setString(Self.sessionCommand, forType: .string)
-                    copySessionCommandCount += 1
-                } label: {
-                    // Both titles stay in the layout and a hidden doc.on.doc reserves
-                    // the icon's size, so the button never resizes when the state flips.
-                    Label {
-                        ZStack(alignment: .leading) {
-                            Text("Copy Command")
-                                .opacity(copiedSessionCommand ? 0 : 1)
-                            Text("Command Copied")
-                                .opacity(copiedSessionCommand ? 1 : 0)
-                        }
-                    } icon: {
-                        Image(systemName: "doc.on.doc")
-                            .hidden()
-                            .overlay {
-                                Image(systemName: copiedSessionCommand ? "checkmark" : "doc.on.doc")
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
-                    }
-                    .animation(.easeInOut(duration: 0.2), value: copiedSessionCommand)
-                    .font(.system(size: 13))
-                    .padding(.horizontal, 12)
-                    .frame(minHeight: 28)
-                    .contentShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(SignedOutActionStyle(isPrimary: false, cornerRadius: 8))
+                .help("Click to copy")
+                .accessibilityLabel(copiedSessionCommand ? "Command copied" : "Copy command")
+                .accessibilityValue(Self.sessionCommand)
                 .task(id: copySessionCommandCount) {
                     guard copiedSessionCommand else { return }
                     try? await Task.sleep(for: .seconds(2))
