@@ -179,6 +179,7 @@ struct SignedOutView: View {
                     .accessibilityHidden(true)
                 Text("Sign in with SoundCloud")
                     .font(.system(size: 15, weight: .medium))
+                    .shadow(color: Color(red: 0.5, green: 0.165, blue: 0).opacity(0.675), radius: 3, y: 1)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .medium))
