@@ -471,7 +471,10 @@ final class TrackScrollArtworkPrefetcher {
         // while rapid scrolling is changing which rows are on screen.
         prefetcher.discardPending()
         updateTask = Task { [weak self] in
-            do { try await Task.sleep(for: .milliseconds(50)) }
+            do {
+                try await Task.sleep(for: .milliseconds(50))
+                try await ScrollScrubbing.shared.settled()
+            }
             catch { return }
             guard let self else { return }
             let visible = visibleIDs.compactMap { self.indices[$0] }.sorted()

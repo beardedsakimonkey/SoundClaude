@@ -112,6 +112,7 @@ SRC_focus := \
 	SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 	SoundClaude/SoundClaude/App/SearchTextField.swift \
 	SoundClaude/SoundClaude/App/ScrollbarReservedScrollView.swift \
+	SoundClaude/SoundClaude/App/ScrollScrubbing.swift \
 	SoundClaude/SoundClaude/App/RouteGradientBackdrop.swift \
 	SoundClaude/SoundClaude/App/ContentHover.swift \
 	SoundClaude/SoundClaude/Likes/SearchOutsideClickView.swift \
@@ -164,6 +165,7 @@ test: test-typecheck test-playback-selection
 	/tmp/soundclaude-tests/audio-tap-lifecycle
 	swiftc -o /tmp/soundclaude-tests/artwork-cache \
 		SoundClaude/SoundClaude/Support/MemoryCache.swift \
+		SoundClaude/SoundClaude/App/ScrollScrubbing.swift \
 		SoundClaude/SoundClaude/Networking/ArtworkLoader.swift \
 		tests/ArtworkCacheTests.swift
 	/tmp/soundclaude-tests/artwork-cache

@@ -201,107 +201,65 @@ struct TrackGridTile: View {
     @State private var likeErrorMessage: String?
     // Playback state flips asynchronously, so withAnimation can't scope this to a click.
     @State private var animatesIconChange = false
+    // Latched at mount; see ScrollScrubbing.
+    @State private var isInteractive = !ScrollScrubbing.shared.isActive
+    @State private var artworkHandoff = ArtworkHandoff()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isCurrentTrack: Bool {
         playback.currentTrack?.urn == track.urn
     }
 
+    // The current track shows its play state over the artwork, which is a control.
+    private var showsControls: Bool {
+        isInteractive || isCurrentTrack
+    }
+
     var body: some View {
-        let isPlaybackActive = isCurrentTrack && playback.isPlaybackActive
+        if showsControls {
+            interactiveTile
+        } else {
+            tileContent
+                .task {
+                    guard (try? await ScrollScrubbing.shared.settledInTurn()) != nil else { return }
+                    isInteractive = true
+                }
+        }
+    }
+
+    /// The tile's appearance. Its controls are present only once the tile is interactive.
+    private var tileContent: some View {
         let isLiked = likes.isLiked(track)
         let likeCount = likes.likeCount(for: track)
 
-        VStack(alignment: .leading, spacing: 8) {
-            Button {
-                animatesIconChange = true
-                if isCurrentTrack {
-                    playback.togglePlayPause()
-                } else {
-                    Task { await onPlayTrack(track) }
-                }
-            } label: {
-                TrackArtworkView(
-                    artworkURL: track.displayArtworkURL,
-                    loader: artworkLoader,
-                    size: TrackGridMetrics.tileWidth,
-                    rendition: .square300,
-                    shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous),
-                    showsBorder: false
-                )
-                .modifier(ArtworkHoverZoom(
-                    isHovering: isHoveringArtwork && track.access != .protected,
-                    cornerRadius: Self.artworkCornerRadius,
-                    size: TrackGridMetrics.tileWidth
-                ))
-                .overlay {
-                    AnimatedPlayPauseIcon(
-                        isPlaybackActive: isPlaybackActive,
-                        size: 32,
-                        animatesChange: animatesIconChange
-                    )
-                        .foregroundStyle(.white)
-                        .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
-                        .scaleEffect(reduceMotion || isHoveringArtwork || isCurrentTrack ? 1 : 0.8)
-                        .opacity((isHoveringArtwork || isCurrentTrack) && track.access != .protected ? 1 : 0)
-                        .animation(
-                            reduceMotion ? nil : .easeInOut(duration: 0.15),
-                            value: isHoveringArtwork || isCurrentTrack
-                        )
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                }
-            }
-            .buttonStyle(.plain)
-            .onChange(of: isPlaybackActive) { animatesIconChange = false }
-            .disabled(track.access == .protected)
-            .opacity(track.access == .protected ? protectedTrackOpacity : 1)
-            .contentHelp(isPlaybackActive ? "Pause" : "Play")
-            .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
-            .overlay(alignment: .bottomTrailing) {
-                ZStack {
-                    // Mounting a Menu is expensive, so wait for the first hover. It stays
-                    // mounted afterward so that leaving the tile can't remove an open menu.
-                    if hasHoveredArtwork {
-                        overflowMenu
-                            .padding(8)
-                            .opacity(isHoveringArtwork ? 1 : 0)
-                            .allowsHitTesting(isHoveringArtwork)
-                            .accessibilityHidden(!isHoveringArtwork)
-                            // Fade in on the first hover, when the menu is inserted already opaque.
-                            .transition(.opacity)
-                    }
-                }
-                .animation(
-                    reduceMotion ? nil : .easeInOut(duration: 0.15),
-                    value: isHoveringArtwork
-                )
-            }
-            .onContentHover { hovering in
-                isHoveringArtwork = hovering
-                if hovering { hasHoveredArtwork = true }
-            }
+        return VStack(alignment: .leading, spacing: 8) {
+            artwork
+                .opacity(track.access == .protected ? protectedTrackOpacity : 1)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     if track.access == .protected {
                         ProtectedTrackIcon(font: .body.weight(.semibold))
                     }
-                    Button {
-                        onSelectTrack(track)
-                    } label: {
-                        Text(track.title)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(isCurrentTrack ? Color.accentColor : Color.primary)
-                            .underline(isHoveringTitle)
-                            .multilineTextAlignment(.leading)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
+                    let title = Text(track.title)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(isCurrentTrack ? Color.accentColor : Color.primary)
+                        .underline(isHoveringTitle)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if showsControls {
+                        Button {
+                            onSelectTrack(track)
+                        } label: {
+                            title.contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .prefetch(.track(track)) { isHoveringTitle = $0 }
+                        .contentHelp(track.title)
+                    } else {
+                        title
                     }
-                    .buttonStyle(.plain)
-                    .prefetch(.track(track)) { isHoveringTitle = $0 }
-                    .contentHelp(track.title)
                     if track.access == .preview {
                         TrackPreviewBadge()
                     }
@@ -322,7 +280,11 @@ struct TrackGridTile: View {
                 )
 
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                    if showsControls {
+                        ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                    } else {
+                        Text(track.artist.username)
+                    }
                     if likeCount != nil || isLiked {
                         Text("·")
                             .accessibilityHidden(true)
@@ -348,22 +310,103 @@ struct TrackGridTile: View {
             }
             .opacity(track.access == .protected ? protectedTrackOpacity : 1)
         }
-        .contentShape(Rectangle())
-        .trackDraggable(track)
-        .contextMenu {
-            trackMenuItems
-        }
-        .alert("Could not update like", isPresented: Binding(
-            get: { likeErrorMessage != nil },
-            set: { if !$0 { likeErrorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { likeErrorMessage = nil }
-        } message: {
-            Text(likeErrorMessage ?? "Please try again.")
-        }
+    }
+
+    private var interactiveTile: some View {
+        tileContent
+            .contentShape(Rectangle())
+            .trackDraggable(track)
+            .contextMenu {
+                trackMenuItems
+            }
+            .alert("Could not update like", isPresented: Binding(
+                get: { likeErrorMessage != nil },
+                set: { if !$0 { likeErrorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { likeErrorMessage = nil }
+            } message: {
+                Text(likeErrorMessage ?? "Please try again.")
+            }
         #if DEBUG
-        .debugViewUpdates("TrackGridTile")
+            .debugViewUpdates("TrackGridTile")
         #endif
+    }
+
+    @ViewBuilder
+    private var artwork: some View {
+        let artwork = TrackArtworkView(
+            artworkURL: track.displayArtworkURL,
+            loader: artworkLoader,
+            size: TrackGridMetrics.tileWidth,
+            rendition: .square300,
+            shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous),
+            showsBorder: false,
+            handoff: artworkHandoff
+        )
+        .modifier(ArtworkHoverZoom(
+            isHovering: isHoveringArtwork && track.access != .protected,
+            cornerRadius: Self.artworkCornerRadius,
+            size: TrackGridMetrics.tileWidth
+        ))
+        if showsControls {
+            let isPlaybackActive = isCurrentTrack && playback.isPlaybackActive
+            Button {
+                animatesIconChange = true
+                if isCurrentTrack {
+                    playback.togglePlayPause()
+                } else {
+                    Task { await onPlayTrack(track) }
+                }
+            } label: {
+                artwork.overlay {
+                    AnimatedPlayPauseIcon(
+                        isPlaybackActive: isPlaybackActive,
+                        size: 32,
+                        animatesChange: animatesIconChange
+                    )
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
+                        .scaleEffect(reduceMotion || isHoveringArtwork || isCurrentTrack ? 1 : 0.8)
+                        .opacity((isHoveringArtwork || isCurrentTrack) && track.access != .protected ? 1 : 0)
+                        .animation(
+                            reduceMotion ? nil : .easeInOut(duration: 0.15),
+                            value: isHoveringArtwork || isCurrentTrack
+                        )
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
+            }
+            .buttonStyle(.plain)
+            .onChange(of: isPlaybackActive) { animatesIconChange = false }
+            .disabled(track.access == .protected)
+            .contentHelp(isPlaybackActive ? "Pause" : "Play")
+            .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
+            .overlay(alignment: .bottomTrailing) {
+                ZStack {
+                    // Mounting a Menu is expensive, so wait for the first hover. It stays
+                    // mounted afterward so that leaving the tile can't remove an open menu.
+                    if hasHoveredArtwork {
+                        overflowMenu
+                            .padding(8)
+                            .opacity(isHoveringArtwork ? 1 : 0)
+                            .allowsHitTesting(isHoveringArtwork)
+                            .accessibilityHidden(!isHoveringArtwork)
+                            // Fade in on the first hover, when the menu is inserted already opaque.
+                            .transition(.opacity)
+                    }
+                }
+                .animation(
+                    reduceMotion ? nil : .easeInOut(duration: 0.15),
+                    value: isHoveringArtwork
+                )
+            }
+            .onContentHover { hovering in
+                isHoveringArtwork = hovering
+                if hovering { hasHoveredArtwork = true }
+            }
+        } else {
+            artwork
+        }
     }
 
     private var trackMenuItems: some View {

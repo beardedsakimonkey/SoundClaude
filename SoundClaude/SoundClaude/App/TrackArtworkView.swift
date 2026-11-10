@@ -1,6 +1,12 @@
 import AppKit
 import SwiftUI
 
+/// Keeps a row's image while its artwork remounts, as when the row adds its controls.
+/// The display cache is too small to promise the image again.
+final class ArtworkHandoff {
+    fileprivate var image: NSImage?
+}
+
 struct TrackArtworkView: View {
     let artworkURL: URL?
     let loader: ArtworkLoader
@@ -10,6 +16,7 @@ struct TrackArtworkView: View {
     let showsBorder: Bool
     let animatesChanges: Bool
     let showsPlaceholderIcon: Bool
+    let handoff: ArtworkHandoff?
 
     @State private var image: NSImage?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -22,7 +29,8 @@ struct TrackArtworkView: View {
         shape: RoundedRectangle = RoundedRectangle(cornerRadius: 3),
         showsBorder: Bool = true,
         animatesChanges: Bool = false,
-        showsPlaceholderIcon: Bool = true
+        showsPlaceholderIcon: Bool = true,
+        handoff: ArtworkHandoff? = nil
     ) {
         self.artworkURL = artworkURL
         self.loader = loader
@@ -32,13 +40,15 @@ struct TrackArtworkView: View {
         self.showsBorder = showsBorder
         self.animatesChanges = animatesChanges
         self.showsPlaceholderIcon = showsPlaceholderIcon
+        self.handoff = handoff
     }
 
     var body: some View {
         ZStack {
             shape
                 .fill(.quaternary)
-            if let image = image ?? artworkURL.flatMap({ loader.cachedImage(for: $0, rendition: rendition) }) {
+            if let image = image ?? handoff?.image
+                ?? artworkURL.flatMap({ loader.cachedImage(for: $0, rendition: rendition) }) {
                 Image(nsImage: image)
                     .resizable()
                     .interpolation(.high)
@@ -66,11 +76,14 @@ struct TrackArtworkView: View {
                 withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
                     image = cached
                 }
+                handoff?.image = cached
                 return
             }
             if !animatesChanges {
                 image = nil
             }
+            // Rows that fly past in a fast scroll would each start a request that outlives them.
+            guard (try? await ScrollScrubbing.shared.settled()) != nil else { return }
             let nextImage: NSImage?
             if let artworkURL,
                let loaded = try? await loader.image(for: artworkURL, rendition: rendition) {
@@ -82,6 +95,7 @@ struct TrackArtworkView: View {
             withAnimation(animatesChanges && !reduceMotion ? .easeInOut(duration: 0.3) : nil) {
                 image = nextImage
             }
+            handoff?.image = nextImage
         }
     }
 }

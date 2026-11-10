@@ -32,6 +32,7 @@ struct ScrollbarReservedScrollView<Content: View>: View {
                             ScrollKeyNavigationView()
                         }
                     }
+                    .monitorsScrollScrubbing()
             }
             .frame(width: geometry.size.width)
         }

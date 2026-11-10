@@ -26,6 +26,9 @@ struct TrackListRow: View {
     @State private var isHoveringMenu = false
     @State private var likeErrorMessage: String?
     @State private var isStartingPlayback = false
+    // Latched at mount; see ScrollScrubbing.
+    @State private var isInteractive = !ScrollScrubbing.shared.isActive
+    @State private var artworkHandoff = ArtworkHandoff()
     @GestureState private var isPressed = false
 
     static let artworkCornerRadius: CGFloat = 4
@@ -37,46 +40,26 @@ struct TrackListRow: View {
     static let compactHeight = compactArtworkSize + 2 * compactPadding
 
     var body: some View {
-        let isCurrentTrack = playback[isCurrentTrack: track.urn]
-        let isPlaybackActive = isCurrentTrack
-            ? playback.isPlaybackActive : isStartingPlayback
-
-        HStack(spacing: isCompact ? 12 : 14) {
-            Button(action: playOrPauseTrack) {
-                TrackArtworkView(
-                    artworkURL: track.displayArtworkURL,
-                    loader: artworkLoader,
-                    size: isCompact ? Self.compactArtworkSize : 50,
-                    shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius),
-                )
-                .overlay {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: Self.artworkCornerRadius)
-                            .fill(.black.opacity(0.45))
-                        ZStack {
-                            Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")
-                                .font(.system(size: isCompact ? 19 : 22, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .opacity(0.9)
-                                .id(isPlaybackActive)
-                                .transition(reduceMotion ? .identity : .scale(scale: 0.01).combined(with: .opacity))
-                        }
-                        .animation(
-                            reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.6),
-                            value: isPlaybackActive
-                        )
-                    }
-                    .opacity(isHovering && track.access != .protected ? 1 : 0)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+        if isInteractive {
+            interactiveRow
+        } else {
+            rowContent
+                .task {
+                    guard (try? await ScrollScrubbing.shared.settledInTurn()) != nil else { return }
+                    isInteractive = true
                 }
-            }
-            .buttonStyle(.plain)
-            .disabled(track.access == .protected)
-            .opacity(track.access == .protected ? protectedTrackOpacity : 1)
-            .onContentHover { isHoveringArtwork = $0 }
-            .contentHelp(isPlaybackActive ? "Pause" : "Play")
-            .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
+        }
+    }
+
+    private var isPlaybackActive: Bool {
+        playback[isCurrentTrack: track.urn] ? playback.isPlaybackActive : isStartingPlayback
+    }
+
+    /// The row's appearance. Its controls are present only once the row is interactive.
+    private var rowContent: some View {
+        HStack(spacing: isCompact ? 12 : 14) {
+            artwork
+                .opacity(track.access == .protected ? protectedTrackOpacity : 1)
             trackDetails
                 .opacity(track.access == .protected ? protectedTrackOpacity : 1)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -117,46 +100,94 @@ struct TrackListRow: View {
         }
         .padding(.vertical, isCompact ? Self.compactPadding : 7)
         .padding(.horizontal, isCompact ? Self.compactPadding : 8)
-        .contentShape(Rectangle())
-        .trackDraggable(track)
-        .contextMenu {
-            trackMenuItems
-        }
-        .onTapGesture {
-            guard !isHoveringArtwork, !isHoveringTitle, !isHoveringArtist, !isHoveringMenu else { return }
-            playOrPauseTrack()
-        }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .updating($isPressed) { _, pressed, _ in
-                    pressed = true
-                }
-        )
-        .background {
-            RoundedRectangle(cornerRadius: isCompact ? Self.compactCornerRadius : 8)
-                .fill(rowBackground)
-        }
-        .onContentHover { hovering in
-            isHovering = hovering
-            if hovering { hasHovered = true }
-        }
-        .onChange(of: isCurrentTrack) { _, _ in
-            isStartingPlayback = false
-        }
-        .alert("Could not update like", isPresented: Binding(
-            get: { likeErrorMessage != nil },
-            set: { if !$0 { likeErrorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { likeErrorMessage = nil }
-        } message: {
-            Text(likeErrorMessage ?? "Please try again.")
-        }
-        .accessibilityAction(named: isPlaybackActive ? "Pause" : "Play") {
-            playOrPauseTrack()
-        }
+    }
+
+    private var interactiveRow: some View {
+        rowContent
+            .contentShape(Rectangle())
+            .trackDraggable(track)
+            .contextMenu {
+                trackMenuItems
+            }
+            .onTapGesture {
+                guard !isHoveringArtwork, !isHoveringTitle, !isHoveringArtist, !isHoveringMenu else { return }
+                playOrPauseTrack()
+            }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .updating($isPressed) { _, pressed, _ in
+                        pressed = true
+                    }
+            )
+            .background {
+                RoundedRectangle(cornerRadius: isCompact ? Self.compactCornerRadius : 8)
+                    .fill(rowBackground)
+            }
+            .onContentHover { hovering in
+                isHovering = hovering
+                if hovering { hasHovered = true }
+            }
+            .onChange(of: playback[isCurrentTrack: track.urn]) { _, _ in
+                isStartingPlayback = false
+            }
+            .alert("Could not update like", isPresented: Binding(
+                get: { likeErrorMessage != nil },
+                set: { if !$0 { likeErrorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { likeErrorMessage = nil }
+            } message: {
+                Text(likeErrorMessage ?? "Please try again.")
+            }
+            .accessibilityAction(named: isPlaybackActive ? "Pause" : "Play") {
+                playOrPauseTrack()
+            }
         #if DEBUG
-        .debugViewUpdates("TrackListRow")
+            .debugViewUpdates("TrackListRow")
         #endif
+    }
+
+    @ViewBuilder
+    private var artwork: some View {
+        let artwork = TrackArtworkView(
+            artworkURL: track.displayArtworkURL,
+            loader: artworkLoader,
+            size: isCompact ? Self.compactArtworkSize : 50,
+            shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius),
+            handoff: artworkHandoff
+        )
+        if isInteractive {
+            let isPlaybackActive = isPlaybackActive
+            Button(action: playOrPauseTrack) {
+                artwork.overlay {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: Self.artworkCornerRadius)
+                            .fill(.black.opacity(0.45))
+                        ZStack {
+                            Image(systemName: isPlaybackActive ? "pause.fill" : "play.fill")
+                                .font(.system(size: isCompact ? 19 : 22, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .opacity(0.9)
+                                .id(isPlaybackActive)
+                                .transition(reduceMotion ? .identity : .scale(scale: 0.01).combined(with: .opacity))
+                        }
+                        .animation(
+                            reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.6),
+                            value: isPlaybackActive
+                        )
+                    }
+                    .opacity(isHovering && track.access != .protected ? 1 : 0)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(track.access == .protected)
+            .onContentHover { isHoveringArtwork = $0 }
+            .contentHelp(isPlaybackActive ? "Pause" : "Play")
+            .accessibilityLabel("\(isPlaybackActive ? "Pause" : "Play"): \(track.title)")
+        } else {
+            artwork
+        }
     }
 
     private var trackDetails: some View {
@@ -169,18 +200,24 @@ struct TrackListRow: View {
                 if track.access == .protected {
                     ProtectedTrackIcon(font: titleFont)
                 }
-                Button {
-                    onSelectTrack(track)
-                } label: {
-                    Text(track.title)
-                        .underline(isHoveringTitle)
-                        .foregroundStyle(isCurrentTrack ? Color.accentColor : Color.primary)
-                        .contentShape(Rectangle())
+                let title = Text(track.title)
+                    .underline(isHoveringTitle)
+                    .foregroundStyle(isCurrentTrack ? Color.accentColor : Color.primary)
+                Group {
+                    if isInteractive {
+                        Button {
+                            onSelectTrack(track)
+                        } label: {
+                            title.contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .prefetch(.track(track)) { isHoveringTitle = $0 }
+                    } else {
+                        title
+                    }
                 }
-                .buttonStyle(.plain)
                 .font(titleFont)
                 .opacity(0.95)
-                .prefetch(.track(track)) { isHoveringTitle = $0 }
                 if track.access == .preview {
                     TrackPreviewBadge()
                 }
@@ -218,10 +255,16 @@ struct TrackListRow: View {
     private func metadataLine(likeCount: Int?, isLiked: Bool, showsLikeIndicator: Bool) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
             if showsArtist {
-                ArtistLink(artist: track.artist, onSelect: onSelectArtist)
-                    .onContentHover { isHoveringArtist = $0 }
-                    // Truncate the like count before the artist name.
-                    .layoutPriority(1)
+                Group {
+                    if isInteractive {
+                        ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                            .onContentHover { isHoveringArtist = $0 }
+                    } else {
+                        Text(track.artist.username)
+                    }
+                }
+                // Truncate the like count before the artist name.
+                .layoutPriority(1)
             }
             if showsLikeIndicator {
                 if showsArtist {
