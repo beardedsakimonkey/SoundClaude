@@ -9,6 +9,7 @@ struct SignedOutView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var copiedSessionCommand = false
+    @State private var isErrorDismissed = false
     @State private var copySessionCommandCount = 0
     @State private var isHoveringSoundCloudLink = false
     @State private var hasAppeared = false
@@ -49,6 +50,7 @@ struct SignedOutView: View {
                 }
                 .frame(maxWidth: 860)
                 .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: message)
+                .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: isErrorDismissed)
                 .padding(32)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: geometry.size.height)
@@ -71,6 +73,8 @@ struct SignedOutView: View {
             }
         }
         .onAppear { hasAppeared = true }
+        .onChange(of: message) { isErrorDismissed = false }
+        .onChange(of: importFailureCount) { isErrorDismissed = false }
         #if DEBUG
         .debugViewUpdates("SignedOutView")
         #endif
@@ -114,7 +118,7 @@ struct SignedOutView: View {
 
     @ViewBuilder
     private var importErrorMessage: some View {
-        if let message {
+        if let message, !isErrorDismissed {
             Label(message, systemImage: "exclamationmark.circle")
                 .font(.system(size: 13))
                 .foregroundStyle(.red)
@@ -231,6 +235,7 @@ struct SignedOutView: View {
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
                 Button {
+                    isErrorDismissed = true
                     NSPasteboard.general.clearContents()
                     copiedSessionCommand = NSPasteboard.general.setString(Self.sessionCommand, forType: .string)
                     copySessionCommandCount += 1
