@@ -26,7 +26,7 @@ struct ArtistUsersView: View {
     }
 
     var body: some View {
-        ScrollView {
+        ScrollbarReservedScrollView { _ in
             VStack(alignment: .leading, spacing: 24) {
                 HStack(spacing: 6) {
                     if list == .followers {
@@ -83,7 +83,6 @@ struct ArtistUsersView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
-            .scrollKeyNavigation()
             .remembersScrollPosition()
         }
         .background(alignment: .top) {
