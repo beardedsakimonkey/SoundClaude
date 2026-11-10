@@ -77,6 +77,8 @@ struct TrackCardView: View {
                 .lineLimit(1)
                 .opacity(track.access == .protected ? protectedTrackOpacity : 1)
 
+                Spacer(minLength: 0)
+
                 HStack(spacing: 10) {
                     playButton
                     TrackWaveformView(
