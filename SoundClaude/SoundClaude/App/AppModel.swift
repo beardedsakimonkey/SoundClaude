@@ -1123,26 +1123,37 @@ final class AppModel {
     func navigateTrack(from track: SoundCloudTrack, offset: Int, queue: TrackQueue) {
         guard !queue.tracks.isEmpty else { return }
         shuffleQueueTask?.cancel()
-        self.queue = queue
-        self.queue.setShuffle(playback.isShuffleEnabled, currentURN: track.urn)
-        saveQueue()
-        selectRelativeTrack(offset: offset, anchorURN: track.urn)
+        var queue = queue
+        queue.setShuffle(playback.isShuffleEnabled, currentURN: track.urn)
+        selectRelativeTrack(offset: offset, anchorURN: track.urn, navigationQueue: queue)
     }
 
-    private func selectRelativeTrack(offset: Int, isAutomatic: Bool = false, anchorURN: String? = nil) {
+    private func selectRelativeTrack(
+        offset: Int,
+        isAutomatic: Bool = false,
+        anchorURN: String? = nil,
+        navigationQueue: TrackQueue? = nil
+    ) {
         trackSelectionTask?.cancel()
         trackSelectionTask = Task { @MainActor [weak self] in
             guard let self, !Task.isCancelled else { return }
             let currentURN = anchorURN ?? playback.currentTrack?.urn
+            // A new collection must not display the old queue's playing track
+            // while selection waits for this task or another page of tracks.
+            var queue = navigationQueue ?? self.queue
             do {
                 // Likes use the disk-backed library, including pages added during playback.
                 queue.replaceLikes(likes.tracks, currentURN: currentURN)
                 if !playback.isShuffleEnabled, offset > 0 {
                     while queue.needsNextPage(after: currentURN) {
-                        let page = try await nextQueuePage()
+                        let page = try await nextQueuePage(in: queue)
                         try Task.checkCancellation()
+                        if navigationQueue == nil { queue = self.queue }
                         try queue.append(page)
-                        saveQueue()
+                        if navigationQueue == nil {
+                            self.queue = queue
+                            saveQueue()
+                        }
                     }
                 }
                 try Task.checkCancellation()
@@ -1157,6 +1168,7 @@ final class AppModel {
                     }
                     return
                 }
+                self.queue = queue
                 saveQueue()
                 // Queue edits cancel page selection, not the selected stream load.
                 trackSelectionTask = nil
@@ -1169,9 +1181,9 @@ final class AppModel {
         }
     }
 
-    private func nextQueuePage() async throws -> SoundCloudTrackPage {
-        let source = queue.source
-        let pageURL = queue.nextPageURL
+    private func nextQueuePage(in requestedQueue: TrackQueue? = nil) async throws -> SoundCloudTrackPage {
+        let source = (requestedQueue ?? queue).source
+        let pageURL = (requestedQueue ?? queue).nextPageURL
         let accessToken = try await auth.validAccessToken()
         try Task.checkCancellation()
         switch source {
