@@ -667,10 +667,8 @@ struct DetailArtworkView: View {
 
     #if DEBUG
     @AppStorage(DetailArtworkSlabTuning.thicknessKey) private var debugSlabThickness = 8.0
-    @AppStorage(DetailArtworkSlabTuning.darknessKey) private var debugSlabDarkness =
-        PlayerArtworkGlassParameters.detail.slabDarkness
-    @AppStorage(DetailArtworkSlabTuning.depthShadingKey) private var debugSlabDepthShading =
-        PlayerArtworkGlassParameters.detail.slabDepthShading
+    @AppStorage(DetailArtworkSlabTuning.shadeKey) private var debugSlabShade =
+        PlayerArtworkGlassParameters.detail.slabShade
     @AppStorage(DetailArtworkSlabTuning.lipPositionKey) private var debugLipPosition =
         PlayerArtworkGlassParameters.detail.lipPosition
     @AppStorage(DetailArtworkSlabTuning.lipWidthKey) private var debugLipWidth =
@@ -691,8 +689,7 @@ struct DetailArtworkView: View {
     private var displayedSlabThickness: CGFloat { debugSlabThickness }
     private var glassParameters: PlayerArtworkGlassParameters {
         var parameters = PlayerArtworkGlassParameters.detail
-        parameters.slabDarkness = debugSlabDarkness
-        parameters.slabDepthShading = debugSlabDepthShading
+        parameters.slabShade = debugSlabShade
         parameters.lipPosition = debugLipPosition
         parameters.lipWidth = debugLipWidth
         parameters.reflectionStrength = debugLipStrength
@@ -875,8 +872,7 @@ struct DetailArtworkView: View {
                     Button("Reset") {
                         let defaults = PlayerArtworkGlassParameters.detail
                         debugSlabThickness = 8
-                        debugSlabDarkness = defaults.slabDarkness
-                        debugSlabDepthShading = defaults.slabDepthShading
+                        debugSlabShade = defaults.slabShade
                         debugLipPosition = defaults.lipPosition
                         debugLipWidth = defaults.lipWidth
                         debugLipStrength = defaults.reflectionStrength
@@ -894,8 +890,7 @@ struct DetailArtworkView: View {
                 Divider()
                 Text("Slab edge").font(.subheadline.bold())
                 slabSlider("Thickness (pt)", value: $debugSlabThickness, range: 0...30, step: 0.5)
-                slabSlider("Darkness", value: $debugSlabDarkness, range: 0...1, step: 0.01)
-                slabSlider("Depth shading", value: $debugSlabDepthShading, range: 0...1, step: 0.01)
+                slabSlider("Shade", value: $debugSlabShade, range: 0...1, step: 0.01)
                 slabSlider("Turn (°)", value: $debugTurn, range: 0...35, step: 0.5)
                 Divider()
                 Text("Edge fade").font(.subheadline.bold())
@@ -970,8 +965,7 @@ private struct SlabOutline: Shape {
 // Debug-only storage keys shared by the slab popover and DetailArtworkRotation.
 enum DetailArtworkSlabTuning {
     static let thicknessKey = "debug.slab.thickness"
-    static let darknessKey = "debug.slab.darkness"
-    static let depthShadingKey = "debug.slab.depthShading"
+    static let shadeKey = "debug.slab.shade"
     static let turnKey = "debug.slab.turn"
     static let lipPositionKey = "debug.slab.lipPosition"
     static let lipWidthKey = "debug.slab.lipWidth"

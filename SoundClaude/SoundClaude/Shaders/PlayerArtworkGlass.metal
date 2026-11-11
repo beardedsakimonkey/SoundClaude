@@ -21,33 +21,27 @@ static float2 insideRoundedRect(float2 point, float2 size, float cornerRadius, f
 }
 
 // The slab's side, seen when the cover turns: the face swept `slabShift` points sideways.
-// The side shows the face's nearer edge flipped onto it, darkened toward the back.
-static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI::Layer layer, float2 size, float cornerRadius, float slabShift, float2 slabShading) {
+// The print's edge colors run straight back through the side, which is shaded as one
+// surface turned away from the light: `shade` is how dark it gets at the back.
+static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI::Layer layer, float2 size, float cornerRadius, float slabShift, float shade) {
     if (slabShift == 0.0) return half4(0.0h);
     float hull = roundedRectDistance(local, min(slabShift, 0.0), size.x + max(slabShift, 0.0), size.y, cornerRadius);
     float coverage = saturate(0.5 - hull);
     if (coverage <= 0.0) return half4(0.0h);
 
-    // Flip across the nearer vertical edge, pulled clear of the face's rounded corners.
-    float2 mirrored = float2(local.x < size.x * 0.5 ? -local.x : 2.0 * size.x - local.x, local.y);
-    half4 sample = layer.sample(position - local + insideRoundedRect(mirrored, size, cornerRadius, 1.0));
+    // Extend the face's nearest edge color, softened along the edge so single
+    // pixels of the print don't streak across the side.
+    float2 layerOrigin = position - local;
+    float2 nearest = clamp(local, float2(0.0), size);
+    half4 sample = 0.5h * layer.sample(layerOrigin + insideRoundedRect(nearest, size, cornerRadius, 1.5));
+    sample += 0.25h * layer.sample(layerOrigin + insideRoundedRect(nearest - float2(0.0, 1.5), size, cornerRadius, 1.5));
+    sample += 0.25h * layer.sample(layerOrigin + insideRoundedRect(nearest + float2(0.0, 1.5), size, cornerRadius, 1.5));
     half3 color = sample.rgb / max(sample.a, 0.001h);
+
+    // The side steps darker where it folds away from the face, then falls off
+    // smoothly toward the back like a softly rounded edge.
     float back = saturate(faceDistance / abs(slabShift));
-    // Apply more shading to dark artwork so the edge is not defined mainly by
-    // bright patches. Bound the correction near black to retain shadow detail,
-    // and scale RGB together to preserve the artwork's color ratios.
-    float brightness = saturate(dot(float3(color), float3(0.2126, 0.7152, 0.0722)));
-    float transmission = (1.0 - saturate(slabShading.x))
-        * (1.0 - saturate(slabShading.y) * back);
-    float shadowWeight = 1.0 / mix(0.35, 1.0, brightness);
-    color *= half(pow(transmission, shadowWeight));
-    // A faint neutral reflection separates the glass side from the print.
-    // Fade it out as the projected side closes, avoiding a flash at zero turn.
-    float sideVisibility = smoothstep(0.0, 2.0, abs(slabShift));
-    color = mix(color, half3(0.78h, 0.80h, 0.81h), half(0.07 * back * sideVisibility));
-    float backLip = exp(-pow(max(-hull, 0.0) / 0.65, 2.0));
-    float sideLight = mix(0.06, 0.18, 1.0 - saturate(local.y / size.y));
-    color = mix(color, half3(1.0h), half(backLip * sideLight * sideVisibility));
+    color *= half(1.0 - saturate(shade) * mix(0.45, 1.0, smoothstep(0.0, 1.0, back)));
     return half4(color, 1.0h) * (sample.a * half(coverage));
 }
 
@@ -69,7 +63,7 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     float rotation,
     float2 origin,
     float slabShift,
-    float2 slabShading
+    float slabShade
 ) {
     // `origin` places the face inside a layer padded to make room for the slab edge.
     float2 local = position - origin;
@@ -87,7 +81,7 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     // The artwork brings its own antialiased silhouette.
     half faceAlpha = original.a;
     half4 edge = faceAlpha < 1.0h
-        ? slabEdge(position, local, distance, layer, size, cornerRadius, slabShift, slabShading)
+        ? slabEdge(position, local, distance, layer, size, cornerRadius, slabShift, slabShade)
         : half4(0.0h);
     if (faceAlpha <= 0.0h) return edge;
 

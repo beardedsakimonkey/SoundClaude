@@ -12,17 +12,14 @@ struct PlayerArtworkGlassParameters {
     var causticStrength = 0.15
     var specularStrength = 0.08
     var specularSoftness = 0.25
-    // Base darkness, then the fraction of remaining light removed toward the back.
-    var slabDarkness = 0.32
-    var slabDepthShading = (0.54 - 0.32) / (1.0 - 0.32)
+    // How dark the slab's side gets at the back (0...1); it eases in from the face.
+    var slabShade = 0.5
 }
 
 extension PlayerArtworkGlassParameters {
     // Detail artwork defaults captured from the Tune Glass controls.
     static var detail: Self {
         var parameters = Self()
-        parameters.slabDarkness = 0.23
-        parameters.slabDepthShading = 0.36
         parameters.lipPosition = 1.0
         parameters.lipWidth = 1.0
         parameters.reflectionStrength = 0.5
@@ -63,7 +60,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
     // Y rotation in degrees, animated with the same spring as the artwork.
     var rotation = 0.0
     // Nonzero pads the shader layer so it can draw the slab's side past the face.
-    // The side shows the face's nearer edge flipped horizontally.
+    // The side continues the face's nearer edge colors, shaded toward the back.
     var slabThickness: CGFloat = 0
     // The face's size when the caller knows it. Prefer this in scrolling content.
     var size: CGSize? = nil
@@ -89,17 +86,18 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
         let slabPadding = enablesGlass ? Self.slabPadding(thickness: slabThickness) : 0
         let slabShift = min(max(slabShift, -slabPadding), slabPadding)
         let rotationRadians = rotation * .pi / 180
-        let slabDarknessScale = colorScheme == .light ? 0.0 : 1.0
-        // The slab edge reads the face across the edge, pulled in from the corners.
+        // A dark side reads heavy against a light background.
+        let slabShade = parameters.slabShade * (colorScheme == .light ? 0.6 : 1.0)
+        // The slab edge reads the face's nearest edge, pulled in from the corners.
         let maxSampleOffset = slabPadding > 0
-            ? CGSize(width: slabPadding * 2 + cornerRadius, height: cornerRadius)
+            ? CGSize(width: slabPadding + cornerRadius + 4, height: cornerRadius + 4)
             : .zero
         let cornerRadius = cornerRadius
         let shader = { @Sendable (faceSize: CGSize) in
             Self.shader(
                 faceSize: faceSize, cornerRadius: cornerRadius, parameters: parameters,
                 rotation: rotationRadians, slabPadding: slabPadding, slabShift: slabShift,
-                slabDarknessScale: slabDarknessScale
+                slabShade: slabShade
             )
         }
         let composited = content
@@ -131,7 +129,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
 
     nonisolated private static func shader(
         faceSize: CGSize, cornerRadius: CGFloat, parameters: PlayerArtworkGlassParameters,
-        rotation: Double, slabPadding: CGFloat, slabShift: CGFloat, slabDarknessScale: Double
+        rotation: Double, slabPadding: CGFloat, slabShift: CGFloat, slabShade: Double
     ) -> Shader {
         ShaderLibrary.playerArtworkGlass(
             .float2(faceSize.width, faceSize.height),
@@ -148,7 +146,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
             .float(rotation),
             .float2(slabPadding, 0),
             .float(slabShift),
-            .float2(parameters.slabDarkness * slabDarknessScale, parameters.slabDepthShading)
+            .float(slabShade)
         )
     }
 }
