@@ -9,7 +9,6 @@ fi
 
 app=$1
 output=$2
-script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 work=$(mktemp -d /tmp/soundclaude-dmg.XXXXXX)
 mount_path="/Volumes/SoundClaude-Install-${work##*.}"
 mounted=false
@@ -26,8 +25,6 @@ trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
 
 mkdir -p "$work/staging" "$(dirname "$output")"
-mkdir -p "$work/staging/.background"
-swift "$script_dir/generate-dmg-background.swift" "$work/staging/.background/gradient.tiff"
 ditto "$app" "$work/staging/SoundClaude.app"
 ln -s /Applications "$work/staging/Applications"
 hdiutil create -quiet -srcfolder "$work/staging" -volname "SoundClaude" \
@@ -51,7 +48,6 @@ on run argv
         set arrangement of viewOptions to not arranged
         set icon size of viewOptions to 96
         set text size of viewOptions to 14
-        set background picture of viewOptions to file ".background:gradient.tiff" of imageDisk
         set position of item "SoundClaude.app" of imageDisk to {140, 130}
         set position of item "Applications" of imageDisk to {420, 130}
         close container window of imageDisk
