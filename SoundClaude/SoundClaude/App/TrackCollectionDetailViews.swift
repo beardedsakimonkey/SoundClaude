@@ -547,6 +547,8 @@ private struct TrackCollectionLikeButtonStyle: ButtonStyle {
                     .aspectRatio(1, contentMode: .fill)
             }
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHighlighted)
+            .pressBounce(configuration.isPressed)
+            .contentShape(Rectangle())
             .onContentHover { isHovered = $0 }
             .onDisappear { isHovered = false }
     }
