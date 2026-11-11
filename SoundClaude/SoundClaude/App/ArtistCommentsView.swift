@@ -156,7 +156,7 @@ struct ArtistCommentRow: View {
                         onSelectTrack(track)
                     } label: {
                         Text("\(Text("on").foregroundStyle(.secondary)) \(Text(track.title).underline(isHoveringTitle))")
-                            .fontWeight(.medium)
+                            .font(.callout.weight(.medium))
                             .lineLimit(1)
                             .contentShape(Rectangle())
                     }
@@ -171,7 +171,7 @@ struct ArtistCommentRow: View {
                     }
                 }
 
-                ArtistMentionText("“\(comment.body)”", onSelectArtist: onSelectArtist)
+                ArtistMentionText(comment.body, isQuoted: true, onSelectArtist: onSelectArtist)
                     .textSelection(.enabled)
                     .lineLimit(bodyLineLimit)
                     .frame(maxWidth: .infinity, alignment: .leading)

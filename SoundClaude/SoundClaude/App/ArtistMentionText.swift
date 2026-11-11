@@ -5,14 +5,16 @@ struct ArtistMentionText: View {
 
     let onSelectArtist: (SoundCloudUser) -> Void
     private let mentions: ArtistMentions
+    private let isQuoted: Bool
 
-    init(_ text: String, onSelectArtist: @escaping (SoundCloudUser) -> Void) {
+    init(_ text: String, isQuoted: Bool = false, onSelectArtist: @escaping (SoundCloudUser) -> Void) {
         mentions = ArtistMentions.cached(text)
+        self.isQuoted = isQuoted
         self.onSelectArtist = onSelectArtist
     }
 
     var body: some View {
-        Text(mentions.text)
+        displayText
             .opacity(0.95)
             .environment(\.openURL, OpenURLAction { url in
                 if let tag = mentions.tagsByURL[url] {
@@ -25,6 +27,14 @@ struct ArtistMentionText: View {
                 onSelectArtist(artist)
                 return .handled
             })
+    }
+
+    private var displayText: Text {
+        if isQuoted {
+            Text("\(Text("“").foregroundStyle(.secondary))\(Text(mentions.text))\(Text("”").foregroundStyle(.secondary))")
+        } else {
+            Text(mentions.text)
+        }
     }
 }
 
