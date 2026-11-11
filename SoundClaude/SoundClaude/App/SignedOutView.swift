@@ -60,7 +60,7 @@ struct SignedOutView: View {
                     Color(nsColor: .windowBackgroundColor)
                     RadialGradient(
                         stops: [
-                            .init(color: Color(.sRGB, red: 0.78, green: 0.5, blue: 0.28).opacity(colorScheme == .dark ? 0.14 : 0.09), location: 0),
+                            .init(color: .gray.opacity(colorScheme == .dark ? 0.14 : 0.09), location: 0),
                             .init(color: .gray.opacity(colorScheme == .dark ? 0.05 : 0.03), location: 0.45),
                             .init(color: .clear, location: 1)
                         ],
@@ -348,9 +348,16 @@ private struct SignedOutLinkStyle: ButtonStyle {
 private struct SignedOutActionStyle: ButtonStyle {
     let isPrimary: Bool
     var cornerRadius: CGFloat = 12
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isEnabled) private var isEnabled
     @State private var isHovering = false
     private let primaryColor = Color(.sRGB, red: 0.95, green: 0.5, blue: 0.06, opacity: 1)
+
+    private var borderColor: Color {
+        colorScheme == .dark
+            ? .white.opacity(isPrimary ? 0.25 : 0.08)
+            : .black.opacity(isPrimary ? 0.2 : 0.18)
+    }
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -375,7 +382,7 @@ private struct SignedOutActionStyle: ButtonStyle {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .strokeBorder(.white.opacity(isPrimary ? 0.25 : 0.08), lineWidth: 1)
+                    .strokeBorder(borderColor, lineWidth: 1)
             }
             .shadow(color: isPrimary ? primaryColor.opacity(0.12) : .clear, radius: 18, y: 4)
             .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.5)
