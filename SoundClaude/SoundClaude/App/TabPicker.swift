@@ -8,6 +8,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
     let optionCount: (Selection) -> Int?
     let optionSystemImage: (Selection) -> String?
     let allowsIconOnly: Bool
+    let horizontalPadding: CGFloat
     /// What to warm while a tab other than the selected one is hovered or pressed.
     let prefetch: (Selection) -> PrefetchTarget?
 
@@ -18,6 +19,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
         optionCount: @escaping (Selection) -> Int? = { _ in nil },
         optionSystemImage: @escaping (Selection) -> String? = { _ in nil },
         allowsIconOnly: Bool = false,
+        horizontalPadding: CGFloat = 20,
         prefetch: @escaping (Selection) -> PrefetchTarget? = { _ in nil }
     ) {
         self.title = title
@@ -26,6 +28,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
         self.optionCount = optionCount
         self.optionSystemImage = optionSystemImage
         self.allowsIconOnly = allowsIconOnly
+        self.horizontalPadding = horizontalPadding
         self.prefetch = prefetch
     }
 
@@ -75,7 +78,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                         .lineLimit(1)
                         .foregroundStyle(isSelected || hoveredOption == option ? Color.primary : Color.secondary)
                         .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: hoveredOption == option)
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, horizontalPadding)
                         .padding(.vertical, 14)
                         .overlay(alignment: .bottom) {
                             Color.clear
