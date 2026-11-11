@@ -573,7 +573,7 @@ struct SignedInView: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(height: 120)
+            .frame(height: 100)
         }
         // Preserve artwork that extends behind the toolbar and sidebar.
         .ignoresSafeArea(edges: [.top, .leading, .trailing])
