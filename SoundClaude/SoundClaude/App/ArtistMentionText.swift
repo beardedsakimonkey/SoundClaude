@@ -2,6 +2,9 @@ import SwiftUI
 
 struct ArtistMentionText: View {
     @Environment(\.searchTag) private var searchTag
+    @State private var isHovering = false
+    @State private var hoverLocation: CGPoint?
+    @State private var hoveredLink: Int?
 
     let onSelectArtist: (SoundCloudUser) -> Void
     private let mentions: ArtistMentions
@@ -16,6 +19,23 @@ struct ArtistMentionText: View {
     var body: some View {
         displayText
             .opacity(0.95)
+            .onContentHover { isHovering = $0 }
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location): hoverLocation = location
+                case .ended: hoverLocation = nil
+                }
+            }
+            .backgroundPreferenceValue(Text.LayoutKey.self) { layouts in
+                GeometryReader { geometry in
+                    let link = linkAtPointer(in: layouts, geometry: geometry)
+                    Color.clear
+                        .onChange(of: link, initial: true) { _, value in
+                            hoveredLink = value
+                        }
+                }
+                .allowsHitTesting(false)
+            }
             .environment(\.openURL, OpenURLAction { url in
                 if let tag = mentions.tagsByURL[url] {
                     searchTag(tag)
@@ -27,15 +47,51 @@ struct ArtistMentionText: View {
                 onSelectArtist(artist)
                 return .handled
             })
+            #if DEBUG
+            .debugViewUpdates("ArtistMentionText")
+            #endif
     }
 
     private var displayText: Text {
         if isQuoted {
-            Text("\(Text("“").foregroundStyle(.secondary))\(Text(mentions.text))\(Text("”").foregroundStyle(.secondary))")
+            Text("\(Text("“").foregroundStyle(.secondary))\(linkedText)\(Text("”").foregroundStyle(.secondary))")
         } else {
-            Text(mentions.text)
+            linkedText
         }
     }
+
+    private var linkedText: Text {
+        mentions.text.runs.enumerated().reduce(Text("")) { result, element in
+            let (index, run) = element
+            var part = Text(AttributedString(mentions.text[run.range]))
+            if run.link != nil {
+                part = part
+                    .customAttribute(MentionLinkAttribute(index: index))
+                    .underline(isHovering && hoveredLink == index)
+            }
+            return Text("\(result)\(part)")
+        }
+    }
+
+    private func linkAtPointer(in layouts: [Text.LayoutKey.AnchoredLayout], geometry: GeometryProxy) -> Int? {
+        guard let hoverLocation else { return nil }
+        for anchored in layouts {
+            let origin = geometry[anchored.origin]
+            let point = CGPoint(x: hoverLocation.x - origin.x, y: hoverLocation.y - origin.y)
+            for line in anchored.layout {
+                for run in line where run.typographicBounds.rect.contains(point) {
+                    if let link = run[MentionLinkAttribute.self] {
+                        return link.index
+                    }
+                }
+            }
+        }
+        return nil
+    }
+}
+
+private struct MentionLinkAttribute: TextAttribute {
+    let index: Int
 }
 
 private struct ArtistMentions {
