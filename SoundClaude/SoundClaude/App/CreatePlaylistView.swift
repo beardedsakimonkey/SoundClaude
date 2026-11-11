@@ -10,6 +10,7 @@ struct PlaylistEditorView: View {
     let initialTrack: SoundCloudTrack?
     let artworkLoader: ArtworkLoader?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var title = ""
     @State private var description = ""
     @State private var isPrivate = true
@@ -17,6 +18,7 @@ struct PlaylistEditorView: View {
     @State private var artworkPreview: NSImage?
     @State private var removedArtwork = false
     @State private var isChoosingArtwork = false
+    @State private var isHoveringArtwork = false
     @State private var isSaving = false
     @State private var errorMessage: String?
     @FocusState private var isTitleFocused: Bool
@@ -158,6 +160,7 @@ struct PlaylistEditorView: View {
                     }
                 }
                 .frame(width: 210, height: 210)
+                .scaleEffect(isHoveringArtwork && !isSaving && !reduceMotion ? 1.1 : 1)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .modifier(PlayerArtworkGlass(
                     cornerRadius: 10,
@@ -166,6 +169,13 @@ struct PlaylistEditorView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .onHover { isHoveringArtwork = $0 }
+            .animation(
+                reduceMotion ? nil : isHoveringArtwork
+                    ? .spring(response: 0.4, dampingFraction: 0.75)
+                    : .spring(duration: 0.34, bounce: 0),
+                value: isHoveringArtwork
+            )
             .accessibilityLabel(hasArtwork ? "Change playlist image" : "Choose playlist image")
             .help("Choose a playlist image")
 
