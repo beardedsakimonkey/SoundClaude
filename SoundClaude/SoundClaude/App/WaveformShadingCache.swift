@@ -10,7 +10,7 @@ struct WaveformShadingStyle: Equatable {
     var preservesChroma: Bool
 
     static let dark = WaveformShadingStyle(depth: 1, crest: 1, preservesChroma: false)
-    static let light = WaveformShadingStyle(depth: 0.4, crest: 0.8, preservesChroma: true)
+    static let light = WaveformShadingStyle(depth: 0.4, crest: 0.4, preservesChroma: true)
 }
 
 // Each view retains a small palette across animation frames. Key by resolved

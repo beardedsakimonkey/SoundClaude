@@ -274,8 +274,11 @@ struct TrackWaveformView: View {
                     let background = backgroundColor.cgColor
                     let color = renderedProgressColor
                         .resolve(in: context.environment).cgColor
-                    // A white wash disappears against light-mode bars; show the
-                    // accent tint alone there.
+                    // Darken unplayed bars with a neutral tint in light mode.
+                    let hoverColor = colorScheme == .light
+                        ? Color.primary.opacity(0.4).resolve(in: context.environment).cgColor
+                        : color
+                    // A white wash is only visible against dark-mode bars.
                     let highlight = colorScheme == .light ? nil
                         : Color(white: layout == .compact ? 0.75 : 1).opacity(0.9)
                             .resolve(in: context.environment).cgColor
@@ -315,7 +318,7 @@ struct TrackWaveformView: View {
                                         )
                                     } else {
                                         fillBars(
-                                            color, in: preview, bars: bars, rect: hoverRegion,
+                                            hoverColor, in: preview, bars: bars, rect: hoverRegion,
                                             shaded: colorScheme != .light
                                         )
                                         if let highlight {
@@ -576,7 +579,7 @@ struct TrackWaveformView: View {
         let contrastedAccent = accent.contrasted(
             isDark: isDark,
             increasedContrast: colorSchemeContrast == .increased,
-            minimumContrast: isDark ? 3.0 : 1.75
+            minimumContrast: 3.0
         )
         return Color(
             .sRGB, red: contrastedAccent.red,
