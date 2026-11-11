@@ -64,6 +64,8 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
     var slabThickness: CGFloat = 0
     // The face's size when the caller knows it. Prefer this in scrolling content.
     var size: CGSize? = nil
+    var shadowRadius: CGFloat = 6
+    var shadowOffsetY: CGFloat = 3
 
     var animatableData: Double {
         get { rotation }
@@ -124,7 +126,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
         }
         .padding(.horizontal, -slabPadding)
         .shadow(color: .black.opacity(0.14), radius: 1, x: 0, y: 1)
-        .shadow(color: .black.opacity(0.16), radius: 6, x: 0, y: 3)
+        .shadow(color: .black.opacity(0.16), radius: shadowRadius, x: 0, y: shadowOffsetY)
     }
 
     nonisolated private static func shader(

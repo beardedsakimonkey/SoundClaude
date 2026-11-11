@@ -58,7 +58,6 @@ struct PlayerFooterView: View {
             footerWidth = width
         }
         .padding(contentInset)
-        .padding(.horizontal, 2)
         .modifier(PlayerFooterGlass(cornerRadius: cornerRadius))
         .alert("Could not update like", isPresented: Binding(
             get: { model.likeErrorMessage != nil },
@@ -427,7 +426,9 @@ private struct PlayerFooterArtworkThumbnail: View {
         .scaleEffect(isHoveringArtwork && !reduceMotion ? 1.15 : 1)
         .clipShape(artworkShape)
         .modifier(PlayerArtworkGlass(
-            cornerRadius: cornerRadius
+            cornerRadius: cornerRadius,
+            shadowRadius: 2,
+            shadowOffsetY: 1
         ))
         .id(artworkURL)
         .animation(
