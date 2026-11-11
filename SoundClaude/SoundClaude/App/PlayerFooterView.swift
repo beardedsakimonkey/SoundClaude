@@ -307,7 +307,7 @@ private struct PlayerFooterSkipButton: View {
             if !reduceMotion { animationTrigger &+= 1 }
             action()
         } label: {
-            AnimatedSkipIcon(isBackward: isBackward, trigger: animationTrigger, reduceMotion: reduceMotion)
+            AnimatedSkipIcon(isBackward: isBackward, trigger: animationTrigger, reduceMotion: reduceMotion, isOnGlass: true)
                 .frame(width: 21, height: 13)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)

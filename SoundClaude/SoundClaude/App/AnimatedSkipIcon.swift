@@ -5,6 +5,8 @@ struct AnimatedSkipIcon: NSViewRepresentable {
     let isBackward: Bool
     let trigger: Int
     let reduceMotion: Bool
+    // SwiftUI draws .primary vibrantly on glass, which a flat label color cannot match in light mode.
+    var isOnGlass = false
 
     func makeNSView(context: Context) -> SkipIconView {
         let view = SkipIconView()
@@ -13,7 +15,7 @@ struct AnimatedSkipIcon: NSViewRepresentable {
     }
 
     func updateNSView(_ view: SkipIconView, context: Context) {
-        view.configure(isBackward: isBackward, reduceMotion: reduceMotion)
+        view.configure(isBackward: isBackward, isOnGlass: isOnGlass, reduceMotion: reduceMotion)
         if view.lastTrigger != trigger {
             view.lastTrigger = trigger
             if !reduceMotion { view.advance() }
@@ -31,6 +33,7 @@ final class SkipIconView: NSView {
     private var spare = 3
     private var state = 1
     private var isBackward = false
+    private var isOnGlass = false
 
     private struct Spring {
         let mass: Double
@@ -82,17 +85,23 @@ final class SkipIconView: NSView {
     }
 
     private func updateTint() {
+        let isLight = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .aqua
+        let color = isOnGlass && isLight ? NSColor.black : NSColor.labelColor
         effectiveAppearance.performAsCurrentDrawingAppearance {
             CATransaction.begin()
             CATransaction.setDisableActions(true)
             for arrow in arrows {
-                (arrow.sublayers?.first as? CAShapeLayer)?.fillColor = NSColor.labelColor.cgColor
+                (arrow.sublayers?.first as? CAShapeLayer)?.fillColor = color.cgColor
             }
             CATransaction.commit()
         }
     }
 
-    func configure(isBackward: Bool, reduceMotion: Bool) {
+    func configure(isBackward: Bool, isOnGlass: Bool, reduceMotion: Bool) {
+        if self.isOnGlass != isOnGlass {
+            self.isOnGlass = isOnGlass
+            updateTint()
+        }
         if self.isBackward != isBackward {
             self.isBackward = isBackward
             needsLayout = true
