@@ -500,7 +500,6 @@ struct TrackCollectionLikeButton: View {
 
     var body: some View {
         let actionLabel = "\(isLiked ? "Unlike" : "Like") \(subject)"
-        let isDimmed = isUpdating || isLoading
         Button {
             guard !isLoading else { return }
             if !isLiked { likeTaps += 1 }
@@ -513,12 +512,12 @@ struct TrackCollectionLikeButton: View {
                 .frame(width: size.frame.width, height: size.frame.height)
         }
         .buttonStyle(TrackCollectionLikeButtonStyle(isLiked: isLiked))
-        .opacity(isDimmed ? 0.5 : 1)
+        .opacity(isLoading ? 0.5 : 1)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isDimmed)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLoading)
         .contentHelp(actionLabel)
         .accessibilityLabel(actionLabel)
-        .accessibilityValue(isDimmed ? "Updating" : (isLiked ? "Liked" : "Not liked"))
+        .accessibilityValue(isUpdating || isLoading ? "Updating" : (isLiked ? "Liked" : "Not liked"))
     }
 }
 

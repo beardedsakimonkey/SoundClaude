@@ -49,9 +49,7 @@ struct DetailLikeButton: View {
             fill: isLiked ? .accentColor.opacity(0.12) : .primary.opacity(0.12)
         ))
         // Keep the button enabled so a pending request cannot interrupt its release spring.
-        .opacity(isUpdating ? 0.5 : 1)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
         .contentHelp(actionLabel)
         .accessibilityLabel(actionLabel)
         .accessibilityValue(isUpdating ? "Updating" : (isLiked ? "Liked" : "Not liked"))

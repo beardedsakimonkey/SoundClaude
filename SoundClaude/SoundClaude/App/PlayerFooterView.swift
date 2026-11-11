@@ -610,9 +610,6 @@ private struct PlayerFooterLikeButton: View {
     var body: some View {
         let track = playback.currentTrack
         let isLiked = playback.sessionToRestore?.isLiked ?? track.map { likes.isLiked($0) } ?? false
-        let isUpdating = track.map {
-            likes.isUpdating(trackURN: $0.urn)
-        } ?? false
 
         return Button {
             model.toggleCurrentTrackLike()
@@ -629,9 +626,7 @@ private struct PlayerFooterLikeButton: View {
         }
         .buttonStyle(PlayerFooterButtonStyle())
         .disabled(track == nil)
-        .opacity(isUpdating ? 0.5 : 1)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isLiked)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
         .contentHelp(isLiked ? "Unlike track (L)" : "Like track (L)")
         .accessibilityLabel(isLiked ? "Unlike track" : "Like track")
         .accessibilityValue(isLiked ? "Liked" : "Not liked")
