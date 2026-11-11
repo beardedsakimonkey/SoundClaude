@@ -239,7 +239,7 @@ struct LikesView: View {
                             value: likes.isLiked(track)
                         )
                         .transition(
-                            reduceMotion ? .identity : .move(edge: .top).combined(with: .opacity)
+                            reduceMotion ? .identity : .opacity
                         )
                     }
                 }
