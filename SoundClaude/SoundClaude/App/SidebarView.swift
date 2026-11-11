@@ -272,10 +272,12 @@ struct SidebarView: View {
             }
         }
         .padding(8)
-        .modifier(SidebarPlaylistRemovalAnimation(
+        .modifier(SidebarLibraryAnimation(
             playlistURNs: playlists.playlists.map(\.urn),
             likedPlaylistURNs: playlists.likedPlaylists.map(\.urn),
-            likedStationURNs: likes.likedStations.map(\.urn)
+            likedStationURNs: likes.likedStations.map(\.urn),
+            hasLoadedPlaylistLikes: playlists.hasLoadedLikes,
+            hasLoadedStationLikes: likes.hasLoadedStationLikes
         ))
         // Cache restoration should show rows immediately. Section toggles animate separately.
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: isLikedStationsExpanded)
@@ -655,12 +657,16 @@ private struct SidebarDropHighlight: ViewModifier {
     }
 }
 
-private struct SidebarPlaylistRemovalAnimation: ViewModifier {
+private struct SidebarLibraryAnimation: ViewModifier {
     let playlistURNs: [String]
     let likedPlaylistURNs: [String]
     let likedStationURNs: [String]
+    let hasLoadedPlaylistLikes: Bool
+    let hasLoadedStationLikes: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var previousRows: Set<String> = []
+    @State private var previouslyLoadedPlaylistLikes = false
+    @State private var previouslyLoadedStationLikes = false
 
     private var rows: Set<String> {
         Set(
@@ -673,13 +679,26 @@ private struct SidebarPlaylistRemovalAnimation: ViewModifier {
     func body(content: Content) -> some View {
         content
             .transaction { transaction in
-                // Animate the whole sidebar so sections below the removed row also slide up.
-                if !reduceMotion && !previousRows.subtracting(rows).isEmpty {
+                let addedRows = rows.subtracting(previousRows)
+                let addedPlaylistLike = previouslyLoadedPlaylistLikes && hasLoadedPlaylistLikes
+                    && addedRows.contains { $0.hasPrefix("liked:") }
+                let addedStationLike = previouslyLoadedStationLikes && hasLoadedStationLikes
+                    && addedRows.contains { $0.hasPrefix("station:") }
+                // Animate surrounding sections too, but keep initial loading immediate.
+                if !reduceMotion && (
+                    !previousRows.subtracting(rows).isEmpty || addedPlaylistLike || addedStationLike
+                ) {
                     transaction.animation = .easeInOut(duration: 0.25)
                 }
             }
             .onChange(of: rows, initial: true) { _, newRows in
                 previousRows = newRows
+            }
+            .onChange(of: hasLoadedPlaylistLikes, initial: true) { _, hasLoaded in
+                previouslyLoadedPlaylistLikes = hasLoaded
+            }
+            .onChange(of: hasLoadedStationLikes, initial: true) { _, hasLoaded in
+                previouslyLoadedStationLikes = hasLoaded
             }
     }
 }
