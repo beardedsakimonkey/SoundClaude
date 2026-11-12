@@ -286,6 +286,30 @@ struct PlaylistTests {
         )
         precondition(lastArtistPage.playlists.isEmpty && lastArtistPage.nextURL == nil)
 
+        // Playlists that include a track borrow a cover from their tracks, skipping ID-only stubs.
+        let trackPlaylistsNextURL = "https://api-v2.soundcloud.com/tracks/9/playlists_without_albums?offset=10"
+        let coverURL = "https://i1.sndcdn.com/artworks-cover-large.jpg"
+        let ownCoverURL = "https://i1.sndcdn.com/artworks-own-large.jpg"
+        PlaylistURLProtocol.respond { request in
+            precondition(request.url?.path == "/tracks/9/playlists_without_albums")
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            precondition(query.contains(URLQueryItem(name: "limit", value: "10")))
+            let tracks = "[{\"id\":1},{\"id\":2,\"artwork_url\":\"\(coverURL)\"}]"
+            let borrowed = playlist.dropLast() + ",\"tracks\":\(tracks)}"
+            let own = borrowed
+                .replacingOccurrences(of: "\"id\":42", with: "\"id\":43")
+                .replacingOccurrences(of: "\"artwork_url\":\"\"", with: "\"artwork_url\":\"\(ownCoverURL)\"")
+            return (200, "{\"collection\":[\(borrowed),\(own),\(playlist)],\"next_href\":\"\(trackPlaylistsNextURL)\"}")
+        }
+        let trackPlaylists = try await client.playlistsContainingTrack(
+            urn: "soundcloud:tracks:9", accessToken: "test-token"
+        )
+        precondition(trackPlaylists.playlists.map(\.urn) == [
+            "soundcloud:playlists:42", "soundcloud:playlists:43", "soundcloud:playlists:42"
+        ])
+        precondition(trackPlaylists.playlists.map(\.artworkURL?.absoluteString) == [coverURL, ownCoverURL, nil])
+        precondition(trackPlaylists.nextURL?.absoluteString == trackPlaylistsNextURL)
+
         PlaylistURLProtocol.respond { request in
             precondition(request.url?.path == "/playlists/42")
             return (200, playlist)

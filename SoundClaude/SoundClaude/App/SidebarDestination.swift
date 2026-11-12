@@ -51,6 +51,8 @@ enum Route: Codable, Hashable {
     case playlist(SoundCloudPlaylist)
     case station(String, seedTrack: SoundCloudTrack? = nil, seedArtistName: String? = nil)
     case track(SoundCloudTrack)
+    case relatedTracks(SoundCloudTrack)
+    case trackPlaylists(SoundCloudTrack)
     case artist(SoundCloudUser)
     case artistUsers(SoundCloudUser, ArtistUserList)
     case artistComments(SoundCloudUser)

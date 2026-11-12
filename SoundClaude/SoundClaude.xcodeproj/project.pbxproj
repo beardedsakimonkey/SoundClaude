@@ -96,6 +96,7 @@
 		A10000000000000000000029 /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002A /* MediaPlayer.framework */; };
 		A10000000000000000000039 /* ArtistDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000039 /* ArtistDetailView.swift */; };
 		A10000000000000000000072 /* ArtistUsersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000072 /* ArtistUsersView.swift */; };
+		A100000000000000000000F7 /* TrackListsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000F7 /* TrackListsView.swift */; };
 		A10000000000000000000083 /* ArtistCommentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000083 /* ArtistCommentsView.swift */; };
 		B719F96167384A598056BA01 /* UserGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B719F96167384A598056BA02 /* UserGridView.swift */; };
 		A10000000000000000000082 /* TrackCommentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000082 /* TrackCommentsView.swift */; };
@@ -239,6 +240,7 @@
 		D200000000000000000000C7 /* ToggleSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToggleSync.swift; sourceTree = "<group>"; };
 		A20000000000000000000039 /* ArtistDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistDetailView.swift; sourceTree = "<group>"; };
 		A20000000000000000000072 /* ArtistUsersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistUsersView.swift; sourceTree = "<group>"; };
+		A200000000000000000000F7 /* TrackListsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackListsView.swift; sourceTree = "<group>"; };
 		A20000000000000000000083 /* ArtistCommentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistCommentsView.swift; sourceTree = "<group>"; };
 		B719F96167384A598056BA02 /* UserGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserGridView.swift; sourceTree = "<group>"; };
 		A20000000000000000000082 /* TrackCommentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackCommentsView.swift; sourceTree = "<group>"; };
@@ -355,6 +357,7 @@
 				2B3DD082E98448CF88667491 /* StationDetailView.swift */,
 				A20000000000000000000039 /* ArtistDetailView.swift */,
 				A20000000000000000000072 /* ArtistUsersView.swift */,
+				A200000000000000000000F7 /* TrackListsView.swift */,
 				A20000000000000000000083 /* ArtistCommentsView.swift */,
 				B719F96167384A598056BA02 /* UserGridView.swift */,
 				A20000000000000000000082 /* TrackCommentsView.swift */,
@@ -660,6 +663,7 @@
 				7C744DE19B5D4565875D6CA0 /* StationDetailView.swift in Sources */,
 				A10000000000000000000039 /* ArtistDetailView.swift in Sources */,
 				A10000000000000000000072 /* ArtistUsersView.swift in Sources */,
+				A100000000000000000000F7 /* TrackListsView.swift in Sources */,
 				A10000000000000000000083 /* ArtistCommentsView.swift in Sources */,
 				B719F96167384A598056BA01 /* UserGridView.swift in Sources */,
 				A10000000000000000000082 /* TrackCommentsView.swift in Sources */,

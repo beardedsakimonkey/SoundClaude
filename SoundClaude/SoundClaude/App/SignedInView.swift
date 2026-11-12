@@ -499,6 +499,9 @@ struct SignedInView: View {
                 model: model,
                 onSelectTrack: showTrack,
                 onSelectArtist: showArtist,
+                onSelectPlaylist: showPlaylist,
+                onSelectRelatedTracks: { push(.relatedTracks($0)) },
+                onSelectTrackPlaylists: { push(.trackPlaylists($0)) },
                 onSelectStation: { urn, seedTrack in
                     push(.station(
                         urn,
@@ -507,6 +510,21 @@ struct SignedInView: View {
                 }
             )
             .id(track.urn)
+        case let .relatedTracks(track):
+            RelatedTracksView(
+                track: track, model: model,
+                onSelectTrack: showTrack,
+                onSelectArtist: showArtist
+            )
+            .id(route)
+        case let .trackPlaylists(track):
+            TrackPlaylistsView(
+                track: track, model: model,
+                onSelectTrack: showTrack,
+                onSelectArtist: showArtist,
+                onSelectPlaylist: showPlaylist
+            )
+            .id(route)
         case let .playlist(playlist):
             PlaylistDetailView(
                 playlist: playlist,
@@ -812,7 +830,7 @@ struct SignedInView: View {
             if case let .station(currentURN, _, _) = currentRoute, currentURN == urn { return }
             showStation(urn, seedArtistName: queue.sourceTitle ?? "Station")
         case .related:
-            if let track = queue.sourceTrack { showTrack(track) }
+            if let track = queue.sourceTrack { showQueueSourceRoute(.relatedTracks(track)) }
         case .artist:
             showQueueSourceArtist(queue.sourceArtist, tab: .tracks)
         case .artistReposts:

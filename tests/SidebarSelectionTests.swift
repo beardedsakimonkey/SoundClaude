@@ -31,6 +31,7 @@ struct SidebarSelectionTests {
         let playlist = SoundCloudPlaylist.systemPlaylist(urn: "soundcloud:system-playlists:1", title: "Mix")
         let routes: [Route] = [
             .search("query"), .genre("Ambient"), .tag("live"), .track(track),
+            .relatedTracks(track), .trackPlaylists(track),
             .playlist(playlist), .station("station", seedTrack: track),
             .station("artist-station", seedArtistName: user.username),
             .artist(user), .artistUsers(user, .followers), .artistUsers(user, .following),

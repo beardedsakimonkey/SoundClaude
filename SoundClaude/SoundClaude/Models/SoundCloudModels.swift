@@ -306,7 +306,7 @@ struct SoundCloudPlaylist: Codable, Identifiable, Sendable, Hashable {
     let urn: String
     let title: String
     let owner: SoundCloudUser
-    let artworkURL: URL?
+    var artworkURL: URL?
     let permalinkURL: URL
     let description: String?
     let trackCount: Int?

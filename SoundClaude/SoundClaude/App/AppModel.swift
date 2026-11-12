@@ -80,6 +80,9 @@ final class AppModel {
     private let firstCommentPageCache = RequestCache<TrackCacheKey, SoundCloudCommentPage>(name: "First Comment Pages", countLimit: 20)
     private let firstArtistCommentPageCache = RequestCache<NSURL, SoundCloudCommentPage>(name: "First Artist Comment Pages", countLimit: 20)
     private let firstRelatedTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Related Track Pages", countLimit: 20)
+    private let firstTrackPlaylistPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Track Playlist Pages", countLimit: 20)
+    // The track page asks for only the few playlists it shows.
+    private let trackPlaylistPreviewCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "Track Playlist Previews", countLimit: 20)
     // Artist pages open on any tab, so each tab's first page is cached separately.
     private let firstArtistTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Track Pages", countLimit: 20)
     private let firstArtistRepostPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Repost Pages", countLimit: 20)
@@ -317,6 +320,8 @@ final class AppModel {
         firstCommentPageCache.reset()
         firstArtistCommentPageCache.reset()
         firstRelatedTrackPageCache.reset()
+        firstTrackPlaylistPageCache.reset()
+        trackPlaylistPreviewCache.reset()
         firstArtistTrackPageCache.reset()
         firstArtistRepostPageCache.reset()
         firstArtistPlaylistRepostPageCache.reset()
@@ -985,6 +990,29 @@ final class AppModel {
         )
     }
 
+    func cachedRelatedTracks(for track: SoundCloudTrack) -> SoundCloudTrackPage? {
+        firstRelatedTrackPageCache.cached(track.urn as NSString)
+    }
+
+    func cachedPlaylistsContaining(_ track: SoundCloudTrack) -> SoundCloudPlaylistPage? {
+        firstTrackPlaylistPageCache.cached(track.urn as NSString)
+    }
+
+    func cachedPlaylistPreview(containing track: SoundCloudTrack) -> SoundCloudPlaylistPage? {
+        trackPlaylistPreviewCache.cached(track.urn as NSString)
+    }
+
+    /// The first few playlists that include the track, for the track's page.
+    func playlistPreview(containing track: SoundCloudTrack, limit: Int) async throws
+        -> SoundCloudPlaylistPage {
+        try await trackPlaylistPreviewCache.value(for: track.urn as NSString) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.playlistsContainingTrack(
+                urn: track.urn, accessToken: accessToken, limit: limit
+            )
+        }
+    }
+
     func relatedTracks(for track: SoundCloudTrack, pageURL: URL? = nil) async throws
         -> SoundCloudTrackPage {
         if let pageURL {
@@ -994,6 +1022,22 @@ final class AppModel {
         return try await firstRelatedTrackPageCache.value(for: track.urn as NSString) { [auth, client] in
             let accessToken = try await auth.validAccessToken()
             return try await client.relatedTracks(urn: track.urn, accessToken: accessToken, pageURL: nil)
+        }
+    }
+
+    func playlistsContaining(_ track: SoundCloudTrack, pageURL: URL? = nil) async throws
+        -> SoundCloudPlaylistPage {
+        if let pageURL {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.playlistsContainingTrack(
+                urn: track.urn, accessToken: accessToken, pageURL: pageURL
+            )
+        }
+        return try await firstTrackPlaylistPageCache.value(for: track.urn as NSString) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.playlistsContainingTrack(
+                urn: track.urn, accessToken: accessToken, pageURL: nil
+            )
         }
     }
 

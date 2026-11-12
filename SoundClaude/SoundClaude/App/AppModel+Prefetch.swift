@@ -9,6 +9,8 @@ enum SearchScope: Hashable {
 /// A page to warm before navigating to it, so that it opens with its content.
 enum PrefetchTarget: Hashable {
     case track(SoundCloudTrack)
+    /// The "View all" page for the playlists that a track is in.
+    case trackPlaylists(SoundCloudTrack)
     /// The artist page's header and Tracks tab. A page that opens on another
     /// tab also needs `artistTab`.
     case artist(SoundCloudUser)
@@ -35,6 +37,8 @@ extension AppModel {
         switch target {
         case let .track(track):
             await warmTrackPage(track)
+        case let .trackPlaylists(track):
+            await warmTrackPlaylists(track)
         case let .artist(artist):
             await warmArtistPage(artist)
         case let .artistTab(artist, tab):
@@ -61,6 +65,17 @@ extension AppModel {
         async let waveform = try? waveform(for: track)
         async let artwork: Void = prefetchDetailArtwork(for: track)
         _ = await (details, waveform, artwork)
+    }
+
+    // The cards that the page opens on each load a track preview and a cover.
+    private func warmTrackPlaylists(_ track: SoundCloudTrack) async {
+        guard let page = try? await playlistsContaining(track) else { return }
+        await withTaskGroup(of: Void.self) { group in
+            for playlist in page.playlists.prefix(3) {
+                group.addTask { await self.playlists.loadPreview(playlist) }
+                group.addTask { await self.warmImage(playlist.artworkURL, rendition: .square500) }
+            }
+        }
     }
 
     private func warmArtistPage(_ artist: SoundCloudUser) async {

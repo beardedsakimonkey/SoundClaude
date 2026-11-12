@@ -344,6 +344,31 @@ actor SoundCloudClient {
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
+    /// Public playlists that include the track. Albums are a separate endpoint.
+    func playlistsContainingTrack(
+        urn: String,
+        accessToken: String,
+        limit: Int = 10,
+        pageURL: URL? = nil
+    ) async throws -> SoundCloudPlaylistPage {
+        let url = try pageURL ?? endpoint(
+            "tracks/\(try Self.id(urn))/playlists_without_albums", query: ["limit": String(limit)]
+        )
+        let page = try await get(RawTrackPlaylistPage.self, url, accessToken: accessToken)
+        try validateNextURL(page.nextURL, after: url)
+        return SoundCloudPlaylistPage(
+            playlists: page.collection.compactMap { item in
+                guard var playlist = item.playlist.normalized() else { return nil }
+                // Most user playlists have no cover and show their first track's artwork.
+                if playlist.artworkURL == nil {
+                    playlist.artworkURL = item.tracks?.lazy.compactMap(\.artworkURL).first
+                }
+                return playlist
+            },
+            nextURL: page.nextURL
+        )
+    }
+
     func playlists(accessToken: String, pageURL: URL? = nil) async throws
         -> SoundCloudPlaylistPage {
         let userID = try await myID(accessToken: accessToken)
@@ -1133,6 +1158,32 @@ actor SoundCloudClient {
             throw SoundCloudError.unexpectedURL
         }
         return jsonURL
+    }
+}
+
+/// Playlists listed with their tracks, which supply a cover when the playlist has none.
+private struct RawTrackPlaylistPage: Decodable {
+    struct Item: Decodable {
+        let playlist: RawPlaylist
+        let tracks: [RawTrack]?
+
+        init(from decoder: Decoder) throws {
+            playlist = try RawPlaylist(from: decoder)
+            tracks = try decoder.container(keyedBy: CodingKeys.self)
+                .decodeIfPresent([RawTrack].self, forKey: .tracks)
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case tracks
+        }
+    }
+
+    let collection: [Item]
+    let nextURL: URL?
+
+    enum CodingKeys: String, CodingKey {
+        case collection
+        case nextURL = "next_href"
     }
 }
 

@@ -8,6 +8,9 @@ struct TrackDetailView: View {
     @ObservedObject private var reposts: RepostsController
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
+    let onSelectPlaylist: (SoundCloudPlaylist) -> Void
+    let onSelectRelatedTracks: (SoundCloudTrack) -> Void
+    let onSelectTrackPlaylists: (SoundCloudTrack) -> Void
     let onSelectStation: (String, SoundCloudTrack) -> Void
 
     @State private var details: SoundCloudTrackDetails?
@@ -20,6 +23,9 @@ struct TrackDetailView: View {
         model: AppModel,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
+        onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void,
+        onSelectRelatedTracks: @escaping (SoundCloudTrack) -> Void,
+        onSelectTrackPlaylists: @escaping (SoundCloudTrack) -> Void,
         onSelectStation: @escaping (String, SoundCloudTrack) -> Void
     ) {
         self.track = track
@@ -27,6 +33,9 @@ struct TrackDetailView: View {
         _reposts = ObservedObject(wrappedValue: model.reposts)
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
+        self.onSelectPlaylist = onSelectPlaylist
+        self.onSelectRelatedTracks = onSelectRelatedTracks
+        self.onSelectTrackPlaylists = onSelectTrackPlaylists
         self.onSelectStation = onSelectStation
 
         let cachedDetails = model.cachedTrackDetails(for: track)
@@ -172,12 +181,21 @@ struct TrackDetailView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .topLeading)
 
-                        TrackDetailRelatedTracks(
-                            track: track,
-                            model: model,
-                            onSelectTrack: onSelectTrack,
-                            onSelectArtist: onSelectArtist
-                        )
+                        VStack(alignment: .leading, spacing: 24) {
+                            TrackDetailRelatedTracks(
+                                track: track,
+                                model: model,
+                                onSelectTrack: onSelectTrack,
+                                onSelectArtist: onSelectArtist,
+                                onViewAll: { onSelectRelatedTracks(details.track) }
+                            )
+                            TrackDetailInPlaylists(
+                                track: track,
+                                model: model,
+                                onSelectPlaylist: onSelectPlaylist,
+                                onViewAll: { onSelectTrackPlaylists(details.track) }
+                            )
+                        }
                         .id(track.urn)
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
@@ -366,28 +384,60 @@ private struct TrackDetailPlayButton: View {
     }
 }
 
-// Pagination changes only this column, keeping the header and comments out of its updates.
+// The first page of each list. "View all" opens the rest on its own page, so the
+// column stays short enough to reach the section below it.
 private struct TrackDetailRelatedTracks: View {
     let track: SoundCloudTrack
     let model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
+    let onViewAll: () -> Void
 
-    @State private var relatedTracks: [SoundCloudTrack] = []
+    @State private var relatedTracks: [SoundCloudTrack]
     @State private var nextPageURL: URL?
-    @State private var loadedPageURLs: Set<URL> = []
-    @State private var hasLoadedRelatedTracks = false
-    @State private var isLoadingRelatedTracks = false
-    // Owned by the list, not the spinner, so scrolling the spinner away does not cancel it.
-    @State private var pageTask: Task<Void, Never>?
-    @State private var relatedTracksErrorMessage: String?
+    @State private var hasLoaded: Bool
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    init(
+        track: SoundCloudTrack,
+        model: AppModel,
+        onSelectTrack: @escaping (SoundCloudTrack) -> Void,
+        onSelectArtist: @escaping (SoundCloudUser) -> Void,
+        onViewAll: @escaping () -> Void
+    ) {
+        self.track = track
+        self.model = model
+        self.onSelectTrack = onSelectTrack
+        self.onSelectArtist = onSelectArtist
+        self.onViewAll = onViewAll
+
+        // A page that was already fetched shows with the rest of the page.
+        let cached = model.cachedRelatedTracks(for: track)
+        _relatedTracks = State(initialValue: cached.map { Self.tracks(in: $0, excluding: track) } ?? [])
+        _nextPageURL = State(initialValue: cached?.nextURL)
+        _hasLoaded = State(initialValue: cached != nil)
+    }
+
+    private static func tracks(
+        in page: SoundCloudTrackPage, excluding track: SoundCloudTrack
+    ) -> [SoundCloudTrack] {
+        var knownURNs: Set = [track.urn]
+        return page.tracks.filter { knownURNs.insert($0.urn).inserted }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Related tracks")
-                .font(.sectionHeading)
-                .opacity(0.96)
-                .modifier(FadeInOnAppear())
+            HStack(alignment: .firstTextBaseline) {
+                Text("Related tracks")
+                    .font(.sectionHeading)
+                    .opacity(0.96)
+                Spacer()
+                if nextPageURL != nil {
+                    TrackDetailViewAllButton(help: "View all related tracks", action: onViewAll)
+                }
+            }
+            .modifier(FadeInOnAppear())
             if let message = model.errorMessage {
                 Label(message, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(Color.accentColor)
@@ -396,13 +446,12 @@ private struct TrackDetailRelatedTracks: View {
             relatedTrackList
         }
         .task(id: track.urn) {
-            if !hasLoadedRelatedTracks { await loadRelatedTracks() }
+            if !hasLoaded { await loadRelatedTracks() }
         }
-        .onDisappear { pageTask?.cancel() }
     }
 
     private var relatedTrackList: some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             TrackArtworkList(tracks: relatedTracks, loader: model.artworkLoader) { relatedTrack in
                 TrackListRow(
                     track: relatedTrack,
@@ -424,67 +473,187 @@ private struct TrackDetailRelatedTracks: View {
                 )
                 .modifier(FadeInOnAppear())
             }
-            if let relatedTracksErrorMessage {
-                Text(relatedTracksErrorMessage).foregroundStyle(.secondary)
+            if let errorMessage {
+                Text(errorMessage).foregroundStyle(.secondary)
                     .modifier(FadeInOnAppear())
                 Button("Try Again") { Task { await loadRelatedTracks() } }
-                    .disabled(isLoadingRelatedTracks)
+                    .disabled(isLoading)
                     .modifier(FadeInOnAppear())
-            }
-            if isLoadingRelatedTracks || (nextPageURL != nil && relatedTracksErrorMessage == nil) {
+            } else if isLoading {
                 LoadingSpinner()
                     .accessibilityLabel("Loading related tracks")
                     .frame(maxWidth: .infinity)
                     .modifier(FadeInOnAppear())
-                    .task {
-                        guard nextPageURL != nil, relatedTracksErrorMessage == nil else { return }
-                        startLoadingRelatedTracks()
-                    }
-                    // A new spinner per page. Reusing the first-load spinner would
-                    // request the next page while it is still built but off screen.
-                    .id(nextPageURL)
-            } else if hasLoadedRelatedTracks, relatedTracks.isEmpty,
-                      relatedTracksErrorMessage == nil {
+            } else if hasLoaded, relatedTracks.isEmpty {
                 EmptyStateView("No related tracks")
                     .modifier(FadeInOnAppear())
             }
         }
     }
 
-    private func startLoadingRelatedTracks() {
-        guard pageTask == nil else { return }
-        pageTask = Task {
-            await loadRelatedTracks()
-            pageTask = nil
+    private func loadRelatedTracks() async {
+        guard !isLoading else { return }
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        do {
+            let page = try await model.relatedTracks(for: track)
+            try Task.checkCancellation()
+            relatedTracks = Self.tracks(in: page, excluding: track)
+            nextPageURL = page.nextURL
+            hasLoaded = true
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+// Public playlists that include the track. The section appears only once there is one to show.
+private struct TrackDetailInPlaylists: View {
+    private static let visibleCount = 3
+    // The API can return fewer playlists than it is asked for, so ask for spares.
+    private static let fetchCount = 5
+
+    let track: SoundCloudTrack
+    let model: AppModel
+    let onSelectPlaylist: (SoundCloudPlaylist) -> Void
+    let onViewAll: () -> Void
+
+    @State private var playlists: [SoundCloudPlaylist]
+    @State private var hasMore: Bool
+    @State private var errorMessage: String?
+
+    init(
+        track: SoundCloudTrack,
+        model: AppModel,
+        onSelectPlaylist: @escaping (SoundCloudPlaylist) -> Void,
+        onViewAll: @escaping () -> Void
+    ) {
+        self.track = track
+        self.model = model
+        self.onSelectPlaylist = onSelectPlaylist
+        self.onViewAll = onViewAll
+
+        let cached = model.cachedPlaylistPreview(containing: track)
+        _playlists = State(initialValue: cached?.playlists ?? [])
+        _hasMore = State(initialValue: cached.map(Self.hasMore) ?? false)
+    }
+
+    private static func hasMore(after page: SoundCloudPlaylistPage) -> Bool {
+        page.playlists.count > visibleCount || page.nextURL != nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if !playlists.isEmpty || errorMessage != nil {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("In playlists")
+                        .font(.sectionHeading)
+                        .opacity(0.96)
+                    Spacer()
+                    if hasMore {
+                        TrackDetailViewAllButton(
+                            help: "View all playlists with this track",
+                            prefetch: .trackPlaylists(track), action: onViewAll
+                        )
+                    }
+                }
+                .modifier(FadeInOnAppear())
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(playlists.prefix(Self.visibleCount)) { playlist in
+                        TrackDetailPlaylistRow(playlist: playlist, artworkLoader: model.artworkLoader) {
+                            onSelectPlaylist(playlist)
+                        }
+                        .modifier(FadeInOnAppear())
+                    }
+                    if let errorMessage {
+                        Text(errorMessage).foregroundStyle(.secondary)
+                        Button("Try Again") { Task { await loadPlaylists() } }
+                    }
+                }
+            }
+        }
+        .task(id: track.urn) {
+            if playlists.isEmpty { await loadPlaylists() }
         }
     }
 
-    private func loadRelatedTracks() async {
-        guard !isLoadingRelatedTracks,
-              !hasLoadedRelatedTracks || nextPageURL != nil else { return }
-        isLoadingRelatedTracks = true
-        relatedTracksErrorMessage = nil
-        defer { isLoadingRelatedTracks = false }
+    private func loadPlaylists() async {
+        errorMessage = nil
         do {
-            let pageURL = nextPageURL
-            let page = try await model.relatedTracks(for: track, pageURL: pageURL)
+            let page = try await model.playlistPreview(containing: track, limit: Self.fetchCount)
             try Task.checkCancellation()
-            if let nextURL = page.nextURL,
-               nextURL == pageURL || loadedPageURLs.contains(nextURL) {
-                throw SoundCloudError.invalidData
-            }
-            var knownURNs = Set(relatedTracks.map(\.urn))
-            knownURNs.insert(track.urn)
-            relatedTracks.append(contentsOf: page.tracks.filter {
-                knownURNs.insert($0.urn).inserted
-            })
-            if let pageURL { loadedPageURLs.insert(pageURL) }
-            nextPageURL = page.nextURL
-            hasLoadedRelatedTracks = true
+            playlists = page.playlists
+            hasMore = Self.hasMore(after: page)
         } catch {
             guard !Task.isCancelled else { return }
-            relatedTracksErrorMessage = error.localizedDescription
+            errorMessage = error.localizedDescription
         }
+    }
+}
+
+// Sized and padded like a TrackListRow so the two lists in the column line up.
+private struct TrackDetailPlaylistRow: View {
+    let playlist: SoundCloudPlaylist
+    let artworkLoader: ArtworkLoader
+    let onSelect: () -> Void
+
+    @State private var isHovering = false
+
+    private var subtitle: String {
+        guard let count = playlist.trackCount else { return playlist.owner.username }
+        return "\(playlist.owner.username) · \(count.formatted()) \(count == 1 ? "track" : "tracks")"
+    }
+
+    var body: some View {
+        Button(action: onSelect) {
+            HStack(spacing: 14) {
+                TrackArtworkView(
+                    artworkURL: playlist.artworkURL,
+                    loader: artworkLoader,
+                    size: 50,
+                    shape: RoundedRectangle(cornerRadius: TrackListRow.artworkCornerRadius)
+                )
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(playlist.title)
+                        .font(.system(size: 14))
+                        .opacity(0.95)
+                    Text(subtitle)
+                        .foregroundStyle(.secondary)
+                }
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.vertical, 7)
+            .padding(.horizontal, 8)
+            .background {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.primary.opacity(isHovering ? 0.06 : 0))
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        // The pointer crosses whole rows on its way elsewhere.
+        .prefetch(.playlist(playlist), .pressOnly) { isHovering = $0 }
+        .accessibilityLabel("Open playlist: \(playlist.title), \(subtitle)")
+    }
+}
+
+private struct TrackDetailViewAllButton: View {
+    let help: String
+    var prefetch: PrefetchTarget? = nil
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button("View all", action: action)
+            .buttonStyle(.plain)
+            .font(.callout)
+            .foregroundStyle(isHovering ? .primary : .secondary)
+            .prefetch(prefetch) { isHovering = $0 }
+            .contentHelp(help)
     }
 }
 
