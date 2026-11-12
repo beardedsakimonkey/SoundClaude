@@ -25,6 +25,21 @@ extension View {
         draggable(TrackPlaylistDrag(track: track))
             .background(TrackDragThreshold())
     }
+
+    /// Text inside the glass footer renders blank in the default drag image,
+    /// so the title preview uses colors that do not depend on its surroundings.
+    func trackDraggable(_ track: SoundCloudTrack, previewTitle: String) -> some View {
+        draggable(TrackPlaylistDrag(track: track)) {
+            Text(previewTitle)
+                .font(.system(size: 13, weight: .semibold))
+                .lineLimit(1)
+                .foregroundStyle(Color(nsColor: .labelColor))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+        }
+        .background(TrackDragThreshold())
+    }
 }
 
 /// Keep small mouse movements from reaching the native drag recognizer.

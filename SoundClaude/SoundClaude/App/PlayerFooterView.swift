@@ -367,7 +367,7 @@ private struct PlayerFooterTrackTitleButton: View {
         .buttonStyle(.plain)
         .keyboardShortcut("f", modifiers: [])
         .prefetch(.track(track)) { isHovering = $0 }
-        .trackDraggable(track)
+        .trackDraggable(track, previewTitle: title)
         .contentHelp("Focus current track (F) or drag to a playlist")
     }
 }
