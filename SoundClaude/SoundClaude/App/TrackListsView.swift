@@ -31,7 +31,8 @@ struct RelatedTracksView: View {
 
     var body: some View {
         TrackListPage(
-            title: "Tracks related to", track: track, onSelectTrack: onSelectTrack,
+            title: "Tracks related to", track: track,
+            artworkLoader: model.artworkLoader, onSelectTrack: onSelectTrack,
             pages: pages, isEmpty: tracks.isEmpty, subject: "related tracks",
             trackLayout: $trackLayout, loadPage: loadPage
         ) {
@@ -123,7 +124,8 @@ struct TrackPlaylistsView: View {
 
     var body: some View {
         TrackListPage(
-            title: "Playlists with", track: track, onSelectTrack: onSelectTrack,
+            title: "Playlists with", track: track,
+            artworkLoader: model.artworkLoader, onSelectTrack: onSelectTrack,
             pages: pages, isEmpty: playlists.isEmpty, subject: "playlists",
             loadPage: loadPage
         ) {
@@ -200,6 +202,7 @@ private final class TrackListPages {
 private struct TrackListPage<Content: View>: View {
     let title: String
     let track: SoundCloudTrack
+    let artworkLoader: ArtworkLoader
     let onSelectTrack: (SoundCloudTrack) -> Void
     let pages: TrackListPages
     let isEmpty: Bool
@@ -214,16 +217,25 @@ private struct TrackListPage<Content: View>: View {
     var body: some View {
         ScrollbarReservedScrollView { _ in
             VStack(alignment: .leading, spacing: 24) {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     // A long track title truncates before this does.
                     Text(title)
                         .layoutPriority(1)
                     Button {
                         onSelectTrack(track)
                     } label: {
-                        Text(track.title)
-                            .fontWeight(.semibold)
-                            .underline(isHoveringTitle)
+                        HStack(spacing: 8) {
+                            TrackArtworkView(
+                                artworkURL: track.displayArtworkURL,
+                                loader: artworkLoader,
+                                size: 28,
+                                shape: RoundedRectangle(cornerRadius: TrackListRow.artworkCornerRadius)
+                            )
+                            Text(track.title)
+                                .fontWeight(.semibold)
+                                .underline(isHoveringTitle)
+                        }
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .prefetch(.track(track)) { isHoveringTitle = $0 }
