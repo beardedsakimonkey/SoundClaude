@@ -393,10 +393,12 @@ struct ArtistDetailView: View {
                             .contentShape(RoundedRectangle(cornerRadius: 16))
                         }
                         .buttonStyle(ImageButtonStyle())
+                        .padding(.horizontal, 10)
                         .accessibilityLabel(isHeaderContentHidden ? "Show artist information" : "Hide artist information")
                     }
                 }
                 .environment(\.colorScheme, headerImage == nil ? colorScheme : .dark)
+                .padding(.horizontal, -24)
                 .padding(.top, -24)
                 .padding(.bottom, -12)
 
@@ -488,13 +490,12 @@ struct ArtistDetailView: View {
                                 .modifier(FadeInOnAppear())
                         }
                     }
-                    .frame(width: min(320, max(0, contentSize.width - 44) * 0.3), alignment: .leading)
+                    .frame(width: min(320, max(0, contentSize.width - 72) * 0.3), alignment: .leading)
                     .modifier(FadeInOnAppear())
                 }
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 24)
+            .padding(24)
             .remembersScrollPosition()
         }
     }
