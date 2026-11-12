@@ -75,6 +75,7 @@ struct DetailTrackHeading: View {
                             }
                             .onTapGesture { if isCollection { onSelectTrack(track) } }
                             .prefetch(isCollection ? .track(track) : nil) { isHoveringTitle = $0 }
+                            .trackDraggable(track, previewTitle: track.title)
                             .accessibilityAction(named: "View track") { onSelectTrack(track) }
                     }
                 }
