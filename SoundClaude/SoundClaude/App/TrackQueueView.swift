@@ -228,7 +228,7 @@ private struct QueueClearButton: View {
         Button(action: action) {
             Text("Clear")
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isHovered ? .primary : .secondary)
                 .padding(.horizontal, 8)
                 .frame(height: 28)
                 .background {
@@ -253,7 +253,7 @@ private struct QueueCloseButton: View {
         Button(action: action) {
             Image(systemName: "xmark")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isHovered ? .primary : .secondary)
                 .frame(width: 28, height: 28)
                 .background {
                     Circle()
