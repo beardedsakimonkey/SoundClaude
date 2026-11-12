@@ -106,6 +106,16 @@ static void collideEdge(simd_float4 *a, simd_float4 *b, PistonCollider c) {
     b->xyz += normal * fmaxf(0, simd_dot(surface - b->xyz, normal) + 0.00001f);
 }
 
+// Pistons sit on a regular grid along x, so only those whose x-range overlaps a
+// swept segment can pass colliderHit's bounds test. `reach` is the widest
+// collider half-extent plus slack; the exact test still runs on the survivors.
+static inline int32_t firstPiston(float minX, float reach, uint32_t count) {
+    return (int32_t)fminf((float)count, fmaxf(0, ceilf((minX - reach) / 1.85f + 3.5f)));
+}
+
+static inline int32_t lastPiston(float maxX, float reach, uint32_t count) {
+    return (int32_t)fmaxf(-1, fminf((float)count - 1, floorf((maxX + reach) / 1.85f + 3.5f)));
+}
 
 void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
                   const float *heights, const float *previousHeights, float ropeRadius, uint32_t stringCount,
@@ -134,6 +144,7 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
         const simd_float3 baseExtent = {0.50f + bobRadius, (baseTop - baseBottom) * 0.5f, 0.50f + bobRadius};
         bases[piston] = (PistonCollider){baseCenter, baseCenter, baseExtent, baseExtent, true};
     }
+    const float reach = fmaxf(0.65f + ropeRadius, 0.50f + bobRadius) + 0.001f;
     stretchiness = fminf(1, fmaxf(0, stretchiness));
     // XPBD compliance divided by the fixed step squared. Scaling with rest
     // length keeps the stretch ratio similar across rope lengths. At full
@@ -151,11 +162,22 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
             const simd_float4 position = p[node];
             p[node] += (position - old[node]) * (1.0f - damping) + gravity;
             old[node] = position;
-            for (uint32_t collider = 0; collider < pistonCount * 2; ++collider)
-                collideNode(&p[node], &old[node], colliders[collider], position.xyz);
-            if (node == segments)
-                for (uint32_t base = 0; base < pistonCount; ++base)
+            // A push can move the node, so the upper bound is refreshed as we go.
+            int32_t last = lastPiston(fmaxf(position.x, p[node].x), reach, pistonCount);
+            for (int32_t piston = firstPiston(fminf(position.x, p[node].x), reach, pistonCount);
+                 piston <= last; ++piston) {
+                collideNode(&p[node], &old[node], colliders[piston * 2], position.xyz);
+                collideNode(&p[node], &old[node], colliders[piston * 2 + 1], position.xyz);
+                last = lastPiston(fmaxf(position.x, p[node].x), reach, pistonCount);
+            }
+            if (node == segments) {
+                last = lastPiston(fmaxf(position.x, p[node].x), reach, pistonCount);
+                for (int32_t base = firstPiston(fminf(position.x, p[node].x), reach, pistonCount);
+                     base <= last; ++base) {
                     collideNode(&p[node], &old[node], bases[base], position.xyz);
+                    last = lastPiston(fmaxf(position.x, p[node].x), reach, pistonCount);
+                }
+            }
         }
         // Accumulate constraint impulses within this step so extra collision
         // passes do not make elastic ropes progressively stiffer.
@@ -190,17 +212,29 @@ void SCPistonStep(simd_float4 *positions, simd_float4 *previous,
                 }
             }
             for (uint32_t node = 1; node <= segments; ++node) {
-                for (uint32_t collider = 0; collider < pistonCount * 2; ++collider) {
-                    PistonCollider fixed = colliders[collider];
-                    fixed.previousCenter = fixed.center;
-                    fixed.previousExtent = fixed.extent;
-                    collideNode(&p[node], &old[node], fixed, beforeConstraints[node].xyz);
-                    // The pinned root touches the cap underside.
-                    if (node > 1) collideEdge(&p[node - 1], &p[node], colliders[collider]);
+                // The range covers the node's sweep and the edge to its parent.
+                const float startX = beforeConstraints[node].x;
+                int32_t last = lastPiston(fmaxf(startX, fmaxf(p[node].x, p[node - 1].x)), reach, pistonCount);
+                for (int32_t piston = firstPiston(fminf(startX, fminf(p[node].x, p[node - 1].x)), reach, pistonCount);
+                     piston <= last; ++piston) {
+                    for (uint32_t collider = piston * 2; collider < (uint32_t)piston * 2 + 2; ++collider) {
+                        PistonCollider fixed = colliders[collider];
+                        fixed.previousCenter = fixed.center;
+                        fixed.previousExtent = fixed.extent;
+                        collideNode(&p[node], &old[node], fixed, beforeConstraints[node].xyz);
+                        // The pinned root touches the cap underside.
+                        if (node > 1) collideEdge(&p[node - 1], &p[node], colliders[collider]);
+                    }
+                    last = lastPiston(fmaxf(startX, fmaxf(p[node].x, p[node - 1].x)), reach, pistonCount);
                 }
-                if (node == segments)
-                    for (uint32_t base = 0; base < pistonCount; ++base)
+                if (node == segments) {
+                    last = lastPiston(fmaxf(startX, p[node].x), reach, pistonCount);
+                    for (int32_t base = firstPiston(fminf(startX, p[node].x), reach, pistonCount);
+                         base <= last; ++base) {
                         collideNode(&p[node], &old[node], bases[base], beforeConstraints[node].xyz);
+                        last = lastPiston(fmaxf(startX, p[node].x), reach, pistonCount);
+                    }
+                }
                 p[node].y = fmaxf(-1.65f, p[node].y);
             }
             // The root is on the underside, inside the radius-expanded cap.
