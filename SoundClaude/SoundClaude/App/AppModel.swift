@@ -834,8 +834,17 @@ final class AppModel {
 
     func artistTracks(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
         -> SoundCloudTrackPage {
-        try await artistPage(artist, pageURL: pageURL, firstPages: firstArtistTrackPageCache) { [client] in
-            try await client.artistTracks(urn: $0, accessToken: $1, pageURL: $2)
+        try await artistPage(artist, pageURL: pageURL, firstPages: firstArtistTrackPageCache) { [client] urn, accessToken, pageURL in
+            var page = try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
+            guard pageURL == nil else { return page }
+            // Some artists' tracks start after several empty pages. Skip them here so the
+            // cached first page holds tracks, rather than the page refetching them each visit.
+            var seen: Set<URL> = []
+            while page.tracks.isEmpty, let nextURL = page.nextURL {
+                guard seen.insert(nextURL).inserted else { throw SoundCloudError.invalidData }
+                page = try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: nextURL)
+            }
+            return page
         }
     }
 
