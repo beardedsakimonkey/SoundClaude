@@ -113,7 +113,7 @@ struct DetailSwapButtonOverlay: ViewModifier {
                                 .transition(.scale(scale: 0, anchor: UnitPoint(
                                     x: bounds.midX / max(geometry.size.width, 1),
                                     y: bounds.midY / max(geometry.size.height, 1)
-                                )))
+                                )).combined(with: .opacity))
                         }
                     }
                     .modifier(DetailNavigationAnimation(
