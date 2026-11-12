@@ -763,7 +763,6 @@ private struct SidebarAccountHeader: View {
                 .accessibilityLabel("View profile: \(user.username)")
                 if user.isVerified == true {
                     VerifiedBadge()
-                        .imageScale(.small)
                 }
             }
             .font(.callout.weight(.medium))

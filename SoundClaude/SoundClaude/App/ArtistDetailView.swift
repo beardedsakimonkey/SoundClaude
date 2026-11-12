@@ -583,7 +583,6 @@ struct ArtistDetailView: View {
                                     Text(user.username)
                                     if user.isVerified == true {
                                         VerifiedBadge()
-                                            .imageScale(.small)
                                     }
                                 }
                                 .font(.body.weight(.semibold))

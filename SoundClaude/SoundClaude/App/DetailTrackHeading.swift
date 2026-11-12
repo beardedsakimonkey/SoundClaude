@@ -83,7 +83,6 @@ struct DetailTrackHeading: View {
                     artist: track.artist, artworkLoader: artworkLoader,
                     showsAvatarBorder: true, showsVerifiedBadge: true, onSelect: onSelectArtist
                 )
-                .imageScale(.small)
                 .layoutPriority(1)
                 RelativeTimestampView(timestamp: track.createdAt, accessibilityPrefix: "Created")
                     .lineLimit(1)

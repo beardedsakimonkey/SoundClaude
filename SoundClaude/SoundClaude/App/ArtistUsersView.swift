@@ -40,7 +40,6 @@ struct ArtistUsersView: View {
                         helpTitle: "View profile",
                         onSelect: onSelectArtist
                     )
-                    .imageScale(.small)
                     if list == .following {
                         Text("is following")
                     }

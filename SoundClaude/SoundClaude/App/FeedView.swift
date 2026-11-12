@@ -63,7 +63,6 @@ struct FeedView: View {
                                 showsVerifiedBadge: true,
                                 onSelect: onSelectArtist
                             )
-                            .imageScale(.small)
                             .fontWeight(.medium)
                             .foregroundStyle(.primary)
                             .layoutPriority(1)

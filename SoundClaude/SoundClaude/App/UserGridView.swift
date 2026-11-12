@@ -72,7 +72,6 @@ private struct UserGridCard: View {
                             .lineLimit(1)
                         if user.isVerified == true {
                             VerifiedBadge()
-                                .imageScale(.small)
                         }
                     }
                     .font(.headline)

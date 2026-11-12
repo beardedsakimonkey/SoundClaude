@@ -43,7 +43,6 @@ struct ArtistCommentsView: View {
                         helpTitle: "View profile",
                         onSelect: onSelectArtist
                     )
-                    .imageScale(.small)
                 }
                 .font(.title2)
                 .lineLimit(1)

@@ -55,6 +55,7 @@ struct ArtistLink: View {
 struct VerifiedBadge: View {
     var body: some View {
         Image(systemName: "checkmark.seal.fill")
+            .imageScale(.small)
             .foregroundStyle(.white, .blue)
             .contentHelp("Verified")
             .accessibilityLabel("Verified")
