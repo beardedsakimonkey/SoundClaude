@@ -31,7 +31,6 @@ struct KeyboardShortcutsView: View {
         Shortcut(title: "Show or hide playback speed", keys: ["X"]),
         Shortcut(title: "Show or hide track queue", keys: ["Q"]),
         Shortcut(title: "Show or hide visualizer", keys: ["V"]),
-        Shortcut(title: "Next visualizer effect", keys: ["Enter"]),
         Shortcut(title: "Focus current track", keys: ["F"]),
         Shortcut(title: "Focus current artist", keys: ["A"]),
         Shortcut(title: "Focus current station", keys: ["S"]),

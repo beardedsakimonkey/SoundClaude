@@ -5,32 +5,22 @@ import simd
 
 enum VisualizerShader: String, CaseIterable {
     case pistons
-    case fluid
-
-    var next: Self {
-        let shaders = Self.allCases
-        let index = shaders.firstIndex(of: self)!
-        return shaders[(index + 1) % shaders.count]
-    }
 
     var title: String {
         switch self {
         case .pistons: "Pistons"
-        case .fluid: "Fluid"
         }
     }
 
     var sourceFile: String {
         switch self {
         case .pistons: "PistonVisualizer.metal"
-        case .fluid: "FluidVisualizer.metal"
         }
     }
 
     private var functionPrefix: String {
         switch self {
         case .pistons: "pistonVisualizer"
-        case .fluid: "fluidVisualizer"
         }
     }
 
@@ -50,9 +40,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private var accentTransitionTarget: SIMD3<Float>
     private var accentTransitionStart: Double?
     var shader: VisualizerShader = .pistons
-    var fluidSettings = FluidSettings()
-    var fluidTouch = FluidTouch()
-    private var fluid: FluidSimulation?
     var pistonSettings = PistonSettings()
     var pistonCamera = PistonCameraProjection.defaultCamera
 
@@ -102,12 +89,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         sceneSampleCount = device.supportsTextureSampleCount(4) ? 4
             : (device.supportsTextureSampleCount(2) ? 2 : 1)
         do {
-            fluid = try FluidSimulation(device: device, library: library)
             for shader in VisualizerShader.allCases {
                 pipelines[shader] = try Self.makePipelines(
                     device: device, library: library,
                     pixelFormat: shader.pixelFormat(drawable: view.colorPixelFormat),
-                    shader: shader, sampleCount: shader == .fluid ? 1 : sceneSampleCount
+                    shader: shader, sampleCount: sceneSampleCount
                 )
             }
             pistonGlowPipeline = try Self.makePipeline(
@@ -169,7 +155,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         for shader in VisualizerShader.allCases {
             shaderReloaders[shader] = VisualizerShaderReloader(
                 device: device, pixelFormat: shader.pixelFormat(drawable: view.colorPixelFormat), shader: shader,
-                sampleCount: shader == .fluid ? 1 : sceneSampleCount
+                sampleCount: sceneSampleCount
             )
         }
 #endif
@@ -567,30 +553,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         _ = bands.withUnsafeMutableBufferPointer {
             SCSpectrumBufferRead(spectrumBuffer, $0.baseAddress, nil, nil, nil)
         }
-        if shader == .fluid {
-            lastPistonTime = nil
-            if let texture = fluid?.encode(commandBuffer: commandBuffer, size: view.drawableSize,
-                    settings: fluidSettings, bands: bands,
-                    touch: fluidTouch),
-               let effects = fluid?.encodeEffects(commandBuffer: commandBuffer, dye: texture,
-                    size: view.drawableSize, settings: fluidSettings),
-               let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) {
-                encoder.setRenderPipelineState(pipelines.scene)
-                encoder.setFragmentTexture(texture, index: 0)
-                encoder.setFragmentTexture(effects.bloom, index: 1)
-                encoder.setFragmentTexture(effects.rays, index: 2)
-                var display = FluidDisplayUniforms(size: view.drawableSize, settings: fluidSettings,
-                                                  emitterPositions: fluid?.emitterPositions ?? .zero,
-                                                  middleEmitterY: fluid?.middleEmitterY ?? 0.5)
-                encoder.setFragmentBytes(&display, length: MemoryLayout<FluidDisplayUniforms>.stride, index: 0)
-                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-                encoder.endEncoding()
-            }
-            commandBuffer.present(drawable)
-            commandBuffer.commit()
-            return
-        }
-        fluid?.suspend()
         let pistonFrame = shader == .pistons ? preparePistons(in: view) : nil
         let ropeShadow = pistonFrame.flatMap {
             encodePistonRopeShadow(in: view, commandBuffer: commandBuffer, frame: $0)

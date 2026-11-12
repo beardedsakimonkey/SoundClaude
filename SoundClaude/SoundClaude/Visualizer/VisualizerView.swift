@@ -8,8 +8,6 @@ struct VisualizerView: View {
     let artworkLoader: ArtworkLoader
     let onClose: () -> Void
 
-    @State private var fluidSettings = FluidSettings()
-    @State private var fluidTouch = FluidTouch()
     @State private var pistonSettings = PistonSettings()
     @State private var pistonCamera = PistonCameraProjection.defaultCamera
     @State private var orbitTranslation = CGSize.zero
@@ -21,8 +19,6 @@ struct VisualizerView: View {
         ArtworkVisualizerView(
             shader: shader,
             pistonSettings: pistonSettings,
-            fluidSettings: fluidSettings,
-            fluidTouch: fluidTouch,
             pistonCamera: $pistonCamera,
             spectrumBuffer: spectrumBuffer,
             artworkURL: playback.currentTrack?.displayArtworkURL,
@@ -40,21 +36,12 @@ struct VisualizerView: View {
                     let delta = CGSize(width: value.translation.width - orbitTranslation.width,
                                        height: value.translation.height - orbitTranslation.height)
                     orbitTranslation = value.translation
-                    if shader == .fluid {
-                        stir(at: value.location, delta: delta)
-                        return
-                    }
                     pistonCamera.orbit(
                         delta: SIMD2(Float(delta.width), Float(delta.height)),
                         viewport: SIMD2(Float(viewportSize.width), Float(viewportSize.height)),
                         pitchRange: PistonCameraProjection.orbitPitchRange(size: viewportSize, zoom: pistonCamera.zoom))
                 }
                 .onEnded { _ in orbitTranslation = .zero }
-                .exclusively(before: SpatialTapGesture().onEnded { value in
-                    if shader == .fluid {
-                        stir(at: value.location, delta: .zero)
-                    }
-                })
         )
         .onChange(of: isOrbiting) { _, active in
             if !active { orbitTranslation = .zero }
@@ -74,11 +61,7 @@ struct VisualizerView: View {
                 }
                 .buttonStyle(.bordered)
                 .popover(isPresented: $isShowingControls, arrowEdge: .bottom) {
-                    if shader == .fluid {
-                        fluidControls
-                    } else {
-                        pistonControls
-                    }
+                    pistonControls
                 }
                 #endif
                 Button(action: onClose) {
@@ -95,10 +78,6 @@ struct VisualizerView: View {
         .accessibilityLabel("Audio visualizer")
         .accessibilityValue(shader.title)
         .background {
-            Button("Next visualizer shader") { shader = shader.next }
-                .keyboardShortcut(.return, modifiers: [])
-                .hidden()
-                .accessibilityHidden(true)
             Button("Dismiss visualizer controls or close visualizer") {
                 if isShowingControls {
                     isShowingControls = false
@@ -122,60 +101,7 @@ struct VisualizerView: View {
         #endif
     }
 
-    private func stir(at point: CGPoint, delta: CGSize) {
-        guard viewportSize.width > 0, viewportSize.height > 0 else { return }
-        fluidTouch.point = SIMD2(Float(point.x / viewportSize.width), Float(point.y / viewportSize.height))
-        fluidTouch.delta = SIMD2(Float(delta.width / viewportSize.width), Float(delta.height / viewportSize.height))
-        fluidTouch.sequence += 1
-    }
-
     #if DEBUG
-    private var fluidControls: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("Fluid").font(.headline)
-                Spacer()
-                Button("Reset") { fluidSettings = FluidSettings() }
-            }
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    tuningSlider("Vorticity", value: $fluidSettings.curl, range: 0...50)
-                    tuningSlider("Audio force", value: $fluidSettings.force, range: 0...3)
-                    tuningSlider("Overall flow", value: $fluidSettings.steadyFlow, range: 0...4, format: "%.2f")
-                        .help("Continuous emission from sustained audio. Zero turns it off; hit bursts stay active.")
-                    tuningSlider("Top flow", value: $fluidSettings.topEmitterSpray, range: 0...3, format: "%.2f×")
-                        .help("High emitter continuous flow relative to Overall flow. Zero stops its continuous flow; hit bursts stay active.")
-                    tuningSlider("Middle flow", value: $fluidSettings.middleEmitterSpray, range: 0...3, format: "%.2f×")
-                        .help("Mid emitter continuous flow relative to Overall flow. Zero stops its continuous flow; hit bursts stay active.")
-                    tuningSlider("Bottom flow", value: $fluidSettings.bottomEmitterSpray, range: 0...3, format: "%.2f×")
-                        .help("Bass emitter continuous flow relative to Overall flow. Zero stops its continuous flow; hit bursts stay active.")
-                    tuningSlider("Splat radius", value: $fluidSettings.radius, range: 0.01...1, format: "%.2f")
-                    tuningSlider("Top splat size", value: $fluidSettings.topEmitterSize, range: 0.1...3, format: "%.2f×")
-                        .help("High emitter size relative to the shared splat radius.")
-                    tuningSlider("Middle splat size", value: $fluidSettings.middleEmitterSize, range: 0.1...3, format: "%.2f×")
-                        .help("Mid emitter size relative to the shared splat radius.")
-                    tuningSlider("Bottom splat size", value: $fluidSettings.bottomEmitterSize, range: 0.1...3, format: "%.2f×")
-                        .help("Bass emitter size relative to the shared splat radius.")
-                    tuningSlider("Hue variation", value: $fluidSettings.hueVariation, range: 0...60, format: "±%.0f°")
-                        .help("Random hue shift for each audio splat. Zero keeps the original band colors.")
-                    tuningSlider("Color fade", value: $fluidSettings.dyeDissipation, range: 0.1...3)
-                    tuningSlider("Flow damping", value: $fluidSettings.velocityDissipation, range: 0...2)
-                    tuningSlider("Brightness", value: $fluidSettings.brightness, range: 0.3...3)
-                    tuningSlider("Bloom", value: $fluidSettings.bloom, range: 0...2)
-                    Toggle("Glossy shading", isOn: $fluidSettings.glossyShading)
-                        .help("Light the fluid from above with specular highlights. Off uses softer, head-on edge shading.")
-                    tuningSlider("Emitter slide speed", value: $fluidSettings.emitterSlideSpeed, range: 0...3, format: "%.2f×")
-                        .help("One horizontal sweep takes six seconds at 1×. Zero stops movement. The middle jet rotates with the sweep.")
-                    Toggle("Show emitter positions", isOn: $fluidSettings.showEmitters)
-                        .help("Show the moving bass, mid, and high emitters and their horizontal tracks.")
-                }
-            }
-            .frame(maxHeight: 520)
-        }
-        .padding(20)
-        .frame(width: 320)
-    }
-
     private var pistonControls: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {

@@ -20,7 +20,7 @@ features:
 - Light and dark modes (depending on OS setting)
 - Built for desktop with hover feedback on interactive elements, right-click menus,
   and keyboard shortcuts
-- Several physics-based music visualizers, including piston, rope, and fluid simulations
+- A physics-based music visualizer
 - Expandable track artwork and artist photos
 
 
@@ -67,8 +67,3 @@ again when SoundCloud rotates it.
 > [!NOTE]
 > macOS asks for System Audio Recording access when the process tap starts. This
 > is needed for the audio visualizer.
-
-## Attribution
-
-The Fluid visualizer uses a Metal port of Pavel Dobryakov’s
-[WebGL Fluid Simulation](https://github.com/PavelDoGreat/WebGL-Fluid-Simulation).

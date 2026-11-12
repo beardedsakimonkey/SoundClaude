@@ -10,9 +10,6 @@
 		E72000000000000000000002 /* WebsiteLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71000000000000000000002 /* WebsiteLogin.swift */; };
 		E72000000000000000000003 /* WebsiteBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71000000000000000000003 /* WebsiteBridge.swift */; };
 		F18C43A92B0549E7AD013801 /* LaunchMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18C43A92B0549E7AD013802 /* LaunchMetrics.swift */; };
-		C91010000000000000000003 /* Fluid-LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = C91000000000000000000003; };
-		C91010000000000000000002 /* FluidVisualizer.metal in Sources */ = {isa = PBXBuildFile; fileRef = C91000000000000000000002; };
-		C91010000000000000000001 /* FluidSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91000000000000000000001; };
 		FADE00000000000000000001 /* LoadingSpinner.swift in Sources */ = {isa = PBXBuildFile; fileRef = FADE00000000000000000002 /* LoadingSpinner.swift */; };
 		D10650000000000000000001 /* SortMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10650000000000000000002 /* SortMenu.swift */; };
 		C92810000000000000000003 /* PistonSolver.c in Sources */ = {isa = PBXBuildFile; fileRef = C92800000000000000000003; settings = {COMPILER_FLAGS = "-O2"; }; };
@@ -147,9 +144,6 @@
 		E71000000000000000000002 /* WebsiteLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteLogin.swift; sourceTree = "<group>"; };
 		E71000000000000000000003 /* WebsiteBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebsiteBridge.swift; sourceTree = "<group>"; };
 		F18C43A92B0549E7AD013802 /* LaunchMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchMetrics.swift; sourceTree = "<group>"; };
-		C91000000000000000000003 /* Fluid-LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "Fluid-LICENSE.txt"; sourceTree = "<group>"; };
-		C91000000000000000000002 /* FluidVisualizer.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = "FluidVisualizer.metal"; sourceTree = "<group>"; };
-		C91000000000000000000001 /* FluidSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FluidSimulation.swift"; sourceTree = "<group>"; };
 		FADE00000000000000000002 /* LoadingSpinner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingSpinner.swift; sourceTree = "<group>"; };
 		D10650000000000000000002 /* SortMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SortMenu.swift; sourceTree = "<group>"; };
 		C92800000000000000000004 /* PistonSolver.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PistonSolver.h; sourceTree = "<group>"; };
@@ -497,7 +491,6 @@
 		A4000000000000000000000A /* Visualizer */ = {
 			isa = PBXGroup;
 			children = (
-				C91000000000000000000001 /* FluidSimulation.swift */,
 				C92800000000000000000001 /* PistonSimulation.swift */,
 				C92A00000000000000000001 /* VisualizerGrade.swift */,
 				C92800000000000000000004 /* PistonSolver.h */,
@@ -512,7 +505,6 @@
 		A4000000000000000000000B /* Shaders */ = {
 			isa = PBXGroup;
 			children = (
-				C91000000000000000000002 /* FluidVisualizer.metal */,
 				C92800000000000000000002 /* PistonVisualizer.metal */,
 				C92A00000000000000000002 /* VisualizerGrade.metal */,
 				8D06FA75D610477E98EECAA2 /* PlayerArtworkGlass.metal */,
@@ -549,7 +541,6 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000013 /* Info.plist */,
-				C91000000000000000000003 /* Fluid-LICENSE.txt */,
 				A2000000000000000000003C /* Assets.xcassets */,
 				A2000000000000000000F001 /* AppIcon.icon */,
 			);
@@ -625,7 +616,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C91010000000000000000003 /* Fluid-LICENSE.txt in Resources */,
 				A1000000000000000000003C /* Assets.xcassets in Resources */,
 				A1000000000000000000F001 /* AppIcon.icon in Resources */,
 			);
@@ -638,8 +628,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C91010000000000000000002 /* FluidVisualizer.metal in Sources */,
-				C91010000000000000000001 /* FluidSimulation.swift in Sources */,
 				C92810000000000000000002 /* PistonVisualizer.metal in Sources */,
 				C92810000000000000000001 /* PistonSimulation.swift in Sources */,
 				C92A10000000000000000001 /* VisualizerGrade.swift in Sources */,

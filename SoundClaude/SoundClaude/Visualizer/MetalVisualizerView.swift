@@ -18,8 +18,6 @@ private final class TransparentMetalView: MTKView {
 struct ArtworkVisualizerView: View {
     let shader: VisualizerShader
     let pistonSettings: PistonSettings
-    let fluidSettings: FluidSettings
-    let fluidTouch: FluidTouch
     @Binding var pistonCamera: PistonCamera
     let spectrumBuffer: OpaquePointer
     let artworkURL: URL?
@@ -34,16 +32,12 @@ struct ArtworkVisualizerView: View {
         MetalVisualizerView(
             shader: shader,
             pistonSettings: pistonSettings,
-            fluidSettings: fluidSettings,
-            fluidTouch: fluidTouch,
             pistonCamera: $pistonCamera,
             spectrumBuffer: spectrumBuffer,
             accent: accent
         )
             .background {
-                if shader == .fluid {
-                    Color.black
-                } else if shader == .pistons {
+                if shader == .pistons {
                     let rgb = pistonSettings.backgroundColor
                     Color(.sRGBLinear, red: Double(rgb.x), green: Double(rgb.y), blue: Double(rgb.z))
                 } else {
@@ -105,8 +99,6 @@ struct ArtworkVisualizerView: View {
 struct MetalVisualizerView: NSViewRepresentable {
     let shader: VisualizerShader
     let pistonSettings: PistonSettings
-    let fluidSettings: FluidSettings
-    let fluidTouch: FluidTouch
     @Binding var pistonCamera: PistonCamera
     let spectrumBuffer: OpaquePointer
     let accent: ArtworkAccent
@@ -147,8 +139,6 @@ struct MetalVisualizerView: NSViewRepresentable {
         context.coordinator.renderer = renderer
         renderer?.shader = shader
         renderer?.pistonSettings = pistonSettings
-        renderer?.fluidSettings = fluidSettings
-        renderer?.fluidTouch = fluidTouch
         renderer?.pistonCamera = pistonCamera
         view.onZoom = zoomHandler
         view.delegate = renderer
@@ -159,15 +149,12 @@ struct MetalVisualizerView: NSViewRepresentable {
         (view as? TransparentMetalView)?.onZoom = zoomHandler
         context.coordinator.renderer?.shader = shader
         context.coordinator.renderer?.pistonSettings = pistonSettings
-        context.coordinator.renderer?.fluidSettings = fluidSettings
-        context.coordinator.renderer?.fluidTouch = fluidTouch
         context.coordinator.renderer?.pistonCamera = pistonCamera
         context.coordinator.renderer?.accent = accent
     }
 
-    private var zoomHandler: ((Float) -> Void)? {
-        guard shader != .fluid else { return nil }
-        return { amount in
+    private var zoomHandler: (Float) -> Void {
+        { amount in
             pistonCamera.zoom = min(2, max(0.2, pistonCamera.zoom * exp(-amount)))
         }
     }
