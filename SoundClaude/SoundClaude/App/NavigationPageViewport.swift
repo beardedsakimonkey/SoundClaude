@@ -52,6 +52,9 @@ final class RememberedScrollPosition {
     /// Rows report their first frames at the top of a new page. Ignore them until
     /// restoring ends, or they would replace the row being restored.
     var isSavingRows = false
+    /// Whether the page's description is showing in full. Kept here so it returns
+    /// with the scroll offset, which depends on the description's height.
+    var isDescriptionExpanded = false
 }
 
 extension EnvironmentValues {

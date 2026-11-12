@@ -9,9 +9,16 @@ struct ExpandableDescriptionText: View {
     private let collapsedLineLimit = 5
     private let opacity = 0.9
 
-    @State private var isExpanded = false
+    @Environment(\.rememberedScrollPosition) private var pageState
+    /// Set on toggle. Until then the page's remembered value applies, so going
+    /// back to a page shows its description as it was left.
+    @State private var toggledExpansion: Bool?
     @State private var collapsedHeight: CGFloat = 0
     @State private var fullHeight: CGFloat = 0
+
+    private var isExpanded: Bool {
+        toggledExpansion ?? pageState?.isDescriptionExpanded ?? false
+    }
 
     private var isTruncated: Bool {
         !isExpanded && fullHeight > collapsedHeight
@@ -81,7 +88,9 @@ struct ExpandableDescriptionText: View {
 
             if isExpanded || isTruncated {
                 Button(isExpanded ? "Show less" : "Show more") {
-                    isExpanded.toggle()
+                    let expands = !isExpanded
+                    toggledExpansion = expands
+                    pageState?.isDescriptionExpanded = expands
                 }
                 .buttonStyle(ShowMoreButtonStyle())
                 .accessibilityHint(isExpanded ? "Collapse description" : "Expand description")
