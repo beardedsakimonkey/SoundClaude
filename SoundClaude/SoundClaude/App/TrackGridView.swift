@@ -52,37 +52,59 @@ struct TrackLayoutPicker: View {
 }
 
 private enum TrackGridMetrics {
-    // 150 points is 300 pixels at 2x, matching the .square300 artwork.
-    static let tileWidth: CGFloat = 150
-    static let minimumColumnSpacing: CGFloat = 20
+    // Cap artwork at 300 pixels at 2x, matching the .square300 rendition.
+    static let maximumTileWidth: CGFloat = 150
+    static let columnSpacing: CGFloat = 16
 
     static func columnCount(forWidth width: CGFloat) -> Int {
-        max(1, Int((width + minimumColumnSpacing) / (tileWidth + minimumColumnSpacing)))
+        max(1, Int(ceil((width + columnSpacing) / (maximumTileWidth + columnSpacing))))
+    }
+
+    static func tileWidth(forWidth width: CGFloat) -> CGFloat {
+        let count = CGFloat(columnCount(forWidth: width))
+        return max(0, (width - columnSpacing * (count - 1)) / count)
     }
 }
 
-// Spread fixed-width tiles from edge to edge. The width lives here so that resizing
+private struct TrackGridTileWidthKey: EnvironmentKey {
+    static let defaultValue = TrackGridMetrics.maximumTileWidth
+}
+
+private extension EnvironmentValues {
+    var trackGridTileWidth: CGFloat {
+        get { self[TrackGridTileWidthKey.self] }
+        set { self[TrackGridTileWidthKey.self] = newValue }
+    }
+}
+
+// Keep gaps consistent as the window resizes. The width lives here so that resizing
 // reuses the stored content instead of re-evaluating the parent's tiles.
-private struct JustifiedTrackGrid<Content: View>: View {
+private struct CompactTrackGrid<Content: View>: View {
     @ViewBuilder let content: Content
 
     @State private var width: CGFloat = 0
 
+    private var tileWidth: CGFloat {
+        TrackGridMetrics.tileWidth(forWidth: width)
+    }
+
     private var columns: [GridItem] {
         let count = TrackGridMetrics.columnCount(forWidth: width)
-        let spacing = count > 1
-            ? (width - TrackGridMetrics.tileWidth * CGFloat(count)) / CGFloat(count - 1)
-            : 0
         return Array(
-            repeating: GridItem(.fixed(TrackGridMetrics.tileWidth), spacing: spacing, alignment: .top),
+            repeating: GridItem(
+                .fixed(tileWidth),
+                spacing: TrackGridMetrics.columnSpacing,
+                alignment: .top
+            ),
             count: count
         )
     }
 
     var body: some View {
-        LazyVGrid(columns: columns, alignment: .leading, spacing: 24) {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 20) {
             content
         }
+        .environment(\.trackGridTileWidth, tileWidth)
         // The zero minimum lets this shrink below the fixed columns' current width.
         .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
@@ -111,7 +133,7 @@ struct TrackArtworkGrid<Content: View>: View {
     #endif
 
     var body: some View {
-        JustifiedTrackGrid {
+        CompactTrackGrid {
             ForEach(tracks) { track in
                 content(track)
                     .onAppear { coordinator.setVisible(track.id, isVisible: true, loader: loader) }
@@ -193,6 +215,8 @@ struct TrackGridTile: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
+
+    @Environment(\.trackGridTileWidth) private var tileWidth
 
     @State private var isHoveringArtwork = false
     @State private var hasHoveredArtwork = false
@@ -337,7 +361,7 @@ struct TrackGridTile: View {
         let artwork = TrackArtworkView(
             artworkURL: track.displayArtworkURL,
             loader: artworkLoader,
-            size: TrackGridMetrics.tileWidth,
+            size: tileWidth,
             rendition: .square300,
             shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous),
             showsBorder: false,
@@ -346,7 +370,7 @@ struct TrackGridTile: View {
         .modifier(ArtworkHoverZoom(
             isHovering: isHoveringArtwork && track.access != .protected,
             cornerRadius: Self.artworkCornerRadius,
-            size: TrackGridMetrics.tileWidth
+            size: tileWidth
         ))
         if showsControls {
             let isPlaybackActive = isCurrentTrack && playback.isPlaybackActive
