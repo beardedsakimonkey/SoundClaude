@@ -47,7 +47,7 @@ struct PlayerFooterView: View {
     var body: some View {
         HStack(spacing: 6) {
             trackIdentity
-                .frame(width: min(340, max(140, footerWidth * 0.3)), alignment: .leading)
+                .frame(width: min(340, max(140, footerWidth * 0.26)), alignment: .leading)
             playbackControls
                 .frame(maxWidth: .infinity)
         }
@@ -231,7 +231,7 @@ struct PlayerFooterView: View {
                 .accessibilityLabel(isShowingQueue ? "Hide track queue" : "Show track queue")
                 .accessibilityValue(isShowingQueue ? "Open" : "Closed")
 
-                PlayerVolumeControl(playback: playback, usesCompactVolume: footerWidth < 1_000)
+                PlayerVolumeControl(playback: playback, usesCompactVolume: footerWidth < 880)
             }
             .buttonStyle(.borderless)
 
