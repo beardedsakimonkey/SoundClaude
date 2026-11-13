@@ -781,7 +781,8 @@ private struct SidebarAccountHeader: View {
             .contentHelp("Sign out")
             .accessibilityLabel("Sign out")
         }
-        .padding(.horizontal, 12)
+        .padding(.leading, 18)
+        .padding(.trailing, 12)
     }
 }
 
