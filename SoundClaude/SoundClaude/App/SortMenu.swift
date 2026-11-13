@@ -17,8 +17,8 @@ struct SortMenu<Order: Hashable>: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "arrow.down")
-                .font(.subheadline)
+            Image(systemName: "line.3.horizontal.decrease")
+                .font(.callout)
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
 
@@ -56,7 +56,7 @@ struct SortMenu<Order: Hashable>: View {
             .pickerStyle(.inline)
         } label: {
             Text(title(order))
-                .font(.subheadline)
+                .font(.callout)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.visible)
