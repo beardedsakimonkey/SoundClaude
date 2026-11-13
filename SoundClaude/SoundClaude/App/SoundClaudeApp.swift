@@ -36,6 +36,7 @@ struct SoundClaudeApp: App {
                 }
         }
         .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1030, height: 620)
         .commands {
             PlaybackCommands(model: model)
             CommandGroup(replacing: .help) {
