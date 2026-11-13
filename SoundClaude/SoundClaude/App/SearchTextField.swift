@@ -38,8 +38,6 @@ struct SearchTextField: View {
     let accessibilityLabel: String
     var style: Style = .regular
     var preventsAutomaticFocus = false
-    /// Height of a dropdown below the field in which clicks keep the field focused.
-    var dropdownHeight: CGFloat = 0
     var onSubmit: () -> Void = {}
     var onClear: () -> Void = {}
     /// Handles Escape before the field gives up focus. Returns whether it did.
@@ -94,7 +92,7 @@ struct SearchTextField: View {
             isFocused.wrappedValue = true
         })
         .background {
-            SearchOutsideClickView(isFocused: isFocused.wrappedValue, dropdownHeight: dropdownHeight)
+            SearchOutsideClickView(isFocused: isFocused.wrappedValue)
         }
     }
 

@@ -281,7 +281,7 @@ struct SearchTopResultCard: View {
     @State private var isHovering = false
 
     private static let artworkSize: CGFloat = 48
-    private static let padding: CGFloat = 14
+    private static let padding: CGFloat = 10
 
     var body: some View {
         Button(action: open) {
@@ -309,14 +309,9 @@ struct SearchTopResultCard: View {
                         }
                     }
                     .font(.headline)
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Image(systemName: kindSystemImage)
-                            .imageScale(.small)
-                            .accessibilityHidden(true)
-                        Text(subtitle)
-                    }
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -348,14 +343,6 @@ struct SearchTopResultCard: View {
         }
     }
 
-    private var kindSystemImage: String {
-        switch result {
-        case .user: "person.fill"
-        case .track: "music.note"
-        case let .playlist(playlist): playlist.isAlbum == true ? "square.stack" : "music.note.list"
-        }
-    }
-
     private var prefetchTarget: PrefetchTarget {
         switch result {
         case let .user(user): .artist(user)
@@ -368,7 +355,7 @@ struct SearchTopResultCard: View {
         switch result {
         case let .user(user):
             guard let count = user.followersCount else { return "Artist" }
-            return "Artist · \(count.formatted()) \(count == 1 ? "follower" : "followers")"
+            return "Artist · \(count.formatted(.number.notation(.compactName))) \(count == 1 ? "follower" : "followers")"
         case let .track(track):
             return "Track · \(track.uploader)"
         case let .playlist(playlist):

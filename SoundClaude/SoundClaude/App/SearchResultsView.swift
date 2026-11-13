@@ -23,24 +23,23 @@ struct SearchResultsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Group {
-                if isTagSearch || isGenreSearch {
-                    let title = isTagSearch ? "Tracks tagged" : "Tracks in"
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(title)
-                            .font(.title2.weight(.semibold))
-                        PillLabel(text: query, size: .large)
-                            .fixedSize()
-                    }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(title) \(query)")
-                } else {
-                    Text("\(category?.rawValue ?? "Results") for “\(query)”")
+            // The toolbar's search field already shows the query.
+            if isTagSearch || isGenreSearch {
+                let title = isTagSearch ? "Tracks tagged" : "Tracks in"
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(title)
                         .font(.title2.weight(.semibold))
-                        .textSelection(.enabled)
+                    PillLabel(text: query, size: .large)
+                        .fixedSize()
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(title) \(query)")
+                .modifier(FadeInOnAppear())
+            } else if let category {
+                Text(category.rawValue)
+                    .font(.title2.weight(.semibold))
+                    .modifier(FadeInOnAppear())
             }
-            .modifier(FadeInOnAppear())
 
             Group {
                 if let listedCategory {
@@ -63,7 +62,7 @@ struct SearchResultsView: View {
                     )
                 }
             }
-            // Keep enough scroll space below the heading while results load or are short.
+            // Keep enough scroll space while results load or are short.
             .frame(minHeight: searchViewportHeight, alignment: .topLeading)
         }
         .padding(contentPadding)

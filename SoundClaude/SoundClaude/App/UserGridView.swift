@@ -82,7 +82,7 @@ struct UserGridCard: View {
                     // Keep the line when the count is unknown so that every card is the
                     // same height, which keeps the grid's estimates for unbuilt rows accurate.
                     Text(user.followersCount.map {
-                        "\($0.formatted()) \($0 == 1 ? "follower" : "followers")"
+                        "\($0.formatted(.number.notation(.compactName))) \($0 == 1 ? "follower" : "followers")"
                     } ?? " ")
                     .font(.caption)
                     .foregroundStyle(colorScheme == .light ? HierarchicalShapeStyle.secondary : .tertiary)

@@ -4,8 +4,7 @@ import SwiftUI
 
 @Observable
 private final class SuggestionHarness {
-    var text = ""
-    var focusRequest: UUID? = UUID()
+    let model = SearchFieldModel(focusRequest: UUID())
     var searches: [String] = []
     var opened: [SoundCloudSearchResult] = []
     var requests: [String] = []
@@ -22,25 +21,33 @@ private let track = SoundCloudTrack(
 )
 
 private struct SuggestionFixture: View {
-    @Bindable var harness: SuggestionHarness
-    let user: SoundCloudUser
+    let harness: SuggestionHarness
+
+    /// Stands in for the toolbar's space below the field.
+    static let fieldPadding: CGFloat = 20
 
     var body: some View {
-        SearchView(
-            user: user,
-            searchText: $harness.text,
-            focusRequest: harness.focusRequest,
-            artworkLoader: ArtworkLoader(),
-            suggestions: { query in
-                harness.requests.append(query)
-                return SoundCloudSearchSuggestions(
-                    queries: ["one", "two", "three"].map { "\(query) \($0)" },
-                    results: [.user(artist), .track(track)]
-                )
-            },
+        let actions = SearchFieldActions(
             onSearch: { harness.searches.append($0) },
             onSelectResult: { harness.opened.append($0) }
         )
+        // As in the app: the field above the page, the suggestions over the page.
+        VStack(spacing: 0) {
+            SearchField(
+                model: harness.model,
+                suggest: { query in
+                    harness.requests.append(query)
+                    return SoundCloudSearchSuggestions(
+                        queries: ["one", "two", "three"].map { "\(query) \($0)" },
+                        results: [.user(artist), .track(track)]
+                    )
+                },
+                actions: actions
+            )
+            .frame(width: 320)
+            .padding(Self.fieldPadding)
+            SearchSuggestionDropdown(model: harness.model, artworkLoader: ArtworkLoader(), actions: actions)
+        }
     }
 }
 
@@ -60,14 +67,8 @@ private struct SearchSuggestionTests {
             contentRect: NSRect(x: 100, y: 100, width: 600, height: 500),
             styleMask: [.titled], backing: .buffered, defer: false
         )
-        let user = SoundCloudUser(
-            urn: "soundcloud:users:suggestion-test", username: "Suggestion test",
-            avatarURL: nil, permalinkURL: URL(string: "https://soundcloud.com/suggestion-test")!
-        )
-        let store = RecentSearchStore()
-        store.clear(for: user)
         let harness = SuggestionHarness()
-        let host = NSHostingView(rootView: SuggestionFixture(harness: harness, user: user))
+        let host = NSHostingView(rootView: SuggestionFixture(harness: harness))
         window.contentView = host
         window.makeKeyAndOrderFront(nil)
         // The app routes arrow keys to text views itself; the suggestions must work with that.
@@ -135,7 +136,7 @@ private struct SearchSuggestionTests {
             }
             /// Focuses the field and replaces its text the way typing does.
             @MainActor func type(_ text: String) async {
-                harness.focusRequest = UUID()
+                harness.model.focusRequest = UUID()
                 await focused()
                 let editor = field.currentEditor() as! NSTextView
                 editor.selectAll(nil)
@@ -160,12 +161,12 @@ private struct SearchSuggestionTests {
             await enter()
             await pause()
             precondition(harness.searches == ["fo one"], "Down then Return must search the first suggestion")
-            precondition(harness.text == "fo one", "The field must show the suggestion that was searched")
+            precondition(harness.model.text == "fo one", "The field must show the suggestion that was searched")
             precondition(field.currentEditor() == nil, "Searching must release focus")
 
             // The searched text is still in the field, as it is on going Back to Search.
             harness.requests = []
-            harness.focusRequest = UUID()
+            harness.model.focusRequest = UUID()
             await focused()
             await pause()
             precondition(harness.requests.isEmpty, "Restored text must not open suggestions")
@@ -179,7 +180,7 @@ private struct SearchSuggestionTests {
             await enter()
             await pause()
             precondition(harness.opened == [.user(artist)], "Return on a top result must open it")
-            precondition(harness.searches.last == "fo one" && harness.text == "ba", "Opening a result must not search")
+            precondition(harness.searches.last == "fo one" && harness.model.text == "ba", "Opening a result must not search")
             precondition(field.currentEditor() == nil, "Opening a result must release focus")
 
             await type("pa")
@@ -225,10 +226,10 @@ private struct SearchSuggestionTests {
                          "Closed suggestions must not be selectable")
 
             await type("cl")
-            // Rows start below the field's 12pt padding, the 6pt gap, and the list's 6pt
-            // padding: three 30pt completions, then 54pt results.
+            // Rows start below the field's 7pt padding, the fixture's padding, the gap above
+            // the list, and the list's 6pt padding: three 30pt completions, then 54pt results.
             let fieldFrame = field.convert(field.bounds, to: nil)
-            let rowsTop = fieldFrame.minY - 12 - 6 - 6
+            let rowsTop = fieldFrame.minY - 7 - SuggestionFixture.fieldPadding - SearchSuggestionDropdown.gap - 6
             click(NSPoint(x: fieldFrame.midX, y: rowsTop - 45))
             await pause()
             precondition(harness.searches.last == "cl two", "Clicking a completion must search it")
@@ -249,7 +250,6 @@ private struct SearchSuggestionTests {
             precondition(field.currentEditor() == nil, "Outside click must still release focus")
             precondition(harness.searches.last == "cl two", "A closed list must not search")
 
-            store.clear(for: user)
             print("Search suggestion tests passed")
             app.terminate(nil)
         }

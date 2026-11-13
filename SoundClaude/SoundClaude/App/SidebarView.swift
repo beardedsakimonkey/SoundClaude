@@ -632,12 +632,14 @@ struct SidebarView: View {
     }
 
     private func select(_ destination: SidebarDestination) {
-        isSidebarFocused = true
-        if selection == destination {
-            onReselect()
-        } else {
+        guard selection == destination else {
+            isSidebarFocused = true
             onSelect(destination)
+            return
         }
+        // Reselecting Search focuses its field, which focusing the sidebar would undo.
+        if destination != .search { isSidebarFocused = true }
+        onReselect()
     }
 }
 

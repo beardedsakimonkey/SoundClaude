@@ -75,38 +75,27 @@ private struct SearchFocusTests {
                     precondition(!monitor.isFocused, "Outside click must clear SwiftUI focus")
                     precondition(renders.count == initialRenders, "Dismissing filter focus must not update its parent")
                     precondition(field.stringValue == "Keep this query", "Dismissal must retain the query")
-                    let user = SoundCloudUser(
-                        urn: "soundcloud:users:focus-test", username: "Focus test",
-                        avatarURL: nil, permalinkURL: URL(string: "https://soundcloud.com/focus-test")!
-                    )
-                    let searchHost = NSHostingView(rootView: SearchView(
-                        user: user, searchText: .constant(""), focusRequest: nil, artworkLoader: ArtworkLoader(),
-                        onSearch: { _ in }
-                    ))
+                    let model = SearchFieldModel()
+                    let actions = SearchFieldActions(onSearch: { _ in })
+                    let searchHost = NSHostingView(rootView: SearchField(model: model, actions: actions).padding())
                     window.contentView = searchHost
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         let searchField = descendant(NSTextField.self, in: searchHost)!
                         precondition(searchField.currentEditor() == nil, "Restored Search must start without focus")
                         precondition(searchField.isEnabled, "Restored Search must allow input")
-                        searchHost.rootView = SearchView(
-                            user: user, searchText: .constant(""), focusRequest: UUID(), artworkLoader: ArtworkLoader(),
-                            onSearch: { _ in }
-                        )
+                        model.focusRequest = UUID()
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                             precondition(searchField.currentEditor() != nil, "Search route must focus its input on arrival")
+                            precondition(model.focusRequest == nil, "A focus request must apply once")
                             click(NSPoint(x: 250, y: 100))
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                 precondition(searchField.currentEditor() == nil, "Outside click must release search focus")
-                                searchHost.rootView = SearchView(
-                                    user: user, searchText: .constant(""), focusRequest: UUID(), artworkLoader: ArtworkLoader(),
-                                    onSearch: { _ in }
-                                )
+                                model.focusRequest = UUID()
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     precondition(searchField.currentEditor() != nil, "Reselecting Search must restore input focus")
-                                    let requestedHost = NSHostingView(rootView: SearchView(
-                                        user: user, searchText: .constant(""), focusRequest: UUID(), artworkLoader: ArtworkLoader(),
-                                        onSearch: { _ in }
-                                    ))
+                                    let requestedHost = NSHostingView(rootView: SearchField(
+                                        model: SearchFieldModel(focusRequest: UUID()), actions: actions
+                                    ).padding())
                                     window.contentView = requestedHost
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                         let requestedField = descendant(NSTextField.self, in: requestedHost)!

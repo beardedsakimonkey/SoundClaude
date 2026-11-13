@@ -21,18 +21,15 @@ struct PreventAutomaticSearchFocus: ViewModifier {
 
 struct SearchOutsideClickView: NSViewRepresentable {
     let isFocused: Bool
-    var dropdownHeight: CGFloat = 0
 
     func makeNSView(context: Context) -> MonitorView {
         let view = MonitorView()
         view.isFocused = isFocused
-        view.dropdownHeight = dropdownHeight
         return view
     }
 
     func updateNSView(_ nsView: MonitorView, context: Context) {
         nsView.isFocused = isFocused
-        nsView.dropdownHeight = dropdownHeight
     }
 
     static func dismantleNSView(_ nsView: MonitorView, coordinator: ()) {
@@ -41,7 +38,6 @@ struct SearchOutsideClickView: NSViewRepresentable {
 
     final class MonitorView: NSView {
         var isFocused = false
-        var dropdownHeight: CGFloat = 0
         private var monitor: Any?
 
         // The background observes clicks without taking part in hit testing.
@@ -62,11 +58,8 @@ struct SearchOutsideClickView: NSViewRepresentable {
 
                 let location = self.convert(event.locationInWindow, from: nil)
                 // SwiftUI can disable clipping, making visibleRect larger than the filter.
-                var filterRect = self.bounds.intersection(self.visibleRect)
-                // A dropdown hangs below the field and belongs to it. AppKit's y axis points up.
-                filterRect.origin.y -= self.dropdownHeight
-                filterRect.size.height += self.dropdownHeight
-                if !filterRect.contains(location) {
+                let filterRect = self.bounds.intersection(self.visibleRect)
+                if !filterRect.contains(location), !SearchDropdownRegion.contains(event) {
                     // End native text editing before the click can focus another control.
                     // SwiftUI clears the field's focus state from this on its own; setting
                     // it false as well lands after the click focuses another field, and
@@ -86,6 +79,37 @@ struct SearchOutsideClickView: NSViewRepresentable {
 
         deinit {
             stopMonitoring()
+        }
+    }
+}
+
+/// Marks a dropdown that belongs to a search field elsewhere in the window, so that
+/// clicks in it keep the field focused. Put it behind the dropdown.
+struct SearchDropdownRegion: NSViewRepresentable {
+    private static let regions = NSHashTable<RegionView>.weakObjects()
+
+    static func contains(_ event: NSEvent) -> Bool {
+        regions.allObjects.contains { region in
+            region.window === event.window
+                && !region.isHiddenOrHasHiddenAncestor
+                && region.convert(region.bounds, to: nil).contains(event.locationInWindow)
+        }
+    }
+
+    func makeNSView(context: Context) -> RegionView { RegionView() }
+
+    func updateNSView(_ nsView: RegionView, context: Context) {}
+
+    final class RegionView: NSView {
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if window == nil {
+                SearchDropdownRegion.regions.remove(self)
+            } else {
+                SearchDropdownRegion.regions.add(self)
+            }
         }
     }
 }

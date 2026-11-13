@@ -12,11 +12,10 @@ struct SignedInView: View {
     @State private var navigationHistories: [SidebarDestination.ID: NavigationHistory] = [:]
     @State private var initialDetailArtworkRotation: Bool?
     @State private var playlistTrack: SoundCloudTrack?
-    @State private var searchText = ""
+    // Restoring Search at launch must not request keyboard focus.
+    @State private var searchField = SearchFieldModel()
     @State private var likesSearchText = ""
     @State private var historySearchText = ""
-    // Restoring Search at launch must not request keyboard focus.
-    @State private var searchFocusRequest: UUID?
     @State private var isShowingVisualizer = false
     @State private var queuePresentation = QueuePresentation()
     @State private var isOpeningCurrentTrackStation = false
@@ -90,6 +89,26 @@ struct SignedInView: View {
         nonmutating set { navigationHistories[destinationID, default: NavigationHistory()].forwardPath = newValue }
     }
 
+    /// The search the toolbar's field starts from, on the pages that show the field:
+    /// Search itself, with nothing typed, and every page of search results.
+    private var searchFieldQuery: String? {
+        switch currentRoute {
+        case let .search(query), let .searchCategory(query, _): query
+        case nil where selectedDestination == .search: ""
+        default: nil
+        }
+    }
+
+    private var searchFieldActions: SearchFieldActions {
+        SearchFieldActions(onSearch: search) { result in
+            switch result {
+            case let .user(user): showArtist(user)
+            case let .track(track): showTrack(track)
+            case let .playlist(playlist): showPlaylist(playlist)
+            }
+        }
+    }
+
     private var currentPlaylistURN: String? {
         guard case let .playlist(playlist) = currentRoute else { return nil }
         return playlist.urn
@@ -111,6 +130,10 @@ struct SignedInView: View {
         }
         .onChange(of: navigationSelection) { _, selection in
             selectionStore.save(selection, for: user)
+        }
+        // The field shows the search its page is for, dropping edits left behind on another.
+        .onChange(of: searchFieldQuery, initial: true) { _, query in
+            searchField.text = query ?? ""
         }
         // Preserve page and scroll state, but suppress page drawing and frame timelines.
         .opacity(isShowingVisualizer ? 0 : 1)
@@ -346,7 +369,7 @@ struct SignedInView: View {
                 onReselect: {
                     navigationHistories[destinationID] = NavigationHistory()
                     artistTabSelections.tabs[destinationID] = nil
-                    if selectedDestination == .search { searchFocusRequest = UUID() }
+                    if selectedDestination == .search { searchField.focusRequest = UUID() }
                 },
                 onSignOut: model.signOut
             )
@@ -428,6 +451,16 @@ struct SignedInView: View {
             .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             .background(Color(nsColor: .windowBackgroundColor))
             .modifier(NavigationPageViewport())
+            .overlay {
+                if searchFieldQuery != nil {
+                    SearchSuggestionDropdown(
+                        model: searchField,
+                        artworkLoader: model.artworkLoader,
+                        bottomInset: footerHeight,
+                        actions: searchFieldActions
+                    )
+                }
+            }
             .toolbar { navigationToolbar }
         }
     }
@@ -608,25 +641,7 @@ struct SignedInView: View {
                 feed: model.feed
             )
         case .search:
-            SearchView(
-                user: user,
-                searchText: $searchText,
-                focusRequest: searchFocusRequest,
-                artworkLoader: model.artworkLoader,
-                suggestions: { [model] in await model.searchSuggestions(for: $0) },
-                onSearch: { query in
-                    push(.search(query))
-                },
-                onSelectResult: { result in
-                    switch result {
-                    case let .user(user): showArtist(user)
-                    case let .track(track): showTrack(track)
-                    case let .playlist(playlist): showPlaylist(playlist)
-                    }
-                }
-            )
-            // A request applies to one mount. Going Back must not refocus the field.
-            .onDisappear { searchFocusRequest = nil }
+            SearchView(user: user, onSearch: search)
         case .history:
             HistoryView(
                 model: model,
@@ -654,13 +669,9 @@ struct SignedInView: View {
     // Only the current page contributes toolbar content.
     @ToolbarContentBuilder
     private var navigationToolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            navigationButtons
-        }
-    }
-
-    private var navigationButtons: some View {
-        ControlGroup {
+        // A control group is not a navigation item to the toolbar, which then puts it
+        // on the trailing side. Separate buttons stay on the leading side, sharing a background.
+        ToolbarItemGroup(placement: .navigation) {
             Button {
                 _ = navigateBack()
             } label: {
@@ -679,12 +690,27 @@ struct SignedInView: View {
             .disabled(forwardPath.isEmpty)
             .contentHelp("Go forward")
         }
-        .labelStyle(.iconOnly)
+        if searchFieldQuery != nil {
+            ToolbarItem(placement: .principal) {
+                SearchField(
+                    model: searchField,
+                    suggest: { [model] in await model.searchSuggestions(for: $0) },
+                    actions: searchFieldActions
+                )
+                .frame(width: 320)
+            }
+        }
     }
 
     private func push(_ route: Route) {
         forwardPath.removeAll()
         path.append(NavigationEntry(route: route))
+    }
+
+    private func search(_ query: String) {
+        RecentSearchStore().record(query, for: user)
+        guard currentRoute != .search(query) else { return }
+        push(.search(query))
     }
 
     private func showTagSearch(_ tag: String) {
@@ -889,6 +915,9 @@ struct SignedInView: View {
         }
 
         forwardPath.append(entry)
+        if selectedDestination == .search, path.isEmpty {
+            searchField.focusRequest = UUID()
+        }
         return true
     }
 
@@ -906,7 +935,7 @@ struct SignedInView: View {
     private func selectDestination(_ destination: SidebarDestination) {
         if destination == .search,
            navigationHistories[destination.id, default: NavigationHistory()].path.isEmpty {
-            searchFocusRequest = UUID()
+            searchField.focusRequest = UUID()
         }
         initialDetailArtworkRotation = nil
         selectedDestination = destination
