@@ -377,13 +377,13 @@ private struct SearchResultLabel: View {
     var body: some View {
         HStack(spacing: 10) {
             TrackArtworkView(
-                artworkURL: artworkURL,
+                artworkURL: result.artworkURL,
                 loader: artworkLoader,
                 size: Self.artworkSize,
-                shape: RoundedRectangle(cornerRadius: isUser ? Self.artworkSize / 2 : 4)
+                shape: RoundedRectangle(cornerRadius: result.isUser ? Self.artworkSize / 2 : 4)
             )
             VStack(alignment: .leading, spacing: 1) {
-                Text(title)
+                Text(result.title)
                     .fontWeight(.medium)
                 Text(subtitle)
                     .font(.subheadline)
@@ -396,26 +396,6 @@ private struct SearchResultLabel: View {
         .overlay(alignment: .top) {
             // A system divider all but vanishes on the panel's material.
             if showsDivider { Rectangle().fill(.primary.opacity(0.12)).frame(height: 1) }
-        }
-    }
-
-    private var isUser: Bool {
-        if case .user = result { true } else { false }
-    }
-
-    private var artworkURL: URL? {
-        switch result {
-        case let .user(user): user.avatarURL
-        case let .track(track): track.displayArtworkURL
-        case let .playlist(playlist): playlist.artworkURL ?? playlist.owner.avatarURL
-        }
-    }
-
-    private var title: String {
-        switch result {
-        case let .user(user): user.username
-        case let .track(track): track.title
-        case let .playlist(playlist): playlist.title
         }
     }
 

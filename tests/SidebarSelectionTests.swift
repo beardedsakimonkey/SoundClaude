@@ -30,7 +30,7 @@ struct SidebarSelectionTests {
         )
         let playlist = SoundCloudPlaylist.systemPlaylist(urn: "soundcloud:system-playlists:1", title: "Mix")
         let routes: [Route] = [
-            .search("query"), .genre("Ambient"), .tag("live"), .track(track),
+            .search("query"), .searchCategory("query", .albums), .genre("Ambient"), .tag("live"), .track(track),
             .relatedTracks(track), .trackPlaylists(track),
             .playlist(playlist), .station("station", seedTrack: track),
             .station("artist-station", seedArtistName: user.username),
@@ -67,7 +67,6 @@ struct SidebarSelectionTests {
             // A tab at its root has nothing to save.
             SidebarDestination.history.id: history([])
         ])
-        saved.searchCategories["query"] = .users
         saved.artistTabs[SidebarDestination.search.id] = [user.permalinkURL: .likes]
         store.save(saved, for: user)
         let restored = SidebarSelectionStore(defaults: UserDefaults(suiteName: suite)!).restoreNavigation(for: user)

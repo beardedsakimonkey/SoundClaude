@@ -247,6 +247,41 @@ enum SoundCloudSearchResult: Sendable, Equatable {
     case playlist(SoundCloudPlaylist)
 }
 
+extension SoundCloudSearchResult: Identifiable {
+    var id: String {
+        switch self {
+        case let .user(user): user.permalinkURL.absoluteString
+        case let .track(track): track.urn
+        case let .playlist(playlist): playlist.urn
+        }
+    }
+
+    var title: String {
+        switch self {
+        case let .user(user): user.username
+        case let .track(track): track.title
+        case let .playlist(playlist): playlist.title
+        }
+    }
+
+    var artworkURL: URL? {
+        switch self {
+        case let .user(user): user.avatarURL
+        case let .track(track): track.displayArtworkURL
+        case let .playlist(playlist): playlist.artworkURL ?? playlist.owner.avatarURL
+        }
+    }
+
+    var isUser: Bool {
+        if case .user = self { true } else { false }
+    }
+}
+
+struct SoundCloudSearchResultPage: Sendable {
+    let results: [SoundCloudSearchResult]
+    let nextURL: URL?
+}
+
 // api-v2 /search mixes users, tracks, and playlists, told apart by `kind`.
 struct RawSearchResult: Decodable {
     let result: SoundCloudSearchResult?
@@ -264,6 +299,16 @@ struct RawSearchResult: Decodable {
         case "playlist": (try? RawPlaylist(from: decoder))?.normalized().map(SoundCloudSearchResult.playlist)
         default: nil
         }
+    }
+}
+
+struct RawSearchResultPage: Decodable {
+    let collection: [RawSearchResult]
+    let nextURL: URL?
+
+    enum CodingKeys: String, CodingKey {
+        case collection
+        case nextURL = "next_href"
     }
 }
 
@@ -350,6 +395,8 @@ struct SoundCloudPlaylist: Codable, Identifiable, Sendable, Hashable {
     var createdAt: String? = nil
 
     var tagList: String? = nil
+    /// nil where the API response did not say.
+    var isAlbum: Bool? = nil
 
     var tags: [String] { SoundCloudTags.parse(tagList) }
 
@@ -707,6 +754,7 @@ struct RawPlaylist: WrappableItem {
     let lastModified: String?
     let createdAt: String?
     let tagList: String?
+    let isAlbum: Bool?
 
     enum CodingKeys: String, CodingKey {
         case urn, id, title, user, description, duration, sharing
@@ -716,6 +764,7 @@ struct RawPlaylist: WrappableItem {
         case lastModified = "last_modified"
         case createdAt = "created_at"
         case tagList = "tag_list"
+        case isAlbum = "is_album"
     }
 
     func normalized() -> SoundCloudPlaylist? {
@@ -735,7 +784,8 @@ struct RawPlaylist: WrappableItem {
             isPrivate: sharing == "private",
             lastModified: lastModified,
             createdAt: createdAt,
-            tagList: tagList
+            tagList: tagList,
+            isAlbum: isAlbum
         )
     }
 }

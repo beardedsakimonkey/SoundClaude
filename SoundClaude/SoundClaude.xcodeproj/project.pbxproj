@@ -59,6 +59,7 @@
 		A1000000000000000000001A /* FeedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000032 /* FeedView.swift */; };
 		A10000000000000000000073 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000073 /* HistoryView.swift */; };
 		A10000000000000000000080 /* SearchResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000080 /* SearchResultsView.swift */; };
+		A100000000000000000000F8 /* SearchOverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A200000000000000000000F8 /* SearchOverviewView.swift */; };
 		A1000000000000000000001B /* PlayerFooterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000033 /* PlayerFooterView.swift */; };
 		402E5CBBFF434B839270458A /* PlayerVolumeControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0BA3CD5DBE44BB49D0B96B6 /* PlayerVolumeControl.swift */; };
 		02B5D93E397B5EA58490AD9F /* PlayerSpeedControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51EB047CDEF029DF063F292E /* PlayerSpeedControl.swift */; };
@@ -210,6 +211,7 @@
 		A20000000000000000000032 /* FeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedView.swift; sourceTree = "<group>"; };
 		A20000000000000000000073 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		A20000000000000000000080 /* SearchResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultsView.swift; sourceTree = "<group>"; };
+		A200000000000000000000F8 /* SearchOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchOverviewView.swift; sourceTree = "<group>"; };
 		A20000000000000000000033 /* PlayerFooterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerFooterView.swift; sourceTree = "<group>"; };
 		E0BA3CD5DBE44BB49D0B96B6 /* PlayerVolumeControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerVolumeControl.swift; sourceTree = "<group>"; };
 		51EB047CDEF029DF063F292E /* PlayerSpeedControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerSpeedControl.swift; sourceTree = "<group>"; };
@@ -413,6 +415,7 @@
 				A20000000000000000000032 /* FeedView.swift */,
 				A20000000000000000000073 /* HistoryView.swift */,
 				A20000000000000000000080 /* SearchResultsView.swift */,
+				A200000000000000000000F8 /* SearchOverviewView.swift */,
 				4925E94F504F440FA2B06DBF /* PlayerArtworkGlass.swift */,
 				A20000000000000000000033 /* PlayerFooterView.swift */,
 				E0BA3CD5DBE44BB49D0B96B6 /* PlayerVolumeControl.swift */,
@@ -713,6 +716,7 @@
 				A1000000000000000000001A /* FeedView.swift in Sources */,
 				A10000000000000000000073 /* HistoryView.swift in Sources */,
 				A10000000000000000000080 /* SearchResultsView.swift in Sources */,
+				A100000000000000000000F8 /* SearchOverviewView.swift in Sources */,
 				53FD266F04FB426AA01E2B0A /* PlayerArtworkGlass.swift in Sources */,
 				A1000000000000000000001B /* PlayerFooterView.swift in Sources */,
 				402E5CBBFF434B839270458A /* PlayerVolumeControl.swift in Sources */,

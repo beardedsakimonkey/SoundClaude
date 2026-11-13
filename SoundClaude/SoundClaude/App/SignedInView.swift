@@ -30,9 +30,6 @@ struct SignedInView: View {
         let selection = SidebarSelectionStore().restoreNavigation(for: user)
         _selectedDestination = State(initialValue: selection.destination)
         _navigationHistories = State(initialValue: selection.navigationHistories)
-        for (query, category) in selection.searchCategories {
-            model.rememberSearchCategory(category, for: query)
-        }
         let artistTabSelections = ArtistTabSelections()
         for (destinationID, tabs) in selection.artistTabs {
             for (artistURL, tab) in tabs {
@@ -51,9 +48,6 @@ struct SignedInView: View {
         for (destinationID, history) in selection.histories {
             for route in history.routes {
                 switch route {
-                case let .search(query):
-                    let category = model.searchCategory(for: query)
-                    if category != .tracks { selection.searchCategories[query] = category }
                 case let .artist(artist):
                     if let tab = artistTabSelections.tabs[destinationID]?[artist.permalinkURL]?.tab, tab != .tracks {
                         selection.artistTabs[destinationID, default: [:]][artist.permalinkURL] = tab
@@ -438,27 +432,32 @@ struct SignedInView: View {
         }
     }
 
+    private func searchPage(query: String, category: SearchCategory?) -> some View {
+        ScrollbarReservedScrollView { contentSize in
+            SearchResultsView(
+                query: query,
+                category: category,
+                model: model,
+                onSelectTrack: showTrack,
+                onSelectPlaylist: showPlaylist,
+                onSelectArtist: showArtist,
+                onSelectCategory: { push(.searchCategory(query, $0)) }
+            )
+            .environment(\.searchViewportHeight, contentSize.height)
+            .remembersScrollPosition()
+        }
+        .background(alignment: .top) {
+            RouteGradientBackdrop()
+        }
+    }
+
     @ViewBuilder
     private func routeView(_ route: Route) -> some View {
         switch route {
         case let .search(query):
-            ScrollbarReservedScrollView { contentSize in
-                SearchResultsView(
-                    query: query,
-                    model: model,
-                    onSelectTrack: showTrack,
-                    onSelectPlaylist: showPlaylist,
-                    onSelectArtist: showArtist,
-                    // Tab changes do not update the navigation tree, so save them here.
-                    onSelectCategory: { _ in selectionStore.save(navigationSelection, for: user) }
-                )
-                .environment(\.searchViewportHeight, contentSize.height)
-                .remembersScrollPosition()
-            }
-            .background(alignment: .top) {
-                RouteGradientBackdrop()
-            }
-            .id(route)
+            searchPage(query: query, category: nil).id(route)
+        case let .searchCategory(query, category):
+            searchPage(query: query, category: category).id(route)
         case let .tag(tag):
             ScrollView {
                 SearchResultsView(

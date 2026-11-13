@@ -11,7 +11,7 @@ struct UserGridView: View {
     // thread in an endless lazy layout loop. An eager parent would build a footer spinner
     // right away, so paging starts from the last card, which stays lazy.
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 164), spacing: 0)], spacing: 0) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: UserGridCard.minimumWidth), spacing: 0)], spacing: 0) {
             ForEach(users, id: \.permalinkURL) { user in
                 let nextPage = users.last?.permalinkURL == user.permalinkURL ? nextPageURL : nil
                 UserGridCard(
@@ -32,10 +32,14 @@ struct UserGridView: View {
 }
 
 // Keep pointer changes local to the card instead of updating the whole grid.
-private struct UserGridCard: View {
+struct UserGridCard: View {
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
     let onSelectArtist: (SoundCloudUser) -> Void
+
+    static let minimumWidth: CGFloat = 164
+    /// The space between the card's edge and its avatar.
+    static let avatarInset: CGFloat = 22
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -87,7 +91,7 @@ private struct UserGridCard: View {
             }
             .padding(10)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding(12)
+            .padding(Self.avatarInset - 10)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

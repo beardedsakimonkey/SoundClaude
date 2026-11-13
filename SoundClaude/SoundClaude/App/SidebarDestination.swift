@@ -46,6 +46,8 @@ enum SidebarDestination: Codable, Hashable, Identifiable {
 
 enum Route: Codable, Hashable {
     case search(String)
+    /// Every match of one kind for a query, opened from a section of its search page.
+    case searchCategory(String, SearchCategory)
     case genre(String)
     case tag(String)
     case playlist(SoundCloudPlaylist)
@@ -70,18 +72,13 @@ struct NavigationHistory {
     var forwardPath: [NavigationEntry] = []
 }
 
-enum SearchCategory: String, CaseIterable, Codable {
+enum SearchCategory: String, Codable {
+    /// Matches of every kind in ranked order.
+    case top = "Top results"
     case tracks = "Tracks"
     case playlists = "Playlists"
+    case albums = "Albums"
     case users = "Users"
-
-    var systemImage: String {
-        switch self {
-        case .tracks: "music.note"
-        case .playlists: "music.note.list"
-        case .users: "person"
-        }
-    }
 }
 
 enum ArtistContentTab: String, CaseIterable, Identifiable, Codable {
@@ -117,8 +114,6 @@ struct NavigationSelection: Codable, Equatable {
 
     var destination: SidebarDestination
     var histories: [SidebarDestination.ID: History] = [:]
-    /// Results tabs of the search pages in `histories`. Tracks, the default, is omitted.
-    var searchCategories: [String: SearchCategory] = [:]
     /// Content tabs of the artist pages in `histories`, by artist permalink.
     var artistTabs: [SidebarDestination.ID: [URL: ArtistContentTab]] = [:]
 

@@ -260,6 +260,13 @@ actor SoundCloudClient {
         return try await playlistPage(at: url, accessToken: accessToken)
     }
 
+    func searchAlbums(
+        query: String, accessToken: String, pageURL: URL? = nil
+    ) async throws -> SoundCloudPlaylistPage {
+        let url = pageURL ?? searchURL(path: "albums", query: query)
+        return try await playlistPage(at: url, accessToken: accessToken)
+    }
+
     func searchUsers(
         query: String, accessToken: String, pageURL: URL? = nil
     ) async throws -> SoundCloudUserPage {
@@ -281,9 +288,18 @@ actor SoundCloudClient {
 
     /// The best matches of every kind, as the website's "Everything" tab ranks them.
     func searchTopResults(query: String, accessToken: String) async throws -> [SoundCloudSearchResult] {
-        struct Page: Decodable { let collection: [RawSearchResult] }
         let url = endpoint("search", query: ["q": query, "limit": "\(Self.topResultLimit)"])
-        return try await get(Page.self, url, accessToken: accessToken).collection.compactMap(\.result)
+        return try await get(RawSearchResultPage.self, url, accessToken: accessToken).collection.compactMap(\.result)
+    }
+
+    /// Matches of every kind in ranked order, a page at a time.
+    func searchResults(
+        query: String, accessToken: String, pageURL: URL? = nil
+    ) async throws -> SoundCloudSearchResultPage {
+        let url = pageURL ?? endpoint("search", query: ["q": query, "limit": "25"])
+        let page = try await get(RawSearchResultPage.self, url, accessToken: accessToken)
+        try validateNextURL(page.nextURL, after: url)
+        return SoundCloudSearchResultPage(results: page.collection.compactMap(\.result), nextURL: page.nextURL)
     }
 
     private func searchURL(path: String, query: String, extra: [String: String?] = [:]) -> URL {

@@ -26,12 +26,15 @@ struct SearchTests {
          "permalink_url":"https://soundcloud.com/artist/sets/mix","user":\(user)}
         """
 
-        for endpoint in ["tracks", "playlists_without_albums", "users"] {
+        let album = "{\"is_album\":true," + playlist.trimmingCharacters(in: .whitespacesAndNewlines).dropFirst()
+
+        for endpoint in ["tracks", "playlists_without_albums", "albums", "users"] {
             let nextURL = URL(string: "https://api-v2.soundcloud.com/search/\(endpoint)?cursor=next&q=ambient")!
             let collection: String
             switch endpoint {
             case "tracks": collection = "[\(track(1)),\(track(2, policy: "BLOCK")),\(track(3, policy: "SNIP"))]"
             case "playlists_without_albums": collection = "[\(playlist)]"
+            case "albums": collection = "[\(album)]"
             default: collection = "[\(user)]"
             }
             SearchURLProtocol.respond { request in
@@ -60,6 +63,10 @@ struct SearchTests {
             case "playlists_without_albums":
                 let page = try await client.searchPlaylists(query: query, accessToken: "test-token")
                 precondition(page.playlists.first?.title == "Mix" && page.nextURL == nextURL)
+                precondition(page.playlists.first?.isAlbum == nil)
+            case "albums":
+                let page = try await client.searchAlbums(query: query, accessToken: "test-token")
+                precondition(page.playlists.first?.isAlbum == true && page.nextURL == nextURL)
             default:
                 let page = try await client.searchUsers(query: query, accessToken: "test-token")
                 precondition(page.users.first?.followersCount == 12 && page.nextURL == nextURL)
@@ -69,6 +76,7 @@ struct SearchTests {
                 switch endpoint {
                 case "tracks": return try await client.searchTracks(query: query, accessToken: "test-token", pageURL: url).nextURL
                 case "playlists_without_albums": return try await client.searchPlaylists(query: query, accessToken: "test-token", pageURL: url).nextURL
+                case "albums": return try await client.searchAlbums(query: query, accessToken: "test-token", pageURL: url).nextURL
                 default: return try await client.searchUsers(query: query, accessToken: "test-token", pageURL: url).nextURL
                 }
             }
@@ -223,6 +231,17 @@ struct SearchTests {
             _ = try await client.searchTopResults(query: query, accessToken: "test-token")
             fatalError("Rate limit was accepted")
         } catch SoundCloudError.rateLimited {}
+        SearchURLProtocol.respond { request in
+            precondition(request.url?.path == "/search")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            let parameters = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value!) })
+            precondition(parameters["q"] == query && parameters["limit"] == "25")
+            let next = "https://api-v2.soundcloud.com/search?cursor=next&q=ambient"
+            return (200, "{\"collection\":[{\"kind\":\"user\"," + user.dropFirst() + "],\"next_href\":\"\(next)\"}")
+        }
+        let resultPage = try await client.searchResults(query: query, accessToken: "test-token")
+        precondition(resultPage.results.map(\.id) == ["https://soundcloud.com/artist"])
+        precondition(resultPage.nextURL?.query()?.contains("cursor=next") == true)
         print("Search API, suggestions, genre filtering, pagination, and queue checks passed")
     }
 }

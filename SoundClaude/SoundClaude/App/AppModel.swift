@@ -93,8 +93,9 @@ final class AppModel {
     // Keep initial search pages across Back/Forward navigation without unbounded growth.
     private let firstSearchTrackPageCache = RequestCache<SearchTrackCacheKey, SoundCloudTrackPage>(name: "First Search Track Pages", countLimit: 20)
     private let firstSearchPlaylistPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Search Playlist Pages", countLimit: 20)
+    private let firstSearchAlbumPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Search Album Pages", countLimit: 20)
+    private let firstSearchResultPageCache = RequestCache<NSString, SoundCloudSearchResultPage>(name: "First Search Result Pages", countLimit: 20)
     private let firstSearchUserPageCache = RequestCache<NSString, SoundCloudUserPage>(name: "First Search User Pages", countLimit: 20)
-    private let searchCategoryCache = MemoryCache<NSString, SearchCategory>(name: "Search Categories", countLimit: 100)
     private let searchSuggestionCache = RequestCache<NSString, SoundCloudSearchSuggestions>(name: "Search Suggestions", countLimit: 100)
     private let artistDetailsCache = RequestCache<NSURL, SoundCloudArtistDetails>(name: "Artist Details", countLimit: 100)
     private let artistWebProfilesCache = RequestCache<NSURL, [SoundCloudWebProfile]>(name: "Artist Web Profiles", countLimit: 100)
@@ -332,7 +333,8 @@ final class AppModel {
         firstSearchTrackPageCache.reset()
         firstSearchPlaylistPageCache.reset()
         firstSearchUserPageCache.reset()
-        searchCategoryCache.removeAll()
+        firstSearchAlbumPageCache.reset()
+        firstSearchResultPageCache.reset()
         searchSuggestionCache.reset()
         artistHeaderCache.reset()
         stationCache.reset()
@@ -766,14 +768,6 @@ final class AppModel {
         }
     }
 
-    func searchCategory(for query: String) -> SearchCategory {
-        searchCategoryCache.value(forKey: query as NSString) ?? .tracks
-    }
-
-    func rememberSearchCategory(_ category: SearchCategory, for query: String) {
-        searchCategoryCache.insert(category, forKey: query as NSString)
-    }
-
     /// Autocomplete for the search field. A part that fails to load is left out rather than raising an error.
     func searchSuggestions(for query: String) async -> SoundCloudSearchSuggestions {
         let suggestions = try? await searchSuggestionCache.value(for: query.lowercased() as NSString) { [auth, client] in
@@ -796,6 +790,26 @@ final class AppModel {
 
     func cachedFirstSearchPlaylistPage(query: String) -> SoundCloudPlaylistPage? {
         firstSearchPlaylistPageCache.cached(query as NSString)
+    }
+
+    func cachedFirstSearchAlbumPage(query: String) -> SoundCloudPlaylistPage? {
+        firstSearchAlbumPageCache.cached(query as NSString)
+    }
+
+    func cachedFirstSearchResultPage(query: String) -> SoundCloudSearchResultPage? {
+        firstSearchResultPageCache.cached(query as NSString)
+    }
+
+    /// Matches of every kind in ranked order. The first page also fills the search page's sections.
+    func searchResults(query: String, pageURL: URL? = nil) async throws -> SoundCloudSearchResultPage {
+        if let pageURL {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.searchResults(query: query, accessToken: accessToken, pageURL: pageURL)
+        }
+        return try await firstSearchResultPageCache.value(for: query as NSString) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.searchResults(query: query, accessToken: accessToken, pageURL: nil)
+        }
     }
 
     func cachedFirstSearchUserPage(query: String) -> SoundCloudUserPage? {
@@ -822,6 +836,17 @@ final class AppModel {
         return try await firstSearchPlaylistPageCache.value(for: query as NSString) { [auth, client] in
             let accessToken = try await auth.validAccessToken()
             return try await client.searchPlaylists(query: query, accessToken: accessToken, pageURL: nil)
+        }
+    }
+
+    func searchAlbums(query: String, pageURL: URL? = nil) async throws -> SoundCloudPlaylistPage {
+        if let pageURL {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.searchAlbums(query: query, accessToken: accessToken, pageURL: pageURL)
+        }
+        return try await firstSearchAlbumPageCache.value(for: query as NSString) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.searchAlbums(query: query, accessToken: accessToken, pageURL: nil)
         }
     }
 

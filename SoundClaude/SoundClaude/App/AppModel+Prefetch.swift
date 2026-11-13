@@ -16,9 +16,9 @@ enum PrefetchTarget: Hashable {
     case artist(SoundCloudUser)
     case artistTab(SoundCloudUser, ArtistContentTab)
     case artistComments(SoundCloudUser)
-    /// Search results on the tab that the page will open on.
     case search(String, SearchScope)
-    case searchTab(String, SearchCategory)
+    /// Every match of one kind for a query.
+    case searchCategory(String, SearchCategory)
     case station(String)
     case playlist(SoundCloudPlaylist)
     /// The rendition that the full-size viewer shows.
@@ -46,10 +46,13 @@ extension AppModel {
         case let .artistComments(artist):
             _ = try? await artistComments(for: artist)
         case let .search(query, scope):
-            let category = scope == .query ? searchCategory(for: query) : .tracks
-            await warmSearch(query, scope: scope, category: category)
-        case let .searchTab(query, category):
-            await warmSearch(query, scope: .query, category: category)
+            switch scope {
+            case .query: _ = try? await searchResults(query: query)
+            case .genre: _ = try? await searchTracks(genres: query)
+            case .tag: _ = try? await searchTracks(tags: query)
+            }
+        case let .searchCategory(query, category):
+            await warmSearchCategory(query, category)
         case let .station(urn):
             _ = try? await station(urn: urn)
         case let .playlist(playlist):
@@ -135,17 +138,17 @@ extension AppModel {
         return try? await artistDetails(for: artist).user
     }
 
-    private func warmSearch(_ query: String, scope: SearchScope, category: SearchCategory) async {
-        switch (scope, category) {
-        case (.genre, _):
-            _ = try? await searchTracks(genres: query)
-        case (.tag, _):
-            _ = try? await searchTracks(tags: query)
-        case (.query, .tracks):
+    private func warmSearchCategory(_ query: String, _ category: SearchCategory) async {
+        switch category {
+        case .top:
+            _ = try? await searchResults(query: query)
+        case .tracks:
             _ = try? await searchTracks(query: query)
-        case (.query, .playlists):
+        case .playlists:
             _ = try? await searchPlaylists(query: query)
-        case (.query, .users):
+        case .albums:
+            _ = try? await searchAlbums(query: query)
+        case .users:
             _ = try? await searchUsers(query: query)
         }
     }
