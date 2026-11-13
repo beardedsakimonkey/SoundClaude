@@ -28,6 +28,7 @@ struct ArtistLink: View {
 }
 enum PrefetchTarget { case track(SoundCloudTrack) }
 extension View {
+    func trackDraggable(_ track: SoundCloudTrack, previewTitle: String) -> some View { self }
     func onContentHover(_ action: @escaping (Bool) -> Void) -> some View { onHover(perform: action) }
     func contentHelp(_ text: String) -> some View { help(text) }
     func prefetch(_ target: PrefetchTarget?, onHover: ((Bool) -> Void)? = nil) -> some View {
