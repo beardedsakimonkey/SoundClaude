@@ -53,32 +53,35 @@ struct TrackMenuItems: View {
     var body: some View {
         let isLiked = likes.isLiked(track)
 
-        if let onAddToQueue {
-            Button("Play next", systemImage: "text.line.first.and.arrowtriangle.forward") {
-                onAddToQueue(track)
+        Group {
+            if let onAddToQueue {
+                Button("Play next", systemImage: "text.line.first.and.arrowtriangle.forward") {
+                    onAddToQueue(track)
+                }
             }
-        }
-        Button("Add to playlist", systemImage: "text.badge.plus") {
-            addToPlaylist(track)
-        }
-        if let onRemoveFromPlaylist {
-            Button("Remove from playlist", systemImage: "text.badge.minus", role: .destructive) {
-                onRemoveFromPlaylist(track)
+            Button("Add to playlist", systemImage: "text.badge.plus") {
+                addToPlaylist(track)
             }
-            .disabled(isUpdatingPlaylist)
-        }
+            if let onRemoveFromPlaylist {
+                Button("Remove from playlist", systemImage: "text.badge.minus", role: .destructive) {
+                    onRemoveFromPlaylist(track)
+                }
+                .disabled(isUpdatingPlaylist)
+            }
 
-        TrackStationMenuItem(track: track)
+            TrackStationMenuItem(track: track)
 
-        Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
-            Task {
-                do {
-                    try await likes.toggleLike(track)
-                } catch is CancellationError {
-                } catch {
-                    likeErrorMessage = error.localizedDescription
+            Button(isLiked ? "Unlike" : "Like", systemImage: isLiked ? "heart.fill" : "heart") {
+                Task {
+                    do {
+                        try await likes.toggleLike(track)
+                    } catch is CancellationError {
+                    } catch {
+                        likeErrorMessage = error.localizedDescription
+                    }
                 }
             }
         }
+        .labelStyle(.titleAndIcon)
     }
 }
