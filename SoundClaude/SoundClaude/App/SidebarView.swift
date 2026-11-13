@@ -650,9 +650,17 @@ private struct SidebarDropHighlight: ViewModifier {
     let isTargeted: Bool
 
     func body(content: Content) -> some View {
+        // Outline every row that accepts a track for as long as one is dragged.
+        let isAvailable = TrackDragState.shared.isDragging
         content.background {
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.accentColor.opacity(isTargeted ? 0.18 : 0))
+                .fill(Color.accentColor.opacity(isTargeted ? 0.18 : isAvailable ? 0.06 : 0))
+                .strokeBorder(
+                    Color.accentColor.opacity(isTargeted ? 0.9 : isAvailable ? 0.45 : 0),
+                    style: StrokeStyle(lineWidth: 1, dash: isTargeted ? [] : [4, 3])
+                )
+                .padding(.vertical, 1)
+                .animation(.easeInOut(duration: 0.15), value: isAvailable)
         }
     }
 }

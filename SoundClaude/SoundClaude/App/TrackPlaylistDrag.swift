@@ -13,6 +13,38 @@ struct TrackPlaylistDrag: Codable, Transferable {
     }
 }
 
+/// SwiftUI's `draggable` reports neither the start nor the end of a drag, so
+/// drop targets learn about one from the drag pasteboard and the mouse button.
+@MainActor @Observable
+final class TrackDragState {
+    static let shared = TrackDragState()
+
+    private(set) var isDragging = false
+    @ObservationIgnored private var timer: Timer?
+
+    /// Call once the pointer has moved far enough to start a drag.
+    /// `baseline` is the drag pasteboard's change count at mouse-down.
+    fileprivate func watchForDrag(baseline: Int) {
+        timer?.invalidate()
+        // Common modes keep the timer firing while the drag tracks the mouse.
+        let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.poll(baseline: baseline) }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
+    private func poll(baseline: Int) {
+        if NSEvent.pressedMouseButtons & 1 == 0 {
+            timer?.invalidate()
+            timer = nil
+            isDragging = false
+        } else if !isDragging, NSPasteboard(name: .drag).changeCount != baseline {
+            isDragging = true
+        }
+    }
+}
+
 extension UTType {
     static let soundClaudeTrack = UTType(
         exportedAs: "com.tim.soundclaude.native.track",
@@ -55,6 +87,7 @@ private struct TrackDragThreshold: NSViewRepresentable {
     final class MonitorView: NSView {
         private var monitor: Any?
         private var start: NSPoint?
+        private var dragPasteboardChangeCount = 0
         private let minimumDistance: CGFloat = 8
 
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
@@ -79,6 +112,7 @@ private struct TrackDragThreshold: NSViewRepresentable {
                    !isHiddenOrHasHiddenAncestor,
                    visibleRect.contains(convert(event.locationInWindow, from: nil)) {
                     start = event.locationInWindow
+                    dragPasteboardChangeCount = NSPasteboard(name: .drag).changeCount
                 }
             case .leftMouseDragged:
                 guard let start, event.window === window else { return event }
@@ -89,6 +123,7 @@ private struct TrackDragThreshold: NSViewRepresentable {
                 // Once the threshold is crossed, allow the entire drag through,
                 // including movement back toward the original click position.
                 self.start = nil
+                TrackDragState.shared.watchForDrag(baseline: dragPasteboardChangeCount)
             case .leftMouseUp:
                 start = nil
             default:
