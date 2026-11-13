@@ -386,8 +386,8 @@ struct SoundCloudPlaylist: Codable, Identifiable, Sendable, Hashable {
     let title: String
     let owner: SoundCloudUser
     var artworkURL: URL?
-    let permalinkURL: URL
-    let description: String?
+    var permalinkURL: URL
+    var description: String?
     let trackCount: Int?
     let durationMilliseconds: Int?
     let isPrivate: Bool
@@ -401,6 +401,12 @@ struct SoundCloudPlaylist: Codable, Identifiable, Sendable, Hashable {
     var tags: [String] { SoundCloudTags.parse(tagList) }
 
     var isSystemPlaylist: Bool { urn.hasPrefix("soundcloud:system-playlists:") }
+
+    /// Stations open on the station page rather than the playlist page.
+    var isStation: Bool {
+        urn.hasPrefix("soundcloud:system-playlists:track-stations:")
+            || urn.hasPrefix("soundcloud:system-playlists:artist-stations:")
+    }
 
     static func systemPlaylist(urn: String, title: String, contents: SoundCloudStation? = nil) -> Self {
         let url = URL(string: "https://soundcloud.com")!
@@ -736,6 +742,97 @@ struct RawSystemPlaylist: Decodable {
             lastUpdated: lastUpdated, trackCount: trackCount ?? self.tracks.count,
             tracks: tracks
         )
+    }
+}
+
+/// A row of recommendations from soundcloud.com/discover, such as "Curated by SoundCloud".
+struct SoundCloudSelection: Identifiable, Sendable {
+    struct Item: Identifiable, Sendable {
+        let playlist: SoundCloudPlaylist
+        /// Generated playlists come with a title and a summary sized for a card.
+        var shortTitle: String? = nil
+        var summary: String? = nil
+
+        var id: String { playlist.urn }
+    }
+
+    let urn: String
+    let title: String
+    let items: [Item]
+
+    var id: String { urn }
+}
+
+struct RawSelectionPage: Decodable {
+    let collection: [RawSelection]
+}
+
+struct RawSelection: Decodable {
+    struct Items: Decodable {
+        let collection: [RawSelectionItem]
+    }
+
+    let urn: String?
+    let title: String?
+    let items: Items?
+
+    func normalized() -> SoundCloudSelection? {
+        var known = Set<String>()
+        // A row can list the same item twice.
+        let items = (items?.collection ?? []).compactMap(\.item).filter { known.insert($0.id).inserted }
+        guard let urn, let title, !items.isEmpty else { return nil }
+        return SoundCloudSelection(urn: urn, title: title, items: items)
+    }
+}
+
+// Selections mix playlists and generated playlists, told apart by `kind`.
+struct RawSelectionItem: Decodable {
+    let item: SoundCloudSelection.Item?
+
+    private enum CodingKeys: String, CodingKey {
+        case kind
+    }
+
+    init(from decoder: Decoder) throws {
+        let kind = try decoder.container(keyedBy: CodingKeys.self).decodeIfPresent(String.self, forKey: .kind)
+        // Skip kinds and items the app cannot show rather than failing the page.
+        item = switch kind {
+        case "playlist": (try? RawPlaylist(from: decoder))?.normalized().map { .init(playlist: $0) }
+        case "system-playlist": (try? RawSelectionSystemPlaylist(from: decoder))?.normalized()
+        default: nil
+        }
+    }
+}
+
+/// A generated playlist as a selection lists it. Its tracks load with its page.
+struct RawSelectionSystemPlaylist: Decodable {
+    let urn: String?
+    let title: String?
+    let shortTitle: String?
+    let shortDescription: String?
+    let description: String?
+    let permalinkURL: URL?
+    let artworkURL: String?
+    let calculatedArtworkURL: String?
+
+    enum CodingKeys: String, CodingKey {
+        case urn, title, description
+        case shortTitle = "short_title"
+        case shortDescription = "short_description"
+        case permalinkURL = "permalink_url"
+        case artworkURL = "artwork_url"
+        case calculatedArtworkURL = "calculated_artwork_url"
+    }
+
+    func normalized() -> SoundCloudSelection.Item? {
+        guard let urn, let title else { return nil }
+        var playlist = SoundCloudPlaylist.systemPlaylist(urn: urn, title: title)
+        // Without artwork of its own, SoundCloud derives one from the playlist's tracks.
+        playlist.artworkURL = [artworkURL, calculatedArtworkURL].lazy
+            .compactMap { $0.flatMap { $0.isEmpty ? nil : URL(string: $0) } }.first
+        if let permalinkURL { playlist.permalinkURL = permalinkURL }
+        playlist.description = description
+        return .init(playlist: playlist, shortTitle: shortTitle, summary: shortDescription)
     }
 }
 

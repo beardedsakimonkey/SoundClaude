@@ -14,9 +14,11 @@ extension EnvironmentValues {
 }
 
 /// The Search page. Its field is in the toolbar, where the results pages share it.
-struct SearchView: View {
+/// `suggestions` fills the page below the recent searches.
+struct SearchView<Suggestions: View>: View {
     let user: SoundCloudUser
     let onSearch: (String) -> Void
+    @ViewBuilder let suggestions: Suggestions
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var recentSearches: [String] = []
@@ -72,6 +74,7 @@ struct SearchView: View {
                 }
                 .transition(.identity)
             }
+            suggestions
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)

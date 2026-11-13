@@ -641,7 +641,15 @@ struct SignedInView: View {
                 feed: model.feed
             )
         case .search:
-            SearchView(user: user, onSearch: search)
+            SearchView(user: user, onSearch: search) {
+                SearchDiscover(model: model) { playlist in
+                    if playlist.isStation {
+                        showStation(playlist.urn, seedArtistName: playlist.title)
+                    } else {
+                        showPlaylist(playlist)
+                    }
+                }
+            }
         case .history:
             HistoryView(
                 model: model,

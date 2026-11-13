@@ -253,7 +253,7 @@ private struct SearchSectionHeading: View {
 }
 
 /// One row of cards that scrolls sideways when the page is too narrow for all of them.
-private struct SearchShelf<Content: View>: View {
+struct SearchShelf<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
@@ -372,9 +372,13 @@ struct SearchTopResultCard: View {
     }
 }
 
-/// A playlist or album as a cover with its title and owner below.
-private struct SearchPlaylistCard: View {
+/// A playlist, album, or station as a cover with its title and owner below.
+struct SearchPlaylistCard: View {
     let playlist: SoundCloudPlaylist
+    /// Shown in place of the playlist's own title.
+    var shortTitle: String? = nil
+    /// Shown in place of the owner and track count.
+    var summary: String? = nil
     let artworkLoader: ArtworkLoader
     let onSelect: () -> Void
 
@@ -384,10 +388,15 @@ private struct SearchPlaylistCard: View {
 
     @State private var isHovering = false
 
+    private var title: String { shortTitle ?? playlist.title }
+
     private var subtitle: String {
+        if let summary { return summary }
         guard let count = playlist.trackCount else { return playlist.owner.username }
         return "\(playlist.owner.username) · \(count.formatted()) \(count == 1 ? "track" : "tracks")"
     }
+
+    private var help: String { playlist.isStation ? "Open station" : "Open playlist" }
 
     var body: some View {
         Button(action: onSelect) {
@@ -400,7 +409,7 @@ private struct SearchPlaylistCard: View {
                     shape: RoundedRectangle(cornerRadius: 6)
                 )
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(playlist.title)
+                    Text(title)
                         .font(.headline)
                     Text(subtitle)
                         .font(.caption)
@@ -418,9 +427,11 @@ private struct SearchPlaylistCard: View {
         }
         .buttonStyle(.plain)
         // The pointer sweeps across cards in the shelf, so only a press prefetches.
-        .prefetch(.playlist(playlist), .pressOnly) { isHovering = $0 }
-        .contentHelp("Open playlist: \(playlist.title)")
-        .accessibilityLabel("Open playlist: \(playlist.title), \(subtitle)")
+        .prefetch(playlist.isStation ? .station(playlist.urn) : .playlist(playlist), .pressOnly) {
+            isHovering = $0
+        }
+        .contentHelp("\(help): \(title)")
+        .accessibilityLabel("\(help): \(title), \(subtitle)")
         .modifier(FadeInOnAppear())
     }
 }

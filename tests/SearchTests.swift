@@ -242,7 +242,46 @@ struct SearchTests {
         let resultPage = try await client.searchResults(query: query, accessToken: "test-token")
         precondition(resultPage.results.map(\.id) == ["https://soundcloud.com/artist"])
         precondition(resultPage.nextURL?.query()?.contains("cursor=next") == true)
-        print("Search API, suggestions, genre filtering, pagination, and queue checks passed")
+
+        // The Search page's recommendations: rows of playlists and generated playlists.
+        let station = """
+        {"kind":"system-playlist","urn":"soundcloud:system-playlists:artist-stations:1:2",
+         "title":"Artist","short_title":"Artist","short_description":"Artist station",
+         "permalink_url":"https://soundcloud.com/discover/sets/artist-stations:1:2",
+         "artwork_url":null,"calculated_artwork_url":"https://i1.sndcdn.com/artworks-1-large.jpg",
+         "tracks":[{"id":1,"kind":"track"}]}
+        """
+        func selection(_ name: String, _ items: [String]) -> String {
+            """
+            {"urn":"soundcloud:selections:\(name)","title":"\(name)",
+             "items":{"collection":[\(items.joined(separator: ","))]}}
+            """
+        }
+        let kindPlaylist = "{\"kind\":\"playlist\"," + playlist.trimmingCharacters(in: .whitespacesAndNewlines).dropFirst()
+        let kindUser = "{\"kind\":\"user\"," + user.trimmingCharacters(in: .whitespacesAndNewlines).dropFirst()
+        SearchURLProtocol.respond { request in
+            precondition(request.url?.path == "/mixed-selections")
+            let rows = [
+                selection("mixed", [kindPlaylist, station, kindPlaylist, kindUser]),
+                selection("recently-played:42", [kindPlaylist]),
+                selection("personalized-tracks:42", [station]),
+                selection("friends-of-friends", [kindPlaylist]),
+                selection("empty", [kindUser]),
+            ]
+            return (200, "{\"collection\":[\(rows.joined(separator: ","))],\"next_href\":null}")
+        }
+        let selections = try await client.discoverSelections(accessToken: "test-token")
+        precondition(selections.map(\.title) == ["mixed"], "Hidden rows and rows of other kinds are left out")
+        precondition(selections[0].items.map(\.id) == [
+            "soundcloud:playlists:1", "soundcloud:system-playlists:artist-stations:1:2",
+        ])
+        let stationItem = selections[0].items[1]
+        let stationPlaylist = stationItem.playlist
+        precondition(stationPlaylist.isStation)
+        precondition(stationItem.shortTitle == "Artist" && stationItem.summary == "Artist station")
+        precondition(stationPlaylist.artworkURL?.lastPathComponent == "artworks-1-large.jpg")
+        precondition(stationPlaylist.permalinkURL.path == "/discover/sets/artist-stations:1:2")
+        print("Search API, suggestions, recommendations, genre filtering, pagination, and queue checks passed")
     }
 }
 

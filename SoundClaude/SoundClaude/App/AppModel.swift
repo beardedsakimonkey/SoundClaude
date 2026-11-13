@@ -103,6 +103,8 @@ final class AppModel {
     // nil records an artist without a profile header, so it is not looked up again.
     private let artistHeaderCache = RequestCache<NSURL, CachedArtistHeader?>(name: "Artist Headers", countLimit: 10)
     var loadingStations: [String: SoundCloudStation] = [:]
+    private let discoverCache = RequestCache<NSString, [SoundCloudSelection]>(name: "Discover", countLimit: 1)
+    @ObservationIgnored private var discoverLoadedAt: Date?
     private let stationMetadataCache = RequestCache<NSString, RawSystemPlaylist>(name: "Station Metadata", countLimit: 10)
     private let stationCache = RequestCache<NSString, SoundCloudStation>(name: "Stations", countLimit: 10)
 
@@ -339,6 +341,8 @@ final class AppModel {
         artistHeaderCache.reset()
         stationCache.reset()
         stationMetadataCache.reset()
+        discoverCache.reset()
+        discoverLoadedAt = nil
         loadingStations.removeAll()
         commentDrafts.removeAll()
         errorMessage = nil
@@ -941,6 +945,29 @@ final class AppModel {
         }
     }
 
+    private static let discoverKey = "discover" as NSString
+    /// SoundCloud updates its recommendations through the day.
+    private static let discoverLifetime: TimeInterval = 60 * 60
+
+    func cachedDiscoverSelections() -> [SoundCloudSelection]? {
+        discoverCache.cached(Self.discoverKey)
+    }
+
+    /// The Search page's recommendations, fetched again once they are an hour old.
+    func discoverSelections() async throws -> [SoundCloudSelection] {
+        if let discoverLoadedAt, Date().timeIntervalSince(discoverLoadedAt) > Self.discoverLifetime {
+            discoverCache.remove(Self.discoverKey)
+            self.discoverLoadedAt = nil
+        }
+        return try await discoverCache.value(for: Self.discoverKey) { [weak self, auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            let selections = try await client.discoverSelections(accessToken: accessToken)
+            // Sign-out cancels the request and has already cleared the cache.
+            if !Task.isCancelled { self?.discoverLoadedAt = Date() }
+            return selections
+        }
+    }
+
     enum StationSource {
         case track(SoundCloudTrack)
         case artist(SoundCloudUser)
@@ -948,11 +975,14 @@ final class AppModel {
 
     func stationSource(urn: String) async throws -> StationSource {
         let components = urn.split(separator: ":")
-        guard components.count >= 2, let id = components.last else {
+        // The seed's ID follows the kind. Discover's artist stations add a second ID after it.
+        guard let kind = components.firstIndex(where: { $0.hasSuffix("-stations") }),
+              components.indices.contains(kind + 1) else {
             throw SoundCloudError.invalidData
         }
+        let id = components[kind + 1]
         let accessToken = try await auth.validAccessToken()
-        switch components[components.count - 2] {
+        switch components[kind] {
         case "track-stations":
             let details = try await client.track(
                 urn: "soundcloud:tracks:\(id)", secretToken: nil, accessToken: accessToken

@@ -518,6 +518,21 @@ actor SoundCloudClient {
         )
     }
 
+    /// The rows of soundcloud.com/discover. They arrive whole, in one response.
+    func discoverSelections(accessToken: String) async throws -> [SoundCloudSelection] {
+        try await get(
+            RawSelectionPage.self, endpoint("mixed-selections", query: ["limit": "10"]),
+            accessToken: accessToken
+        )
+        .collection.filter { selection in
+            !Self.hiddenSelections.contains { selection.urn?.hasPrefix("soundcloud:selections:\($0)") == true }
+        }
+        .compactMap { $0.normalized() }
+    }
+
+    /// Discover rows the Search page leaves out. The app keeps its own history.
+    private static let hiddenSelections = ["recently-played", "personalized-tracks", "friends-of-friends"]
+
     func playlist(urn: String, accessToken: String) async throws -> SoundCloudPlaylist {
         let url = endpoint("playlists/\(try Self.id(urn))")
         guard let playlist = try await get(RawPlaylist.self, url, accessToken: accessToken)
