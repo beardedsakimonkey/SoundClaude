@@ -16,24 +16,31 @@ struct SortMenu<Order: Hashable>: View {
     }
 
     var body: some View {
-        // Reserve the widest title so changing the order doesn't resize the header.
-        ZStack {
-            ForEach(reservesWidestTitle ? options : [], id: \.self) { order in
-                menu(showing: order)
-                    .hidden()
-            }
+        HStack(spacing: 4) {
+            Image(systemName: "arrow.down")
+                .font(.subheadline)
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
 
-            menu(showing: selection)
-                .background {
-                    SortMenuHoverTrackingView { isPointerInside = $0 }
+            // Reserve the widest title so changing the order doesn't resize the header.
+            ZStack {
+                ForEach(reservesWidestTitle ? options : [], id: \.self) { order in
+                    menu(showing: order)
+                        .hidden()
                 }
-                .opacity(isHovered ? 1 : 0.7)
-                .accessibilityLabel(label)
-                .accessibilityValue(title(selection))
-                .contentHelp(label)
+
+                menu(showing: selection)
+                    .background {
+                        SortMenuHoverTrackingView { isPointerInside = $0 }
+                    }
+                    .opacity(isHovered ? 1 : 0.7)
+                    .accessibilityLabel(label)
+                    .accessibilityValue(title(selection))
+                    .contentHelp(label)
+            }
+            // The borderless menu insets its chevron 2.5pt more than its title. Even out the edges.
+            .padding(.trailing, -2.5)
         }
-        // The borderless menu insets its chevron 2.5pt more than its title. Even out the edges.
-        .padding(.trailing, -2.5)
         .fixedSize(horizontal: true, vertical: false)
         .onDisappear { isPointerInside = false }
     }
