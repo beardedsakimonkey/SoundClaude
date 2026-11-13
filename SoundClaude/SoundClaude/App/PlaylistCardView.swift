@@ -11,6 +11,7 @@ struct PlaylistCardView: View {
     @State private var isExpanded = false
     @State private var isHoveringTrackToggle = false
     @State private var selectedTrackURN: String?
+    @State private var animatesIconChange = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var cardState: PlaylistCardState { playlists.cardState(for: playlist.urn) }
@@ -201,6 +202,7 @@ struct PlaylistCardView: View {
         let isPlaying = isCurrentTrack && model.playback.isPlaybackActive
 
         return Button {
+            animatesIconChange = true
             if isCurrentTrack {
                 model.playback.togglePlayPause()
             } else {
@@ -208,11 +210,15 @@ struct PlaylistCardView: View {
                 Task { await play(startingTrack) }
             }
         } label: {
-            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                .font(.system(size: 16, weight: .semibold))
+            AnimatedPlayPauseIcon(
+                isPlaybackActive: isPlaying,
+                size: 16,
+                animatesChange: animatesIconChange && !reduceMotion
+            )
                 .frame(width: 36, height: 36)
         }
         .buttonStyle(.bordered)
+        .onChange(of: isPlaying) { animatesIconChange = false }
         .buttonBorderShape(.circle)
         .circularHoverHighlight()
         .contentHelp(isPlaying ? "Pause" : "Play")

@@ -13,6 +13,7 @@ struct TrackCardView: View {
     @State private var repostErrorMessage: String?
     @State private var isHoveringTitle = false
     @State private var hasAppeared = false
+    @State private var animatesIconChange = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
@@ -192,17 +193,22 @@ struct TrackCardView: View {
         let isPlaying = isCurrentTrack && model.playback.isPlaybackActive
 
         return Button {
+            animatesIconChange = true
             if isCurrentTrack {
                 model.playback.togglePlayPause()
             } else {
                 Task { await onPlayTrack(track) }
             }
         } label: {
-            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                .font(.system(size: 16, weight: .semibold))
+            AnimatedPlayPauseIcon(
+                isPlaybackActive: isPlaying,
+                size: 16,
+                animatesChange: animatesIconChange && !reduceMotion
+            )
                 .frame(width: 36, height: 36)
         }
         .buttonStyle(.bordered)
+        .onChange(of: isPlaying) { animatesIconChange = false }
         .buttonBorderShape(.circle)
         .circularHoverHighlight()
         .disabled(track.access == .protected)
@@ -276,6 +282,7 @@ struct TrackCardView: View {
     private func statistic(_ count: Int?, label: String, systemImage: String) -> some View {
         HStack(spacing: 4) {
             Image(systemName: systemImage)
+                .fontWeight(.semibold)
                 .frame(width: count == nil ? 16 : nil, height: count == nil ? 16 : nil)
             if let count {
                 Text(count.formatted(.number.notation(.compactName)))
