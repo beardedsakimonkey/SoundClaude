@@ -321,9 +321,11 @@ struct SidebarView: View {
                                     .font(.system(size: 16))
                                     .frame(width: 28, height: 28)
                                 } else {
-                                    Image(systemName: "music.note.list")
-                                        .font(.system(size: 16))
-                                        .frame(width: 28, height: 28)
+                                    PlaylistPlayingIcon(
+                                        playback: playback, isCurrent: playbackSource == .playlist(station.urn)
+                                    )
+                                    .font(.system(size: 16))
+                                    .frame(width: 28, height: 28)
                                 }
                             }
                             .lineLimit(1)
