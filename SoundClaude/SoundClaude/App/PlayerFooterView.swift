@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct PlayerFooterView: View {
-    // 75 points is 150 pixels at 2x, exactly half of the .square300 artwork.
-    private let artworkThumbnailSize: CGFloat = 75
+    // Matches the height of the waveform and its timestamps, so neither makes the footer taller.
+    private let artworkThumbnailSize: CGFloat = 67
     private let cornerRadius: CGFloat = 18
     private let contentInset: CGFloat = 6
 
