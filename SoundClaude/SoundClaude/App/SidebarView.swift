@@ -376,6 +376,7 @@ struct SidebarView: View {
                             // toggleStationLike likes anything absent from the list, so wait
                             // until a finished load confirms this row is still liked.
                             .disabled(!likes.hasLoadedStationLikes || likes.updatingStationURNs.contains(station.urn))
+                            .labelStyle(.titleAndIcon)
                         }
                     }
                     if !likes.isLoadingStationLikes, let message = likes.stationLikesErrorMessage {
@@ -455,30 +456,33 @@ struct SidebarView: View {
             .opacity(isPendingRemoval ? 0.5 : 1)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isPendingRemoval)
             .contextMenu {
-                if playlists.likedPlaylistURNs.contains(playlist.urn) {
-                    Button("Unlike playlist", systemImage: "heart.slash") {
-                        Task { @MainActor in
-                            guard playlists.likedPlaylistURNs.contains(playlist.urn) else { return }
-                            do {
-                                try await playlists.toggleLike(playlist)
-                            } catch is CancellationError {
-                            } catch {
-                                playlistLikeError = "\(playlist.title): \(error.localizedDescription)"
+                Group {
+                    if playlists.likedPlaylistURNs.contains(playlist.urn) {
+                        Button("Unlike playlist", systemImage: "heart.slash") {
+                            Task { @MainActor in
+                                guard playlists.likedPlaylistURNs.contains(playlist.urn) else { return }
+                                do {
+                                    try await playlists.toggleLike(playlist)
+                                } catch is CancellationError {
+                                } catch {
+                                    playlistLikeError = "\(playlist.title): \(error.localizedDescription)"
+                                }
                             }
                         }
+                        .disabled(playlists.updatingLikeURNs.contains(playlist.urn))
                     }
-                    .disabled(playlists.updatingLikeURNs.contains(playlist.urn))
-                }
-                if isOwned {
-                    Button {
-                        editingPlaylist = contents?.playlist ?? playlist
-                    } label: {
-                        Label("Edit playlist", systemImage: "pencil")
+                    if isOwned {
+                        Button {
+                            editingPlaylist = contents?.playlist ?? playlist
+                        } label: {
+                            Label("Edit playlist", systemImage: "pencil")
+                        }
+                        .disabled(playlists.updatingPlaylistURNs.contains(playlist.urn)
+                            || playlistDeletion.deletingURNs.contains(playlist.urn))
+                        DeletePlaylistButton(playlist: playlist, state: $playlistDeletion)
                     }
-                    .disabled(playlists.updatingPlaylistURNs.contains(playlist.urn)
-                        || playlistDeletion.deletingURNs.contains(playlist.urn))
-                    DeletePlaylistButton(playlist: playlist, state: $playlistDeletion)
                 }
+                .labelStyle(.titleAndIcon)
             }
 
         if isOwned {
