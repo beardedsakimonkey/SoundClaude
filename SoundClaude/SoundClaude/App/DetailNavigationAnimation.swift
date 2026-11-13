@@ -110,7 +110,9 @@ struct DetailSwapButtonOverlay: ViewModifier {
                                 .frame(width: bounds.width, height: bounds.height)
                                 .position(x: bounds.midX, y: bounds.midY)
                                 // Positioning fills the host, so name the button's center as the anchor.
-                                .transition(.scale(scale: 0, anchor: UnitPoint(
+                                // AppKit asserts when a hosted NSView's transform is singular, so the
+                                // scroll forwarder and skip icons can't sit under a scale of exactly 0.
+                                .transition(.scale(scale: 0.01, anchor: UnitPoint(
                                     x: bounds.midX / max(geometry.size.width, 1),
                                     y: bounds.midY / max(geometry.size.height, 1)
                                 )).combined(with: .opacity))
