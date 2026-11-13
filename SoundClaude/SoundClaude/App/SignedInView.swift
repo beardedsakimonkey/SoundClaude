@@ -356,7 +356,7 @@ struct SignedInView: View {
                 },
                 onSignOut: model.signOut
             )
-                .safeAreaPadding(.bottom, max(0, footerHeight - 20))
+                .modifier(SidebarFooterInset(footerHeight: footerHeight))
                 .toolbar(removing: .sidebarToggle)
                 .background(NonCollapsingSidebar())
                 .navigationSplitViewColumnWidth(
@@ -913,6 +913,62 @@ struct SignedInView: View {
         selectedDestination = destination
     }
 
+}
+
+/// Ends the sidebar's scrollbar and last row at the footer's glass.
+private struct SidebarFooterInset: ViewModifier {
+    let footerHeight: CGFloat
+    // macOS 26 floats the sidebar above the window's bottom edge. macOS 27 runs it to the edge.
+    @State private var gapBelowSidebar: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            // Stop at the glass, not at the 8pt margin above it.
+            .safeAreaPadding(.bottom, max(0, footerHeight - 8 - gapBelowSidebar))
+            .background(WindowBottomGapReader { gapBelowSidebar = $0 })
+    }
+}
+
+/// Reports how far its bottom edge sits above the window's bottom edge.
+private struct WindowBottomGapReader: NSViewRepresentable {
+    let onChange: (CGFloat) -> Void
+
+    func makeNSView(context: Context) -> ReaderView {
+        let view = ReaderView()
+        view.onChange = onChange
+        return view
+    }
+
+    func updateNSView(_ nsView: ReaderView, context: Context) {
+        nsView.onChange = onChange
+    }
+
+    final class ReaderView: NSView {
+        var onChange: ((CGFloat) -> Void)?
+        private var gap: CGFloat = 0
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            report()
+        }
+
+        override func layout() {
+            super.layout()
+            report()
+        }
+
+        private func report() {
+            guard window != nil else { return }
+            let newGap = convert(bounds, to: nil).minY
+            guard newGap != gap else { return }
+            gap = newGap
+            // Layout can run inside a SwiftUI update, where state changes are dropped.
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.onChange?(self.gap)
+            }
+        }
+    }
 }
 
 private struct NavigationPageActivity: ViewModifier {
