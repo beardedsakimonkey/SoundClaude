@@ -64,6 +64,8 @@ actor SoundCloudClient {
     private static let likedTracksPageSize = 25
     private static let clientIDDefaultsKey = "SoundCloudWebsiteClientID"
     private static let trackBatchSize = 50
+    private static let suggestedQueryLimit = 3
+    private static let topResultLimit = 8
     private static let reactionInteraction = "sc:interactiontype:reaction"
     private static let likeInteractionValue = "sc:interactiontypevalue:like"
 
@@ -263,6 +265,25 @@ actor SoundCloudClient {
     ) async throws -> SoundCloudUserPage {
         let url = pageURL ?? searchURL(path: "users", query: query)
         return try await userPage(at: url, accessToken: accessToken)
+    }
+
+    /// The website's autocomplete for its search field.
+    func searchQueries(query: String, accessToken: String) async throws -> [String] {
+        struct Page: Decodable {
+            struct Suggestion: Decodable { let query: String }
+            let collection: [Suggestion]
+        }
+        let url = endpoint("search/queries", query: ["q": query, "limit": "\(Self.suggestedQueryLimit)"])
+        let page = try await get(Page.self, url, accessToken: accessToken)
+        // The endpoint can return more than the limit.
+        return page.collection.prefix(Self.suggestedQueryLimit).map(\.query)
+    }
+
+    /// The best matches of every kind, as the website's "Everything" tab ranks them.
+    func searchTopResults(query: String, accessToken: String) async throws -> [SoundCloudSearchResult] {
+        struct Page: Decodable { let collection: [RawSearchResult] }
+        let url = endpoint("search", query: ["q": query, "limit": "\(Self.topResultLimit)"])
+        return try await get(Page.self, url, accessToken: accessToken).collection.compactMap(\.result)
     }
 
     private func searchURL(path: String, query: String, extra: [String: String?] = [:]) -> URL {

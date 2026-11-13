@@ -233,6 +233,40 @@ struct SoundCloudFeedItem: Codable, Identifiable, Sendable {
     }
 }
 
+/// What the search field offers while typing: ways to finish the query, then its top results.
+struct SoundCloudSearchSuggestions: Sendable {
+    var queries: [String] = []
+    var results: [SoundCloudSearchResult] = []
+
+    var isEmpty: Bool { queries.isEmpty && results.isEmpty }
+}
+
+enum SoundCloudSearchResult: Sendable, Equatable {
+    case user(SoundCloudUser)
+    case track(SoundCloudTrack)
+    case playlist(SoundCloudPlaylist)
+}
+
+// api-v2 /search mixes users, tracks, and playlists, told apart by `kind`.
+struct RawSearchResult: Decodable {
+    let result: SoundCloudSearchResult?
+
+    private enum CodingKeys: String, CodingKey {
+        case kind
+    }
+
+    init(from decoder: Decoder) throws {
+        let kind = try decoder.container(keyedBy: CodingKeys.self).decodeIfPresent(String.self, forKey: .kind)
+        // Skip kinds and items the app cannot show rather than failing the page.
+        result = switch kind {
+        case "user": (try? RawUser(from: decoder))?.normalized().map(SoundCloudSearchResult.user)
+        case "track": (try? RawTrack(from: decoder))?.normalized().map(SoundCloudSearchResult.track)
+        case "playlist": (try? RawPlaylist(from: decoder))?.normalized().map(SoundCloudSearchResult.playlist)
+        default: nil
+        }
+    }
+}
+
 struct SoundCloudFeedPage: Sendable {
     let items: [SoundCloudFeedItem]
     let nextURL: URL?

@@ -80,7 +80,7 @@ private struct SearchFocusTests {
                         avatarURL: nil, permalinkURL: URL(string: "https://soundcloud.com/focus-test")!
                     )
                     let searchHost = NSHostingView(rootView: SearchView(
-                        user: user, searchText: .constant(""), focusRequest: nil,
+                        user: user, searchText: .constant(""), focusRequest: nil, artworkLoader: ArtworkLoader(),
                         onSearch: { _ in }
                     ))
                     window.contentView = searchHost
@@ -89,7 +89,7 @@ private struct SearchFocusTests {
                         precondition(searchField.currentEditor() == nil, "Restored Search must start without focus")
                         precondition(searchField.isEnabled, "Restored Search must allow input")
                         searchHost.rootView = SearchView(
-                            user: user, searchText: .constant(""), focusRequest: UUID(),
+                            user: user, searchText: .constant(""), focusRequest: UUID(), artworkLoader: ArtworkLoader(),
                             onSearch: { _ in }
                         )
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
@@ -98,13 +98,13 @@ private struct SearchFocusTests {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                 precondition(searchField.currentEditor() == nil, "Outside click must release search focus")
                                 searchHost.rootView = SearchView(
-                                    user: user, searchText: .constant(""), focusRequest: UUID(),
+                                    user: user, searchText: .constant(""), focusRequest: UUID(), artworkLoader: ArtworkLoader(),
                                     onSearch: { _ in }
                                 )
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     precondition(searchField.currentEditor() != nil, "Reselecting Search must restore input focus")
                                     let requestedHost = NSHostingView(rootView: SearchView(
-                                        user: user, searchText: .constant(""), focusRequest: UUID(),
+                                        user: user, searchText: .constant(""), focusRequest: UUID(), artworkLoader: ArtworkLoader(),
                                         onSearch: { _ in }
                                     ))
                                     window.contentView = requestedHost

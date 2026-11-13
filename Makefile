@@ -8,7 +8,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := release
 
-.PHONY: api build release debug quit-running run dist lsp test test-focus test-queue-drag test-navigation test-sidebar-resize test-playback-title test-now-playing test-detail-waveform test-detail-heading
+.PHONY: api build release debug quit-running run dist lsp test test-focus test-search-suggestions test-queue-drag test-navigation test-sidebar-resize test-playback-title test-now-playing test-detail-waveform test-detail-heading
 
 api:
 	@set -eu; \
@@ -116,16 +116,26 @@ SRC_focus := \
 	SoundClaude/SoundClaude/App/RouteGradientBackdrop.swift \
 	SoundClaude/SoundClaude/App/ContentHover.swift \
 	SoundClaude/SoundClaude/Likes/SearchOutsideClickView.swift \
+	tests/SearchViewStubs.swift \
 	tests/SearchFocusTests.swift
 test-focus:
 	@mkdir -p /tmp/soundclaude-tests
 	swiftc -o /tmp/soundclaude-tests/search-focus $(SRC_focus)
 	/tmp/soundclaude-tests/search-focus
 
+# Suggestion regression opens a temporary window and requires a macOS GUI session.
+SRC_search_suggestions := $(filter-out tests/SearchFocusTests.swift,$(SRC_focus)) \
+	tests/SearchSuggestionTests.swift
+test-search-suggestions:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/search-suggestions $(SRC_search_suggestions)
+	/tmp/soundclaude-tests/search-suggestions
+
 # Type-check the suites that `test` doesn't run (most need a GUI session), so
 # stale stubs fail here instead of the next time someone runs the suite.
 TYPECHECK_SUITES := \
 	focus \
+	search_suggestions \
 	piston_rendering \
 	queue_drag \
 	sidebar_resize \

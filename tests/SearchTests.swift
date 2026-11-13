@@ -171,7 +171,59 @@ struct SearchTests {
         }
         let tagEnd = try await client.searchTracks(tags: tag, accessToken: "test-token", pageURL: tagPage.nextURL)
         precondition(tagEnd.nextURL == nil)
-        print("Search API, genre filtering, pagination, and queue checks passed")
+        SearchURLProtocol.respond { request in
+            precondition(request.httpMethod == "GET")
+            precondition(request.url?.path == "/search/queries")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            let parameters = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value!) })
+            precondition(parameters["q"] == query, "Typed text must survive URL encoding")
+            precondition(parameters["limit"] == "3" && parameters["linked_partitioning"] == "1")
+            let collection = (1...4).map { #"{"output":"Shown \#($0)","query":"ambient \#($0)"}"# }
+            return (200, "{\"collection\":[\(collection.joined(separator: ","))],\"next_href\":null}")
+        }
+        let completions = try await client.searchQueries(query: query, accessToken: "test-token")
+        precondition(completions == (1...3).map { "ambient \($0)" }, "Completions must keep their order and stop at the limit")
+        SearchURLProtocol.respond { _ in (200, "{\"collection\":[]}") }
+        let none = try await client.searchQueries(query: query, accessToken: "test-token")
+        precondition(none.isEmpty)
+        SearchURLProtocol.respond { _ in (429, "{}") }
+        do {
+            _ = try await client.searchQueries(query: query, accessToken: "test-token")
+            fatalError("Rate limit was accepted")
+        } catch SoundCloudError.rateLimited {}
+
+        SearchURLProtocol.respond { request in
+            precondition(request.httpMethod == "GET")
+            precondition(request.url?.path == "/search")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            let parameters = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value!) })
+            precondition(parameters["q"] == query, "Typed text must survive URL encoding")
+            precondition(parameters["limit"] == "8" && parameters["linked_partitioning"] == "1")
+            func kind(_ kind: String, _ json: String) -> String {
+                "{\"kind\":\"\(kind)\"," + json.trimmingCharacters(in: .whitespacesAndNewlines).dropFirst()
+            }
+            let collection = [
+                kind("track", track(1)), kind("user", user), kind("track", track(2, policy: "BLOCK")),
+                kind("playlist", playlist), #"{"kind":"system-playlist","title":"Station"}"#,
+                #"{"kind":"track","id":9}"#, #"{"title":"No kind"}"#,
+            ]
+            return (200, "{\"collection\":[\(collection.joined(separator: ","))],\"next_href\":null}")
+        }
+        let results = try await client.searchTopResults(query: query, accessToken: "test-token")
+        guard results.count == 3,
+              case let .track(topTrack) = results[0], case let .user(topUser) = results[1],
+              case let .playlist(topPlaylist) = results[2] else {
+            fatalError("Top results must keep their order and skip what cannot be shown: \(results)")
+        }
+        precondition(topTrack.urn == "soundcloud:tracks:1" && topUser.username == "Artist" && topPlaylist.title == "Mix")
+        SearchURLProtocol.respond { _ in (429, "{}") }
+        do {
+            _ = try await client.searchTopResults(query: query, accessToken: "test-token")
+            fatalError("Rate limit was accepted")
+        } catch SoundCloudError.rateLimited {}
+        print("Search API, suggestions, genre filtering, pagination, and queue checks passed")
     }
 }
 

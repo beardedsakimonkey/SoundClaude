@@ -1,4 +1,26 @@
+import AppKit
 import SwiftUI
+
+// Arrow keys carry the function-key flag, so AppKit matches them against menu key equivalents
+// before the first responder sees them. Route them to a focused text view instead, so the
+// seek, track, and volume shortcuts don't swallow caret movement and selection.
+enum TextArrowKeys {
+    private static var monitor: Any?
+
+    static func install() {
+        guard monitor == nil else { return }
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard (123...126).contains(event.keyCode),
+                  event.modifierFlags.isDisjoint(with: [.command, .control]),
+                  let window = event.window, window.isKeyWindow,
+                  window.firstResponder is NSText else { return event }
+            // Deliver through the window rather than calling the text view's keyDown,
+            // which would skip SwiftUI key handlers such as the search suggestions' arrows.
+            window.sendEvent(event)
+            return nil
+        }
+    }
+}
 
 struct SearchTextField: View {
     enum Style {
@@ -16,8 +38,12 @@ struct SearchTextField: View {
     let accessibilityLabel: String
     var style: Style = .regular
     var preventsAutomaticFocus = false
+    /// Height of a dropdown below the field in which clicks keep the field focused.
+    var dropdownHeight: CGFloat = 0
     var onSubmit: () -> Void = {}
     var onClear: () -> Void = {}
+    /// Handles Escape before the field gives up focus. Returns whether it did.
+    var onExit: () -> Bool = { false }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHoveringClear = false
@@ -29,6 +55,7 @@ struct SearchTextField: View {
             input
                 .onSubmit(onSubmit)
                 .onExitCommand {
+                    if onExit() { return }
                     if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         text = ""
                     }
@@ -67,7 +94,7 @@ struct SearchTextField: View {
             isFocused.wrappedValue = true
         })
         .background {
-            SearchOutsideClickView(isFocused: isFocused.wrappedValue)
+            SearchOutsideClickView(isFocused: isFocused.wrappedValue, dropdownHeight: dropdownHeight)
         }
     }
 

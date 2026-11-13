@@ -95,6 +95,7 @@ final class AppModel {
     private let firstSearchPlaylistPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Search Playlist Pages", countLimit: 20)
     private let firstSearchUserPageCache = RequestCache<NSString, SoundCloudUserPage>(name: "First Search User Pages", countLimit: 20)
     private let searchCategoryCache = MemoryCache<NSString, SearchCategory>(name: "Search Categories", countLimit: 100)
+    private let searchSuggestionCache = RequestCache<NSString, SoundCloudSearchSuggestions>(name: "Search Suggestions", countLimit: 100)
     private let artistDetailsCache = RequestCache<NSURL, SoundCloudArtistDetails>(name: "Artist Details", countLimit: 100)
     private let artistWebProfilesCache = RequestCache<NSURL, [SoundCloudWebProfile]>(name: "Artist Web Profiles", countLimit: 100)
     private let relatedArtistsCache = RequestCache<NSURL, [SoundCloudUser]>(name: "Related Artists", countLimit: 100)
@@ -332,6 +333,7 @@ final class AppModel {
         firstSearchPlaylistPageCache.reset()
         firstSearchUserPageCache.reset()
         searchCategoryCache.removeAll()
+        searchSuggestionCache.reset()
         artistHeaderCache.reset()
         stationCache.reset()
         stationMetadataCache.reset()
@@ -770,6 +772,21 @@ final class AppModel {
 
     func rememberSearchCategory(_ category: SearchCategory, for query: String) {
         searchCategoryCache.insert(category, forKey: query as NSString)
+    }
+
+    /// Autocomplete for the search field. A part that fails to load is left out rather than raising an error.
+    func searchSuggestions(for query: String) async -> SoundCloudSearchSuggestions {
+        let suggestions = try? await searchSuggestionCache.value(for: query.lowercased() as NSString) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            async let queries = client.searchQueries(query: query, accessToken: accessToken)
+            async let results = client.searchTopResults(query: query, accessToken: accessToken)
+            let loadedQueries = try? await queries
+            let loadedResults = try? await results
+            // Cache nothing when both fail, so that typing on asks again.
+            guard loadedQueries != nil || loadedResults != nil else { throw SoundCloudError.network }
+            return SoundCloudSearchSuggestions(queries: loadedQueries ?? [], results: loadedResults ?? [])
+        }
+        return suggestions ?? SoundCloudSearchSuggestions()
     }
 
     func cachedFirstSearchTrackPage(query: String? = nil, genres: String? = nil, tags: String? = nil)

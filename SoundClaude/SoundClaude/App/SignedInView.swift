@@ -613,8 +613,17 @@ struct SignedInView: View {
                 user: user,
                 searchText: $searchText,
                 focusRequest: searchFocusRequest,
+                artworkLoader: model.artworkLoader,
+                suggestions: { [model] in await model.searchSuggestions(for: $0) },
                 onSearch: { query in
                     push(.search(query))
+                },
+                onSelectResult: { result in
+                    switch result {
+                    case let .user(user): showArtist(user)
+                    case let .track(track): showTrack(track)
+                    case let .playlist(playlist): showPlaylist(playlist)
+                    }
                 }
             )
             // A request applies to one mount. Going Back must not refocus the field.

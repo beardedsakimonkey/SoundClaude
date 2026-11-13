@@ -21,15 +21,18 @@ struct PreventAutomaticSearchFocus: ViewModifier {
 
 struct SearchOutsideClickView: NSViewRepresentable {
     let isFocused: Bool
+    var dropdownHeight: CGFloat = 0
 
     func makeNSView(context: Context) -> MonitorView {
         let view = MonitorView()
         view.isFocused = isFocused
+        view.dropdownHeight = dropdownHeight
         return view
     }
 
     func updateNSView(_ nsView: MonitorView, context: Context) {
         nsView.isFocused = isFocused
+        nsView.dropdownHeight = dropdownHeight
     }
 
     static func dismantleNSView(_ nsView: MonitorView, coordinator: ()) {
@@ -38,6 +41,7 @@ struct SearchOutsideClickView: NSViewRepresentable {
 
     final class MonitorView: NSView {
         var isFocused = false
+        var dropdownHeight: CGFloat = 0
         private var monitor: Any?
 
         // The background observes clicks without taking part in hit testing.
@@ -58,7 +62,10 @@ struct SearchOutsideClickView: NSViewRepresentable {
 
                 let location = self.convert(event.locationInWindow, from: nil)
                 // SwiftUI can disable clipping, making visibleRect larger than the filter.
-                let filterRect = self.bounds.intersection(self.visibleRect)
+                var filterRect = self.bounds.intersection(self.visibleRect)
+                // A dropdown hangs below the field and belongs to it. AppKit's y axis points up.
+                filterRect.origin.y -= self.dropdownHeight
+                filterRect.size.height += self.dropdownHeight
                 if !filterRect.contains(location) {
                     // End native text editing before the click can focus another control.
                     // SwiftUI clears the field's focus state from this on its own; setting
