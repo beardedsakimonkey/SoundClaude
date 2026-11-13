@@ -609,11 +609,11 @@ private struct TrackDetailPlaylistRow: View {
     var body: some View {
         Button(action: onSelect) {
             HStack(spacing: 14) {
-                TrackArtworkView(
+                PlaylistStackArtwork(
                     artworkURL: playlist.artworkURL,
                     loader: artworkLoader,
                     size: 50,
-                    shape: RoundedRectangle(cornerRadius: TrackListRow.artworkCornerRadius)
+                    cornerRadius: TrackListRow.artworkCornerRadius
                 )
                 VStack(alignment: .leading, spacing: 5) {
                     Text(playlist.title)

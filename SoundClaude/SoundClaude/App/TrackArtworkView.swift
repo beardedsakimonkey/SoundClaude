@@ -100,6 +100,47 @@ struct TrackArtworkView: View {
     }
 }
 
+/// Artwork drawn as the top of a stack, with the edges of two more covers showing above it,
+/// so a playlist reads differently from a track. The stack fills a square of `size`.
+struct PlaylistStackArtwork: View {
+    private static let edgeHeight: CGFloat = 3
+    private static let edgeInset: CGFloat = 3
+
+    let artworkURL: URL?
+    let loader: ArtworkLoader
+    let size: CGFloat
+    let cornerRadius: CGFloat
+
+    private var frontSize: CGFloat { size - Self.edgeHeight * 2 }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            edge(width: frontSize - Self.edgeInset * 4, opacity: 0.16)
+            edge(width: frontSize - Self.edgeInset * 2, opacity: 0.3)
+            TrackArtworkView(
+                artworkURL: artworkURL,
+                loader: loader,
+                size: frontSize,
+                shape: RoundedRectangle(cornerRadius: cornerRadius)
+            )
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+
+    // Only the strip above the cover in front is drawn, so a translucent placeholder
+    // has nothing showing through it.
+    private func edge(width: CGFloat, opacity: Double) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .fill(Color.primary.opacity(opacity))
+            // The same border the cover in front has.
+            .strokeBorder(.white.opacity(0.15), lineWidth: 1)
+            .frame(width: width, height: frontSize)
+            .frame(height: Self.edgeHeight, alignment: .top)
+            .clipped()
+    }
+}
+
 struct DetailArtworkTrackAnimation: ViewModifier {
     let trackURN: String?
     @State private var previousTrackURN: String?

@@ -286,12 +286,21 @@ struct SearchTopResultCard: View {
     var body: some View {
         Button(action: open) {
             HStack(spacing: 12) {
-                TrackArtworkView(
-                    artworkURL: result.artworkURL,
-                    loader: model.artworkLoader,
-                    size: Self.artworkSize,
-                    shape: RoundedRectangle(cornerRadius: result.isUser ? Self.artworkSize / 2 : 5)
-                )
+                if case .playlist = result {
+                    PlaylistStackArtwork(
+                        artworkURL: result.artworkURL,
+                        loader: model.artworkLoader,
+                        size: Self.artworkSize,
+                        cornerRadius: 5
+                    )
+                } else {
+                    TrackArtworkView(
+                        artworkURL: result.artworkURL,
+                        loader: model.artworkLoader,
+                        size: Self.artworkSize,
+                        shape: RoundedRectangle(cornerRadius: result.isUser ? Self.artworkSize / 2 : 5)
+                    )
+                }
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(alignment: .firstTextBaseline, spacing: 5) {
                         Text(result.title)
