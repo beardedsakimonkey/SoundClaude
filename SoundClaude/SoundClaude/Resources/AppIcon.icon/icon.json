@@ -1,6 +1,19 @@
 {
   "fill" : {
-    "automatic-gradient" : "srgb:0.90980,0.39121,0.00000,1.00000"
+    "linear-gradient" : [
+      "display-p3:0.99367,0.58916,0.34570,1.00000",
+      "srgb:0.90980,0.39121,0.00000,1.00000"
+    ],
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0.7
+      }
+    }
   },
   "groups" : [
     {
@@ -20,7 +33,7 @@
           "image-name" : "icon-1024.svg",
           "name" : "icon-1024",
           "position" : {
-            "scale" : 0.95,
+            "scale" : 1,
             "translation-in-points" : [
               10,
               0
