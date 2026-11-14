@@ -249,6 +249,7 @@ private struct TrackListPage<Content: View>: View {
                 }
                 .font(.title2)
                 .lineLimit(1)
+                .modifier(FadeInOnAppear())
 
                 LazyVStack(alignment: .leading, spacing: 16) {
                     content
