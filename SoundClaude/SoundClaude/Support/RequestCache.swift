@@ -13,14 +13,21 @@ final class RequestCache<Key: NSObject, Value> {
     private let cost: (Value) -> Int
     private var requests: [Key: Request] = [:]
 
-    /// `name` labels this cache in the debug inspector.
+    /// `name` labels this cache in the debug inspector. A value older than `maxAge`
+    /// is fetched again: the default keeps prefetches and Back navigation instant
+    /// without showing old counts and lists. Pass nil for data that never changes.
     init(
         name: String,
         countLimit: Int,
         totalCostLimit: Int = 0,
+        maxAge: Duration? = .seconds(5 * 60),
+        now: @escaping () -> ContinuousClock.Instant = { ContinuousClock.now },
         cost: @escaping (Value) -> Int = { _ in 0 }
     ) {
-        cache = MemoryCache(name: name, countLimit: countLimit, totalCostLimit: totalCostLimit)
+        cache = MemoryCache(
+            name: name, countLimit: countLimit, totalCostLimit: totalCostLimit,
+            maxAge: maxAge, now: now
+        )
         self.cost = cost
     }
 

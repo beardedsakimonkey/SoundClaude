@@ -4,13 +4,17 @@ import Foundation
 final class MemoryCache<Key: NSObject, Value>: @unchecked Sendable {
     private final class Entry: NSObject {
         let value: Value
+        let expiry: ContinuousClock.Instant?
 
-        init(_ value: Value) {
+        init(_ value: Value, expiry: ContinuousClock.Instant?) {
             self.value = value
+            self.expiry = expiry
         }
     }
 
     private let cache = NSCache<Key, Entry>()
+    private let maxAge: Duration?
+    private let now: () -> ContinuousClock.Instant
 
     #if DEBUG
     // NSCache cannot enumerate its contents. Records hold entries weakly so the
@@ -31,10 +35,20 @@ final class MemoryCache<Key: NSObject, Value>: @unchecked Sendable {
     private var evictions = 0
     #endif
 
-    /// `name` labels this cache in the debug inspector.
-    init(name: String, countLimit: Int, totalCostLimit: Int = 0) {
+    /// `name` labels this cache in the debug inspector. Values older than `maxAge`
+    /// read as missing; nil keeps them until evicted. The clock keeps running while
+    /// the Mac sleeps, so values do not outlive a night with the lid closed.
+    init(
+        name: String,
+        countLimit: Int,
+        totalCostLimit: Int = 0,
+        maxAge: Duration? = nil,
+        now: @escaping () -> ContinuousClock.Instant = { ContinuousClock.now }
+    ) {
         cache.countLimit = countLimit
         cache.totalCostLimit = totalCostLimit
+        self.maxAge = maxAge
+        self.now = now
         #if DEBUG
         self.name = name
         MemoryCacheRegistry.shared.register(self)
@@ -42,7 +56,12 @@ final class MemoryCache<Key: NSObject, Value>: @unchecked Sendable {
     }
 
     func value(forKey key: Key) -> Value? {
-        let value = cache.object(forKey: key)?.value
+        var entry = cache.object(forKey: key)
+        if let expired = entry, isExpired(expired) {
+            removeValue(forKey: key)
+            entry = nil
+        }
+        let value = entry?.value
         #if DEBUG
         lock.lock()
         if value == nil {
@@ -57,7 +76,7 @@ final class MemoryCache<Key: NSObject, Value>: @unchecked Sendable {
     }
 
     func insert(_ value: Value, forKey key: Key, cost: Int = 0) {
-        let entry = Entry(value)
+        let entry = Entry(value, expiry: maxAge.map { now() + $0 })
         // Update the records first: a live entry released by the cache call
         // below was replaced or removed, and must not read as an eviction.
         #if DEBUG
@@ -88,6 +107,11 @@ final class MemoryCache<Key: NSObject, Value>: @unchecked Sendable {
         lock.unlock()
         #endif
         cache.removeAllObjects()
+    }
+
+    private func isExpired(_ entry: Entry) -> Bool {
+        guard let expiry = entry.expiry else { return false }
+        return now() >= expiry
     }
 
     #if DEBUG
@@ -144,8 +168,9 @@ extension MemoryCache: MemoryCacheInspectable {
         pruneRecords()
         var entries: [MemoryCacheSnapshot.Entry] = []
         for (key, record) in records {
-            // The entry may be released between the prune and this read.
-            guard let entry = record.entry else { continue }
+            // The entry may be released between the prune and this read. An expired
+            // entry stays in memory until it is next read, but can no longer be used.
+            guard let entry = record.entry, !isExpired(entry) else { continue }
             entries.append(MemoryCacheSnapshot.Entry(
                 id: String(key.hash), label: record.label, cost: record.cost,
                 insertedAt: record.insertedAt, hits: record.hits, value: entry.value

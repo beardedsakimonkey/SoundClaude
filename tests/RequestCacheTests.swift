@@ -23,6 +23,15 @@ final class Gate {
 
 struct Failure: Error {}
 
+// A clock the tests advance by hand.
+final class TestClock {
+    private(set) var now = ContinuousClock.now
+
+    func advance(by duration: Duration) {
+        now += duration
+    }
+}
+
 @MainActor
 func settle() async {
     for _ in 0..<20 { await Task.yield() }
@@ -39,6 +48,9 @@ struct RequestCacheTests {
         try await failureAllowsRetry()
         try await insertReplacesRequest()
         try await cachesOptionalNil()
+        try await expiredValueIsFetchedAgain()
+        try await insertRestartsExpiry()
+        try await nilMaxAgeNeverExpires()
         print("RequestCache tests passed")
     }
 
@@ -146,5 +158,48 @@ struct RequestCacheTests {
         }
         precondition(fetches == 1, "a cached nil should not be fetched again")
         guard case .some(nil) = cache.cached("a") else { preconditionFailure("nil should be cached") }
+    }
+
+    @MainActor
+    static func expiredValueIsFetchedAgain() async throws {
+        let clock = TestClock()
+        let cache = RequestCache<NSString, String>(
+            name: "Test", countLimit: 10, maxAge: .seconds(60), now: { clock.now }
+        )
+        var fetches = 0
+        let fetch: @MainActor () async throws -> String = { fetches += 1; return "value \(fetches)" }
+        _ = try await cache.value(for: "a", fetch: fetch)
+        clock.advance(by: .seconds(59))
+        let fresh = try await cache.value(for: "a", fetch: fetch)
+        precondition(fresh == "value 1" && fetches == 1, "a value within its lifetime should be reused")
+        clock.advance(by: .seconds(1))
+        precondition(cache.cached("a") == nil, "an expired value should not be readable")
+        let refetched = try await cache.value(for: "a", fetch: fetch)
+        precondition(refetched == "value 2" && fetches == 2, "an expired value should be fetched again")
+        precondition(cache.cached("a") == "value 2")
+    }
+
+    @MainActor
+    static func insertRestartsExpiry() async throws {
+        let clock = TestClock()
+        let cache = RequestCache<NSString, String>(
+            name: "Test", countLimit: 10, maxAge: .seconds(60), now: { clock.now }
+        )
+        cache.insert("old", forKey: "a")
+        clock.advance(by: .seconds(45))
+        cache.insert("new", forKey: "a")
+        clock.advance(by: .seconds(45))
+        precondition(cache.cached("a") == "new", "a replaced value should live from its own insertion")
+    }
+
+    @MainActor
+    static func nilMaxAgeNeverExpires() async throws {
+        let clock = TestClock()
+        let cache = RequestCache<NSString, String>(
+            name: "Test", countLimit: 10, maxAge: nil, now: { clock.now }
+        )
+        cache.insert("kept", forKey: "a")
+        clock.advance(by: .seconds(365 * 24 * 60 * 60))
+        precondition(cache.cached("a") == "kept")
     }
 }
