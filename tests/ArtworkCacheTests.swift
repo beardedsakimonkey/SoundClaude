@@ -246,7 +246,7 @@ struct ArtworkCacheTests {
         let gridIDs = (0..<20).map(String.init)
         let gridURLs = (0..<20).map { URL(string: "https://i1.sndcdn.com/grid-\($0)-large.png")! }
         grid.configure(ids: gridIDs, urls: gridURLs, loader: gridLoader, isEnabled: true)
-        grid.setLookahead(4, loader: gridLoader)
+        grid.setLookahead(4, lookbehind: 0, loader: gridLoader)
         grid.setVisible("5", isVisible: true, loader: gridLoader)
         for url in gridURLs[5...9] {
             while gridLoader.cachedImage(for: url, rendition: .square300) == nil { await Task.yield() }
@@ -273,6 +273,24 @@ struct ArtworkCacheTests {
         precondition(shelfRequests == 9,
                      "A shelf must load its own covers and those of the two shelves below it")
         shelves.stop(loader: shelfLoader)
+
+        // Scrolling back up loads one row above, and no more.
+        let upClient = SoundCloudClient(payload: encoded as Data)
+        let upLoader = ArtworkLoader(client: upClient)
+        let up = TrackScrollArtworkPrefetcher(rendition: .square300, lookahead: 2, lookbehind: 2)
+        let upURLs = (0..<20).map { URL(string: "https://i1.sndcdn.com/up-\($0)-large.png")! }
+        up.configure(ids: (0..<20).map(String.init), urls: upURLs, loader: upLoader, isEnabled: true)
+        up.setVisible("10", isVisible: true, loader: upLoader)
+        for url in upURLs[8...12] {
+            while upLoader.cachedImage(for: url, rendition: .square300) == nil { await Task.yield() }
+        }
+        up.setVisible("9", isVisible: true, loader: upLoader)
+        up.setVisible("10", isVisible: false, loader: upLoader)
+        while upLoader.cachedImage(for: upURLs[7], rendition: .square300) == nil { await Task.yield() }
+        let upRequests = await upClient.requests
+        precondition(upRequests == 6, "Scrolling up must add only the tile that entered the window above")
+        precondition(upLoader.cachedImage(for: upURLs[6], rendition: .square300) == nil)
+        up.stop(loader: upLoader)
 
         let invalidLoader = ArtworkLoader(client: SoundCloudClient(payload: Data([0, 1, 2])))
         let invalid = try await invalidLoader.image(for: url)

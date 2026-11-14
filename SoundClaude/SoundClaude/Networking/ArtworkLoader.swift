@@ -427,6 +427,8 @@ final class TrackArtworkPrefetcher {
 final class TrackScrollArtworkPrefetcher {
     let prefetcher: TrackArtworkPrefetcher
     private var lookahead: Int
+    // Entries before the first visible one, for scrolling back up.
+    private var lookbehind: Int
     private var indices: [String: Int] = [:]
     // One entry per scrolling item: a track's cover, or the covers of a whole shelf.
     private var urls: [[URL]] = []
@@ -434,14 +436,16 @@ final class TrackScrollArtworkPrefetcher {
     private var isEnabled = true
     private var updateTask: Task<Void, Never>?
 
-    init(rendition: ArtworkLoader.Rendition, lookahead: Int) {
+    init(rendition: ArtworkLoader.Rendition, lookahead: Int, lookbehind: Int = 0) {
         prefetcher = TrackArtworkPrefetcher(rendition: rendition)
         self.lookahead = lookahead
+        self.lookbehind = lookbehind
     }
 
-    func setLookahead(_ lookahead: Int, loader: ArtworkLoader) {
-        guard lookahead != self.lookahead else { return }
+    func setLookahead(_ lookahead: Int, lookbehind: Int, loader: ArtworkLoader) {
+        guard lookahead != self.lookahead || lookbehind != self.lookbehind else { return }
         self.lookahead = lookahead
+        self.lookbehind = lookbehind
         schedule(loader: loader)
     }
 
@@ -484,11 +488,13 @@ final class TrackScrollArtworkPrefetcher {
             catch { return }
             guard let self else { return }
             let visible = visibleIDs.compactMap { self.indices[$0] }.sorted()
-            let upcoming: [URL]
-            if let last = visible.last {
-                upcoming = urls[(last + 1)..<min(urls.count, last + 1 + lookahead)].flatMap { $0 }
-            } else {
-                upcoming = []
+            var upcoming: [URL] = []
+            if let first = visible.first, let last = visible.last {
+                let below = urls[(last + 1)..<min(urls.count, last + 1 + lookahead)].flatMap { $0 }
+                // Nearest first. On the way up, the entries below are already
+                // cached, so these are what is left to load.
+                let above = urls[max(0, first - lookbehind)..<first].reversed().flatMap { $0 }
+                upcoming = below + above
             }
             prefetcher.update(urls: upcoming, visibleURLs: visible.flatMap { self.urls[$0] },
                               loader: loader, isEnabled: isEnabled)

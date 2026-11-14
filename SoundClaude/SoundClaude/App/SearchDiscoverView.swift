@@ -10,12 +10,13 @@ struct SearchDiscover: View {
     @State private var hasFailed = false
 
     private static let sectionSpacing: CGFloat = 32
-    // Speculatively load the covers of the two shelves below the visible ones.
+    // Speculatively load the covers of the two shelves below the visible ones, and one above.
     private static let prefetchShelfCount = 2
 
     @State private var coordinator = TrackScrollArtworkPrefetcher(
         rendition: .square500,
-        lookahead: prefetchShelfCount
+        lookahead: prefetchShelfCount,
+        lookbehind: 1
     )
     /// How many cards of a shelf fit across the page before it scrolls sideways.
     @State private var cardsPerShelf = 0
@@ -44,14 +45,12 @@ struct SearchDiscover: View {
                 cardsPerShelf = count
             }
             .onChange(of: cardsPerShelf) { _, _ in configurePrefetch() }
-            .onChange(of: selections?.map(\.id), initial: true) { _, _ in configurePrefetch() }
+            .onChange(of: selections?.map(\.id)) { _, _ in configurePrefetch() }
             .onChange(of: prefetchEnabled) { _, _ in configurePrefetch() }
             .onAppear { configurePrefetch() }
             .onDisappear { coordinator.stop(loader: model.artworkLoader) }
         #if DEBUG
             .preference(key: TrackArtworkQueueDebugKey.self, value: [coordinator.prefetcher])
-        #endif
-        #if DEBUG
             .debugViewUpdates("SearchDiscover")
         #endif
     }
