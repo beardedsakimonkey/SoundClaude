@@ -12,6 +12,7 @@ struct TrackStationMenuItem: View {
         Button("Start station", systemImage: "dot.radiowaves.left.and.right") {
             openTrackStation(track)
         }
+        .labelStyle(.titleAndIcon)
         .keyboardShortcut(nil)
     }
 }
