@@ -139,8 +139,9 @@ struct SidebarView: View {
             guard isPlaylistsExpanded else { return }
             await playlists.load()
         }
-        .task(id: isLikedStationsExpanded) {
-            guard isLikedStationsExpanded else { return }
+        // Liked system playlists such as Weekly Wave arrive with the station likes.
+        .task(id: isLikedStationsExpanded || isLikedPlaylistsExpanded) {
+            guard isLikedStationsExpanded || isLikedPlaylistsExpanded else { return }
             try? await likes.loadStationLikes()
         }
         .task(id: isLikedPlaylistsExpanded) {
@@ -230,15 +231,16 @@ struct SidebarView: View {
                 }
             }
             if showsLikedSection(
-                isEmpty: playlists.likedPlaylists.isEmpty,
+                isEmpty: playlists.likedPlaylists.isEmpty && likedSystemPlaylists.isEmpty,
                 errorMessage: playlists.likesErrorMessage,
                 isExpanded: isLikedPlaylistsExpanded,
-                hasLoaded: playlists.hasLoadedLikes
+                hasLoaded: playlists.hasLoadedLikes && likes.hasLoadedStationLikes
             ) {
                 VStack(alignment: .leading, spacing: 0) {
                     sectionHeader("Liked Playlists", isExpanded: $isLikedPlaylistsExpanded, isLoading: playlists.isLoadingLikes)
                     sectionContents(isExpanded: isLikedPlaylistsExpanded) {
                         VStack(alignment: .leading, spacing: 0) {
+                            ForEach(likedSystemPlaylists) { likedStationRow($0) }
                             ForEach(playlists.likedPlaylists) { playlist in
                                 playlistRow(playlist, isUnliking: playlists.unlikingPlaylistURNs.contains(playlist.urn))
                             }
@@ -257,7 +259,7 @@ struct SidebarView: View {
                 }
             }
             if showsLikedSection(
-                isEmpty: likes.likedStations.isEmpty,
+                isEmpty: likedStations.isEmpty,
                 errorMessage: likes.stationLikesErrorMessage,
                 isExpanded: isLikedStationsExpanded,
                 hasLoaded: likes.hasLoadedStationLikes
@@ -293,88 +295,22 @@ struct SidebarView: View {
         !isEmpty || errorMessage != nil || (!isExpanded && !hasLoaded)
     }
 
+    private var likedStations: [SoundCloudStationLikePage.Station] {
+        likes.likedStations.filter(\.isStation)
+    }
+
+    /// Liked system playlists that aren't stations, such as Weekly Wave.
+    private var likedSystemPlaylists: [SoundCloudStationLikePage.Station] {
+        likes.likedStations.filter { !$0.isStation }
+    }
+
     private var likedStationsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("Stations", isExpanded: $isLikedStationsExpanded,
                           isLoading: likes.isLoadingStationLikes)
             sectionContents(isExpanded: isLikedStationsExpanded) {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(likes.likedStations) { station in
-                        let isStarting = startingStationURN == station.urn
-                        let isUpdating = likes.updatingStationURNs.contains(station.urn)
-                        let shuffleTitle = station.isStation ? "Shuffle station" : "Shuffle playlist"
-                        SidebarRowHoverReader { isHovered in
-                            let showsShuffle = isHovered && !isStarting && !isUpdating
-                            Label {
-                                Text(station.displayTitle)
-                            } icon: {
-                                if station.isStation {
-                                    StationPlayingIcon(
-                                        playback: playback, isCurrent: playbackSource == .station(station.urn)
-                                    )
-                                    .font(.system(size: 16))
-                                    .frame(width: 28, height: 28)
-                                } else {
-                                    PlaylistPlayingIcon(
-                                        playback: playback, isCurrent: playbackSource == .playlist(station.urn)
-                                    )
-                                    .font(.system(size: 16))
-                                    .frame(width: 28, height: 28)
-                                }
-                            }
-                            .lineLimit(1)
-                            .contentHelp(station.displayTitle)
-                            .modifier(SidebarRowStyle(
-                                isSelected: false,
-                                usesPrimaryForeground: station.isStation
-                                    ? currentStationURN == station.urn : currentPlaylistURN == station.urn,
-                                prefetch: station.isStation
-                                    ? .station(station.urn)
-                                    : .playlist(.systemPlaylist(urn: station.urn, title: station.displayTitle)),
-                                fadesTrailingEdge: isStarting || showsShuffle
-                            ) {
-                                onSelectStation(station)
-                            })
-                            .simultaneousGesture(TapGesture(count: 2).onEnded {
-                                startStation(station)
-                            })
-                            .accessibilityAction(named: station.isStation ? "Play station" : "Play playlist") {
-                                startStation(station)
-                            }
-                            .accessibilityAction(named: shuffleTitle) {
-                                startStation(station, shuffle: true)
-                            }
-                            .overlay(alignment: .trailing) {
-                                if isStarting {
-                                    LoadingSpinner()
-                                        .controlSize(.small)
-                                        .frame(width: 28, height: 28)
-                                        .padding(.trailing, 8)
-                                        .accessibilityLabel("Loading \(station.displayTitle) for playback")
-                                        .allowsHitTesting(false)
-                                } else if showsShuffle {
-                                    sidebarShuffleButton(shuffleTitle) {
-                                        onSelectStation(station)
-                                        startStation(station, shuffle: true)
-                                    }
-                                }
-                            }
-                        }
-                        .opacity(isUpdating ? 0.5 : 1)
-                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
-                        .contextMenu {
-                            Button(
-                                station.isStation ? "Unlike station" : "Unlike playlist",
-                                systemImage: "heart.slash"
-                            ) {
-                                unlikeStation(station)
-                            }
-                            // toggleStationLike likes anything absent from the list, so wait
-                            // until a finished load confirms this row is still liked.
-                            .disabled(!likes.hasLoadedStationLikes || likes.updatingStationURNs.contains(station.urn))
-                            .labelStyle(.titleAndIcon)
-                        }
-                    }
+                    ForEach(likedStations) { likedStationRow($0) }
                     if !likes.isLoadingStationLikes, let message = likes.stationLikesErrorMessage {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(message)
@@ -387,6 +323,84 @@ struct SidebarView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func likedStationRow(_ station: SoundCloudStationLikePage.Station) -> some View {
+        let isStarting = startingStationURN == station.urn
+        let isUpdating = likes.updatingStationURNs.contains(station.urn)
+        let shuffleTitle = station.isStation ? "Shuffle station" : "Shuffle playlist"
+        SidebarRowHoverReader { isHovered in
+            let showsShuffle = isHovered && !isStarting && !isUpdating
+            Label {
+                Text(station.displayTitle)
+            } icon: {
+                if station.isStation {
+                    StationPlayingIcon(
+                        playback: playback, isCurrent: playbackSource == .station(station.urn)
+                    )
+                    .font(.system(size: 16))
+                    .frame(width: 28, height: 28)
+                } else {
+                    PlaylistPlayingIcon(
+                        playback: playback, isCurrent: playbackSource == .playlist(station.urn)
+                    )
+                    .font(.system(size: 16))
+                    .frame(width: 28, height: 28)
+                }
+            }
+            .lineLimit(1)
+            .contentHelp(station.displayTitle)
+            .modifier(SidebarRowStyle(
+                isSelected: false,
+                usesPrimaryForeground: station.isStation
+                    ? currentStationURN == station.urn : currentPlaylistURN == station.urn,
+                prefetch: station.isStation
+                    ? .station(station.urn)
+                    : .playlist(.systemPlaylist(urn: station.urn, title: station.displayTitle)),
+                fadesTrailingEdge: isStarting || showsShuffle
+            ) {
+                onSelectStation(station)
+            })
+            .simultaneousGesture(TapGesture(count: 2).onEnded {
+                startStation(station)
+            })
+            .accessibilityAction(named: station.isStation ? "Play station" : "Play playlist") {
+                startStation(station)
+            }
+            .accessibilityAction(named: shuffleTitle) {
+                startStation(station, shuffle: true)
+            }
+            .overlay(alignment: .trailing) {
+                if isStarting {
+                    LoadingSpinner()
+                        .controlSize(.small)
+                        .frame(width: 28, height: 28)
+                        .padding(.trailing, 8)
+                        .accessibilityLabel("Loading \(station.displayTitle) for playback")
+                        .allowsHitTesting(false)
+                } else if showsShuffle {
+                    sidebarShuffleButton(shuffleTitle) {
+                        onSelectStation(station)
+                        startStation(station, shuffle: true)
+                    }
+                }
+            }
+        }
+        .opacity(isUpdating ? 0.5 : 1)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: isUpdating)
+        .contextMenu {
+            Button(
+                station.isStation ? "Unlike station" : "Unlike playlist",
+                systemImage: "heart.slash"
+            ) {
+                unlikeStation(station)
+            }
+            // toggleStationLike likes anything absent from the list, so wait
+            // until a finished load confirms this row is still liked.
+            .disabled(!likes.hasLoadedStationLikes || likes.updatingStationURNs.contains(station.urn))
+            .labelStyle(.titleAndIcon)
         }
     }
 
