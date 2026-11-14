@@ -48,6 +48,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private var shadowDepth: MTLTexture?
     private var pistonRopeShadow: MTLTexture?
     private var pistonRopeShadowDepth: MTLTexture?
+    private var pistonReflection: MTLTexture?
+    private var pistonReflectionBlur: MTLTexture?
+    private var pistonReflectionDepth: MTLTexture?
     private var pistonBloomMultisampleMask: MTLTexture?
     private var pistonBloomMask: MTLTexture?
     private var pistonBloomBlur: MTLTexture?
@@ -239,6 +242,11 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         uniforms.append(SIMD4<Float>(VisualizerGrade.sRGBEncoded(pistonSettings.backgroundColor), 0))
         uniforms.append(SIMD4<Float>(pistonSettings.lightDirection, 0))
         uniforms.append(SIMD4<Float>(pistonCamera.target, 0))
+        // Wrap the clock hourly to keep the sky's slow drift precise in a Float.
+        uniforms.append(SIMD4<Float>(pistonSettings.skyGlow, pistonSettings.skyStars, pistonSettings.skyNebula,
+                                     Float(now.truncatingRemainder(dividingBy: 3600))))
+        uniforms.append(SIMD4<Float>(pistonSettings.groundReflection, pistonSettings.groundRopeLight,
+                                     pistonSettings.groundTileSeams, pistonSettings.ropeLength))
         return (buffer, uniforms, PistonSimulation.count *
             (32 * 12 * 3 + pistonSettings.stringsPerPiston * (PistonSimulation.segments * 6 + 12 * 8 * 6)))
     }
@@ -280,6 +288,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
         encoder.setFragmentTexture(fallbackTexture, index: 1)
         encoder.setFragmentTexture(fallbackTexture, index: 2)
+        encoder.setFragmentTexture(fallbackTexture, index: 3)
         var uniforms = frame.uniforms
         uniforms[3].w = 3
         uniforms.withUnsafeBytes { bytes in
@@ -298,6 +307,61 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         return texture
     }
 
+    /// Draws the scene upside down below the floor, blurred for the floor to mirror.
+    private func encodePistonReflection(
+        in view: MTKView, commandBuffer: MTLCommandBuffer,
+        pipeline: MTLRenderPipelineState, frame: PistonFrame, ropeShadow: MTLTexture?
+    ) -> MTLTexture? {
+        guard pistonSettings.groundReflection > 0, let device = view.device else { return nil }
+        // The blur hides the reduced resolution.
+        let scale = min(0.5, 1024 / max(1, max(view.drawableSize.width, view.drawableSize.height)))
+        let width = max(1, Int(view.drawableSize.width * scale))
+        let height = max(1, Int(view.drawableSize.height * scale))
+        if pistonReflection?.width != width || pistonReflection?.height != height {
+            let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                pixelFormat: .rgba16Float, width: width, height: height, mipmapped: false)
+            descriptor.storageMode = .private
+            descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
+            pistonReflection = device.makeTexture(descriptor: descriptor)
+            pistonReflectionBlur = device.makeTexture(descriptor: descriptor)
+            descriptor.pixelFormat = .depth32Float
+            descriptor.usage = .renderTarget
+            pistonReflectionDepth = device.makeTexture(descriptor: descriptor)
+        }
+        guard let texture = pistonReflection, let blurred = pistonReflectionBlur,
+              let depth = pistonReflectionDepth else { return nil }
+        let pass = MTLRenderPassDescriptor()
+        pass.colorAttachments[0].texture = texture
+        pass.colorAttachments[0].loadAction = .clear
+        pass.colorAttachments[0].storeAction = .store
+        pass.colorAttachments[0].clearColor = MTLClearColorMake(0, 0, 0, 0)
+        pass.depthAttachment.texture = depth
+        pass.depthAttachment.loadAction = .clear
+        pass.depthAttachment.storeAction = .dontCare
+        pass.depthAttachment.clearDepth = 1
+        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: pass) else { return nil }
+        encoder.label = "Piston floor reflection"
+        encoder.setRenderPipelineState(pipeline)
+        encoder.setDepthStencilState(depthState)
+        encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
+        encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
+        encoder.setFragmentTexture(fallbackTexture, index: 1)
+        encoder.setFragmentTexture(ropeShadow ?? fallbackTexture, index: 2)
+        encoder.setFragmentTexture(fallbackTexture, index: 3)
+        var uniforms = frame.uniforms
+        uniforms[3].w = -1
+        uniforms.withUnsafeBytes { bytes in
+            encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+            encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+        }
+        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: frame.vertexCount)
+        encoder.endEncoding()
+        let blur = MPSImageGaussianBlur(device: device, sigma: max(1, Float(min(width, height)) * 0.004))
+        blur.edgeMode = .clamp
+        blur.encode(commandBuffer: commandBuffer, sourceTexture: texture, destinationTexture: blurred)
+        return blurred
+    }
+
     private func encodePistonShadow(
         in view: MTKView, commandBuffer: MTLCommandBuffer,
         pipeline: MTLRenderPipelineState, frame: PistonFrame
@@ -308,6 +372,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
             encoder.setFragmentTexture(fallbackTexture, index: 1)
             encoder.setFragmentTexture(fallbackTexture, index: 2)
+            encoder.setFragmentTexture(fallbackTexture, index: 3)
             var uniforms = frame.uniforms
             uniforms[3].w = 1
             uniforms.withUnsafeBytes { bytes in
@@ -407,6 +472,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         source.setFragmentBuffer(frame.positions, offset: 0, index: 6)
         source.setFragmentTexture(fallbackTexture, index: 1)
         source.setFragmentTexture(fallbackTexture, index: 2)
+        source.setFragmentTexture(fallbackTexture, index: 3)
         var uniforms = frame.uniforms
         uniforms[3].w = 4
         uniforms.withUnsafeBytes { bytes in
@@ -562,6 +628,10 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             encodePistonShadow(in: view, commandBuffer: commandBuffer,
                                pipeline: pipelines.shadow, frame: $0)
         }
+        let reflection = pistonFrame.flatMap {
+            encodePistonReflection(in: view, commandBuffer: commandBuffer,
+                                   pipeline: pipelines.shadow, frame: $0, ropeShadow: ropeShadow)
+        }
         guard let scenePass = pistonFrame == nil
                 ? renderPassDescriptor : makeScenePass(in: view, size: drawable.texture),
               let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: scenePass) else {
@@ -570,6 +640,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 
         encoder.setRenderPipelineState(pipelines.scene)
         encoder.setFragmentTexture(fallbackTexture, index: 1)
+        encoder.setFragmentTexture(reflection ?? fallbackTexture, index: 3)
         var accentColor = SIMD4<Float>(displayedAccent, 0)
         encoder.setFragmentBytes(
             &accentColor,

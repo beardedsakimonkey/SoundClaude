@@ -4,7 +4,7 @@ using namespace metal;
 struct PistonUniforms {
     float4 camera; // aspect, yaw, pitch, distance
     float4 heights[2];
-    float4 ropes; // half thickness, strings per piston, ground height, pass (scene, mask, floor, light, glow, sky)
+    float4 ropes; // half thickness, strings per piston, ground height, pass (scene, mask, floor, light, glow, sky; -1 mirrors the scene in the floor)
     float4 viewport; // drawable width and height, resting rope brightness, resting rope glow
     float4 stripes; // thickness, frequency, full-rise head twist (radians), travel
     float4 stripeColor; // linear RGB, unused
@@ -19,6 +19,8 @@ struct PistonUniforms {
     float4 fogColor; // encoded RGB matching the sky backdrop, unused
     float4 lightDirection; // world-space direction toward the scene light, unused
     float4 target; // world-space point the camera orbits, unused
+    float4 sky; // horizon glow, star brightness, nebula strength, time in seconds
+    float4 groundDetail; // reflection strength, rope light strength, tile seam strength, rope length
 };
 struct PistonVertex {
     float4 position [[position]];
@@ -66,6 +68,75 @@ static float3 pistonWorldDirection(float3 p, constant PistonUniforms &u) {
     return float3(dot(p, pistonRotate(float3(1, 0, 0), u.camera.y, u.camera.z)),
                   dot(p, pistonRotate(float3(0, 1, 0), u.camera.y, u.camera.z)),
                   dot(p, pistonRotate(float3(0, 0, 1), u.camera.y, u.camera.z)));
+}
+static float pistonHash(float3 p) {
+    p = fract(p * 0.1031);
+    p += dot(p, p.zyx + 31.32);
+    return fract((p.x + p.y) * p.z);
+}
+static float pistonNoise(float3 p) {
+    float3 cell = floor(p);
+    float3 f = fract(p);
+    f = f * f * (3 - 2 * f);
+    return mix(mix(mix(pistonHash(cell), pistonHash(cell + float3(1, 0, 0)), f.x),
+                   mix(pistonHash(cell + float3(0, 1, 0)), pistonHash(cell + float3(1, 1, 0)), f.x), f.y),
+               mix(mix(pistonHash(cell + float3(0, 0, 1)), pistonHash(cell + float3(1, 0, 1)), f.x),
+                   mix(pistonHash(cell + float3(0, 1, 1)), pistonHash(cell + float3(1, 1, 1)), f.x), f.y), f.z);
+}
+// Mean rise of the eight pistons: zero at rest, one at full travel.
+static float pistonEnergy(constant PistonUniforms &u) {
+    if (u.stripes.w <= 0) return 0;
+    float4 low = saturate((u.heights[0] - 0.8) / u.stripes.w);
+    float4 high = saturate((u.heights[1] - 0.8) / u.stripes.w);
+    return (dot(low, float4(1)) + dot(high, float4(1))) / 8;
+}
+// A night sky for a world-space direction, added over the backdrop color:
+// an afterglow behind the pistons in the artwork's hue, a drifting nebula
+// lane and stars. Like the scene lighting, it fades out without an accent.
+// The floor reflects and fogs toward the plain version, without `detailed`.
+static float3 pistonSky(float3 d, bool detailed, constant PistonUniforms &u) {
+    float presence = dot(u.lightColor.rgb, float3(0.2126, 0.7152, 0.0722));
+    if (presence <= 0 || u.sky.x + u.sky.y + u.sky.z <= 0) return float3(0);
+    float3 accent = u.spotlightColor.rgb;
+    float3 companion = mix(accent.gbr, accent, 0.45);
+    float elevation = max(d.y, 0.0);
+    // Brightest behind the pistons, so orbiting reveals a darker side.
+    float2 heading = d.xz / max(length(d.xz), 0.0001);
+    float facing = 0.5 - 0.5 * heading.y;
+    float pulse = 0.8 + 0.45 * pistonEnergy(u);
+    float3 color = float3(0.012, 0.017, 0.034) * (1 - 0.7 * elevation);
+    color += mix(companion, accent, facing) * exp(-elevation * mix(9.0, 4.5, facing))
+        * mix(0.06, 0.17, facing) * pulse;
+    color += mix(accent, float3(1), 0.3) * exp(-elevation * 30.0) * mix(0.03, 0.08, facing) * pulse;
+    color *= u.sky.x;
+    if (detailed) {
+        float clearSky = smoothstep(0.02, 0.3, elevation);
+        // A tilted lane of slowly drifting cloud crosses the sky.
+        float lane = exp(-pow(dot(d, normalize(float3(-0.5, 0.8, 0.25))) * 2.4, 2.0));
+        float3 q = d * 2.6 + float3(0.013, 0.004, 0.009) * u.sky.w;
+        float cloud = pistonNoise(q) * 0.5 + pistonNoise(q * 2.1 + 5.2) * 0.27
+            + pistonNoise(q * 4.3 + 9.7) * 0.15 + pistonNoise(q * 8.9 + 2.3) * 0.08;
+        float wisps = smoothstep(0.36, 0.8, cloud);
+        float3 cloudColor = mix(companion, accent, pistonNoise(q * 0.8 + 13.1));
+        color += cloudColor * wisps * (0.3 * lane + 0.03) * clearSky * u.sky.z;
+        // One star at most per cell of a lattice crossed by the unit sphere.
+        // Stars off the sphere show only their dimmer edge, varying their size.
+        float3 p = d * 64.0;
+        float3 cell = floor(p);
+        float3 center = cell + 0.2 + 0.6 * float3(
+            pistonHash(cell), pistonHash(cell + 17.3), pistonHash(cell + 41.9));
+        // Keep each star at least a pixel wide, at constant total brightness.
+        float pixel = 64.0 * 0.952 / max(u.viewport.y, 1.0);
+        float radius = max(0.055, pixel * 1.1);
+        float3 offset = p - center;
+        float star = exp(-dot(offset, offset) / (radius * radius)) * pow(0.055 / radius, 2.0);
+        float seed = pistonHash(cell + 73.1);
+        float magnitude = 0.18 + 1.6 * pow(seed, 7.0);
+        float twinkle = 0.72 + 0.28 * sin(u.sky.w * (0.7 + 2.6 * seed) + seed * 40.0);
+        float3 starColor = mix(float3(1), mix(float3(0.7, 0.82, 1), float3(1, 0.84, 0.7), seed), 0.6);
+        color += starColor * star * magnitude * twinkle * (0.6 + 0.9 * lane * wisps) * clearSky * u.sky.y;
+    }
+    return color * presence;
 }
 static float4 pistonAtmosphere(float2 pixel, float depth, constant PistonUniforms &u) {
     if (u.material.z <= 0) return float4(0);
@@ -128,6 +199,11 @@ static float3 pistonGroundShadow(float3 p, constant PistonUniforms &u) {
     float gap = max(0.0, p.y - u.ropes.z);
     p.xz -= u.lightDirection.xz * (gap / u.lightDirection.y);
     p.y = u.ropes.z;
+    return p;
+}
+// The floor's reflection pass draws the scene upside down below the floor.
+static float3 pistonMirror(float3 p, constant PistonUniforms &u) {
+    if (u.ropes.w < -0.5) p.y = 2 * u.ropes.z - p.y;
     return p;
 }
 vertex PistonVertex pistonVisualizerVertex(
@@ -267,6 +343,8 @@ vertex PistonVertex pistonVisualizerVertex(
             a = pistonGroundShadow(a, u);
             b = pistonGroundShadow(b, u);
         }
+        a = pistonMirror(a, u);
+        b = pistonMirror(b, u);
         a = pistonRotate(a-u.target.xyz,u.camera.y,u.camera.z);
         b = pistonRotate(b-u.target.xyz,u.camera.y,u.camera.z);
         float2 tangent = b.xy-a.xy;
@@ -280,6 +358,7 @@ vertex PistonVertex pistonVisualizerVertex(
         uint root = string * 21;
         float3 tangent3 = points[root + min(node + 1, 20u)].xyz
                        - points[root + (node > 0 ? node - 1 : 0)].xyz;
+        if (u.ropes.w < -0.5) tangent3.y = -tangent3.y;
         tangent3 = pistonRotate(tangent3, u.camera.y, u.camera.z);
         ropeTangent = length(tangent3) > 0.00001 ? normalize(tangent3) : float3(0, 1, 0);
         ropeUV = float2(sides[v%6], localString % 2 == 0 ? 2.0 : 1.0);
@@ -301,6 +380,9 @@ vertex PistonVertex pistonVisualizerVertex(
         }
         receiver = float4(p, local < cylinderVertices * 2 ? 1.0 : 0.0);
         if (u.ropes.w > 0.5 && !glowPass) p = pistonGroundShadow(p, u);
+        // Shade the mirror image with its real position, kept in the receiver.
+        p = pistonMirror(p, u);
+        if (u.ropes.w < -0.5) n.y = -n.y;
         p = pistonRotate(p-u.target.xyz,u.camera.y,u.camera.z);
         n = pistonRotate(n,u.camera.y,u.camera.z);
     }
@@ -395,9 +477,19 @@ fragment PistonFragment pistonVisualizerFragment(
     constant PistonUniforms &u [[buffer(4)]],
     const device float4 *points [[buffer(6)]],
     texture2d<float> shadowMask [[texture(1)]],
-    texture2d<float> ropeShadow [[texture(2)]]
+    texture2d<float> ropeShadow [[texture(2)]],
+    texture2d<float> floorReflection [[texture(3)]]
 ) {
-    if (u.ropes.w > 4.5) return {pistonAtmosphere(in.position.xy, 1, u), 1};
+    if (u.ropes.w > 4.5) {
+        float2 ndc = in.position.xy / u.viewport.xy * float2(2, -2) + float2(-1, 1);
+        float3 direction = pistonWorldDirection(
+            normalize(float3(ndc.x * u.camera.x / 2.1, ndc.y / 2.1, -1)), u);
+        float3 sky = pistonSky(direction, true, u);
+        // A disabled sky leaves the pass transparent over the backdrop.
+        float cover = any(sky > 0) ? 1.0 : 0.0;
+        float4 surface = float4(saturate(u.fogColor.rgb + sky) * cover, cover);
+        return {pistonWithAtmosphere(surface, in.position.xy, 1, u), 1};
+    }
     if (u.ropes.w > 3.5) {
         if (in.uv.y < 0.5) discard_fragment();
         float glowStrength = in.uv.y > 1.5 ? 1.0 : saturate(u.finish.z);
@@ -462,14 +554,63 @@ fragment PistonFragment pistonVisualizerFragment(
         float3 floorColor = ambient * visibility
             + (diffuseColor * mix(1.0, visibility, 0.65) + highlight * visibility)
             * (1.0 - opacity);
+        // Large slabs, one per piston, with thin seams that fade once a
+        // pixel spans several of them. Each slab has its own polish.
+        float2 tile = floorPosition / 1.85 - float2(0, 0.5);
+        float2 tileFootprint = max(fwidth(tile), 0.00001);
+        float2 seamDistance = 0.5 - abs(fract(tile) - 0.5);
+        float2 seams = 1 - smoothstep(float2(0.004), 0.004 + tileFootprint, seamDistance);
+        float tileDetail = (1 - smoothstep(0.08, 0.45, max(tileFootprint.x, tileFootprint.y)))
+            * saturate(u.groundDetail.z);
+        float seam = max(seams.x, seams.y) * tileDetail;
+        float polish = 1 - (0.35 * pistonHash(float3(floor(tile), 3.7)) + 0.6 * seam) * tileDetail;
+        floorColor *= 1 - 0.6 * seam;
+        // Each ring of glowing ropes lights the floor below it. Raised ropes
+        // spread a wider, fainter pool.
+        float3 ropeLight = float3(0);
+        for (uint piston = 0; piston < 8; ++piston) {
+            float top = u.heights[piston / 4][piston % 4] - 0.055;
+            float gap = max(0.0, top - u.groundDetail.w - u.ropes.z);
+            float3 ropeColor = (0.36 * (0.55 + 0.45 * cos(float(piston) * 0.47 + float3(0, 2, 4)))
+                + 0.12 * saturate(u.finish.z)) * pistonRopeBrightness(piston, u);
+            float2 offset = floorPosition - float2((float(piston) - 3.5) * 1.85, 0);
+            float spread = max(0.0, length(offset) - 0.57) / (0.5 + 0.8 * gap);
+            ropeLight += ropeColor / ((1 + spread * spread) * (1 + spread * spread) * (1 + 0.9 * gap));
+        }
+        floorColor += ropeLight * groundTint * u.groundDetail.y * (1 - 0.4 * seam)
+            * mix(1.0, visibility, 0.5);
+        // A polished floor mirrors the sky and the scene, most at grazing angles.
+        float3 worldRay = pistonWorldDirection(normalize(ray), u);
+        float mirror = (0.04 + 0.96 * pow(1 - saturate(-worldRay.y), 5.0))
+            * saturate(u.groundDetail.x * polish);
+        float3 reflection = pistonSky(float3(worldRay.x, -worldRay.y, worldRay.z), false, u);
+        if (u.groundDetail.x > 0) {
+            constexpr sampler reflectionFilter(filter::linear, address::clamp_to_edge);
+            // Smear the blurred mirror image vertically, like a wet street.
+            float4 mirrored = float4(0);
+            const float weights[5] = {0.12, 0.23, 0.3, 0.23, 0.12};
+            for (int tap = 0; tap < 5; ++tap) {
+                mirrored += weights[tap] * floorReflection.sample(
+                    reflectionFilter, uv + float2(0, float(tap - 2) * 0.007));
+            }
+            reflection = reflection * (1 - saturate(mirrored.a)) + mirrored.rgb;
+        }
+        floorColor = floorColor * (1 - mirror) + reflection * mirror;
         // Distance fog converges to the exact sky color, rather than fading the
         // floor by viewing angle. A clear near region preserves its material.
         float fogDistance = max(0.0, distance * length(ray) - u.groundAppearance.z);
-        float opticalDepth = fogDistance * max(0.0, u.groundAppearance.w);
-        float transmission = exp(-opticalDepth * opticalDepth);
+        // The haze lies in a low layer over the floor. A camera above it looks
+        // through less of it, so the floor clears when seen from overhead.
+        float cameraHeight = pistonWorldDirection(float3(0, 0, u.camera.w), u).y + u.target.y - u.ropes.z;
+        float opticalDepth = fogDistance * max(0.0, u.groundAppearance.w)
+            * min(1.0, 1.5 / max(cameraHeight, 0.01));
+        float transmission = exp(-opticalDepth);
         const float floorAlpha = 0.88;
         float4 clearFloor = float4(floorColor * floorAlpha, floorAlpha);
-        float4 foggedFloor = mix(float4(u.fogColor.rgb, 1), clearFloor, transmission);
+        // The sky at this pixel's heading on the horizon, as its own pass draws it.
+        float3 horizon = normalize(float3(worldRay.x, 0, worldRay.z) + float3(0, 0, 0.000001));
+        float4 fog = float4(saturate(u.fogColor.rgb + pistonSky(horizon, false, u)), 1);
+        float4 foggedFloor = mix(fog, clearFloor, transmission);
         return {pistonWithAtmosphere(foggedFloor, in.position.xy, depth, u), depth};
     }
     if (u.ropes.w > 0.5) return {float4(1), in.position.z};
@@ -488,11 +629,13 @@ fragment PistonFragment pistonVisualizerFragment(
         float across = clamp(in.uv.x, -1.0, 1.0);
         n = normalize(side * across + front * sqrt(max(0.0, 1.0 - across * across)));
     }
-    float3 light = normalize(pistonRotate(u.lightDirection.xyz, u.camera.y, u.camera.z));
+    // The mirror image is lit by a mirrored world.
+    float3 up = float3(1, u.ropes.w < -0.5 ? -1 : 1, 1);
+    float3 light = normalize(pistonRotate(u.lightDirection.xyz * up, u.camera.y, u.camera.z));
     float diffuse = max(0.0,dot(n,light));
     float specular = pow(max(0.0,dot(n,normalize(light+lightingView))), isRope ? 24.0 : 48.0);
     float stripe = 0;
-    float3 cylinderAxis = pistonRotate(float3(0, 1, 0), u.camera.y, u.camera.z);
+    float3 cylinderAxis = pistonRotate(float3(0, up.y, 0), u.camera.y, u.camera.z);
     if (in.receiver.w > 0.5 && abs(dot(n, cylinderAxis)) < 0.5 && u.stripes.x > 0) {
         // Fixed spacing around cylinder walls, with filtered edges at any zoom.
         float phase = in.stripeHeight * u.stripes.y;
@@ -580,7 +723,7 @@ fragment PistonFragment pistonVisualizerFragment(
         }
         float3 direct = pistonMetal(n, view, light, tint, roughness, metallic)
             * 2.49 * u.lightColor.rgb * visibility;
-        float3 skyLight = normalize(pistonRotate(float3(0, 1, 0), u.camera.y, u.camera.z));
+        float3 skyLight = cylinderAxis;
         float headLight = smoothstep(0.25, 0.8, dot(n, cylinderAxis));
         direct += pistonMetal(n, view, skyLight, tint, roughness, metallic)
             * u.spotlightColor.rgb * 5.5 * u.material.z * headLight;
@@ -588,6 +731,7 @@ fragment PistonFragment pistonVisualizerFragment(
         // Soft highlight rolloff keeps bright reflections from clipping.
         shaded = shaded / (1 + shaded);
     }
+    if (u.ropes.w < -0.5) return {float4(shaded, 1), in.position.z};
     return {pistonWithAtmosphere(float4(shaded, 1), in.position.xy, in.position.z, u), in.position.z};
 }
 

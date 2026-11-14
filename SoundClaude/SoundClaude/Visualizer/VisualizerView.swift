@@ -12,6 +12,7 @@ struct VisualizerView: View {
     @State private var pistonCamera = PistonCameraProjection.defaultCamera
     @State private var orbitTranslation = CGSize.zero
     @GestureState private var isOrbiting = false
+    @State private var orbitCoast: Task<Void, Never>?
     @State private var isShowingControls = false
     @State private var viewportSize = CGSize.zero
 
@@ -33,16 +34,18 @@ struct VisualizerView: View {
             DragGesture(minimumDistance: 2)
                 .updating($isOrbiting) { _, active, _ in active = true }
                 .onChanged { value in
+                    guard !movesWindow(value) else { return }
+                    orbitCoast?.cancel()
                     let delta = CGSize(width: value.translation.width - orbitTranslation.width,
                                        height: value.translation.height - orbitTranslation.height)
                     orbitTranslation = value.translation
-                    pistonCamera.orbit(
-                        delta: SIMD2(Float(delta.width), Float(delta.height)),
-                        viewport: SIMD2(Float(viewportSize.width), Float(viewportSize.height)),
-                        pitchRange: PistonCameraProjection.orbitPitchRange(
-                            size: viewportSize, zoom: pistonCamera.zoom, targetHeight: pistonCamera.target.y))
+                    orbit(by: delta)
                 }
-                .onEnded { _ in orbitTranslation = .zero }
+                .onEnded { value in
+                    orbitTranslation = .zero
+                    guard !movesWindow(value) else { return }
+                    coastOrbit(velocity: value.velocity)
+                }
         )
         .onChange(of: isOrbiting) { _, active in
             if !active { orbitTranslation = .zero }
@@ -50,7 +53,9 @@ struct VisualizerView: View {
         .onChange(of: shader) { _, _ in
             isShowingControls = false
             orbitTranslation = .zero
+            orbitCoast?.cancel()
         }
+        .onDisappear { orbitCoast?.cancel() }
         .overlay(alignment: .topTrailing) {
             HStack {
                 #if DEBUG
@@ -100,6 +105,48 @@ struct VisualizerView: View {
         #if DEBUG
         .debugViewUpdates("VisualizerView")
         #endif
+    }
+
+    /// The scene extends under the hidden title bar, where a drag moves the window.
+    private func movesWindow(_ drag: DragGesture.Value) -> Bool {
+        guard let window = NSApp.keyWindow ?? NSApp.mainWindow else { return false }
+        return drag.startLocation.y < window.frame.height - window.contentLayoutRect.height
+    }
+
+    private func orbit(by delta: CGSize) {
+        pistonCamera.orbit(
+            delta: SIMD2(Float(delta.width), Float(delta.height)),
+            viewport: SIMD2(Float(viewportSize.width), Float(viewportSize.height)),
+            pitchRange: PistonCameraProjection.orbitPitchRange(
+                size: viewportSize, zoom: pistonCamera.zoom, targetHeight: pistonCamera.target.y))
+    }
+
+    /// Keeps the orbit turning after a drag is released, slowing to a stop.
+    private func coastOrbit(velocity: CGSize) {
+        orbitCoast?.cancel()
+        // A flick can report extreme speeds; cap it at a brisk spin.
+        let speed = hypot(velocity.width, velocity.height)
+        guard speed > 40 else { return }
+        let limit = min(1, 3000 / speed)
+        var velocity = CGSize(width: velocity.width * limit, height: velocity.height * limit)
+        orbitCoast = Task { @MainActor in
+            var last = ContinuousClock.now
+            var expected = pistonCamera
+            while hypot(velocity.width, velocity.height) > 8 {
+                try? await Task.sleep(for: .milliseconds(8))
+                // Stop if a camera reset or another change moved the orbit meanwhile.
+                guard !Task.isCancelled, pistonCamera.yaw == expected.yaw,
+                      pistonCamera.pitch == expected.pitch else { return }
+                let now = ContinuousClock.now
+                let elapsed = min(0.05, (now - last) / .seconds(1))
+                last = now
+                orbit(by: CGSize(width: velocity.width * elapsed, height: velocity.height * elapsed))
+                expected = pistonCamera
+                // Lose about 95% of the speed each second.
+                let decay = exp(-3 * elapsed)
+                velocity = CGSize(width: velocity.width * decay, height: velocity.height * decay)
+            }
+        }
     }
 
     #if DEBUG
@@ -152,6 +199,16 @@ struct VisualizerView: View {
                     ColorPicker("Ground color", selection: pistonColor(\.groundColor), supportsOpacity: false)
                     ColorPicker("Background color", selection: pistonColor(\.backgroundColor), supportsOpacity: false)
                     ColorPicker("Background glow", selection: pistonColor(\.backgroundGlowColor), supportsOpacity: false)
+                    Divider()
+                    Text("Environment").font(.subheadline.bold())
+                    tuningSlider("Sky glow", value: $pistonSettings.skyGlow, range: 0...2)
+                        .help("Afterglow along the horizon in the artwork's color. It brightens with the music.")
+                    tuningSlider("Stars", value: $pistonSettings.skyStars, range: 0...2)
+                    tuningSlider("Nebula", value: $pistonSettings.skyNebula, range: 0...2)
+                    tuningSlider("Floor reflection", value: $pistonSettings.groundReflection, range: 0...1)
+                    tuningSlider("Floor rope light", value: $pistonSettings.groundRopeLight, range: 0...2)
+                        .help("Colored light the glowing ropes cast on the floor.")
+                    tuningSlider("Floor tile seams", value: $pistonSettings.groundTileSeams, range: 0...1)
                     Divider()
                     Text("Cylinder material").font(.subheadline.bold())
                     ColorPicker("Steel color", selection: pistonColor(\.metalColor), supportsOpacity: false)

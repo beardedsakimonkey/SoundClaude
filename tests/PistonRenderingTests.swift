@@ -57,7 +57,7 @@ import Metal
             let buffer = points.withUnsafeBytes {
                 device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)!
             }
-            var uniforms = [SIMD4<Float>](repeating: .zero, count: 18)
+            var uniforms = [SIMD4<Float>](repeating: .zero, count: 20)
             uniforms[16] = SIMD4(0, 0.8, -1, 0) // Light direction.
             uniforms[17] = SIMD4(0, 1, 0, 0) // Orbit target.
             uniforms[0] = SIMD4(1, 0.3, 0.4, 3)
@@ -90,7 +90,7 @@ import Metal
                     encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 1)
                     encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 4)
                 }
-                for i in 1..<3 { encoder.setFragmentTexture(fallback, index: i) }
+                for i in 1..<4 { encoder.setFragmentTexture(fallback, index: i) }
                 encoder.drawPrimitives(type: .triangle, vertexStart: 32 * 12 * 3, vertexCount: 6)
                 encoder.endEncoding()
             }
@@ -139,11 +139,18 @@ import Metal
         let fogCases: [(Float, Float, Bool, Float, Float)] = [
             (0, 0, false, 0.8, 2.7), (0, 0, false, 0.8, 2.7)
         ]
+        // The night sky is drawn by its own pass and again as the floor's fog
+        // color. Render the fogged floor, then the sky, at the same horizon.
+        let skyCases: [(Float, Float, Bool, Float, Float)] = [
+            (0, 0, false, 0.8, 2.7), (0, 0, false, 0.8, 2.7)
+        ]
         var floorFrames: [[Float]] = []
-        for (index, fixture) in (cases + fogCases).enumerated() {
+        var skyFrame: [Float] = []
+        for (index, fixture) in (cases + fogCases + skyCases).enumerated() {
             let (pitch, strength, blocked, height, travel) = fixture
-            let floorCase = index >= cases.count
-            var uniforms = [SIMD4<Float>](repeating: .zero, count: 18)
+            let skyCase = index >= cases.count + fogCases.count
+            let floorCase = index >= cases.count && index <= cases.count + fogCases.count
+            var uniforms = [SIMD4<Float>](repeating: .zero, count: 20)
             uniforms[16] = SIMD4(0, 0.8, -1, 0) // Light direction.
             uniforms[17] = SIMD4(0, 1, 0, 0) // Orbit target.
             uniforms[0] = SIMD4(1, 0.3, pitch, 20)
@@ -161,6 +168,11 @@ import Metal
                 uniforms[11] = SIMD4(0.23, 0.28, 0.31, 0)
                 uniforms[14] = SIMD4(0.08, 0.85, 35, index == cases.count ? 0.045 : 0)
                 uniforms[15] = SIMD4(0.02, 0.03, 0.04, 0)
+            }
+            if skyCase {
+                uniforms[14].w = 0.045
+                uniforms[15] = SIMD4(0.02, 0.03, 0.04, 0)
+                uniforms[18] = SIMD4(1, 1, 1, 12) // Glow, stars, nebula, time.
             }
             let pass = MTLRenderPassDescriptor()
             pass.colorAttachments[0].texture = multisampleColor
@@ -183,7 +195,7 @@ import Metal
                 encoder.setVertexBytes($0.baseAddress!, length: $0.count, index: 1)
                 encoder.setFragmentBytes($0.baseAddress!, length: $0.count, index: 4)
             }
-            for i in 1..<3 { encoder.setFragmentTexture(fallback, index: i) }
+            for i in 1..<4 { encoder.setFragmentTexture(fallback, index: i) }
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: floorCase ? 6 : 3)
             encoder.endEncoding()
             command.commit()
@@ -195,6 +207,10 @@ import Metal
             precondition(pixels.allSatisfy { $0.isFinite && $0 >= 0 && $0 <= 1 })
             if floorCase {
                 floorFrames.append(pixels)
+                continue
+            }
+            if skyCase {
+                skyFrame = pixels
                 continue
             }
             if pitch == 0.5 && strength == 1 && !blocked {
@@ -232,6 +248,15 @@ import Metal
                          "Fog must preserve nearby ground")
         }
         precondition(floorFrames[0] != floorFrames[1], "Fog density must affect distant ground")
-        print("Piston rendering tests passed (\(covered) rope pixels, plus foreground occlusion and sky spotlights)")
+        let skyPixel = (126 * 256 + 128) * 4
+        precondition(skyFrame[skyPixel + 3] == 1, "An enabled sky must cover the backdrop")
+        precondition(skyFrame[skyPixel] > 0.05, "The horizon must glow in the spotlight color")
+        for channel in 0..<4 {
+            precondition(abs(skyFrame[skyPixel + channel] - floorFrames[2][horizonPixel + channel]) < 0.03,
+                         "Distant floor fog must meet the sky at the horizon")
+        }
+        precondition((0..<126 * 256).contains { skyFrame[$0 * 4 + 3] != 1 } == false,
+                     "The sky must stay opaque up to the zenith")
+        print("Piston rendering tests passed (\(covered) rope pixels, plus foreground occlusion, sky spotlights and the night sky)")
     }
 }

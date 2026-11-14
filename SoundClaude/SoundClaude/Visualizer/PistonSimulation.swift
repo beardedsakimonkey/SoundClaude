@@ -26,9 +26,15 @@ struct PistonSettings: Equatable {
     var baseColor = SIMD3<Float>(0.208480, 0.249791, 0.273287) // Linear RGB.
     var groundHighlightStrength: Float = 0.08
     var groundHighlightSoftness: Float = 0.85
-    var groundFogStart: Float = 35
-    var groundFogDensity: Float = 0.045
+    var groundFogStart: Float = 8
+    var groundFogDensity: Float = 0.03
     var groundColor = SIMD3<Float>(0.233544, 0.285116, 0.314244) // Linear RGB.
+    var groundReflection: Float = 0.7 // How mirror-like the floor is at grazing angles.
+    var groundRopeLight: Float = 1 // Colored light the glowing ropes cast on the floor.
+    var groundTileSeams: Float = 1
+    var skyGlow: Float = 1 // Afterglow along the horizon in the artwork's hue.
+    var skyStars: Float = 1
+    var skyNebula: Float = 1
     var backgroundColor = SIMD3<Float>.zero // Plain black backdrop.
     var backgroundGlowColor = SIMD3<Float>(0.0469642, 0.0835351, 0.162647) // Linear RGB.
     var roughness: Float = 0.21
