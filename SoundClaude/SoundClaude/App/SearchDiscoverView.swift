@@ -55,8 +55,8 @@ struct SearchDiscover: View {
             }
         } else if !hasFailed {
             // The recommendations are an extra, so a failure leaves the page without them.
-            LoadingSpinner()
-                .accessibilityLabel("Loading recommendations")
+            Color.clear
+                .frame(height: 1)
                 .frame(maxWidth: .infinity)
         }
     }
