@@ -2,12 +2,9 @@
 using namespace metal;
 
 struct VisualizerGradeUniforms {
-    float4 viewport; // drawable width and height, backdrop glow radius in pixels (0 for flat), grain seed
-    float4 backdrop; // sRGB-encoded backdrop color
-    float4 glow; // sRGB-encoded backdrop glow color at the center
-    float4 tone; // amount, contrast, saturation, vignette
-    float4 shadowTint; // linear RGB, grain
-    float4 highlightTint; // linear RGB, unused
+    float4 backdrop; // sRGB-encoded backdrop color, saturation
+    float4 shadowTint; // linear RGB, grade amount
+    float4 highlightTint; // linear RGB, contrast
 };
 struct VisualizerGradeVertex {
     float4 position [[position]];
@@ -29,21 +26,13 @@ static float gradeHash(float2 p) {
 }
 fragment float4 visualizerGradeFragment(VisualizerGradeVertex in [[stage_in]],
                                         texture2d<float> scene [[texture(0)]],
-                                        constant VisualizerGradeUniforms &u [[buffer(0)]]) {
+                                        constant VisualizerGradeUniforms &u [[buffer(0)]],
+                                        constant uint &ditherFrame [[buffer(1)]]) {
     const float3 lumaWeights = float3(0.2126, 0.7152, 0.0722);
     float2 pixel = in.position.xy;
     float4 surface = scene.read(uint2(pixel));
-    // Recreate the SwiftUI backdrop behind the transparent scene so the grade
-    // covers the floor's horizon fade continuously. Match its gradient stops.
-    float3 backdrop = u.backdrop.rgb;
-    if (u.viewport.z > 0) {
-        float t = length(pixel - u.viewport.xy * 0.5) / u.viewport.z;
-        float opacity = t < 0.35 ? mix(1.0, 0.55, t / 0.35)
-            : (t < 0.7 ? mix(0.55, 0.12, (t - 0.35) / 0.35) : 0.12 * (1 - saturate((t - 0.7) / 0.3)));
-        backdrop = mix(backdrop, u.glow.rgb, opacity);
-    }
     // The 8-bit drawable used to clip each channel; keep that look.
-    float3 original = saturate(saturate(surface.rgb) + backdrop * (1 - saturate(surface.a)));
+    float3 original = saturate(saturate(surface.rgb) + u.backdrop.rgb * (1 - saturate(surface.a)));
 
     float3 linear = gradeDecode(original);
     float luma = dot(linear, lumaWeights);
@@ -51,24 +40,18 @@ fragment float4 visualizerGradeFragment(VisualizerGradeVertex in [[stage_in]],
     float3 shadowGain = u.shadowTint.rgb / max(dot(u.shadowTint.rgb, lumaWeights), 0.0001);
     float3 highlightGain = u.highlightTint.rgb / max(dot(u.highlightTint.rgb, lumaWeights), 0.0001);
     linear *= mix(shadowGain, highlightGain, smoothstep(0.02, 0.5, luma));
-    linear = max(mix(float3(dot(linear, lumaWeights)), linear, u.tone.z), 0.0);
-    float aspect = u.viewport.x / max(u.viewport.y, 1.0);
-    float2 centered = (pixel / u.viewport.xy - 0.5) * float2(aspect, 1);
-    float radius = length(centered) / length(float2(aspect, 1) * 0.5);
-    linear *= 1 - u.tone.w * smoothstep(0.35, 1.1, radius);
+    linear = max(mix(float3(dot(linear, lumaWeights)), linear, u.backdrop.w), 0.0);
 
     // Per-channel S-curve through 0, the pivot and 1, applied to encoded values.
     float3 graded = saturate(gradeEncode(linear));
     const float pivot = 0.4;
-    float slope = max(u.tone.y, 0.01);
+    float slope = max(u.highlightTint.w, 0.01);
     graded = select(1 - (1 - pivot) * pow((1 - graded) / (1 - pivot), slope),
                     pivot * pow(graded / pivot, slope), graded < pivot);
-    float lightness = dot(graded, lumaWeights);
-    float2 seed = pixel + u.viewport.w * float2(37.0, 17.0);
-    graded += (gradeHash(seed) - 0.5) * u.shadowTint.w * 4 * lightness * (1 - lightness);
+    float2 seed = pixel + float(ditherFrame) * float2(37.0, 17.0);
 
-    float3 color = mix(original, graded, u.tone.x);
-    // Triangular dither hides 8-bit banding in the dark backdrop gradient.
+    float3 color = mix(original, graded, u.shadowTint.w);
+    // Triangular dither hides 8-bit banding in dark color gradients.
     color += (gradeHash(seed + 0.5) + gradeHash(seed + 71.3) - 1) / 255.0;
     return float4(saturate(color), 1);
 }

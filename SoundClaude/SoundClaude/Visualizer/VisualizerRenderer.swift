@@ -3,43 +3,12 @@ import MetalKit
 import MetalPerformanceShaders
 import simd
 
-enum VisualizerShader: String, CaseIterable {
-    case pistons
-
-    var title: String {
-        switch self {
-        case .pistons: "Pistons"
-        }
-    }
-
-    var sourceFile: String {
-        switch self {
-        case .pistons: "PistonVisualizer.metal"
-        }
-    }
-
-    private var functionPrefix: String {
-        switch self {
-        case .pistons: "pistonVisualizer"
-        }
-    }
-
-    var vertexFunction: String { functionPrefix + "Vertex" }
-    var fragmentFunction: String { functionPrefix + "Fragment" }
-
-    // Pistons render at half-float precision for the final grade.
-    func pixelFormat(drawable: MTLPixelFormat) -> MTLPixelFormat {
-        self == .pistons ? .rgba16Float : drawable
-    }
-}
-
 final class VisualizerRenderer: NSObject, MTKViewDelegate {
     var accent: ArtworkAccent
     private var displayedAccent: SIMD3<Float>
     private var accentTransitionFrom: SIMD3<Float>
     private var accentTransitionTarget: SIMD3<Float>
     private var accentTransitionStart: Double?
-    var shader: VisualizerShader = .pistons
     var pistonSettings = PistonSettings()
     var pistonCamera = PistonCameraProjection.defaultCamera
 
@@ -54,15 +23,12 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private var pistonBloomMultisampleMask: MTLTexture?
     private var pistonBloomMask: MTLTexture?
     private var pistonBloomBlur: MTLTexture?
-    private var pistonBloomSourcePipeline: MTLRenderPipelineState?
     private var pistonBloomCompositePipeline: MTLRenderPipelineState?
-    private var pistonGlowPipeline: MTLRenderPipelineState?
-    private var pistonRopeShadowPipeline: MTLRenderPipelineState?
     private var gradeSource: MTLTexture?
     private var gradeMultisample: MTLTexture?
     private var sceneDepth: MTLTexture?
     private var gradePipeline: MTLRenderPipelineState?
-    private var gradeFrame: UInt32 = 0
+    private var gradeDitherFrame: UInt32 = 0
     private var pistons = PistonSimulation()
     private var lastPistonTime: Double?
     private let glowDepthState: MTLDepthStencilState?
@@ -70,17 +36,15 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     private let spectrumBuffer: OpaquePointer
     private let commandQueue: MTLCommandQueue
     private let fallbackTexture: MTLTexture
-    fileprivate struct Pipelines {
+    private struct Pipelines {
         let scene: MTLRenderPipelineState
         let shadow: MTLRenderPipelineState
+        let glow: MTLRenderPipelineState
     }
 
     private let sceneSampleCount: Int
-    private var pipelines: [VisualizerShader: Pipelines] = [:]
+    private let pipelines: Pipelines
     private var bands = [Float](repeating: 0, count: Int(SCSpectrumBandCount))
-#if DEBUG
-    private var shaderReloaders: [VisualizerShader: VisualizerShaderReloader] = [:]
-#endif
 
     init?(view: MTKView, spectrumBuffer: OpaquePointer, accent: ArtworkAccent) {
         guard let device = view.device,
@@ -92,19 +56,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         sceneSampleCount = device.supportsTextureSampleCount(4) ? 4
             : (device.supportsTextureSampleCount(2) ? 2 : 1)
         do {
-            for shader in VisualizerShader.allCases {
-                pipelines[shader] = try Self.makePipelines(
-                    device: device, library: library,
-                    pixelFormat: shader.pixelFormat(drawable: view.colorPixelFormat),
-                    shader: shader, sampleCount: sceneSampleCount
-                )
-            }
-            pistonGlowPipeline = try Self.makePipeline(
-                device: device, library: library, pixelFormat: .rgba16Float,
-                shader: .pistons, sampleCount: sceneSampleCount, glowBlend: true)
-            pistonBloomSourcePipeline = try Self.makePipeline(
-                device: device, library: library, pixelFormat: .rgba16Float,
-                shader: .pistons, sampleCount: sceneSampleCount, glowBlend: true)
+            pipelines = try Self.makePipelines(
+                device: device, library: library, sampleCount: sceneSampleCount)
             let bloom = MTLRenderPipelineDescriptor()
             bloom.label = "Piston bloom composite"
             bloom.vertexFunction = library.makeFunction(name: "pistonBloomVertex")
@@ -154,43 +107,34 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         self.spectrumBuffer = spectrumBuffer
         self.commandQueue = commandQueue
         super.init()
-#if DEBUG
-        for shader in VisualizerShader.allCases {
-            shaderReloaders[shader] = VisualizerShaderReloader(
-                device: device, pixelFormat: shader.pixelFormat(drawable: view.colorPixelFormat), shader: shader,
-                sampleCount: sceneSampleCount
-            )
-        }
-#endif
     }
 
-    fileprivate static func makePipelines(
-        device: MTLDevice, library: MTLLibrary, pixelFormat: MTLPixelFormat,
-        shader: VisualizerShader, sampleCount: Int
+    private static func makePipelines(
+        device: MTLDevice, library: MTLLibrary, sampleCount: Int
     ) throws -> Pipelines {
-        let scene = try makePipeline(device: device, library: library, pixelFormat: pixelFormat,
-                                     shader: shader, sampleCount: sampleCount)
+        let scene = try makePipeline(device: device, library: library, sampleCount: sampleCount)
         // Shadow masks are blurred separately and keep single-sample attachments.
-        let shadow = sampleCount == 1 ? scene : try makePipeline(
-            device: device, library: library, pixelFormat: pixelFormat, shader: shader)
-        return Pipelines(scene: scene, shadow: shadow)
+        let shadow = sampleCount == 1 ? scene : try makePipeline(device: device, library: library)
+        let glow = try makePipeline(device: device, library: library,
+                                    sampleCount: sampleCount, glowBlend: true)
+        return Pipelines(scene: scene, shadow: shadow, glow: glow)
     }
 
-    fileprivate static func makePipeline(
-        device: MTLDevice, library: MTLLibrary, pixelFormat: MTLPixelFormat,
-        shader: VisualizerShader, sampleCount: Int = 1, glowBlend: Bool = false
+    private static func makePipeline(
+        device: MTLDevice, library: MTLLibrary,
+        sampleCount: Int = 1, glowBlend: Bool = false
     ) throws -> MTLRenderPipelineState {
         let descriptor = MTLRenderPipelineDescriptor()
         descriptor.rasterSampleCount = sampleCount
-        descriptor.label = "Audio visualizer: \(shader.title)"
-        descriptor.vertexFunction = library.makeFunction(name: shader.vertexFunction)
-        descriptor.fragmentFunction = library.makeFunction(name: shader.fragmentFunction)
+        descriptor.label = "Audio visualizer: Pistons"
+        descriptor.vertexFunction = library.makeFunction(name: "pistonVisualizerVertex")
+        descriptor.fragmentFunction = library.makeFunction(name: "pistonVisualizerFragment")
         guard descriptor.vertexFunction != nil, descriptor.fragmentFunction != nil else {
             throw NSError(domain: "VisualizerShader", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Shader must define \(shader.vertexFunction) and \(shader.fragmentFunction)."
+                NSLocalizedDescriptionKey: "Shader must define pistonVisualizerVertex and pistonVisualizerFragment."
             ])
         }
-        descriptor.colorAttachments[0].pixelFormat = pixelFormat
+        descriptor.colorAttachments[0].pixelFormat = .rgba16Float
         descriptor.depthAttachmentPixelFormat = .depth32Float
         if glowBlend, let attachment = descriptor.colorAttachments[0] {
             // Screen blend with matching alpha keeps the transparent layer premultiplied.
@@ -228,14 +172,12 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         uniforms.append(SIMD4<Float>(pistonSettings.stripeThickness, pistonSettings.stripeFrequency,
                                      pistonSettings.headTwist * .pi / 180, pistonSettings.travel))
         uniforms.append(SIMD4<Float>(pistonSettings.stripeColor, 0))
-        uniforms.append(SIMD4<Float>(pistonSettings.metalColor, 0))
-        uniforms.append(SIMD4<Float>(pistonSettings.baseColor, 0))
-        uniforms.append(SIMD4<Float>(pistonSettings.roughness, pistonSettings.metallic,
-                                     pistonSettings.spotlightStrength, pistonSettings.spotlightSize))
+        uniforms.append(SIMD4<Float>(pistonSettings.metalColor, pistonSettings.roughness))
+        uniforms.append(SIMD4<Float>(pistonSettings.baseColor, pistonSettings.metallic))
         uniforms.append(SIMD4<Float>(pistonSettings.reflectionStrength, pistonSettings.edgeSoftness,
                                      pistonSettings.neutralRopeGlow, pistonSettings.bloomStrength))
         uniforms.append(SIMD4<Float>(pistonSettings.groundColor, 0))
-        uniforms.append(SIMD4<Float>(pistonSettings.spotlightColor(for: displayedArtworkAccent), 0))
+        uniforms.append(SIMD4<Float>(pistonSettings.skyAccentColor(for: displayedArtworkAccent), 0))
         uniforms.append(SIMD4<Float>(pistonSettings.lightColor(for: displayedArtworkAccent), 0))
         uniforms.append(SIMD4<Float>(pistonSettings.groundHighlightStrength, pistonSettings.groundHighlightSoftness,
                                      pistonSettings.groundFogStart, pistonSettings.groundFogDensity))
@@ -255,10 +197,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         in view: MTKView, commandBuffer: MTLCommandBuffer, frame: PistonFrame
     ) -> MTLTexture? {
         guard let device = view.device else { return nil }
-        if pistonRopeShadowPipeline == nil, let library = device.makeDefaultLibrary() {
-            pistonRopeShadowPipeline = try? Self.makePipeline(
-                device: device, library: library, pixelFormat: .rgba16Float, shader: .pistons)
-        }
         if pistonRopeShadow == nil {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(
                 pixelFormat: .rgba16Float, width: 2048, height: 2048, mipmapped: false)
@@ -269,8 +207,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
             descriptor.usage = .renderTarget
             pistonRopeShadowDepth = device.makeTexture(descriptor: descriptor)
         }
-        guard let texture = pistonRopeShadow, let depth = pistonRopeShadowDepth,
-              let pipeline = pistonRopeShadowPipeline else { return nil }
+        guard let texture = pistonRopeShadow, let depth = pistonRopeShadowDepth else { return nil }
+        let pipeline = pipelines.shadow
         let pass = MTLRenderPassDescriptor()
         pass.colorAttachments[0].texture = texture
         pass.colorAttachments[0].loadAction = .clear
@@ -393,10 +331,9 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         let scale = min(1, maximumDimension / max(1, max(view.drawableSize.width, view.drawableSize.height)))
         let width = max(1, Int(view.drawableSize.width * scale))
         let height = max(1, Int(view.drawableSize.height * scale))
-        let pixelFormat = shader.pixelFormat(drawable: view.colorPixelFormat)
-        if shadowMask?.width != width || shadowMask?.height != height || shadowMask?.pixelFormat != pixelFormat {
+        if shadowMask?.width != width || shadowMask?.height != height {
             let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-                pixelFormat: pixelFormat, width: width, height: height, mipmapped: false
+                pixelFormat: .rgba16Float, width: width, height: height, mipmapped: false
             )
             descriptor.storageMode = .private
             descriptor.usage = [.renderTarget, .shaderRead, .shaderWrite]
@@ -430,7 +367,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         depth: MTLTexture, destination: MTLTexture
     ) {
         guard pistonSettings.bloomStrength > 0 else { return }
-        guard let device = view.device, let sourcePipeline = pistonBloomSourcePipeline,
+        guard let device = view.device,
               let compositePipeline = pistonBloomCompositePipeline else { return }
         let width = destination.width, height = destination.height
         if pistonBloomMask?.width != width || pistonBloomMask?.height != height {
@@ -466,7 +403,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         sourcePass.depthAttachment.storeAction = .dontCare
         guard let source = commandBuffer.makeRenderCommandEncoder(descriptor: sourcePass) else { return }
         source.label = "Piston bloom source"
-        source.setRenderPipelineState(sourcePipeline)
+        source.setRenderPipelineState(pipelines.glow)
         source.setDepthStencilState(glowDepthState)
         source.setVertexBuffer(frame.positions, offset: 0, index: 0)
         source.setFragmentBuffer(frame.positions, offset: 0, index: 6)
@@ -554,19 +491,14 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         // Match the SwiftUI backdrop in ArtworkVisualizerView, which the opaque grade covers.
         let grade = pistonSettings.grade
         let backdrop = VisualizerGrade.sRGBEncoded(pistonSettings.backgroundColor)
-        // A plain backdrop keeps the scene lighting without a background gradient.
-        let glow = SIMD3<Float>.zero
-        let glowRadius: Float = 0
-        gradeFrame = (gradeFrame + 1) % 256
+        gradeDitherFrame = (gradeDitherFrame + 1) % 256
         var uniforms = [
-            SIMD4<Float>(Float(destination.width), Float(destination.height), glowRadius, Float(gradeFrame)),
-            SIMD4<Float>(backdrop, 0),
-            SIMD4<Float>(glow, 0),
-            SIMD4<Float>(grade.amount, grade.contrast, grade.saturation, grade.vignette),
-            SIMD4<Float>(grade.shadowTint, grade.grain),
-            SIMD4<Float>(grade.highlightTint, 0)
+            SIMD4<Float>(backdrop, grade.saturation),
+            SIMD4<Float>(grade.shadowTint, grade.amount),
+            SIMD4<Float>(grade.highlightTint, grade.contrast)
         ]
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<SIMD4<Float>>.stride * uniforms.count, index: 0)
+        encoder.setFragmentBytes(&gradeDitherFrame, length: MemoryLayout<UInt32>.size, index: 1)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         encoder.endEncoding()
     }
@@ -581,12 +513,6 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
 
     private func updateAccent() {
         let target = SIMD3<Float>(Float(accent.red), Float(accent.green), Float(accent.blue))
-        guard shader == .pistons else {
-            displayedAccent = target
-            accentTransitionTarget = target
-            accentTransitionStart = nil
-            return
-        }
         let now = ProcessInfo.processInfo.systemUptime
         if let start = accentTransitionStart {
             let progress = Float(min(1, max(0, (now - start) / 1.2)))
@@ -603,191 +529,85 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
     }
 
     func draw(in view: MTKView) {
-#if DEBUG
-        for (shader, reloader) in shaderReloaders {
-            if let replacement = reloader.takePipeline() {
-                pipelines[shader] = replacement
-            }
-        }
-#endif
         // Pistons own their multisample attachments and resolve through the grade.
         if view.sampleCount != 1 { view.sampleCount = 1 }
-        guard let pipelines = pipelines[shader],
-              let renderPassDescriptor = view.currentRenderPassDescriptor,
-              let drawable = view.currentDrawable,
+        guard let drawable = view.currentDrawable,
               let commandBuffer = commandQueue.makeCommandBuffer() else { return }
         updateAccent()
         _ = bands.withUnsafeMutableBufferPointer {
             SCSpectrumBufferRead(spectrumBuffer, $0.baseAddress, nil, nil, nil)
         }
-        let pistonFrame = shader == .pistons ? preparePistons(in: view) : nil
-        let ropeShadow = pistonFrame.flatMap {
-            encodePistonRopeShadow(in: view, commandBuffer: commandBuffer, frame: $0)
-        }
-        let frameShadow = pistonFrame.flatMap {
-            encodePistonShadow(in: view, commandBuffer: commandBuffer,
-                               pipeline: pipelines.shadow, frame: $0)
-        }
-        let reflection = pistonFrame.flatMap {
-            encodePistonReflection(in: view, commandBuffer: commandBuffer,
-                                   pipeline: pipelines.shadow, frame: $0, ropeShadow: ropeShadow)
-        }
-        guard let scenePass = pistonFrame == nil
-                ? renderPassDescriptor : makeScenePass(in: view, size: drawable.texture),
-              let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: scenePass) else {
-            return
-        }
+        guard let pistonFrame = preparePistons(in: view) else { return }
+        let ropeShadow = encodePistonRopeShadow(in: view, commandBuffer: commandBuffer, frame: pistonFrame)
+        let frameShadow = encodePistonShadow(in: view, commandBuffer: commandBuffer,
+                                            pipeline: pipelines.shadow, frame: pistonFrame)
+        let reflection = encodePistonReflection(in: view, commandBuffer: commandBuffer,
+                                               pipeline: pipelines.shadow, frame: pistonFrame,
+                                               ropeShadow: ropeShadow)
+        guard let scenePass = makeScenePass(in: view, size: drawable.texture),
+              let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: scenePass) else { return }
 
         encoder.setRenderPipelineState(pipelines.scene)
         encoder.setFragmentTexture(fallbackTexture, index: 1)
         encoder.setFragmentTexture(reflection ?? fallbackTexture, index: 3)
-        var accentColor = SIMD4<Float>(displayedAccent, 0)
-        encoder.setFragmentBytes(
-            &accentColor,
-            length: MemoryLayout<SIMD4<Float>>.stride,
-            index: 2
-        )
-        if shader != .pistons { lastPistonTime = nil }
-        if shader == .pistons {
-            if let frame = pistonFrame {
-                encoder.setFragmentTexture(ropeShadow ?? fallbackTexture, index: 2)
-                encoder.setVertexBuffer(frame.positions, offset: 0, index: 0)
-                encoder.setFragmentBuffer(frame.positions, offset: 0, index: 6)
-                var uniforms = frame.uniforms
-                // Fill the sky first. Surface passes integrate the same shafts only
-                // up to their own depth, preserving floor and piston occlusion.
-                uniforms[3].w = 5
-                uniforms.withUnsafeBytes { bytes in
-                    encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
-                    encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
-                }
-                encoder.setDepthStencilState(glowDepthState)
-                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-                encoder.setDepthStencilState(depthState)
-                if let shadow = frameShadow {
-                    uniforms[3].w = 2
-                    uniforms.withUnsafeBytes { bytes in
-                        encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
-                        encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
-                    }
-                    encoder.setFragmentTexture(shadow, index: 1)
-                    encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
-                }
-                uniforms[3].w = 0
-                uniforms.withUnsafeBytes { bytes in
-                    encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
-                    encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
-                }
-                encoder.setDepthStencilState(depthState)
-                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: frame.vertexCount)
-                if pistonSettings.bloomStrength > 0, let glowPipeline = pistonGlowPipeline {
-                    uniforms[3].w = 4
-                    uniforms.withUnsafeBytes { bytes in
-                        encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
-                        encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
-                    }
-                    encoder.setRenderPipelineState(glowPipeline)
-                    encoder.setDepthStencilState(glowDepthState)
-                    let solids = 32 * 12 * 3
-                    let ropes = pistonSettings.stringsPerPiston * PistonSimulation.segments * 6
-                    let bobs = pistonSettings.stringsPerPiston * 12 * 8 * 6
-                    for piston in 0..<PistonSimulation.count {
-                        encoder.drawPrimitives(type: .triangle,
-                                               vertexStart: piston * (solids + ropes + bobs) + solids,
-                                               vertexCount: ropes + bobs)
-                    }
-                }
-
+        encoder.setFragmentTexture(ropeShadow ?? fallbackTexture, index: 2)
+        encoder.setVertexBuffer(pistonFrame.positions, offset: 0, index: 0)
+        encoder.setFragmentBuffer(pistonFrame.positions, offset: 0, index: 6)
+        var uniforms = pistonFrame.uniforms
+        // Fill the sky before drawing the floor and pistons.
+        uniforms[3].w = 5
+        uniforms.withUnsafeBytes { bytes in
+            encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+            encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+        }
+        encoder.setDepthStencilState(glowDepthState)
+        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+        encoder.setDepthStencilState(depthState)
+        if let shadow = frameShadow {
+            uniforms[3].w = 2
+            uniforms.withUnsafeBytes { bytes in
+                encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+            }
+            encoder.setFragmentTexture(shadow, index: 1)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+        }
+        uniforms[3].w = 0
+        uniforms.withUnsafeBytes { bytes in
+            encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+            encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+        }
+        encoder.setDepthStencilState(depthState)
+        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: pistonFrame.vertexCount)
+        if pistonSettings.bloomStrength > 0 {
+            uniforms[3].w = 4
+            uniforms.withUnsafeBytes { bytes in
+                encoder.setVertexBytes(bytes.baseAddress!, length: bytes.count, index: 1)
+                encoder.setFragmentBytes(bytes.baseAddress!, length: bytes.count, index: 4)
+            }
+            encoder.setRenderPipelineState(pipelines.glow)
+            encoder.setDepthStencilState(glowDepthState)
+            let solids = 32 * 12 * 3
+            let ropes = pistonSettings.stringsPerPiston * PistonSimulation.segments * 6
+            let bobs = pistonSettings.stringsPerPiston * 12 * 8 * 6
+            for piston in 0..<PistonSimulation.count {
+                encoder.drawPrimitives(type: .triangle,
+                                       vertexStart: piston * (solids + ropes + bobs) + solids,
+                                       vertexCount: ropes + bobs)
             }
         }
         encoder.endEncoding()
-        if let frame = pistonFrame, let depth = sceneDepth, let source = gradeSource {
-            encodePistonBloom(in: view, commandBuffer: commandBuffer, frame: frame,
+        if let depth = sceneDepth, let source = gradeSource {
+            encodePistonBloom(in: view, commandBuffer: commandBuffer, frame: pistonFrame,
                               depth: depth, destination: source)
         }
-        if pistonFrame != nil, let source = gradeSource {
+        if let source = gradeSource {
             encodeGrade(commandBuffer: commandBuffer, source: source, destination: drawable.texture)
         }
         commandBuffer.present(drawable)
         commandBuffer.commit()
     }
 }
-
-#if DEBUG
-/// Polls file contents to handle both in-place writes and atomic editor saves.
-private final class VisualizerShaderReloader {
-    private let device: MTLDevice
-    private let pixelFormat: MTLPixelFormat
-    private let shader: VisualizerShader
-    private let sourceURL: URL
-    private let timer: DispatchSourceTimer
-    private var lastSource: String?
-    private var lastReadError: String?
-    private let lock = NSLock()
-    private var pendingPipeline: VisualizerRenderer.Pipelines?
-    private let sampleCount: Int
-
-    init(device: MTLDevice, pixelFormat: MTLPixelFormat, shader: VisualizerShader, sampleCount: Int) {
-        self.sampleCount = sampleCount
-        self.shader = shader
-        sourceURL = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("Shaders/\(shader.sourceFile)")
-        self.device = device
-        self.pixelFormat = pixelFormat
-        timer = DispatchSource.makeTimerSource(queue: DispatchQueue(
-            label: "SoundClaude.shaderReload", qos: .utility
-        ))
-        timer.schedule(deadline: .now(), repeating: .milliseconds(300))
-        timer.setEventHandler { [weak self] in self?.reloadIfChanged() }
-        timer.resume()
-        NSLog("[Visualizer] Watching %@", sourceURL.path)
-    }
-
-    deinit { timer.cancel() }
-
-    func takePipeline() -> VisualizerRenderer.Pipelines? {
-        lock.lock()
-        defer { lock.unlock() }
-        let pipeline = pendingPipeline
-        pendingPipeline = nil
-        return pipeline
-    }
-
-    private func reloadIfChanged() {
-        let source: String
-        do {
-            source = try String(contentsOf: sourceURL, encoding: .utf8)
-            lastReadError = nil
-        } catch {
-            let message = error.localizedDescription
-            if message != lastReadError {
-                NSLog("[Visualizer] Cannot read shader: %@", message)
-                lastReadError = message
-            }
-            return
-        }
-        guard source != lastSource else { return }
-        lastSource = source
-        do {
-            // Compile off the render thread. Publish only a complete, valid pipeline.
-            let library = try device.makeLibrary(source: source, options: nil)
-            let pipeline = try VisualizerRenderer.makePipelines(
-                device: device, library: library, pixelFormat: pixelFormat, shader: shader,
-                sampleCount: sampleCount
-            )
-            lock.lock()
-            pendingPipeline = pipeline
-            lock.unlock()
-            NSLog("[Visualizer] Shader reloaded")
-        } catch {
-            NSLog("[Visualizer] Shader reload failed; keeping last working shader: %@",
-                  String(describing: error))
-        }
-    }
-}
-#endif
 
 struct PistonCamera: Equatable {
     var yaw: Float = 0

@@ -2,8 +2,6 @@ import SwiftUI
 
 struct VisualizerView: View {
     let playback: PlaybackController
-    // Keep shader selection and its updates local to the visualizer.
-    @AppStorage("visualizerShader") private var shader: VisualizerShader = .pistons
     let spectrumBuffer: OpaquePointer
     let artworkLoader: ArtworkLoader
     let onClose: () -> Void
@@ -18,7 +16,6 @@ struct VisualizerView: View {
 
     var body: some View {
         ArtworkVisualizerView(
-            shader: shader,
             pistonSettings: pistonSettings,
             pistonCamera: $pistonCamera,
             spectrumBuffer: spectrumBuffer,
@@ -50,11 +47,6 @@ struct VisualizerView: View {
         .onChange(of: isOrbiting) { _, active in
             if !active { orbitTranslation = .zero }
         }
-        .onChange(of: shader) { _, _ in
-            isShowingControls = false
-            orbitTranslation = .zero
-            orbitCoast?.cancel()
-        }
         .onDisappear { orbitCoast?.cancel() }
         .overlay(alignment: .topTrailing) {
             HStack {
@@ -62,7 +54,7 @@ struct VisualizerView: View {
                 Button {
                     isShowingControls.toggle()
                 } label: {
-                    Label("\(shader.title) controls", systemImage: "slider.horizontal.3")
+                    Label("Pistons controls", systemImage: "slider.horizontal.3")
                         .labelStyle(.iconOnly)
                 }
                 .buttonStyle(.bordered)
@@ -82,7 +74,7 @@ struct VisualizerView: View {
             .padding(20)
         }
         .accessibilityLabel("Audio visualizer")
-        .accessibilityValue(shader.title)
+        .accessibilityValue("Pistons")
         .background {
             Button("Dismiss visualizer controls or close visualizer") {
                 if isShowingControls {
@@ -171,11 +163,8 @@ struct VisualizerView: View {
                     tuningSlider("Resting rope glow", value: $pistonSettings.restingRopeGlow, range: 0...1)
                         .help("Rope halo strength while a piston rests at the bottom. The halo fades to full strength over the first 10% of its travel.")
                     tuningSlider("Bloom strength", value: $pistonSettings.bloomStrength, range: 0...3)
-                    tuningSlider("Spotlight strength", value: $pistonSettings.spotlightStrength, range: 0...3)
-                        .help("Brightness of every spotlight, regardless of piston height.")
-                    tuningSlider("Spotlight size", value: $pistonSettings.spotlightSize, range: 0.1...3, format: "%.2f×")
                     tuningSlider("Light tint", value: $pistonSettings.lightTint, range: 0...1)
-                        .help("How strongly the background glow's color tints the scene lighting. 0 keeps it white.")
+                        .help("How strongly the artwork accent tints the scene lighting. 0 keeps it white.")
                     tuningSlider("Light Y offset", value: $pistonSettings.lightYOffset, range: -0.6...3)
                         .help("Raises or lowers the scene light. Lower lights rake across the pistons and cast longer shadows.")
                     tuningSlider("Light Z offset", value: $pistonSettings.lightZOffset, range: -3...3)
@@ -198,7 +187,6 @@ struct VisualizerView: View {
                     Text("Scene colors").font(.subheadline.bold())
                     ColorPicker("Ground color", selection: pistonColor(\.groundColor), supportsOpacity: false)
                     ColorPicker("Background color", selection: pistonColor(\.backgroundColor), supportsOpacity: false)
-                    ColorPicker("Background glow", selection: pistonColor(\.backgroundGlowColor), supportsOpacity: false)
                     Divider()
                     Text("Environment").font(.subheadline.bold())
                     tuningSlider("Sky glow", value: $pistonSettings.skyGlow, range: 0...2)
@@ -257,8 +245,6 @@ struct VisualizerView: View {
             .help("Hue for dark areas. White is neutral; tints keep brightness unchanged.")
         ColorPicker("Highlight tint", selection: linearColor(grade.highlightTint), supportsOpacity: false)
             .help("Hue for bright areas. White is neutral; tints keep brightness unchanged.")
-        tuningSlider("Vignette", value: grade.vignette, range: 0...1)
-        tuningSlider("Grain", value: grade.grain, range: 0...0.2, format: "%.3f")
     }
 
     private func tuningSlider(

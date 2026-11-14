@@ -8,8 +8,6 @@ struct VisualizerGrade: Equatable {
     var saturation: Float = 1
     var shadowTint = SIMD3<Float>(0.72, 0.9, 1.0) // Linear RGB; white is neutral.
     var highlightTint = SIMD3<Float>(1.0, 0.86, 0.7) // Linear RGB; white is neutral.
-    var vignette: Float = 0.5
-    var grain: Float = 0.03
 
     static let pistons = VisualizerGrade()
 

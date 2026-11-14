@@ -57,17 +57,17 @@ import Metal
             let buffer = points.withUnsafeBytes {
                 device.makeBuffer(bytes: $0.baseAddress!, length: $0.count)!
             }
-            var uniforms = [SIMD4<Float>](repeating: .zero, count: 20)
-            uniforms[16] = SIMD4(0, 0.8, -1, 0) // Light direction.
-            uniforms[17] = SIMD4(0, 1, 0, 0) // Orbit target.
+            var uniforms = [SIMD4<Float>](repeating: .zero, count: 19)
+            uniforms[15] = SIMD4(0, 0.8, -1, 0) // Light direction.
+            uniforms[16] = SIMD4(0, 1, 0, 0) // Orbit target.
             uniforms[0] = SIMD4(1, 0.3, 0.4, 3)
             uniforms[1] = SIMD4(repeating: resting ? 0.8 : 1.1) // Raised enough for full rope glow.
             uniforms[2] = uniforms[1]
             uniforms[3] = SIMD4(0.02, 24, -1.65, 0)
             uniforms[4] = SIMD4(256, 256, 1, 0.25)
             uniforms[5].w = 2.7
-            uniforms[10] = SIMD4(0.42, 0.05, 1, 1.5)
-            uniforms[13] = SIMD4(1, 1, 1, 0)
+            uniforms[9] = SIMD4(0.42, 0.05, 1, 1.5)
+            uniforms[12] = SIMD4(1, 1, 1, 0)
             let commandBuffer = queue.makeCommandBuffer()!
             for passIndex in 0..<2 {
                 let pass = MTLRenderPassDescriptor()
@@ -124,55 +124,48 @@ import Metal
         precondition(covered > 0, "Fixture must draw scenePixels visible rope")
         precondition(
             missing == 0, "Glow failed its own rope depth test at \(missing) of \(covered) pixels")
-        // Exercise the sky pass at normal, horizontal, and nearly vertical views.
-        // Zero strength and a nearer opaque depth must both hide the shafts.
-        var responseEnergy: [Float] = []
-        let cases: [(Float, Float, Bool, Float, Float)] = [
-            (0.5, 1, false, 0.8, 2.7), (0.5, 1, false, 2.15, 2.7),
-            (0.5, 1, false, 3.5, 2.7), (0.5, 1, false, 5.8, 2.7),
-            (0.5, 1, false, 0.8, 0),
-            (0, 1, false, 3.5, 2.7), (1.56, 1, false, 0.8, 2.7),
-            (0.5, 0, false, 0.8, 2.7), (0.5, 1, true, 0.8, 2.7)
+        // A disabled sky stays transparent at normal, horizontal, and vertical views.
+        let cases: [(Float, Float, Float)] = [
+            (0.5, 0.8, 2.7), (0, 3.5, 2.7),
+            (1.56, 0.8, 2.7)
         ]
         // Horizontal views expose the floor/sky boundary. Compare fog on/off
         // with a nonblack sky to catch mismatched color or alpha at the horizon.
-        let fogCases: [(Float, Float, Bool, Float, Float)] = [
-            (0, 0, false, 0.8, 2.7), (0, 0, false, 0.8, 2.7)
+        let fogCases: [(Float, Float, Float)] = [
+            (0, 0.8, 2.7), (0, 0.8, 2.7)
         ]
         // The night sky is drawn by its own pass and again as the floor's fog
         // color. Render the fogged floor, then the sky, at the same horizon.
-        let skyCases: [(Float, Float, Bool, Float, Float)] = [
-            (0, 0, false, 0.8, 2.7), (0, 0, false, 0.8, 2.7)
+        let skyCases: [(Float, Float, Float)] = [
+            (0, 0.8, 2.7), (0, 0.8, 2.7)
         ]
         var floorFrames: [[Float]] = []
         var skyFrame: [Float] = []
         for (index, fixture) in (cases + fogCases + skyCases).enumerated() {
-            let (pitch, strength, blocked, height, travel) = fixture
+            let (pitch, height, travel) = fixture
             let skyCase = index >= cases.count + fogCases.count
             let floorCase = index >= cases.count && index <= cases.count + fogCases.count
-            var uniforms = [SIMD4<Float>](repeating: .zero, count: 20)
-            uniforms[16] = SIMD4(0, 0.8, -1, 0) // Light direction.
-            uniforms[17] = SIMD4(0, 1, 0, 0) // Orbit target.
+            var uniforms = [SIMD4<Float>](repeating: .zero, count: 19)
+            uniforms[15] = SIMD4(0, 0.8, -1, 0) // Light direction.
+            uniforms[16] = SIMD4(0, 1, 0, 0) // Orbit target.
             uniforms[0] = SIMD4(1, 0.3, pitch, 20)
             uniforms[1] = SIMD4(repeating: height)
             uniforms[2] = SIMD4(repeating: height)
             uniforms[3] = SIMD4(0.02, 24, -1.65, 5)
             uniforms[4] = SIMD4(256, 256, 1, 0.25)
             uniforms[5].w = travel
-            uniforms[9].z = strength
-            uniforms[9].w = 1
-            uniforms[12] = SIMD4(0.52, 0.72, 1.0, 0)
-            uniforms[13] = SIMD4(1, 1, 1, 0)
+            uniforms[11] = SIMD4(0.52, 0.72, 1.0, 0)
+            uniforms[12] = SIMD4(1, 1, 1, 0)
             if floorCase {
                 uniforms[3].w = 2
-                uniforms[11] = SIMD4(0.23, 0.28, 0.31, 0)
-                uniforms[14] = SIMD4(0.08, 0.85, 35, index == cases.count ? 0.045 : 0)
-                uniforms[15] = SIMD4(0.02, 0.03, 0.04, 0)
+                uniforms[10] = SIMD4(0.23, 0.28, 0.31, 0)
+                uniforms[13] = SIMD4(0.08, 0.85, 35, index == cases.count ? 0.045 : 0)
+                uniforms[14] = SIMD4(0.02, 0.03, 0.04, 0)
             }
             if skyCase {
-                uniforms[14].w = 0.045
-                uniforms[15] = SIMD4(0.02, 0.03, 0.04, 0)
-                uniforms[18] = SIMD4(1, 1, 1, 12) // Glow, stars, nebula, time.
+                uniforms[13].w = 0.045
+                uniforms[14] = SIMD4(0.02, 0.03, 0.04, 0)
+                uniforms[17] = SIMD4(1, 1, 1, 12) // Glow, stars, nebula, time.
             }
             let pass = MTLRenderPassDescriptor()
             pass.colorAttachments[0].texture = multisampleColor
@@ -183,7 +176,7 @@ import Metal
             pass.depthAttachment.texture = depth
             pass.depthAttachment.loadAction = .clear
             pass.depthAttachment.storeAction = .dontCare
-            pass.depthAttachment.clearDepth = blocked ? 0.5 : 1
+            pass.depthAttachment.clearDepth = 1
             let command = queue.makeCommandBuffer()!
             let encoder = command.makeRenderCommandEncoder(descriptor: pass)!
             encoder.setRenderPipelineState(pipeline)
@@ -213,31 +206,8 @@ import Metal
                 skyFrame = pixels
                 continue
             }
-            if pitch == 0.5 && strength == 1 && !blocked {
-                responseEnergy.append(pixels.reduce(0, +))
-            }
-            if pitch == 0 && strength == 1 && !blocked {
-                // Project a point on the fifth shaft below the former cap-height
-                // cutoff. Its soft tail must remain visible above the floor.
-                let x: Float = 0.925
-                let distance: Float = 20 + sin(0.3) * x
-                let pixelX = Int((cos(0.3) * x * 2.1 / distance + 1) * 128)
-                let pixelY = Int((1 + 2.1 / distance) * 128) // World y = 0.
-                precondition(pixels[(pixelY * 256 + pixelX) * 4 + 3] > 0.02,
-                             "Sky beams must fade below resting cap height without a hard cutoff")
-            }
-            if strength == 0 || blocked {
-                precondition(pixels.allSatisfy { $0 == 0 }, "Disabled or occluded shafts must disappear")
-            } else {
-                precondition(pixels.max()! > 0, "Sky shafts must be visible")
-                for pixel in 0..<256 * 256 {
-                    let rgba = Array(pixels[(pixel * 4)..<(pixel * 4 + 4)])
-                    precondition(rgba.prefix(3).allSatisfy { $0 <= rgba[3] }, "Haze must be premultiplied")
-                }
-            }
+            precondition(pixels.allSatisfy { $0 == 0 }, "A disabled sky must remain transparent")
         }
-        precondition(responseEnergy.allSatisfy { $0 == responseEnergy[0] },
-                     "Spotlight brightness must not depend on piston height")
         let horizonPixel = (129 * 256 + 128) * 4
         let nearPixel = (250 * 256 + 128) * 4
         for channel in 0..<4 {
@@ -250,13 +220,13 @@ import Metal
         precondition(floorFrames[0] != floorFrames[1], "Fog density must affect distant ground")
         let skyPixel = (126 * 256 + 128) * 4
         precondition(skyFrame[skyPixel + 3] == 1, "An enabled sky must cover the backdrop")
-        precondition(skyFrame[skyPixel] > 0.05, "The horizon must glow in the spotlight color")
+        precondition(skyFrame[skyPixel] > 0.05, "The horizon must glow in the sky accent color")
         for channel in 0..<4 {
             precondition(abs(skyFrame[skyPixel + channel] - floorFrames[2][horizonPixel + channel]) < 0.03,
                          "Distant floor fog must meet the sky at the horizon")
         }
         precondition((0..<126 * 256).contains { skyFrame[$0 * 4 + 3] != 1 } == false,
                      "The sky must stay opaque up to the zenith")
-        print("Piston rendering tests passed (\(covered) rope pixels, plus foreground occlusion, sky spotlights and the night sky)")
+        print("Piston rendering tests passed (\(covered) rope pixels, plus foreground occlusion, floor fog and the night sky)")
     }
 }

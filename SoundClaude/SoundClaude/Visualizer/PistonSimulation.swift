@@ -2,7 +2,7 @@ import Foundation
 import simd
 
 struct PistonSettings: Equatable {
-    var stringsPerPiston = 24
+    var stringsPerPiston = 30
     var ropeLength: Float = 2.59
     var ropeStretchiness: Float = 0
     var ropeThickness: Float = 0.024
@@ -10,9 +10,7 @@ struct PistonSettings: Equatable {
     var restingRopeBrightness: Float = 0.5 // Rope brightness while a piston rests at the bottom.
     var restingRopeGlow: Float = 0.25 // Rope halo strength while a piston rests at the bottom.
     var bloomStrength: Float = 1.25
-    var spotlightStrength: Float = 0
-    var spotlightSize: Float = 1.5
-    var lightTint: Float = 0.5 // How strongly the background glow's hue tints the scene lighting.
+    var lightTint: Float = 0.5 // How strongly the artwork accent tints the scene lighting.
     var damping: Float = 0.04
     var gravity: Float = 20
     var travel: Float = 2.75
@@ -36,7 +34,6 @@ struct PistonSettings: Equatable {
     var skyStars: Float = 1
     var skyNebula: Float = 1
     var backgroundColor = SIMD3<Float>.zero // Plain black backdrop.
-    var backgroundGlowColor = SIMD3<Float>(0.0469642, 0.0835351, 0.162647) // Linear RGB.
     var roughness: Float = 0.21
     var metallic: Float = 0.20
     var reflectionStrength: Float = 0.42
@@ -55,25 +52,19 @@ struct PistonSettings: Equatable {
         Float(min(1, max(0, max(accent.red, accent.green, accent.blue) / 0.75)))
     }
 
-    /// Use the artwork accent at the configured glow brightness, fading with dark accents.
-    func glowColor(for accent: ArtworkAccent) -> SIMD3<Float> {
+    /// The artwork hue in linear RGB, fading to black with dark accents.
+    func skyAccentColor(for accent: ArtworkAccent) -> SIMD3<Float> {
         func linear(_ value: Double) -> Float {
             let c = Float(value)
             return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
         }
         let color = SIMD3(linear(accent.red), linear(accent.green), linear(accent.blue))
-        return color / max(color.max(), 0.000001) * backgroundGlowColor.max() * accentStrength(accent)
+        return color / max(color.max(), 0.000001) * accentStrength(accent)
     }
 
-    /// The glow's hue, with the same fade toward black as the background.
-    func spotlightColor(for accent: ArtworkAccent) -> SIMD3<Float> {
-        let glow = glowColor(for: accent)
-        return glow / max(glow.max(), 0.000001) * accentStrength(accent)
-    }
-
-    /// The glow's hue at unit luminance, blended toward white by the light tint.
+    /// The artwork hue at unit luminance, blended toward white by the light tint.
     func lightColor(for accent: ArtworkAccent) -> SIMD3<Float> {
-        let color = spotlightColor(for: accent)
+        let color = skyAccentColor(for: accent)
         let luminance = simd_dot(color, SIMD3(0.2126, 0.7152, 0.0722))
         guard luminance > 0 else { return .zero }
         return simd_mix(.one, color / luminance, SIMD3(repeating: lightTint)) * accentStrength(accent)
@@ -93,7 +84,7 @@ struct PistonSimulation {
         }
     }
     static let count = 8
-    static let stringsPerPiston = 24
+    static let stringsPerPiston = 28
     static let segments = 20
     static let step = 1.0 / 120
     static let segmentLength: Float = 0.115
@@ -106,7 +97,7 @@ struct PistonSimulation {
         SIMD3((Float(piston) - 3.5) * 1.85, 0, 0)
     }
 
-    static func root(_ string: Int, height: Float, stringsPerPiston: Int = 24, twist: Float = 0) -> SIMD4<Float> {
+    static func root(_ string: Int, height: Float, stringsPerPiston: Int = 28, twist: Float = 0) -> SIMD4<Float> {
         let piston = string / stringsPerPiston
         let angle = Float(string % stringsPerPiston) * 2 * .pi / Float(stringsPerPiston) + twist
         // Inset from the circular cap edge so each rope hangs from its underside.

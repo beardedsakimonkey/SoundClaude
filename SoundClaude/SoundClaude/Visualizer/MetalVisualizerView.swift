@@ -42,7 +42,6 @@ private final class TransparentMetalView: MTKView {
 }
 
 struct ArtworkVisualizerView: View {
-    let shader: VisualizerShader
     let pistonSettings: PistonSettings
     @Binding var pistonCamera: PistonCamera
     let spectrumBuffer: OpaquePointer
@@ -51,24 +50,17 @@ struct ArtworkVisualizerView: View {
 
     @State private var artworkAccent: ArtworkAccent?
     @State private var accentArtworkURL: URL?
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     var body: some View {
         MetalVisualizerView(
-            shader: shader,
             pistonSettings: pistonSettings,
             pistonCamera: $pistonCamera,
             spectrumBuffer: spectrumBuffer,
             accent: accent
         )
             .background {
-                if shader == .pistons {
-                    let rgb = pistonSettings.backgroundColor
-                    Color(.sRGBLinear, red: Double(rgb.x), green: Double(rgb.y), blue: Double(rgb.z))
-                } else {
-                    visualizerBackdrop
-                }
+                let rgb = pistonSettings.backgroundColor
+                Color(.sRGBLinear, red: Double(rgb.x), green: Double(rgb.y), blue: Double(rgb.z))
             }
             .task(id: artworkURL) {
                 artworkAccent = nil
@@ -82,48 +74,16 @@ struct ArtworkVisualizerView: View {
             }
     }
 
-    private var sourceAccent: ArtworkAccent {
-        let fallback = ArtworkAccent.fallback
-        return accentArtworkURL == artworkURL
-            ? artworkAccent ?? fallback : fallback
-    }
-
-    private var visualizerBackdrop: some View {
-        GeometryReader { geometry in
-            let glowRGB = pistonSettings.glowColor(for: accent)
-            let backgroundRGB = pistonSettings.backgroundColor
-            let glow = Color(.sRGBLinear, red: Double(glowRGB.x), green: Double(glowRGB.y), blue: Double(glowRGB.z))
-            RadialGradient(
-                stops: [
-                    .init(color: glow, location: 0),
-                    .init(color: glow.opacity(0.55), location: 0.35),
-                    .init(color: glow.opacity(0.12), location: 0.7),
-                    .init(color: .clear, location: 1)
-                ],
-                center: .center,
-                startRadius: 0,
-                endRadius: max(geometry.size.width, geometry.size.height) * 0.6
-            )
-            .background(Color(.sRGBLinear, red: Double(backgroundRGB.x),
-                              green: Double(backgroundRGB.y), blue: Double(backgroundRGB.z)))
-        }
-        .allowsHitTesting(false)
-    }
-
     private var accent: ArtworkAccent {
-        if accentArtworkURL != artworkURL || artworkAccent == nil {
+        guard accentArtworkURL == artworkURL, let artworkAccent else {
             return ArtworkAccent(red: 0, green: 0, blue: 0)
         }
-        if shader == .pistons { return sourceAccent }
-        return sourceAccent.contrasted(
-            isDark: colorScheme == .dark,
-            increasedContrast: colorSchemeContrast == .increased
-        )
+        return artworkAccent
     }
+
 }
 
 struct MetalVisualizerView: NSViewRepresentable {
-    let shader: VisualizerShader
     let pistonSettings: PistonSettings
     @Binding var pistonCamera: PistonCamera
     let spectrumBuffer: OpaquePointer
@@ -163,7 +123,6 @@ struct MetalVisualizerView: NSViewRepresentable {
             accent: accent
         )
         context.coordinator.renderer = renderer
-        renderer?.shader = shader
         renderer?.pistonSettings = pistonSettings
         renderer?.pistonCamera = pistonCamera
         view.onZoom = zoomHandler
@@ -177,7 +136,6 @@ struct MetalVisualizerView: NSViewRepresentable {
         (view as? TransparentMetalView)?.onZoom = zoomHandler
         (view as? TransparentMetalView)?.onPan = panHandler
         (view as? TransparentMetalView)?.onReset = resetHandler
-        context.coordinator.renderer?.shader = shader
         context.coordinator.renderer?.pistonSettings = pistonSettings
         context.coordinator.renderer?.pistonCamera = pistonCamera
         context.coordinator.renderer?.accent = accent
