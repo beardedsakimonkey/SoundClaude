@@ -256,6 +256,24 @@ struct ArtworkCacheTests {
         precondition(gridLoader.cachedImage(for: gridURLs[10], rendition: .square300) == nil)
         grid.stop(loader: gridLoader)
 
+        // Shelves carry several covers each and look ahead by whole shelves.
+        let shelfClient = SoundCloudClient(payload: encoded as Data)
+        let shelfLoader = ArtworkLoader(client: shelfClient)
+        let shelves = TrackScrollArtworkPrefetcher(rendition: .square500, lookahead: 2)
+        let shelfURLs = (0..<5).map { shelf in
+            (0..<3).map { URL(string: "https://i1.sndcdn.com/shelf-\(shelf)-\($0)-large.png")! }
+        }
+        shelves.configure(ids: (0..<5).map(String.init), urlGroups: shelfURLs,
+                          loader: shelfLoader, isEnabled: true)
+        shelves.setVisible("1", isVisible: true, loader: shelfLoader)
+        for url in shelfURLs[1...3].joined() {
+            while shelfLoader.cachedImage(for: url, rendition: .square500) == nil { await Task.yield() }
+        }
+        let shelfRequests = await shelfClient.requests
+        precondition(shelfRequests == 9,
+                     "A shelf must load its own covers and those of the two shelves below it")
+        shelves.stop(loader: shelfLoader)
+
         let invalidLoader = ArtworkLoader(client: SoundCloudClient(payload: Data([0, 1, 2])))
         let invalid = try await invalidLoader.image(for: url)
         precondition(invalid == nil && invalidLoader.cachedImage(for: url) == nil)

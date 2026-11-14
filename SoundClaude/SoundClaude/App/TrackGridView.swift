@@ -469,7 +469,7 @@ struct TrackGridTile: View {
 // Shared across lists, grids, and the debug panel; reset on each app launch.
 @MainActor
 @Observable
-private final class ArtworkPrefetchDebugSettings {
+final class ArtworkPrefetchDebugSettings {
     static let shared = ArtworkPrefetchDebugSettings()
     var isEnabled = true
 }

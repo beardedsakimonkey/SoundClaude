@@ -428,7 +428,8 @@ final class TrackScrollArtworkPrefetcher {
     let prefetcher: TrackArtworkPrefetcher
     private var lookahead: Int
     private var indices: [String: Int] = [:]
-    private var urls: [URL?] = []
+    // One entry per scrolling item: a track's cover, or the covers of a whole shelf.
+    private var urls: [[URL]] = []
     private var visibleIDs: Set<String> = []
     private var isEnabled = true
     private var updateTask: Task<Void, Never>?
@@ -445,6 +446,11 @@ final class TrackScrollArtworkPrefetcher {
     }
 
     func configure(ids: [String], urls: [URL?], loader: ArtworkLoader, isEnabled: Bool) {
+        configure(ids: ids, urlGroups: urls.map { $0.map { [$0] } ?? [] },
+                  loader: loader, isEnabled: isEnabled)
+    }
+
+    func configure(ids: [String], urlGroups urls: [[URL]], loader: ArtworkLoader, isEnabled: Bool) {
         indices = Dictionary(ids.enumerated().map { ($0.element, $0.offset) },
                              uniquingKeysWith: { _, last in last })
         self.urls = urls
@@ -480,11 +486,11 @@ final class TrackScrollArtworkPrefetcher {
             let visible = visibleIDs.compactMap { self.indices[$0] }.sorted()
             let upcoming: [URL]
             if let last = visible.last {
-                upcoming = urls[(last + 1)..<min(urls.count, last + 1 + lookahead)].compactMap { $0 }
+                upcoming = urls[(last + 1)..<min(urls.count, last + 1 + lookahead)].flatMap { $0 }
             } else {
                 upcoming = []
             }
-            prefetcher.update(urls: upcoming, visibleURLs: visible.compactMap { self.urls[$0] },
+            prefetcher.update(urls: upcoming, visibleURLs: visible.flatMap { self.urls[$0] },
                               loader: loader, isEnabled: isEnabled)
             updateTask = nil
         }
