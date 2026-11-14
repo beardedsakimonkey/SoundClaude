@@ -276,8 +276,9 @@ private struct TrackListPage<Content: View>: View {
             .padding(24)
             .remembersScrollPosition()
         }
-        .background(alignment: .top) {
-            RouteGradientBackdrop()
-        }
+        .preference(
+            key: DetailBackdropPreferenceKey.self,
+            value: .track(artworkURL: track.displayArtworkURL)
+        )
     }
 }
