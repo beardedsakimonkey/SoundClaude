@@ -169,12 +169,6 @@ struct SidebarView: View {
                         ) {
                             select(destination)
                         })
-                        .simultaneousGesture(
-                            TapGesture(count: 2).onEnded {
-                                Task { await onPlayLikes() }
-                            },
-                            including: destination == .liked ? .all : .none
-                        )
                         .accessibilityActions {
                             if destination == .liked {
                                 Button("Play likes") {
