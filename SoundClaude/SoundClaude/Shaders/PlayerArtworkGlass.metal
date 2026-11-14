@@ -97,32 +97,43 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     // Work in straight RGB, then restore the original antialiased silhouette.
     half3 color = original.rgb / max(original.a, 0.001h);
 
+    // The glass plane: `rotation` turns it about the vertical, and `tilt` leans it further,
+    // toward any side. Together they are the sideways part of its normal.
     float2 light = float2(cos(lightAngle), sin(lightAngle));
-    float facing = dot(normal, light);
-    float highlight = pow(max(facing, 0.0), 3.0);
-    float counterlight = pow(max(-facing, 0.0), 5.0);
-    float lip = exp(-pow((depth - lipPosition) / max(lipWidth, 0.001), 2.0));
-    float caustic = exp(-pow((depth - 4.0) / 1.5, 2.0));
-    color *= half(1.0 - edgeDarkening * rim * (1.0 - highlight));
-    float reflection = reflectionStrength * lip * (0.12 + 0.48 * highlight + 0.24 * counterlight)
-        + caustic * counterlight * causticStrength;
-
-    // A fixed light above and to the left reflects off the rotating glass plane.
-    // A finite eye position gives the reflection a soft local highlight.
-    // `tilt` leans the plane further, toward any side: it is added to the normal's x and y.
-    float2 facePosition = (local - center) / max(min(size.x, size.y), 1.0);
+    float3 lightDirection = normalize(float3(light * 0.45, 1.0));
     float2 lean = float2(sin(rotation), 0.0) + tilt;
     float sine = min(length(lean), 0.99);
     float cosine = sqrt(1.0 - sine * sine);
     // The plane turns about the in-plane axis square to its lean.
     float2 axis = sine > 0.0001 ? float2(-lean.y, lean.x) / length(lean) : float2(0.0, 1.0);
+    float3 surfaceNormal = float3(axis.y * sine, -axis.x * sine, cosine);
+
+    // The rim is lit from wherever the light sits relative to the leaning plane, so its
+    // highlight travels around the edge as the cover turns.
+    // The lean counts for half, which keeps a turned cover's side edge from outshining the rest.
+    float2 rimLight = (lightDirection.xy - surfaceNormal.xy * (0.5 * lightDirection.z)) / length(lightDirection.xy);
+    // Shorten rather than clamp the result: clamping flattens a whole edge to full brightness,
+    // which then drops off sharply around the corner.
+    rimLight /= max(length(rimLight), 1.0);
+    float facing = dot(normal, rimLight);
+    float highlight = pow(max(facing, 0.0), 3.0);
+    float counterlight = pow(max(-facing, 0.0), 5.0);
+    float lip = exp(-pow((depth - lipPosition) / max(lipWidth, 0.001), 2.0));
+    float caustic = exp(-pow((depth - 4.0) / 1.5, 2.0));
+    color *= half(1.0 - edgeDarkening * rim * (1.0 - highlight));
+    // The lip glints hottest where it squarely faces the light.
+    float reflection = reflectionStrength * lip
+        * (0.12 + 0.48 * highlight + 0.3 * pow(highlight, 4.0) + 0.24 * counterlight)
+        + caustic * counterlight * causticStrength;
+
+    // A fixed light above and to the left reflects off the rotating glass plane.
+    // A finite eye position gives the reflection a soft local highlight.
+    float2 facePosition = (local - center) / max(min(size.x, size.y), 1.0);
     float along = dot(axis, facePosition);
     float3 surfacePosition = float3(
         facePosition * cosine + axis * along * (1.0 - cosine),
         (axis.x * facePosition.y - axis.y * facePosition.x) * sine
     );
-    float3 surfaceNormal = float3(axis.y * sine, -axis.x * sine, cosine);
-    float3 lightDirection = normalize(float3(light * 0.45, 1.0));
     float3 viewDirection = normalize(float3(0.0, 0.0, 2.5) - surfacePosition);
     float3 halfway = normalize(lightDirection + viewDirection);
     float exponent = 2.0 / pow(max(specularSoftness, 0.02), 2.0);
