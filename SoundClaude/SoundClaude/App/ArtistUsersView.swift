@@ -14,6 +14,23 @@ struct ArtistUsersView: View {
     @State private var errorMessage: String?
     @State private var totalUserCount: Int?
 
+    init(
+        artist: SoundCloudUser,
+        list: ArtistUserList,
+        model: AppModel,
+        onSelectArtist: @escaping (SoundCloudUser) -> Void
+    ) {
+        self.artist = artist
+        self.list = list
+        self.model = model
+        self.onSelectArtist = onSelectArtist
+        let firstPage = model.cachedFirstArtistUserPage(for: artist, list: list)
+        var knownURLs: Set<URL> = []
+        _users = State(initialValue: firstPage?.users.filter { knownURLs.insert($0.permalinkURL).inserted } ?? [])
+        _nextPageURL = State(initialValue: firstPage?.nextURL)
+        _hasLoaded = State(initialValue: firstPage != nil)
+    }
+
     private var title: String {
         list == .following
             ? "\(artist.username) is following"

@@ -1229,6 +1229,7 @@ struct ArtistDetailView: View {
                 statistic(count, label: list.title, allowsScaling: allowsScaling)
             }
             .buttonStyle(.plain)
+            .prefetch(.artistUsers(user, list), .pressOnly)
             .contentHelp("View \(list.title.lowercased()) of \(user.username)")
         }
     }

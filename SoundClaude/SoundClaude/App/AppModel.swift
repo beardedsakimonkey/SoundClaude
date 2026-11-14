@@ -78,6 +78,7 @@ final class AppModel {
     )
     // The detail list and waveform markers both read the first comment page.
     private let firstCommentPageCache = RequestCache<TrackCacheKey, SoundCloudCommentPage>(name: "First Comment Pages", countLimit: 20)
+    private let firstArtistUserPageCache = RequestCache<NSString, SoundCloudUserPage>(name: "First Artist User Pages", countLimit: 20)
     private let firstArtistCommentPageCache = RequestCache<NSURL, SoundCloudCommentPage>(name: "First Artist Comment Pages", countLimit: 20)
     private let firstRelatedTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Related Track Pages", countLimit: 20)
     private let firstTrackPlaylistPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Track Playlist Pages", countLimit: 20)
@@ -323,6 +324,7 @@ final class AppModel {
         waveformCache.reset()
         firstCommentPageCache.reset()
         firstArtistCommentPageCache.reset()
+        firstArtistUserPageCache.reset()
         firstRelatedTrackPageCache.reset()
         firstTrackPlaylistPageCache.reset()
         trackPlaylistPreviewCache.reset()
@@ -718,6 +720,7 @@ final class AppModel {
         // Refresh follower counts the next time an artist page opens. A request
         // already in flight may predate the change, so it is not cached either.
         artistDetailsCache.removeAll()
+        firstArtistUserPageCache.removeAll()
     }
 
     func cachedArtistHeader(for artist: SoundCloudUser) -> CachedArtistHeader? {
@@ -741,16 +744,30 @@ final class AppModel {
         }
     }
 
+    private func artistUserPageKey(_ artist: SoundCloudUser, list: ArtistUserList) -> NSString {
+        "\(list.rawValue):\(artist.permalinkURL.absoluteString)" as NSString
+    }
+
+    func cachedFirstArtistUserPage(for artist: SoundCloudUser, list: ArtistUserList) -> SoundCloudUserPage? {
+        firstArtistUserPageCache.cached(artistUserPageKey(artist, list: list))
+    }
+
     func artistUsers(
         for artist: SoundCloudUser,
         list: ArtistUserList,
         pageURL: URL? = nil
     ) async throws -> SoundCloudUserPage {
         guard let urn = artist.urn else { throw SoundCloudError.invalidData }
-        let accessToken = try await auth.validAccessToken()
-        return try await client.artistUsers(
-            urn: urn, list: list, accessToken: accessToken, pageURL: pageURL
-        )
+        if let pageURL {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.artistUsers(
+                urn: urn, list: list, accessToken: accessToken, pageURL: pageURL
+            )
+        }
+        return try await firstArtistUserPageCache.value(for: artistUserPageKey(artist, list: list)) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.artistUsers(urn: urn, list: list, accessToken: accessToken)
+        }
     }
 
     func cachedFirstArtistCommentPage(for artist: SoundCloudUser) -> SoundCloudCommentPage? {
