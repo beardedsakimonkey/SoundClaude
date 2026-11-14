@@ -1289,7 +1289,7 @@ struct ArtistDetailView: View {
                         .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
                         .animation(.easeInOut(duration: 0.15), value: isHovering)
                 }
-                .prefetch(.artist(artist)) { isHovering = $0 }
+                .prefetch(.artist(artist), .pressOnly) { isHovering = $0 }
         }
     }
 
