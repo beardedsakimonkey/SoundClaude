@@ -13,6 +13,32 @@ private final class TransparentMetalView: MTKView {
         let scale: Float = event.hasPreciseScrollingDeltas ? 0.008 : 0.08
         onZoom(Float(event.scrollingDeltaY) * scale)
     }
+
+    var onPan: ((SIMD2<Float>, CGSize) -> Void)?
+
+    // Claim the right button so dragging pans instead of opening a menu.
+    override func rightMouseDown(with event: NSEvent) {
+        if onPan == nil { super.rightMouseDown(with: event) }
+    }
+
+    override func rightMouseDragged(with event: NSEvent) {
+        guard let onPan else {
+            super.rightMouseDragged(with: event)
+            return
+        }
+        onPan(SIMD2(Float(event.deltaX), Float(event.deltaY)), bounds.size)
+    }
+
+    var onReset: (() -> Void)?
+
+    override func otherMouseDown(with event: NSEvent) {
+        // Button 2 is the middle button.
+        guard event.buttonNumber == 2, let onReset else {
+            super.otherMouseDown(with: event)
+            return
+        }
+        onReset()
+    }
 }
 
 struct ArtworkVisualizerView: View {
@@ -141,12 +167,16 @@ struct MetalVisualizerView: NSViewRepresentable {
         renderer?.pistonSettings = pistonSettings
         renderer?.pistonCamera = pistonCamera
         view.onZoom = zoomHandler
+        view.onPan = panHandler
+        view.onReset = resetHandler
         view.delegate = renderer
         return view
     }
 
     func updateNSView(_ view: MTKView, context: Context) {
         (view as? TransparentMetalView)?.onZoom = zoomHandler
+        (view as? TransparentMetalView)?.onPan = panHandler
+        (view as? TransparentMetalView)?.onReset = resetHandler
         context.coordinator.renderer?.shader = shader
         context.coordinator.renderer?.pistonSettings = pistonSettings
         context.coordinator.renderer?.pistonCamera = pistonCamera
@@ -157,6 +187,16 @@ struct MetalVisualizerView: NSViewRepresentable {
         { amount in
             pistonCamera.zoom = min(2, max(0.2, pistonCamera.zoom * exp(-amount)))
         }
+    }
+
+    private var panHandler: (SIMD2<Float>, CGSize) -> Void {
+        { delta, viewport in
+            pistonCamera.pan(delta: delta, viewport: viewport)
+        }
+    }
+
+    private var resetHandler: () -> Void {
+        { pistonCamera = PistonCameraProjection.defaultCamera }
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: MTKView, context: Context) -> CGSize? {

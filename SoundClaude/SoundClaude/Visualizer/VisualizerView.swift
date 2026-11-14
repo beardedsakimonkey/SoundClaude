@@ -39,7 +39,8 @@ struct VisualizerView: View {
                     pistonCamera.orbit(
                         delta: SIMD2(Float(delta.width), Float(delta.height)),
                         viewport: SIMD2(Float(viewportSize.width), Float(viewportSize.height)),
-                        pitchRange: PistonCameraProjection.orbitPitchRange(size: viewportSize, zoom: pistonCamera.zoom))
+                        pitchRange: PistonCameraProjection.orbitPitchRange(
+                            size: viewportSize, zoom: pistonCamera.zoom, targetHeight: pistonCamera.target.y))
                 }
                 .onEnded { _ in orbitTranslation = .zero }
         )

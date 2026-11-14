@@ -210,7 +210,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         lastPistonTime = now
         var uniforms = [PistonCameraProjection.camera(
             size: view.drawableSize, yaw: pistonCamera.yaw,
-            pitch: pistonCamera.pitch, zoom: pistonCamera.zoom)]
+            pitch: pistonCamera.pitch, zoom: pistonCamera.zoom, targetHeight: pistonCamera.target.y)]
         uniforms.append(SIMD4(pistons.heights[0], pistons.heights[1], pistons.heights[2], pistons.heights[3]))
         uniforms.append(SIMD4(pistons.heights[4], pistons.heights[5], pistons.heights[6], pistons.heights[7]))
         uniforms.append(SIMD4<Float>(pistonSettings.ropeThickness * 0.5, Float(pistonSettings.stringsPerPiston), 0, 0))
@@ -238,6 +238,7 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
                                      pistonSettings.groundFogStart, pistonSettings.groundFogDensity))
         uniforms.append(SIMD4<Float>(VisualizerGrade.sRGBEncoded(pistonSettings.backgroundColor), 0))
         uniforms.append(SIMD4<Float>(pistonSettings.lightDirection, 0))
+        uniforms.append(SIMD4<Float>(pistonCamera.target, 0))
         return (buffer, uniforms, PistonSimulation.count *
             (32 * 12 * 3 + pistonSettings.stringsPerPiston * (PistonSimulation.segments * 6 + 12 * 8 * 6)))
     }
@@ -721,6 +722,8 @@ struct PistonCamera: Equatable {
     var yaw: Float = 0
     var pitch: Float
     var zoom: Float
+    // World-space point the camera orbits and looks at.
+    var target = SIMD3<Float>(0, 1, 0)
 
     mutating func orbit(delta: SIMD2<Float>, viewport: SIMD2<Float>,
                         pitchRange: ClosedRange<Float>) {
@@ -730,25 +733,43 @@ struct PistonCamera: Equatable {
         pitch = min(pitchRange.upperBound, max(pitchRange.lowerBound,
                     pitch + delta.y * sensitivity))
     }
+
+    // Slide the target across the view plane so the scene follows the pointer.
+    mutating func pan(delta: SIMD2<Float>, viewport: CGSize) {
+        let view = PistonCameraProjection.camera(
+            size: viewport, yaw: yaw, pitch: pitch, zoom: zoom, targetHeight: target.y)
+        // The projection spans 2 / 2.1 world units per unit of distance vertically.
+        let scale = 2 * view.w / (2.1 * Float(max(1, viewport.height)))
+        let right = SIMD3(cos(view.y), 0, sin(view.y))
+        let up = SIMD3(sin(view.z) * sin(view.y), cos(view.z), -sin(view.z) * cos(view.y))
+        let moved = target + (up * delta.y - right * delta.x) * scale
+        target = simd_clamp(moved, PistonCameraProjection.targetBounds.low,
+                            PistonCameraProjection.targetBounds.high)
+    }
 }
 
 // Camera projection and orbit limits for the Metal scene.
 enum PistonCameraProjection {
     static let pitchRange: ClosedRange<Float> = -1.8...1.2
-    // Start at the lowest tilt; camera(size:yaw:pitch:zoom:) raises it to the floor clearance.
+    // Start at the lowest tilt; camera(size:yaw:pitch:zoom:targetHeight:) raises it to the floor clearance.
     static let defaultCamera = PistonCamera(pitch: pitchRange.lowerBound, zoom: 0.55)
 
-    static func camera(size: CGSize, yaw: Float, pitch: Float, zoom: Float) -> SIMD4<Float> {
+    // Keep the target above the floor and within reach of the scene.
+    static let targetBounds = (low: SIMD3<Float>(-12, -1.65, -12), high: SIMD3<Float>(12, 8, 12))
+
+    static func camera(size: CGSize, yaw: Float, pitch: Float, zoom: Float,
+                       targetHeight: Float) -> SIMD4<Float> {
         let aspect = Float(size.width / max(1, size.height))
         let distance = max(13, 22 / max(0.1, aspect)) * zoom / 0.7
-        // Orbit around y = 1; the floor is y = -1.65. Keep 0.75 clearance.
-        let groundLimit = asin(max(-1, min(1, -1.9 / distance)))
+        // The floor is y = -1.65. Keep the camera 0.75 above it.
+        let groundLimit = asin(max(-1, min(1, (-0.9 - targetHeight) / distance)))
         let viewingPitch = max(groundLimit, min(pitchRange.upperBound, max(pitchRange.lowerBound, pitch)) + 0.25)
         return SIMD4(aspect, yaw, viewingPitch, distance)
     }
 
-    static func orbitPitchRange(size: CGSize, zoom: Float) -> ClosedRange<Float> {
-        let lowest = camera(size: size, yaw: 0, pitch: pitchRange.lowerBound, zoom: zoom).z - 0.25
+    static func orbitPitchRange(size: CGSize, zoom: Float, targetHeight: Float) -> ClosedRange<Float> {
+        let lowest = camera(size: size, yaw: 0, pitch: pitchRange.lowerBound, zoom: zoom,
+                            targetHeight: targetHeight).z - 0.25
         return lowest...pitchRange.upperBound
     }
 }

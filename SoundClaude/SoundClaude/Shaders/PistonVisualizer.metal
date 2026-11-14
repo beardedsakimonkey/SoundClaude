@@ -18,6 +18,7 @@ struct PistonUniforms {
     float4 groundAppearance; // highlight strength, softness, fog start, fog density
     float4 fogColor; // encoded RGB matching the sky backdrop, unused
     float4 lightDirection; // world-space direction toward the scene light, unused
+    float4 target; // world-space point the camera orbits, unused
 };
 struct PistonVertex {
     float4 position [[position]];
@@ -72,7 +73,7 @@ static float4 pistonAtmosphere(float2 pixel, float depth, constant PistonUniform
     float3 cameraRay = float3(ndc.x * u.camera.x / 2.1, ndc.y / 2.1, -1);
     float rayLength = length(cameraRay);
     float3 ray = pistonWorldDirection(cameraRay / rayLength, u);
-    float3 origin = pistonWorldDirection(float3(0, 0, u.camera.w), u) + float3(0, 1, 0);
+    float3 origin = pistonWorldDirection(float3(0, 0, u.camera.w), u) + u.target.xyz;
     float limit = min(100.0, 10.0 / max(100.0 - depth * 99.9, 0.1)) * rayLength;
     float density = 0;
     for (uint piston = 0; piston < 8; ++piston) {
@@ -241,7 +242,7 @@ vertex PistonVertex pistonVisualizerVertex(
                 float2(-1,1), float2(1,-1), float2(1,1)
             };
             float2 offset = v % bobVertices < 6 ? quad[v % 6] : float2(0);
-            p = pistonRotate(tip - float3(0, 1, 0), u.camera.y, u.camera.z);
+            p = pistonRotate(tip - u.target.xyz, u.camera.y, u.camera.z);
             // Sit on the bob's front so its own depth cannot hide the halo.
             p += float3(offset * radius * 2.5, radius);
             n = float3(offset, 0);
@@ -266,8 +267,8 @@ vertex PistonVertex pistonVisualizerVertex(
             a = pistonGroundShadow(a, u);
             b = pistonGroundShadow(b, u);
         }
-        a = pistonRotate(a-float3(0,1,0),u.camera.y,u.camera.z);
-        b = pistonRotate(b-float3(0,1,0),u.camera.y,u.camera.z);
+        a = pistonRotate(a-u.target.xyz,u.camera.y,u.camera.z);
+        b = pistonRotate(b-u.target.xyz,u.camera.y,u.camera.z);
         float2 tangent = b.xy-a.xy;
         float2 side = float2(-tangent.y,tangent.x) / max(length(tangent),0.00001)*u.ropes.x;
         const uint ends[6] = {0,1,0,0,1,1};
@@ -300,7 +301,7 @@ vertex PistonVertex pistonVisualizerVertex(
         }
         receiver = float4(p, local < cylinderVertices * 2 ? 1.0 : 0.0);
         if (u.ropes.w > 0.5 && !glowPass) p = pistonGroundShadow(p, u);
-        p = pistonRotate(p-float3(0,1,0),u.camera.y,u.camera.z);
+        p = pistonRotate(p-u.target.xyz,u.camera.y,u.camera.z);
         n = pistonRotate(n,u.camera.y,u.camera.z);
     }
     float depth = u.camera.w-p.z;
@@ -423,12 +424,12 @@ fragment PistonFragment pistonVisualizerFragment(
         float3 origin = float3(0, 0, u.camera.w);
         float denominator = dot(n, ray);
         if (abs(denominator) < 0.000001) discard_fragment();
-        float distance = (u.ropes.z - 1 - dot(n, origin)) / denominator;
+        float distance = (u.ropes.z - u.target.y - dot(n, origin)) / denominator;
         if (distance < 0.1) discard_fragment();
         float3 p = origin + ray * distance;
         float2 floorPosition = float2(
             dot(p, pistonRotate(float3(1, 0, 0), u.camera.y, u.camera.z)),
-            dot(p, pistonRotate(float3(0, 0, 1), u.camera.y, u.camera.z)));
+            dot(p, pistonRotate(float3(0, 0, 1), u.camera.y, u.camera.z))) + u.target.xz;
         // Preserve scene occlusion, while keeping the floor beyond the far clip.
         float depth = min((distance - 0.1) * 100 / (99.9 * distance), 0.999999);
         float opacity = shadowMask.sample(shadowFilter, uv).r * 0.48;
