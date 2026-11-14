@@ -51,7 +51,9 @@ struct SearchView<Suggestions: View>: View {
                     Spacer()
                     Button {
                         store.clear(for: user)
-                        recentSearches = []
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
+                            recentSearches = []
+                        }
                     } label: {
                         Text("Clear")
                     }
