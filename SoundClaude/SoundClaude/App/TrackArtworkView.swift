@@ -456,6 +456,41 @@ struct TrackArtworkBackdropView: View {
     }
 }
 
+/// Shared profile backdrop for the artist page and its comments.
+struct ArtistArtworkBackdropView: View {
+    let artworkURL: URL?
+    let loader: ArtworkLoader
+    var cachedImage: NSImage? = nil
+
+    var body: some View {
+        let backdrop = TrackArtworkBackdropView(
+            artworkURL: artworkURL,
+            loader: loader,
+            fadesToBottom: false,
+            cachedImage: cachedImage
+        )
+        .frame(height: 600)
+        .mask {
+            LinearGradient(
+                stops: [
+                    .init(color: .black, location: 0),
+                    .init(color: .black, location: 0.25),
+                    .init(color: .black.opacity(0.5), location: 0.65),
+                    .init(color: .clear, location: 1)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+
+        if #available(macOS 26.0, *) {
+            backdrop.backgroundExtensionEffect()
+        } else {
+            backdrop
+        }
+    }
+}
+
 enum DetailArtworkMotion {
     static let hoverLift: CGFloat = 1
 

@@ -6,6 +6,8 @@ struct ArtistCommentsView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
+    @State private var header: CachedArtistHeader?
+    @State private var isHeaderImageMissing: Bool
     @State private var comments: [SoundCloudComment]
     @State private var nextPageURL: URL?
     @State private var loadedPageURLs: Set<URL> = []
@@ -23,6 +25,8 @@ struct ArtistCommentsView: View {
         self.model = model
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
+        _header = State(initialValue: model.cachedArtistHeader(for: artist))
+        _isHeaderImageMissing = State(initialValue: model.isArtistHeaderKnownMissing(artist))
         // The artist page's preview already requested the first page.
         let firstPage = model.cachedFirstArtistCommentPage(for: artist)
         _comments = State(initialValue: firstPage?.comments ?? [])
@@ -46,6 +50,7 @@ struct ArtistCommentsView: View {
                 }
                 .font(.title2)
                 .lineLimit(1)
+                .modifier(FadeInOnAppear())
 
                 LazyVStack(alignment: .leading, spacing: 20) {
                     ForEach(comments) { comment in
@@ -86,9 +91,25 @@ struct ArtistCommentsView: View {
             .remembersScrollPosition()
         }
         .background(alignment: .top) {
-            RouteGradientBackdrop()
+            ArtistArtworkBackdropView(
+                artworkURL: header?.artworkURL ?? (isHeaderImageMissing ? artist.avatarURL : nil),
+                loader: model.artworkLoader,
+                cachedImage: header?.image
+            )
+            .ignoresSafeArea(edges: .top)
         }
         .navigationTitle("Comments by \(artist.username)")
+        .task(id: artist.permalinkURL) {
+            guard header == nil, !isHeaderImageMissing else { return }
+            do {
+                let loaded = try await model.artistHeader(for: artist)
+                try Task.checkCancellation()
+                header = loaded
+                isHeaderImageMissing = loaded == nil
+            } catch {
+                // A failed lookup does not confirm that the header is absent.
+            }
+        }
     }
 
     private func loadPage() async {

@@ -299,33 +299,12 @@ struct ArtistDetailView: View {
         #endif
     }
 
-    @ViewBuilder
     private var artworkBackdrop: some View {
-        let backdrop = TrackArtworkBackdropView(
+        ArtistArtworkBackdropView(
             artworkURL: headerImageURL ?? (isHeaderImageMissing ? details?.user.avatarURL ?? artist.avatarURL : nil),
             loader: model.artworkLoader,
-            fadesToBottom: false,
             cachedImage: headerImage
         )
-        .frame(height: 600)
-        .mask {
-            LinearGradient(
-                stops: [
-                    .init(color: .black, location: 0),
-                    .init(color: .black, location: 0.25),
-                    .init(color: .black.opacity(0.5), location: 0.65),
-                    .init(color: .clear, location: 1)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        }
-
-        if #available(macOS 26.0, *) {
-            backdrop.backgroundExtensionEffect()
-        } else {
-            backdrop
-        }
     }
 
     private func detailsView(_ details: SoundCloudArtistDetails) -> some View {
