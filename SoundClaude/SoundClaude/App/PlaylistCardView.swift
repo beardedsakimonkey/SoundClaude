@@ -58,10 +58,21 @@ struct PlaylistCardView: View {
                     onSelect: { onSelectPlaylist(displayedPlaylist) }
                 )
 
-                ArtistLink(artist: displayedPlaylist.owner, onSelect: onSelectArtist)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    ArtistLink(artist: displayedPlaylist.owner, onSelect: onSelectArtist)
+                    if displayedPlaylist.trackCount != nil || !tracks.isEmpty {
+                        Text("·")
+                            .foregroundStyle(.tertiary)
+                            .layoutPriority(1)
+                            .accessibilityHidden(true)
+                        Text("\(trackCount.formatted()) \(trackCount == 1 ? "track" : "tracks")")
+                            .foregroundStyle(.tertiary)
+                            .layoutPriority(1)
+                    }
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
 
                 if waveformTrack != nil || displayedRowCount > 0 {
                     HStack(spacing: 10) {
