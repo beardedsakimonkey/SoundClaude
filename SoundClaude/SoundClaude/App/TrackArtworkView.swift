@@ -458,7 +458,6 @@ struct TrackArtworkBackdropView: View {
 
 enum DetailArtworkMotion {
     static let hoverLift: CGFloat = 1
-    static let hoverScale: CGFloat = 1.04
 
     static let hoverIn: Animation = .spring(response: 0.35, dampingFraction: 0.65)
     static let hoverOut: Animation = .spring(response: 0.35 * 1.5, dampingFraction: 0.75)
@@ -547,47 +546,10 @@ struct DetailArtworkRotation: ViewModifier {
         if imageHover != nil {
             artwork
         } else {
-            let outline = turnedArtworkOutline
-            let overhang = EdgeInsets(
-                top: max(-outline.boundingRect.minY, 0), leading: max(-outline.boundingRect.minX, 0),
-                bottom: 0, trailing: 0
-            )
-            artwork
-                // Hover events only arrive within the bounds, so grow them to reach the overhang.
-                .padding(overhang)
-                .contentShape(Rectangle())
-                .onContentHover(in: outline.offsetBy(dx: overhang.leading, dy: overhang.top)) {
-                    isHovering = $0
-                }
-                // Preserve the artwork's original layout size.
-                .padding(EdgeInsets(top: -overhang.top, leading: -overhang.leading, bottom: 0, trailing: 0))
+            artwork.modifier(DetailArtworkTurnedHover(artworkSize: artworkSize, transform: transform) {
+                isHovering = $0
+            })
         }
-    }
-
-    // The image's on-screen shape at the full turn, in layout coordinates. It stays fixed while
-    // flattening: following the animation would move the target from under the pointer and flicker.
-    private var turnedArtworkOutline: Path {
-        // rotation3DEffect projects the whole view, so its center and scale include the reflection slot.
-        let height = artworkSize + DetailArtworkView.reflectionSpacing + DetailArtworkView.reflectionSlotHeight
-        let center = CGPoint(x: artworkSize / 2, y: height / 2)
-        let angle = turn * .pi / 180
-        let depthScale = transform.perspective / max(artworkSize, height)
-
-        func projected(x: CGFloat, y: CGFloat) -> CGPoint {
-            let dx = x - center.x
-            let w = 1 + dx * sin(angle) * depthScale
-            return CGPoint(x: center.x + dx * cos(angle) / w, y: center.y + (y - center.y) / w)
-        }
-
-        var path = Path()
-        path.addLines([
-            projected(x: 0, y: 0),
-            projected(x: artworkSize, y: 0),
-            projected(x: artworkSize, y: artworkSize),
-            projected(x: 0, y: artworkSize)
-        ])
-        path.closeSubpath()
-        return path
     }
 
     // 0 when flat, 1 at the full configured turn.
@@ -632,6 +594,61 @@ struct DetailArtworkRotation: ViewModifier {
                 axis: (x: 0, y: 1, z: 0),
                 perspective: perspective
             )
+    }
+}
+
+/// Tracks hover over the artwork's turned shape rather than its unrotated square.
+struct DetailArtworkTurnedHover: ViewModifier {
+    let artworkSize: CGFloat
+    var transform = DetailArtworkTransform()
+    let action: (Bool) -> Void
+
+    #if DEBUG
+    @AppStorage(DetailArtworkSlabTuning.turnKey) private var debugTurn = DetailArtworkTransform().y
+    private var turn: Double { debugTurn }
+    #else
+    private var turn: Double { transform.y }
+    #endif
+
+    func body(content: Content) -> some View {
+        let outline = turnedArtworkOutline
+        let overhang = EdgeInsets(
+            top: max(-outline.boundingRect.minY, 0), leading: max(-outline.boundingRect.minX, 0),
+            bottom: 0, trailing: 0
+        )
+        content
+            // Hover events only arrive within the bounds, so grow them to reach the overhang.
+            .padding(overhang)
+            .contentShape(Rectangle())
+            .onContentHover(in: outline.offsetBy(dx: overhang.leading, dy: overhang.top), perform: action)
+            // Preserve the artwork's original layout size.
+            .padding(EdgeInsets(top: -overhang.top, leading: -overhang.leading, bottom: 0, trailing: 0))
+    }
+
+    // The image's on-screen shape at the full turn, in layout coordinates. It stays fixed while
+    // flattening: following the animation would move the target from under the pointer and flicker.
+    private var turnedArtworkOutline: Path {
+        // rotation3DEffect projects the whole view, so its center and scale include the reflection slot.
+        let height = artworkSize + DetailArtworkView.reflectionSpacing + DetailArtworkView.reflectionSlotHeight
+        let center = CGPoint(x: artworkSize / 2, y: height / 2)
+        let angle = turn * .pi / 180
+        let depthScale = transform.perspective / max(artworkSize, height)
+
+        func projected(x: CGFloat, y: CGFloat) -> CGPoint {
+            let dx = x - center.x
+            let w = 1 + dx * sin(angle) * depthScale
+            return CGPoint(x: center.x + dx * cos(angle) / w, y: center.y + (y - center.y) / w)
+        }
+
+        var path = Path()
+        path.addLines([
+            projected(x: 0, y: 0),
+            projected(x: artworkSize, y: 0),
+            projected(x: artworkSize, y: artworkSize),
+            projected(x: 0, y: artworkSize)
+        ])
+        path.closeSubpath()
+        return path
     }
 }
 
@@ -882,7 +899,8 @@ struct DetailArtworkView: View {
         .modifier(PlayerArtworkGlass(
             cornerRadius: cornerRadius,
             rotation: rotation,
-            slabThickness: displayedSlabThickness
+            slabThickness: displayedSlabThickness,
+            size: CGSize(width: size, height: size)
         ))
         .modifier(DetailArtworkReflectionBlur(
             radius: reflectionBlurRadius,

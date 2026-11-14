@@ -199,11 +199,67 @@ struct TrackCollection: Equatable {
     }
 }
 
+// Keep hover and sheet state local so artwork interactions do not rebuild the header.
+private struct TrackCollectionArtwork: View {
+    private let artworkSize: CGFloat = 250
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let track: SoundCloudTrack?
+    let title: String
+    let model: AppModel
+    let onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)?
+    let isUpdatingPlaylist: Bool
+
+    @State private var isShowingArtwork = false
+    @State private var isHoveringArtwork = false
+
+    var body: some View {
+        DetailArtworkTiltHost(artworkSize: artworkSize, isTilting: isHoveringArtwork && !reduceMotion) {
+            artwork
+        }
+        // The lean moves the artwork under the pointer, so hover follows its resting shape instead.
+        .modifier(DetailArtworkTurnedHover(artworkSize: artworkSize) { isHoveringArtwork = $0 })
+        .sheet(isPresented: $isShowingArtwork) {
+            FullSizeArtworkView(
+                title: title,
+                artworkURL: track?.displayArtworkURL,
+                loader: model.artworkLoader
+            )
+        }
+    }
+
+    private var artwork: some View {
+        ZStack {
+            DetailArtworkView(
+                artworkURL: track?.displayArtworkURL,
+                title: title,
+                loader: model.artworkLoader,
+                size: artworkSize,
+                cornerRadius: 12,
+                track: track,
+                likes: model.likes,
+                onAddToQueue: model.addToQueue,
+                onRemoveFromPlaylist: onRemoveFromPlaylist,
+                isUpdatingPlaylist: isUpdatingPlaylist,
+                onShowArtwork: { isShowingArtwork = true }
+            )
+            .id(track?.urn)
+            .transition(DetailArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
+        }
+        .modifier(DetailArtworkTrackAnimation(trackURN: track?.urn))
+        .modifier(DetailArtworkRotation(
+            artworkSize: artworkSize,
+            isShowingArtwork: isShowingArtwork,
+            flattensOnHover: true,
+            imageHover: isHoveringArtwork
+        ))
+        .modifier(DetailArtworkFootprint(size: artworkSize))
+    }
+}
+
 // Starting playback re-renders this header only; the page body and track list do
 // not read playback state.
 struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
-    private let artworkSize: CGFloat = 250
-
     let collection: TrackCollection
     let model: AppModel
     let likes: LikesController
@@ -216,40 +272,19 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
     @ViewBuilder let titleRow: () -> TitleRow
     @ViewBuilder let controlsFooter: () -> ControlsFooter
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isShowingArtwork = false
-
     var body: some View {
         let currentTrack = collection.currentTrack(in: model)
         let displayedTrack = collection.displayedTrack(in: model)
-        let artworkURL = displayedTrack?.displayArtworkURL
         let artworkTitle = displayedTrack?.title ?? collection.title
 
         HStack(alignment: .top, spacing: 24) {
-            ZStack {
-                DetailArtworkView(
-                    artworkURL: artworkURL,
-                    title: artworkTitle,
-                    loader: model.artworkLoader,
-                    size: artworkSize,
-                    cornerRadius: 12,
-                    track: displayedTrack,
-                    likes: model.likes,
-                    onAddToQueue: model.addToQueue,
-                    onRemoveFromPlaylist: onRemoveFromPlaylist,
-                    isUpdatingPlaylist: isUpdatingPlaylist,
-                    onShowArtwork: { isShowingArtwork = true }
-                )
-                .id(displayedTrack?.urn)
-                .transition(DetailArtworkTransition(playback: model.playback, reduceMotion: reduceMotion))
-            }
-            .modifier(DetailArtworkTrackAnimation(trackURN: displayedTrack?.urn))
-            .modifier(DetailArtworkRotation(
-                artworkSize: artworkSize,
-                isShowingArtwork: isShowingArtwork,
-                flattensOnHover: true
-            ))
-            .modifier(DetailArtworkFootprint(size: artworkSize))
+            TrackCollectionArtwork(
+                track: displayedTrack,
+                title: artworkTitle,
+                model: model,
+                onRemoveFromPlaylist: onRemoveFromPlaylist,
+                isUpdatingPlaylist: isUpdatingPlaylist
+            )
 
             VStack(alignment: .leading, spacing: 0) {
                 titleRow()
@@ -292,13 +327,6 @@ struct TrackCollectionHeader<TitleRow: View, ControlsFooter: View>: View {
                 isCollection: true,
                 onPlayTrack: playTrack
             ))
-        }
-        .sheet(isPresented: $isShowingArtwork) {
-            FullSizeArtworkView(
-                title: artworkTitle,
-                artworkURL: artworkURL,
-                loader: model.artworkLoader
-            )
         }
     }
 

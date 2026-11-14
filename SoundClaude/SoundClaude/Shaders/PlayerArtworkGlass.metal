@@ -61,6 +61,7 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     float specularStrength,
     float specularSoftness,
     float rotation,
+    float2 tilt,
     float2 origin,
     float slabShift,
     float slabShade
@@ -108,11 +109,19 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
 
     // A fixed light above and to the left reflects off the rotating glass plane.
     // A finite eye position gives the reflection a soft local highlight.
+    // `tilt` leans the plane further, toward any side: it is added to the normal's x and y.
     float2 facePosition = (local - center) / max(min(size.x, size.y), 1.0);
-    float sine = sin(rotation);
-    float cosine = cos(rotation);
-    float3 surfacePosition = float3(facePosition.x * cosine, facePosition.y, -facePosition.x * sine);
-    float3 surfaceNormal = float3(sine, 0.0, cosine);
+    float2 lean = float2(sin(rotation), 0.0) + tilt;
+    float sine = min(length(lean), 0.99);
+    float cosine = sqrt(1.0 - sine * sine);
+    // The plane turns about the in-plane axis square to its lean.
+    float2 axis = sine > 0.0001 ? float2(-lean.y, lean.x) / length(lean) : float2(0.0, 1.0);
+    float along = dot(axis, facePosition);
+    float3 surfacePosition = float3(
+        facePosition * cosine + axis * along * (1.0 - cosine),
+        (axis.x * facePosition.y - axis.y * facePosition.x) * sine
+    );
+    float3 surfaceNormal = float3(axis.y * sine, -axis.x * sine, cosine);
     float3 lightDirection = normalize(float3(light * 0.45, 1.0));
     float3 viewDirection = normalize(float3(0.0, 0.0, 2.5) - surfacePosition);
     float3 halfway = normalize(lightDirection + viewDirection);

@@ -31,9 +31,19 @@ private struct PlayerArtworkGlassParametersKey: EnvironmentKey {
     static let defaultValue = PlayerArtworkGlassParameters()
 }
 
+// A lean driven outside SwiftUI's animations, such as a pointer tilt. Only the glass reads it,
+// so each change re-renders the highlight without rebuilding the artwork.
+@Observable
+final class PlayerArtworkGlassTilt {
+    // Sideways components of the glass's normal; zero while it faces the viewer.
+    // Positive x leans the trailing edge back, positive y the bottom edge.
+    var normal = CGSize.zero
+}
+
 extension EnvironmentValues {
     // Animated sideways offset of the slab's back face, in points; set by PlayerArtworkGlassSlab.
     @Entry var playerArtworkGlassSlabShift: CGFloat = 0
+    @Entry var playerArtworkGlassTilt: PlayerArtworkGlassTilt? = nil
 
     var playerArtworkGlassParameters: PlayerArtworkGlassParameters {
         get { self[PlayerArtworkGlassParametersKey.self] }
@@ -81,9 +91,11 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.playerArtworkGlassSlabShift) private var slabShift
+    @Environment(\.playerArtworkGlassTilt) private var tilt
 
     func body(content: Content) -> some View {
         let parameters = parameters
+        let tilt = tilt?.normal ?? .zero
         let enablesGlass = parameters.isEnabled && !reduceTransparency
         let slabPadding = enablesGlass ? Self.slabPadding(thickness: slabThickness) : 0
         let slabShift = min(max(slabShift, -slabPadding), slabPadding)
@@ -98,7 +110,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
         let shader = { @Sendable (faceSize: CGSize) in
             Self.shader(
                 faceSize: faceSize, cornerRadius: cornerRadius, parameters: parameters,
-                rotation: rotationRadians, slabPadding: slabPadding, slabShift: slabShift,
+                rotation: rotationRadians, tilt: tilt, slabPadding: slabPadding, slabShift: slabShift,
                 slabShade: slabShade
             )
         }
@@ -131,7 +143,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
 
     nonisolated private static func shader(
         faceSize: CGSize, cornerRadius: CGFloat, parameters: PlayerArtworkGlassParameters,
-        rotation: Double, slabPadding: CGFloat, slabShift: CGFloat, slabShade: Double
+        rotation: Double, tilt: CGSize, slabPadding: CGFloat, slabShift: CGFloat, slabShade: Double
     ) -> Shader {
         ShaderLibrary.playerArtworkGlass(
             .float2(faceSize.width, faceSize.height),
@@ -146,6 +158,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
             .float(parameters.specularStrength),
             .float(parameters.specularSoftness),
             .float(rotation),
+            .float2(tilt.width, tilt.height),
             .float2(slabPadding, 0),
             .float(slabShift),
             .float(slabShade)

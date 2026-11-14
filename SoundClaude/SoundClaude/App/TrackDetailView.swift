@@ -294,8 +294,24 @@ private struct TrackDetailArtwork: View {
     @State private var isHoveringArtwork = false
 
     private var isArtworkHoverActive: Bool { isHoveringArtwork || isShowingArtwork }
+    // The artwork tilts under the pointer, so hover follows its resting square instead.
+    private var hoverRegion: Path { Path(CGRect(x: 0, y: 0, width: artworkSize, height: artworkSize)) }
 
     var body: some View {
+        DetailArtworkTiltHost(artworkSize: artworkSize, isTilting: isHoveringArtwork && !reduceMotion) {
+            artwork
+        }
+        .onContentHover(in: hoverRegion) { isHoveringArtwork = $0 }
+        .sheet(isPresented: $isShowingArtwork) {
+            FullSizeArtworkView(
+                title: track.title,
+                artworkURL: track.displayArtworkURL,
+                loader: model.artworkLoader
+            )
+        }
+    }
+
+    private var artwork: some View {
         DetailArtworkView(
             artworkURL: track.displayArtworkURL,
             title: track.title,
@@ -304,10 +320,8 @@ private struct TrackDetailArtwork: View {
             animatesChanges: true,
             showsPlaceholderIcon: false,
             cornerRadius: 12,
-            artworkLift: isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverLift : 0,
             hoverStyle: .lift,
             isShowingArtwork: isShowingArtwork,
-            onImageHover: { isHoveringArtwork = $0 },
             track: track,
             likes: model.likes,
             onAddToQueue: model.addToQueue,
@@ -324,20 +338,7 @@ private struct TrackDetailArtwork: View {
                 ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut),
             value: isArtworkHoverActive
         )
-        .animation(
-            reduceMotion ? nil : (isArtworkHoverActive
-                ? DetailArtworkMotion.hoverIn : DetailArtworkMotion.hoverOut)
-        ) { content in
-            content.scaleEffect(isArtworkHoverActive && !reduceMotion ? DetailArtworkMotion.hoverScale : 1)
-        }
         .modifier(DetailArtworkFootprint(size: artworkSize))
-        .sheet(isPresented: $isShowingArtwork) {
-            FullSizeArtworkView(
-                title: track.title,
-                artworkURL: track.displayArtworkURL,
-                loader: model.artworkLoader
-            )
-        }
     }
 }
 
