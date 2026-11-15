@@ -633,10 +633,13 @@ struct DetailArtworkRotation: ViewModifier {
 }
 
 /// Tracks hover over the artwork's turned shape rather than its unrotated square.
+/// Hover flattens the artwork, so once it begins the flat square holds it too.
 struct DetailArtworkTurnedHover: ViewModifier {
     let artworkSize: CGFloat
     var transform = DetailArtworkTransform()
     let action: (Bool) -> Void
+
+    @State private var isHovering = false
 
     #if DEBUG
     @AppStorage(DetailArtworkSlabTuning.turnKey) private var debugTurn = DetailArtworkTransform().y
@@ -651,11 +654,18 @@ struct DetailArtworkTurnedHover: ViewModifier {
             top: max(-outline.boundingRect.minY, 0), leading: max(-outline.boundingRect.minX, 0),
             bottom: 0, trailing: 0
         )
+        // The turned shape stays part of the region, so flattening cannot end the hover it began.
+        let region = isHovering
+            ? outline.union(Path(CGRect(x: 0, y: 0, width: artworkSize, height: artworkSize)))
+            : outline
         content
             // Hover events only arrive within the bounds, so grow them to reach the overhang.
             .padding(overhang)
             .contentShape(Rectangle())
-            .onContentHover(in: outline.offsetBy(dx: overhang.leading, dy: overhang.top), perform: action)
+            .onContentHover(in: region.offsetBy(dx: overhang.leading, dy: overhang.top)) {
+                isHovering = $0
+                action($0)
+            }
             // Preserve the artwork's original layout size.
             .padding(EdgeInsets(top: -overhang.top, leading: -overhang.leading, bottom: 0, trailing: 0))
     }
