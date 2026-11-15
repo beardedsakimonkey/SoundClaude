@@ -2,12 +2,32 @@
 #include <SwiftUI/SwiftUI.h>
 using namespace metal;
 
-// Signed distance to a rounded rect spanning `minX...maxX` horizontally and `0...height`.
-static float roundedRectDistance(float2 point, float minX, float maxX, float height, float cornerRadius) {
-    float2 halfSize = float2(maxX - minX, height) * 0.5;
+// Signed distance to the rounded rect spanning `0...size`, swept along `shift`.
+static float sweptRoundedRectDistance(float2 point, float2 size, float cornerRadius, float2 shift) {
+    float2 halfSize = size * 0.5;
     float radius = min(cornerRadius, min(halfSize.x, halfSize.y));
-    float2 q = abs(point - float2(minX, 0) - halfSize) - (halfSize - radius);
-    return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
+    float2 b = halfSize - radius;
+    float2 p = point - halfSize;
+    float2 v = shift;
+    // Mirror so the sweep always heads toward +x, +y.
+    if (v.x < 0.0) { p.x = -p.x; v.x = -v.x; }
+    if (v.y < 0.0) { p.y = -p.y; v.y = -v.y; }
+
+    // The corner centers sweep out a hexagon; the corner radius rounds it.
+    float2 vertices[6] = {
+        float2(-b.x, -b.y), float2(b.x, -b.y), float2(b.x, -b.y) + v,
+        float2(b.x, b.y) + v, float2(-b.x, b.y) + v, float2(-b.x, b.y)
+    };
+    float nearest = 1e20;
+    bool inside = true;
+    for (int i = 0; i < 6; i++) {
+        float2 edge = vertices[(i + 1) % 6] - vertices[i];
+        float2 w = p - vertices[i];
+        float2 offset = w - edge * saturate(dot(w, edge) / max(dot(edge, edge), 1e-6));
+        nearest = min(nearest, dot(offset, offset));
+        inside = inside && (edge.x * w.y - edge.y * w.x >= 0.0);
+    }
+    return (inside ? -sqrt(nearest) : sqrt(nearest)) - radius;
 }
 
 // The nearest point at least `inset` inside the rounded rect spanning `0...size`.
@@ -20,28 +40,40 @@ static float2 insideRoundedRect(float2 point, float2 size, float cornerRadius, f
     return offsetLength > limit ? cornerCenter + offset * (limit / max(offsetLength, 0.001)) : point;
 }
 
-// The slab's side, seen when the cover turns: the face swept `slabShift` points sideways.
-// The print's edge colors run straight back through the side, which is shaded as one
+// The slab's side, seen when the cover turns or leans: the face swept along `slabShift`, in
+// points. The print's edge colors run straight back through the side, which is shaded as one
 // surface turned away from the light: `shade` is how dark it gets at the back.
-static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI::Layer layer, float2 size, float cornerRadius, float slabShift, float shade) {
-    if (slabShift == 0.0) return half4(0.0h);
-    float hull = roundedRectDistance(local, min(slabShift, 0.0), size.x + max(slabShift, 0.0), size.y, cornerRadius);
-    float coverage = saturate(0.5 - hull);
+static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI::Layer layer, float2 size, float cornerRadius, float2 slabShift, float shade, float pixelScale, float falloffAmount) {
+    float shiftLength = length(slabShift);
+    if (shiftLength < 0.001) return half4(0.0h);
+    float hull = sweptRoundedRectDistance(local, size, cornerRadius, slabShift);
+    // Antialias across one device pixel rather than one point, which keeps a thin side crisp.
+    float coverage = saturate(0.5 - hull * pixelScale);
     if (coverage <= 0.0) return half4(0.0h);
 
     // Extend the face's nearest edge color, softened along the edge so single
     // pixels of the print don't streak across the side.
     float2 layerOrigin = position - local;
     float2 nearest = clamp(local, float2(0.0), size);
+    float2 along = float2(-slabShift.y, slabShift.x) * (1.5 / shiftLength);
     half4 sample = 0.5h * layer.sample(layerOrigin + insideRoundedRect(nearest, size, cornerRadius, 1.5));
-    sample += 0.25h * layer.sample(layerOrigin + insideRoundedRect(nearest - float2(0.0, 1.5), size, cornerRadius, 1.5));
-    sample += 0.25h * layer.sample(layerOrigin + insideRoundedRect(nearest + float2(0.0, 1.5), size, cornerRadius, 1.5));
+    sample += 0.25h * layer.sample(layerOrigin + insideRoundedRect(nearest - along, size, cornerRadius, 1.5));
+    sample += 0.25h * layer.sample(layerOrigin + insideRoundedRect(nearest + along, size, cornerRadius, 1.5));
     half3 color = sample.rgb / max(sample.a, 0.001h);
+
+    // The side's depth here is the sweep measured square to the face's outline.
+    float radius = min(cornerRadius, min(size.x, size.y) * 0.5);
+    float2 outward = local - clamp(local, float2(radius), size - radius);
+    float sideDepth = dot(outward / max(length(outward), 0.001), slabShift);
 
     // The side steps darker where it folds away from the face, then falls off
     // smoothly toward the back like a softly rounded edge.
-    float back = saturate(faceDistance / abs(slabShift));
-    color *= half(1.0 - saturate(shade) * mix(0.45, 1.0, smoothstep(0.0, 1.0, back)));
+    float back = saturate(faceDistance / max(sideDepth, 0.001));
+    float falloff = mix(0.45, 1.0, smoothstep(0.0, 1.0, back));
+    // On a side that moves with the pointer the falloff reads as blur, so `falloffAmount`
+    // fades it out toward one even tone.
+    float tone = mix(0.725, falloff, saturate(falloffAmount));
+    color *= half(1.0 - saturate(shade) * tone);
     return half4(color, 1.0h) * (sample.a * half(coverage));
 }
 
@@ -63,8 +95,10 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     float rotation,
     float2 tilt,
     float2 origin,
-    float slabShift,
-    float slabShade
+    float2 slabShift,
+    float slabShade,
+    float pixelScale,
+    float slabFalloff
 ) {
     // `origin` places the face inside a layer padded to make room for the slab edge.
     float2 local = position - origin;
@@ -82,7 +116,7 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     // The artwork brings its own antialiased silhouette.
     half faceAlpha = original.a;
     half4 edge = faceAlpha < 1.0h
-        ? slabEdge(position, local, distance, layer, size, cornerRadius, slabShift, slabShade)
+        ? slabEdge(position, local, distance, layer, size, cornerRadius, slabShift, slabShade, pixelScale, slabFalloff)
         : half4(0.0h);
     if (faceAlpha <= 0.0h) return edge;
 

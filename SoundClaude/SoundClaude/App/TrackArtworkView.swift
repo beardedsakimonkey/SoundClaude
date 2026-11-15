@@ -950,7 +950,7 @@ struct DetailArtworkView: View {
         .modifier(DetailArtworkReflectionBlur(
             radius: reflectionBlurRadius,
             cornerRadius: cornerRadius,
-            maxShift: slabPadding
+            slabThickness: displayedSlabThickness
         ))
         // A layer this far behind the face projects like the face shifted by depth * tan(angle);
         // positive angles bring the leading edge forward.
@@ -1034,33 +1034,39 @@ struct DetailArtworkView: View {
 private struct DetailArtworkReflectionBlur: ViewModifier {
     let radius: CGFloat?
     let cornerRadius: CGFloat
-    // The glass caps the edge at its padding; match it so blur doesn't spill past the edge.
-    let maxShift: CGFloat
+    // Matches the glass's slab edge so blur doesn't spill past it.
+    let slabThickness: CGFloat
 
-    @Environment(\.playerArtworkGlassSlabShift) private var slabShift
+    @Environment(\.playerArtworkGlassSlabShift) private var turnShift
+    @Environment(\.playerArtworkGlassTilt) private var tilt
 
     func body(content: Content) -> some View {
         if let radius {
             content
                 .blur(radius: radius)
-                .clipShape(SlabOutline(shift: min(max(slabShift, -maxShift), maxShift), cornerRadius: cornerRadius))
+                .clipShape(SlabOutline(
+                    shift: PlayerArtworkGlass.slabShift(
+                        turnShift: turnShift, tilt: tilt?.normal ?? .zero, thickness: slabThickness
+                    ),
+                    cornerRadius: cornerRadius
+                ))
         } else {
             content
         }
     }
 }
 
-/// The face's rounded rect stretched sideways by the slab edge.
+/// The face's rounded rect stretched to cover the slab edge.
 private struct SlabOutline: Shape {
-    var shift: CGFloat
+    var shift: CGSize
     let cornerRadius: CGFloat
 
     func path(in rect: CGRect) -> Path {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).path(in: CGRect(
-            x: rect.minX + min(shift, 0),
-            y: rect.minY,
-            width: rect.width + abs(shift),
-            height: rect.height
+            x: rect.minX + min(shift.width, 0),
+            y: rect.minY + min(shift.height, 0),
+            width: rect.width + abs(shift.width),
+            height: rect.height + abs(shift.height)
         ))
     }
 }

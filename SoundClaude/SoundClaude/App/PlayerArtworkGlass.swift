@@ -87,10 +87,25 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
         thickness > 0 ? ceil(thickness * 0.75) : 0
     }
 
+    // Offset of the slab's back face: the animated turn's sideways shift plus the pointer lean's.
+    // A layer `thickness` behind the face projects shifted by thickness * tan(angle), toward
+    // the side that comes forward.
+    static func slabShift(turnShift: CGFloat, tilt: CGSize, thickness: CGFloat) -> CGSize {
+        let padding = slabPadding(thickness: thickness)
+        guard padding > 0 else { return .zero }
+        let cosine = sqrt(max(1 - tilt.width * tilt.width - tilt.height * tilt.height, 0.01))
+        let leanScale = -thickness / cosine
+        return CGSize(
+            width: min(max(turnShift + tilt.width * leanScale, -padding), padding),
+            height: min(max(tilt.height * leanScale, -padding), padding)
+        )
+    }
+
     @Environment(\.playerArtworkGlassParameters) private var parameters
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.displayScale) private var displayScale
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.playerArtworkGlassSlabShift) private var slabShift
+    @Environment(\.playerArtworkGlassSlabShift) private var turnShift
     @Environment(\.playerArtworkGlassTilt) private var tilt
 
     func body(content: Content) -> some View {
@@ -98,24 +113,28 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
         let tilt = tilt?.normal ?? .zero
         let enablesGlass = parameters.isEnabled && !reduceTransparency
         let slabPadding = enablesGlass ? Self.slabPadding(thickness: slabThickness) : 0
-        let slabShift = min(max(slabShift, -slabPadding), slabPadding)
+        // The turn's share of the edge keeps its shaded falloff; the pointer lean's is drawn flat.
+        let leanShift = Self.slabShift(turnShift: 0, tilt: tilt, thickness: slabThickness)
+        let leanLength = hypot(leanShift.width, leanShift.height)
+        let slabFalloff = leanLength > 0 ? abs(turnShift) / (abs(turnShift) + leanLength) : 1
+        let slabShift = Self.slabShift(turnShift: turnShift, tilt: tilt, thickness: slabThickness)
         let rotationRadians = rotation * .pi / 180
         // A dark side reads heavy against a light background.
         let slabShade = parameters.slabShade * (colorScheme == .light ? 0.6 : 1.0)
         // The slab edge reads the face's nearest edge, pulled in from the corners.
-        let maxSampleOffset = slabPadding > 0
-            ? CGSize(width: slabPadding + cornerRadius + 4, height: cornerRadius + 4)
-            : .zero
+        let sampleReach = slabPadding > 0 ? slabPadding + cornerRadius + 4 : 0
+        let maxSampleOffset = CGSize(width: sampleReach, height: sampleReach)
         let cornerRadius = cornerRadius
+        let displayScale = displayScale
         let shader = { @Sendable (faceSize: CGSize) in
             Self.shader(
                 faceSize: faceSize, cornerRadius: cornerRadius, parameters: parameters,
                 rotation: rotationRadians, tilt: tilt, slabPadding: slabPadding, slabShift: slabShift,
-                slabShade: slabShade
+                slabShade: slabShade, slabFalloff: slabFalloff, displayScale: displayScale
             )
         }
         let composited = content
-            .padding(.horizontal, slabPadding)
+            .padding(slabPadding)
             .compositingGroup()
 
         Group {
@@ -129,21 +148,22 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
                 composited.visualEffect { content, geometry in
                     content.layerEffect(
                         shader(CGSize(width: geometry.size.width - slabPadding * 2,
-                                      height: geometry.size.height)),
+                                      height: geometry.size.height - slabPadding * 2)),
                         maxSampleOffset: maxSampleOffset,
                         isEnabled: enablesGlass
                     )
                 }
             }
         }
-        .padding(.horizontal, -slabPadding)
+        .padding(-slabPadding)
         .shadow(color: .black.opacity(0.14), radius: 1, x: 0, y: 1)
         .shadow(color: .black.opacity(0.16), radius: shadowRadius, x: 0, y: shadowOffsetY)
     }
 
     nonisolated private static func shader(
         faceSize: CGSize, cornerRadius: CGFloat, parameters: PlayerArtworkGlassParameters,
-        rotation: Double, tilt: CGSize, slabPadding: CGFloat, slabShift: CGFloat, slabShade: Double
+        rotation: Double, tilt: CGSize, slabPadding: CGFloat, slabShift: CGSize, slabShade: Double,
+        slabFalloff: Double, displayScale: CGFloat
     ) -> Shader {
         ShaderLibrary.playerArtworkGlass(
             .float2(faceSize.width, faceSize.height),
@@ -159,9 +179,11 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
             .float(parameters.specularSoftness),
             .float(rotation),
             .float2(tilt.width, tilt.height),
-            .float2(slabPadding, 0),
-            .float(slabShift),
-            .float(slabShade)
+            .float2(slabPadding, slabPadding),
+            .float2(slabShift.width, slabShift.height),
+            .float(slabShade),
+            .float(displayScale),
+            .float(slabFalloff)
         )
     }
 }
