@@ -130,7 +130,7 @@ struct PlaylistDetailView: View {
                 }
                 .modifier(FadeInOnAppear())
             }
-            if !playlist.isSystemPlaylist || playlistTimestamp.hasTimestamp {
+            if !playlist.isSystemPlaylist || displayedPlaylist.isPrivate || playlistTimestamp.hasTimestamp {
                 playlistMetadata
             }
         }
@@ -158,11 +158,7 @@ struct PlaylistDetailView: View {
                 .textSelection(.enabled)
                 .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
             } actions: {
-                // Private playlists cannot be liked; reserve the button's height so the
-                // header lines up with stations.
-                if displayedPlaylist.isPrivate {
-                    likeButton.hidden()
-                } else {
+                if !displayedPlaylist.isPrivate {
                     likeButton
                 }
             }
@@ -180,14 +176,25 @@ struct PlaylistDetailView: View {
             timestamp: displayedPlaylist.lastModified,
             accessibilityPrefix: "Last updated",
             prefix: "Updated",
-            showsSeparator: false,
-            systemImage: "clock"
+            showsSeparator: !playlist.isSystemPlaylist || displayedPlaylist.isPrivate
         )
     }
 
     private var playlistMetadata: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            if !playlist.isSystemPlaylist {
+                Text("By")
+                ArtistLink(
+                    artist: displayedPlaylist.owner,
+                    showsVerifiedBadge: true,
+                    onSelect: onSelectArtist
+                )
+            }
             if displayedPlaylist.isPrivate {
+                if !playlist.isSystemPlaylist {
+                    Text("·")
+                        .accessibilityHidden(true)
+                }
                 if isOwnedByCurrentUser {
                     PlaylistPrivacyButton {
                         editingPlaylist = displayedPlaylist
@@ -195,23 +202,10 @@ struct PlaylistDetailView: View {
                     .disabled(playlists.updatingPlaylistURNs.contains(playlist.urn)
                         || playlistDeletion.deletingURNs.contains(playlist.urn))
                 } else {
-                    Label("Private", systemImage: "lock.fill")
-                        .labelStyle(.titleAndIcon)
+                    PlaylistPrivacyLabel()
                 }
             }
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                playlistTimestamp
-                if !playlist.isSystemPlaylist {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text("by")
-                        ArtistLink(
-                            artist: displayedPlaylist.owner,
-                            showsVerifiedBadge: true,
-                            onSelect: onSelectArtist
-                        )
-                    }
-                }
-            }
+            playlistTimestamp
         }
         .font(.callout)
         .foregroundStyle(.secondary)
@@ -318,18 +312,26 @@ private struct PlaylistPrivacyButton: View {
 
     var body: some View {
         Button(action: action) {
-            Label {
-                Text("Private")
-                    .underline(isHovered)
-            } icon: {
-                Image(systemName: "lock.fill")
-            }
-            .labelStyle(.titleAndIcon)
-            .contentShape(Rectangle())
+            PlaylistPrivacyLabel(isUnderlined: isHovered)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onContentHover { isHovered = $0 }
         .contentHelp("Edit playlist privacy")
         .accessibilityLabel("Private playlist, edit privacy")
+    }
+}
+
+private struct PlaylistPrivacyLabel: View {
+    var isUnderlined = false
+
+    var body: some View {
+        // Label's default gap is wider than the byline's own spacing.
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Image(systemName: "lock.fill")
+                .accessibilityHidden(true)
+            Text("Private")
+                .underline(isUnderlined)
+        }
     }
 }

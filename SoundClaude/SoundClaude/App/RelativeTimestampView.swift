@@ -7,7 +7,6 @@ struct RelativeTimestampView: View {
     let accessibilityPrefix: String
     var prefix: String? = nil
     var showsSeparator = true
-    var systemImage: String? = nil
 
     var hasTimestamp: Bool { parsedDate != nil }
 
@@ -16,10 +15,6 @@ struct RelativeTimestampView: View {
             let relativeTime = date.formatted(.relative(presentation: .numeric, unitsStyle: .wide))
             if showsSeparator {
                 Text("·")
-                    .accessibilityHidden(true)
-            }
-            if let systemImage {
-                Image(systemName: systemImage)
                     .accessibilityHidden(true)
             }
             if let prefix {
