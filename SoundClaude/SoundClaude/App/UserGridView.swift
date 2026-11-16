@@ -40,6 +40,7 @@ struct UserGridCard: View {
     static let minimumWidth: CGFloat = 164
     /// The space between the card's edge and its avatar.
     static let avatarInset: CGFloat = 22
+    static let avatarSize: CGFloat = 120
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -53,7 +54,7 @@ struct UserGridCard: View {
                 TrackArtworkView(
                     artworkURL: user.avatarURL,
                     loader: artworkLoader,
-                    size: 120,
+                    size: Self.avatarSize,
                     rendition: .square500,
                     showsBorder: false,
                     showsPlaceholderIcon: false
@@ -61,8 +62,8 @@ struct UserGridCard: View {
                 .scaleEffect(isHovering && !reduceMotion ? 1.1 : 1)
                 .clipShape(Circle())
                 .modifier(PlayerArtworkGlass(
-                    cornerRadius: 60,
-                    size: CGSize(width: 120, height: 120)
+                    cornerRadius: Self.avatarSize / 2,
+                    size: CGSize(width: Self.avatarSize, height: Self.avatarSize)
                 ))
                 .animation(
                     reduceMotion ? nil : isHovering

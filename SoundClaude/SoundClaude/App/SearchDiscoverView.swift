@@ -66,7 +66,10 @@ struct SearchDiscover: View {
                             .font(.sectionHeading)
                             .opacity(0.96)
                             .modifier(FadeInOnAppear())
-                        SearchShelf {
+                        SearchShelf(
+                            itemWidth: SearchPlaylistCard.width,
+                            artworkCenterY: SearchPlaylistCard.artworkCenterY
+                        ) {
                             ForEach(selection.items) { item in
                                 SearchPlaylistCard(
                                     playlist: item.playlist, shortTitle: item.shortTitle,

@@ -110,7 +110,10 @@ struct SearchOverview: View {
                     }
                     if !sections.users.isEmpty {
                         section("Users", category: .users) {
-                            SearchShelf {
+                            SearchShelf(
+                                itemWidth: UserGridCard.minimumWidth,
+                                artworkCenterY: UserGridCard.avatarInset + UserGridCard.avatarSize / 2
+                            ) {
                                 ForEach(sections.users, id: \.permalinkURL) { user in
                                     UserGridCard(
                                         user: user,
@@ -171,7 +174,9 @@ struct SearchOverview: View {
         _ title: LocalizedStringKey, category: SearchCategory, playlists: [SoundCloudPlaylist]
     ) -> some View {
         section(title, category: category) {
-            SearchShelf {
+            SearchShelf(
+                itemWidth: SearchPlaylistCard.width, artworkCenterY: SearchPlaylistCard.artworkCenterY
+            ) {
                 ForEach(playlists) { playlist in
                     SearchPlaylistCard(playlist: playlist, artworkLoader: model.artworkLoader) {
                         onSelectPlaylist(playlist)
@@ -253,16 +258,161 @@ private struct SearchSectionHeading: View {
 }
 
 /// One row of cards that scrolls sideways when the page is too narrow for all of them.
+/// Arrows over its ends page through the cards that are off to the side.
 struct SearchShelf<Content: View>: View {
+    /// The width of one card. Paging moves by whole cards so that they stay lined up with the edge.
+    let itemWidth: CGFloat
+    /// How far below the shelf's top the cards' artwork is centered, which is where the arrows sit.
+    let artworkCenterY: CGFloat
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 0) {
-                content()
+        if #available(macOS 15.0, *) {
+            PagedSearchShelf(itemWidth: itemWidth, artworkCenterY: artworkCenterY, content: content)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                SearchShelfRow(content: content)
             }
-            .fixedSize(horizontal: false, vertical: true)
         }
+    }
+}
+
+private struct SearchShelfRow<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            content()
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// Where a shelf is scrolled to. The arrows observe it, so that scrolling and hovering
+/// leave the shelf's cards alone.
+@Observable
+private final class SearchShelfPaging {
+    private(set) var canPageBack = false
+    private(set) var canPageForward = false
+    var isHovering = false
+
+    @ObservationIgnored private var extent = SearchShelfExtent(offset: 0, viewport: 0, content: 0)
+
+    func update(_ extent: SearchShelfExtent) {
+        self.extent = extent
+        // Assign only on a change: this runs on every frame of a scroll.
+        let back = extent.offset > 0.5
+        let forward = extent.offset < extent.maxOffset - 0.5
+        if back != canPageBack { canPageBack = back }
+        if forward != canPageForward { canPageForward = forward }
+    }
+
+    /// The offset one page of whole cards away, with a card's edge at the shelf's edge.
+    func offset(paging direction: SearchShelfArrow.Direction, itemWidth: CGFloat) -> CGFloat {
+        let page = max(1, (extent.viewport / itemWidth).rounded(.down)) * itemWidth
+        let target = extent.offset + (direction == .forward ? page : -page)
+        return min(max((target / itemWidth).rounded() * itemWidth, 0), extent.maxOffset)
+    }
+}
+
+private struct SearchShelfExtent: Equatable {
+    let offset: CGFloat
+    let viewport: CGFloat
+    let content: CGFloat
+
+    var maxOffset: CGFloat { max(content - viewport, 0) }
+}
+
+@available(macOS 15.0, *)
+private struct PagedSearchShelf<Content: View>: View {
+    let itemWidth: CGFloat
+    let artworkCenterY: CGFloat
+    @ViewBuilder let content: () -> Content
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var position = ScrollPosition()
+    @State private var paging = SearchShelfPaging()
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            SearchShelfRow(content: content)
+        }
+        .scrollPosition($position)
+        .onScrollGeometryChange(for: SearchShelfExtent.self) { geometry in
+            SearchShelfExtent(
+                offset: geometry.contentOffset.x,
+                viewport: geometry.containerSize.width,
+                content: geometry.contentSize.width
+            )
+        } action: { _, extent in
+            paging.update(extent)
+        }
+        .overlay(alignment: .topLeading) { arrow(.back) }
+        .overlay(alignment: .topTrailing) { arrow(.forward) }
+        .onHover { paging.isHovering = $0 }
+    }
+
+    private func arrow(_ direction: SearchShelfArrow.Direction) -> some View {
+        SearchShelfArrow(direction: direction, paging: paging) {
+            let target = paging.offset(paging: direction, itemWidth: itemWidth)
+            withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) {
+                position.scrollTo(x: target)
+            }
+        }
+        .padding(.top, artworkCenterY - SearchShelfArrow.size.height / 2)
+        .padding(.horizontal, 6)
+    }
+}
+
+/// A button over one end of a shelf, shown while the pointer is over the shelf and there
+/// are more cards that way.
+private struct SearchShelfArrow: View {
+    enum Direction {
+        case back, forward
+    }
+
+    static let size = CGSize(width: 32, height: 64)
+
+    let direction: Direction
+    let paging: SearchShelfPaging
+    let action: () -> Void
+
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovering = false
+
+    private var fill: Color {
+        if colorScheme == .dark {
+            Color(white: isHovering ? 0.42 : 0.32)
+        } else {
+            Color(white: isHovering ? 0.86 : 0.96)
+        }
+    }
+
+    private var isVisible: Bool {
+        paging.isHovering && (direction == .back ? paging.canPageBack : paging.canPageForward)
+    }
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        Button(action: action) {
+            Image(systemName: direction == .back ? "chevron.left" : "chevron.right")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.primary)
+                .frame(width: Self.size.width, height: Self.size.height)
+                .background {
+                    // Nearly opaque, so the arrow reads over a cover of any color.
+                    shape.fill(fill.opacity(0.92))
+                    shape.strokeBorder(.primary.opacity(0.12), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.3), radius: 6, y: 2)
+                .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .accessibilityLabel(direction == .back ? "Scroll back" : "Scroll forward")
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
+        .animation(.easeInOut(duration: 0.35), value: isVisible)
     }
 }
 
@@ -385,6 +535,9 @@ struct SearchPlaylistCard: View {
     static let artworkSize: CGFloat = 148
     /// The space between the card's edge and its cover.
     static let inset: CGFloat = 10
+    static let width = artworkSize + 2 * inset
+    /// How far below the card's top its cover is centered.
+    static let artworkCenterY = inset + artworkSize / 2
 
     @State private var isHovering = false
 
