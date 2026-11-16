@@ -12,7 +12,7 @@ struct PlayerArtworkGlassParameters {
     var causticStrength = 0.15
     var specularStrength = 0.08
     var specularSoftness = 0.25
-    // How dark the slab's side gets at the back (0...1); it eases in from the face.
+    // How dark the slab's side is shaded (0...1).
     var slabShade = 0.5
 }
 
@@ -113,10 +113,6 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
         let tilt = tilt?.normal ?? .zero
         let enablesGlass = parameters.isEnabled && !reduceTransparency
         let slabPadding = enablesGlass ? Self.slabPadding(thickness: slabThickness) : 0
-        // The turn's share of the edge keeps its shaded falloff; the pointer lean's is drawn flat.
-        let leanShift = Self.slabShift(turnShift: 0, tilt: tilt, thickness: slabThickness)
-        let leanLength = hypot(leanShift.width, leanShift.height)
-        let slabFalloff = leanLength > 0 ? abs(turnShift) / (abs(turnShift) + leanLength) : 1
         let slabShift = Self.slabShift(turnShift: turnShift, tilt: tilt, thickness: slabThickness)
         let rotationRadians = rotation * .pi / 180
         // A dark side reads heavy against a light background.
@@ -130,7 +126,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
             Self.shader(
                 faceSize: faceSize, cornerRadius: cornerRadius, parameters: parameters,
                 rotation: rotationRadians, tilt: tilt, slabPadding: slabPadding, slabShift: slabShift,
-                slabShade: slabShade, slabFalloff: slabFalloff, displayScale: displayScale
+                slabShade: slabShade, displayScale: displayScale
             )
         }
         let composited = content
@@ -163,7 +159,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
     nonisolated private static func shader(
         faceSize: CGSize, cornerRadius: CGFloat, parameters: PlayerArtworkGlassParameters,
         rotation: Double, tilt: CGSize, slabPadding: CGFloat, slabShift: CGSize, slabShade: Double,
-        slabFalloff: Double, displayScale: CGFloat
+        displayScale: CGFloat
     ) -> Shader {
         ShaderLibrary.playerArtworkGlass(
             .float2(faceSize.width, faceSize.height),
@@ -182,8 +178,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
             .float2(slabPadding, slabPadding),
             .float2(slabShift.width, slabShift.height),
             .float(slabShade),
-            .float(displayScale),
-            .float(slabFalloff)
+            .float(displayScale)
         )
     }
 }

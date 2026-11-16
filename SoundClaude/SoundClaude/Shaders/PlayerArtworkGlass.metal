@@ -41,9 +41,10 @@ static float2 insideRoundedRect(float2 point, float2 size, float cornerRadius, f
 }
 
 // The slab's side, seen when the cover turns or leans: the face swept along `slabShift`, in
-// points. The print's edge colors run straight back through the side, which is shaded as one
-// surface turned away from the light: `shade` is how dark it gets at the back.
-static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI::Layer layer, float2 size, float cornerRadius, float2 slabShift, float shade, float pixelScale, float falloffAmount) {
+// points. The print's edge colors run straight back through the side, which is shaded one even
+// tone, as a surface turned away from the light: `shade` sets how dark. A gradient toward the
+// back reads as blur.
+static half4 slabEdge(float2 position, float2 local, SwiftUI::Layer layer, float2 size, float cornerRadius, float2 slabShift, float shade, float pixelScale) {
     float shiftLength = length(slabShift);
     if (shiftLength < 0.001) return half4(0.0h);
     float hull = sweptRoundedRectDistance(local, size, cornerRadius, slabShift);
@@ -61,19 +62,7 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     sample += 0.25h * layer.sample(layerOrigin + insideRoundedRect(nearest + along, size, cornerRadius, 1.5));
     half3 color = sample.rgb / max(sample.a, 0.001h);
 
-    // The side's depth here is the sweep measured square to the face's outline.
-    float radius = min(cornerRadius, min(size.x, size.y) * 0.5);
-    float2 outward = local - clamp(local, float2(radius), size - radius);
-    float sideDepth = dot(outward / max(length(outward), 0.001), slabShift);
-
-    // The side steps darker where it folds away from the face, then falls off
-    // smoothly toward the back like a softly rounded edge.
-    float back = saturate(faceDistance / max(sideDepth, 0.001));
-    float falloff = mix(0.45, 1.0, smoothstep(0.0, 1.0, back));
-    // On a side that moves with the pointer the falloff reads as blur, so `falloffAmount`
-    // fades it out toward one even tone.
-    float tone = mix(0.725, falloff, saturate(falloffAmount));
-    color *= half(1.0 - saturate(shade) * tone);
+    color *= half(1.0 - saturate(shade) * 0.725);
     return half4(color, 1.0h) * (sample.a * half(coverage));
 }
 
@@ -97,8 +86,7 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     float2 origin,
     float2 slabShift,
     float slabShade,
-    float pixelScale,
-    float slabFalloff
+    float pixelScale
 ) {
     // `origin` places the face inside a layer padded to make room for the slab edge.
     float2 local = position - origin;
@@ -116,7 +104,7 @@ static half4 slabEdge(float2 position, float2 local, float faceDistance, SwiftUI
     // The artwork brings its own antialiased silhouette.
     half faceAlpha = original.a;
     half4 edge = faceAlpha < 1.0h
-        ? slabEdge(position, local, distance, layer, size, cornerRadius, slabShift, slabShade, pixelScale, slabFalloff)
+        ? slabEdge(position, local, layer, size, cornerRadius, slabShift, slabShade, pixelScale)
         : half4(0.0h);
     if (faceAlpha <= 0.0h) return edge;
 
