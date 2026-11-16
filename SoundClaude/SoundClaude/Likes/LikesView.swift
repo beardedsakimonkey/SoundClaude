@@ -87,26 +87,20 @@ struct LikesView: View {
 
     private var header: some View {
         HStack {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Likes")
-                        .font(.largeTitle.weight(.semibold))
-                    Text("(\(likes.tracks.count))")
-                        .font(.title.weight(.regular))
-                        .foregroundStyle(.secondary)
-                }
-                .fixedSize(horizontal: true, vertical: false)
-
+            HStack {
                 Text("Likes")
                     .font(.largeTitle.weight(.semibold))
-                    .fixedSize(horizontal: true, vertical: false)
+                Text("(\(likes.tracks.count))")
+                    .font(.title.weight(.regular))
+                    .foregroundStyle(.secondary)
+                if likes.isLoading {
+                    LoadingSpinner()
+                        .accessibilityLabel("Syncing likes")
+                        .controlSize(.small)
+                }
             }
             .lineLimit(1)
-            if likes.isLoading {
-                LoadingSpinner()
-                    .accessibilityLabel("Syncing likes")
-                    .controlSize(.small)
-            }
+            .fixedSize(horizontal: true, vertical: false)
             Spacer()
             SortMenu(
                 label: "Sort tracks",
