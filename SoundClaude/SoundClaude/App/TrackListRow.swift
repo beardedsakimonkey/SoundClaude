@@ -34,7 +34,7 @@ struct TrackListRow: View {
     static let artworkCornerRadius: CGFloat = 4
     private static let compactArtworkSize: CGFloat = 40
     /// Even on all sides, so the artwork's corners sit concentric with the row's.
-    static let compactPadding: CGFloat = 6
+    static let compactPadding: CGFloat = 5
     private static let compactCornerRadius = artworkCornerRadius + compactPadding
     /// Height of a compact row, for containers sized to a number of rows.
     static let compactHeight = compactArtworkSize + 2 * compactPadding
@@ -98,8 +98,8 @@ struct TrackListRow: View {
                 }
             }
         }
-        .padding(.vertical, isCompact ? Self.compactPadding : 7)
-        .padding(.horizontal, isCompact ? Self.compactPadding : 8)
+        .padding(.vertical, isCompact ? Self.compactPadding : 6)
+        .padding(.horizontal, isCompact ? Self.compactPadding : 7)
     }
 
     private var interactiveRow: some View {
@@ -120,7 +120,7 @@ struct TrackListRow: View {
                     }
             )
             .background {
-                RoundedRectangle(cornerRadius: isCompact ? Self.compactCornerRadius : 8)
+                RoundedRectangle(cornerRadius: isCompact ? Self.compactCornerRadius : 7)
                     .fill(rowBackground)
             }
             .onContentHover { hovering in
