@@ -267,10 +267,10 @@ struct TrackGridTile: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     if track.access == .protected {
-                        ProtectedTrackIcon(font: .body.weight(.semibold))
+                        ProtectedTrackIcon(font: .callout.weight(.semibold))
                     }
                     let title = Text(track.title)
-                        .font(.body.weight(.semibold))
+                        .font(.callout.weight(.semibold))
                         .foregroundStyle(isCurrentTrack ? Color.accentColor : Color.primary)
                         .underline(isHoveringTitle)
                         .multilineTextAlignment(.leading)
