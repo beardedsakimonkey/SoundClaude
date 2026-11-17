@@ -6,7 +6,6 @@ struct SortMenu<Order: Hashable>: View {
     @Binding var selection: Order
     let options: [Order]
     let title: (Order) -> String
-    var reservesWidestTitle = true
     @State private var isPointerInside = false
     @Environment(\.contentHoverEnabled) private var hoverEnabled
     @Environment(\.contentHoverSuppression) private var hoverSuppression
@@ -22,24 +21,16 @@ struct SortMenu<Order: Hashable>: View {
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
 
-            // Reserve the widest title so changing the order doesn't resize the header.
-            ZStack {
-                ForEach(reservesWidestTitle ? options : [], id: \.self) { order in
-                    menu(showing: order)
-                        .hidden()
+            menu(showing: selection)
+                .background {
+                    SortMenuHoverTrackingView { isPointerInside = $0 }
                 }
-
-                menu(showing: selection)
-                    .background {
-                        SortMenuHoverTrackingView { isPointerInside = $0 }
-                    }
-                    .opacity(isHovered ? 1 : 0.7)
-                    .accessibilityLabel(label)
-                    .accessibilityValue(title(selection))
-                    .contentHelp(label)
-            }
-            // The borderless menu insets its chevron 2.5pt more than its title. Even out the edges.
-            .padding(.trailing, -2.5)
+                .opacity(isHovered ? 1 : 0.7)
+                .accessibilityLabel(label)
+                .accessibilityValue(title(selection))
+                .contentHelp(label)
+                // The borderless menu insets its chevron 2.5pt more than its title. Even out the edges.
+                .padding(.trailing, -2.5)
         }
         .fixedSize(horizontal: true, vertical: false)
         .onDisappear { isPointerInside = false }

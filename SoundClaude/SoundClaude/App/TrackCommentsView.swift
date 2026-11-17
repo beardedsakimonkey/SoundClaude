@@ -34,8 +34,7 @@ struct CommentSortMenu: View {
             label: "Sort comments",
             selection: $sortOrder,
             options: CommentSortOrder.allCases,
-            title: { $0.title },
-            reservesWidestTitle: false
+            title: { $0.title }
         )
     }
 }
