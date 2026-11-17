@@ -559,8 +559,14 @@ struct SearchPlaylistCard: View {
                     loader: artworkLoader,
                     size: Self.artworkSize,
                     rendition: .square500,
-                    shape: RoundedRectangle(cornerRadius: 6)
+                    shape: RoundedRectangle(cornerRadius: 6, style: .continuous),
+                    showsBorder: false
                 )
+                .modifier(ArtworkHoverZoom(
+                    isHovering: isHovering,
+                    cornerRadius: 6,
+                    size: Self.artworkSize
+                ))
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title)
                         .font(.headline)
@@ -572,10 +578,6 @@ struct SearchPlaylistCard: View {
             }
             .frame(width: Self.artworkSize, alignment: .leading)
             .padding(Self.inset)
-            .background {
-                RoundedRectangle(cornerRadius: 6 + Self.inset)
-                    .fill(Color.primary.opacity(isHovering ? 0.06 : 0))
-            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
