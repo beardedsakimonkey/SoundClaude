@@ -309,10 +309,27 @@ actor SoundCloudClient {
     func artistTracks(
         urn: String,
         accessToken: String,
+        sortOrder: ArtistTrackSortOrder = .recent,
         pageURL: URL? = nil
     ) async throws -> SoundCloudTrackPage {
-        let url = try pageURL ?? endpoint("users/\(try Self.id(urn))/tracks", query: ["limit": "25"])
-        return try await trackPage(at: url, accessToken: accessToken)
+        let path = sortOrder == .top ? "toptracks" : "tracks"
+        var url = try pageURL ?? endpoint("users/\(try Self.id(urn))/\(path)", query: ["limit": "25"])
+        var seen: Set<URL> = []
+        while true {
+            try Task.checkCancellation()
+            seen.insert(url)
+            let page = try await trackPage(at: url, accessToken: accessToken)
+            if let nextURL = page.nextURL, seen.contains(nextURL) {
+                throw SoundCloudError.invalidData
+            }
+            // Filtering can leave empty pages before visible tracks, including
+            // on later pages requested by the list or the playback queue.
+            guard page.tracks.isEmpty, let nextURL = page.nextURL else { return page }
+            guard seen.count < 20 else {
+                throw SoundCloudError.api("SoundCloud returned too many empty track pages. Try again.")
+            }
+            url = nextURL
+        }
     }
 
     /// Reposts mix tracks and playlists; this page keeps only the tracks.

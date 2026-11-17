@@ -10,6 +10,7 @@ struct CachedArtistHeader {
 
 struct ArtistFirstPages {
     var tracks: SoundCloudTrackPage?
+    var topTracks: SoundCloudTrackPage?
     var reposts: SoundCloudTrackPage?
     var repostedPlaylists: SoundCloudPlaylistPage?
     var playlists: SoundCloudPlaylistPage?
@@ -87,6 +88,7 @@ final class AppModel {
     private let trackPlaylistPreviewCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "Track Playlist Previews", countLimit: 20)
     // Artist pages open on any tab, so each tab's first page is cached separately.
     private let firstArtistTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Track Pages", countLimit: 20)
+    private let firstArtistTopTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Top Track Pages", countLimit: 20)
     private let firstArtistRepostPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Repost Pages", countLimit: 20)
     private let firstArtistPlaylistRepostPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Artist Playlist Repost Pages", countLimit: 20)
     private let firstArtistPlaylistPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Artist Playlist Pages", countLimit: 20)
@@ -337,6 +339,7 @@ final class AppModel {
         firstTrackPlaylistPageCache.reset()
         trackPlaylistPreviewCache.reset()
         firstArtistTrackPageCache.reset()
+        firstArtistTopTrackPageCache.reset()
         firstArtistRepostPageCache.reset()
         firstArtistPlaylistRepostPageCache.reset()
         firstArtistPlaylistPageCache.reset()
@@ -894,6 +897,7 @@ final class AppModel {
         guard let urn = artist.urn as NSString? else { return ArtistFirstPages() }
         return ArtistFirstPages(
             tracks: firstArtistTrackPageCache.cached(urn),
+            topTracks: firstArtistTopTrackPageCache.cached(urn),
             reposts: firstArtistRepostPageCache.cached(urn),
             repostedPlaylists: firstArtistPlaylistRepostPageCache.cached(urn),
             playlists: firstArtistPlaylistPageCache.cached(urn),
@@ -902,19 +906,13 @@ final class AppModel {
         )
     }
 
-    func artistTracks(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
+    func artistTracks(
+        for artist: SoundCloudUser, sortOrder: ArtistTrackSortOrder = .recent, pageURL: URL? = nil
+    ) async throws
         -> SoundCloudTrackPage {
-        try await artistPage(artist, pageURL: pageURL, firstPages: firstArtistTrackPageCache) { [client] urn, accessToken, pageURL in
-            var page = try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: pageURL)
-            guard pageURL == nil else { return page }
-            // Some artists' tracks start after several empty pages. Skip them here so the
-            // cached first page holds tracks, rather than the page refetching them each visit.
-            var seen: Set<URL> = []
-            while page.tracks.isEmpty, let nextURL = page.nextURL {
-                guard seen.insert(nextURL).inserted else { throw SoundCloudError.invalidData }
-                page = try await client.artistTracks(urn: urn, accessToken: accessToken, pageURL: nextURL)
-            }
-            return page
+        let firstPages = sortOrder == .top ? firstArtistTopTrackPageCache : firstArtistTrackPageCache
+        return try await artistPage(artist, pageURL: pageURL, firstPages: firstPages) { [client] urn, accessToken, pageURL in
+            try await client.artistTracks(urn: urn, accessToken: accessToken, sortOrder: sortOrder, pageURL: pageURL)
         }
     }
 

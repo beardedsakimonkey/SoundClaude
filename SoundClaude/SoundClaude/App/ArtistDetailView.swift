@@ -90,14 +90,11 @@ struct ArtistDetailView: View {
     let tabSelection: ArtistTabSelection
 
     // Observation tracks these fields only in the views that read them.
+    @MainActor
     @Observable
     fileprivate final class ContentState {
-        var tracks: [SoundCloudTrack] = []
-        var nextPageURL: URL?
-        var loadedPageURLs: Set<URL> = []
-        var hasLoadedTracks = false
-        var isLoadingTracks = false
-        var tracksErrorMessage: String?
+        let recentTracks = ArtistTrackPageState()
+        let topTracks = ArtistTrackPageState()
         var reposts: [SoundCloudTrack] = []
         var repostsNextPageURL: URL?
         var loadedRepostsPageURLs: Set<URL> = []
@@ -129,23 +126,18 @@ struct ArtistDetailView: View {
         var isLoadingPlaylists = false
         var playlistsErrorMessage: String?
 
-        /// Pages can be empty after filtering while later pages still hold tracks.
-        var mayHaveTracks: Bool {
-            !tracks.isEmpty || (tracksErrorMessage == nil && (!hasLoadedTracks || nextPageURL != nil))
-        }
-
-        var needsFirstTracks: Bool {
-            !isLoadingTracks && tracksErrorMessage == nil && tracks.isEmpty
-                && (!hasLoadedTracks || nextPageURL != nil)
+        func tracks(for sortOrder: ArtistTrackSortOrder) -> ArtistTrackPageState {
+            sortOrder == .top ? topTracks : recentTracks
         }
 
         /// Fills each tab whose first page is cached, so it shows without waiting
         /// a frame for its load to start.
         func seed(with pages: ArtistFirstPages) {
             if let page = pages.tracks {
-                tracks = Self.unique(page.tracks, by: \.urn)
-                nextPageURL = page.nextURL
-                hasLoadedTracks = true
+                recentTracks.seed(with: page)
+            }
+            if let page = pages.topTracks {
+                topTracks.seed(with: page)
             }
             if let page = pages.reposts {
                 reposts = Self.unique(page.tracks, by: \.urn)
@@ -782,7 +774,7 @@ struct ArtistDetailView: View {
 
     private var artistActions: some View {
         HStack {
-            if contentState.mayHaveTracks {
+            if contentState.recentTracks.mayHaveTracks {
                 Button {
                     isShufflingTracks = true
                 } label: {
@@ -825,18 +817,18 @@ struct ArtistDetailView: View {
 
     private var isShuffleReady: Bool {
         isShufflingTracks
-            && (!contentState.tracks.isEmpty || !contentState.mayHaveTracks || errorMessage != nil)
+            && (!contentState.recentTracks.tracks.isEmpty || !contentState.recentTracks.mayHaveTracks || errorMessage != nil)
     }
 
     private func shuffleTracks() async {
         defer { isShufflingTracks = false }
         guard !Task.isCancelled, let urn = details?.user.urn,
-              let track = contentState.tracks.randomElement() else { return }
+              let track = contentState.recentTracks.tracks.randomElement() else { return }
         if !model.playback.isShuffleEnabled {
             model.toggleShuffle()
         }
         await model.play(track, queue: TrackQueue(
-            source: .artist(urn), tracks: contentState.tracks, nextPageURL: contentState.nextPageURL,
+            source: .artist(urn), tracks: contentState.recentTracks.tracks, nextPageURL: contentState.recentTracks.nextPageURL,
             sourceArtist: details?.user ?? artist
         ), loadRemainingTracks: true)
     }
@@ -965,44 +957,87 @@ struct ArtistDetailView: View {
         }
     }
 
-    private var trackList: some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
-            TrackArtworkList(tracks: contentState.tracks, loader: model.artworkLoader) { track in
-                TrackListRow(
-                    track: track,
-                    playback: model.playback,
-                    analyzer: model.analyzer,
-                    artworkLoader: model.artworkLoader,
-                    likes: model.likes,
-                    showsArtist: false,
-                    onAddToQueue: model.addToQueue,
-                    onSelectTrack: onSelectTrack,
-                    onSelectArtist: onSelectArtist,
-                    onPlayTrack: { selected in
-                        await model.play(selected, queue: TrackQueue(
-                            source: .artist(details?.user.urn ?? artist.urn ?? ""),
-                            tracks: contentState.tracks,
-                            nextPageURL: contentState.nextPageURL,
-                            sourceArtist: details?.user ?? artist
-                        ))
-                    }
-                )
+    private struct ArtistTracksSection<Content: View>: View {
+        @ViewBuilder let content: (TrackLayout, ArtistTrackSortOrder) -> Content
+        @AppStorage("artistTrackLayout") private var trackLayout = TrackLayout.list
+        @State private var sortOrder = ArtistTrackSortOrder.recent
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: trackLayout == .list ? 8 : 12) {
+                HStack {
+                    SortMenu(
+                        label: "Sort tracks",
+                        selection: $sortOrder,
+                        options: ArtistTrackSortOrder.allCases,
+                        title: { $0.title }
+                    )
+                    Spacer()
+                    TrackLayoutPicker(trackLayout: $trackLayout)
+                }
                 .modifier(FadeInOnAppear())
+                content(trackLayout, sortOrder)
+                    .id(sortOrder)
             }
-            if let message = contentState.tracksErrorMessage {
+        }
+    }
+
+    private var trackList: some View {
+        ArtistTracksSection { trackLayout, sortOrder in
+            artistTracks(layout: trackLayout, sortOrder: sortOrder)
+        }
+    }
+
+    private func artistTracks(layout: TrackLayout, sortOrder: ArtistTrackSortOrder) -> some View {
+        let state = contentState.tracks(for: sortOrder)
+        let playTrack: (SoundCloudTrack) async -> Void = { await playArtistTrack($0, state: state) }
+        return LazyVStack(alignment: .leading, spacing: 0) {
+            if layout == .grid {
+                TrackArtworkGrid(tracks: state.tracks, loader: model.artworkLoader) { track in
+                    TrackGridTile(
+                        track: track,
+                        playback: model.playback,
+                        analyzer: model.analyzer,
+                        artworkLoader: model.artworkLoader,
+                        likes: model.likes,
+                        onAddToQueue: model.addToQueue,
+                        onSelectTrack: onSelectTrack,
+                        onSelectArtist: onSelectArtist,
+                        onPlayTrack: playTrack
+                    )
+                    .modifier(FadeInOnAppear())
+                }
+                .padding(.bottom, 16)
+            } else {
+                TrackArtworkList(tracks: state.tracks, loader: model.artworkLoader) { track in
+                    TrackListRow(
+                        track: track,
+                        playback: model.playback,
+                        analyzer: model.analyzer,
+                        artworkLoader: model.artworkLoader,
+                        likes: model.likes,
+                        showsArtist: false,
+                        onAddToQueue: model.addToQueue,
+                        onSelectTrack: onSelectTrack,
+                        onSelectArtist: onSelectArtist,
+                        onPlayTrack: playTrack
+                    )
+                    .modifier(FadeInOnAppear())
+                }
+            }
+            if let message = state.errorMessage {
                 Text(message).foregroundStyle(.secondary)
-                Button("Try Again") { Task { await loadTracks() } }
-                    .disabled(contentState.isLoadingTracks)
+                Button("Try Again") { Task { await loadTracks(sortOrder: sortOrder) } }
+                    .disabled(state.isLoading)
             }
-            if contentState.isLoadingTracks || (contentState.nextPageURL != nil && contentState.tracksErrorMessage == nil) {
+            if state.showsLoadingIndicator {
                 LoadingSpinner()
                     .accessibilityLabel("Loading tracks")
                     .frame(maxWidth: .infinity)
-                    .task(id: contentState.nextPageURL) {
-                        guard contentState.nextPageURL != nil, contentState.tracksErrorMessage == nil else { return }
-                        await loadTracks()
+                    .task(id: state.nextPageURL) {
+                        guard state.errorMessage == nil else { return }
+                        await loadTracks(sortOrder: sortOrder)
                     }
-            } else if contentState.hasLoadedTracks, contentState.tracks.isEmpty, contentState.tracksErrorMessage == nil {
+            } else if state.hasLoaded, state.tracks.isEmpty, state.errorMessage == nil {
                 EmptyStateView("No visible tracks")
             }
         }
@@ -1013,6 +1048,15 @@ struct ArtistDetailView: View {
             contentState.reposts.map(SoundCloudFeedContent.track)
                 + contentState.repostedPlaylists.map(SoundCloudFeedContent.playlist)
         )
+    }
+
+    private func playArtistTrack(_ selected: SoundCloudTrack, state: ArtistTrackPageState) async {
+        await model.play(selected, queue: TrackQueue(
+            source: .artist(details?.user.urn ?? artist.urn ?? ""),
+            tracks: state.tracks,
+            nextPageURL: state.nextPageURL,
+            sourceArtist: details?.user ?? artist
+        ))
     }
 
     private var repostList: some View {
@@ -1307,8 +1351,8 @@ struct ArtistDetailView: View {
             let loaded = try await model.artistDetails(for: artist)
             try Task.checkCancellation()
             details = loaded
-            // Fetch past empty pages so Shuffle knows whether the artist has tracks on any tab.
-            while !Task.isCancelled, contentState.needsFirstTracks {
+            // Load recent tracks for Shuffle even when a different tab or sort is selected.
+            if !Task.isCancelled, contentState.recentTracks.needsFirstTracks {
                 await loadTracks()
             }
         } catch {
@@ -1317,28 +1361,10 @@ struct ArtistDetailView: View {
         }
     }
 
-    private func loadTracks() async {
-        guard !contentState.isLoadingTracks, let details,
-              !contentState.hasLoadedTracks || contentState.nextPageURL != nil else { return }
-        contentState.isLoadingTracks = true
-        contentState.tracksErrorMessage = nil
-        defer { contentState.isLoadingTracks = false }
-        do {
-            let pageURL = contentState.nextPageURL
-            let page = try await model.artistTracks(for: details.user, pageURL: pageURL)
-            try Task.checkCancellation()
-            if let nextURL = page.nextURL,
-               nextURL == pageURL || contentState.loadedPageURLs.contains(nextURL) {
-                throw SoundCloudError.invalidData
-            }
-            var knownURNs = Set(contentState.tracks.map(\.urn))
-            contentState.tracks.append(contentsOf: page.tracks.filter { knownURNs.insert($0.urn).inserted })
-            if let pageURL { contentState.loadedPageURLs.insert(pageURL) }
-            contentState.nextPageURL = page.nextURL
-            contentState.hasLoadedTracks = true
-        } catch {
-            guard !Task.isCancelled else { return }
-            contentState.tracksErrorMessage = error.localizedDescription
+    private func loadTracks(sortOrder: ArtistTrackSortOrder = .recent) async {
+        guard let details else { return }
+        await contentState.tracks(for: sortOrder).loadNextPage { pageURL in
+            try await model.artistTracks(for: details.user, sortOrder: sortOrder, pageURL: pageURL)
         }
     }
 

@@ -161,7 +161,7 @@ $(addprefix typecheck-,$(TYPECHECK_SUITES)): typecheck-%:
 	swiftc -typecheck $(SRC_$*)
 
 # Standalone regression suites; no credentials or Keychain access required.
-test: test-typecheck test-playback-selection
+test: test-typecheck test-playback-selection test-artist-tracks
 	@mkdir -p /tmp/soundclaude-tests
 	clang -c SoundClaude/SoundClaude/Audio/PCMRingBuffer.c -o /tmp/soundclaude-tests/pcm-ring.o
 	swiftc -import-objc-header SoundClaude/SoundClaude/Audio/PCMRingBuffer.h \
@@ -293,6 +293,18 @@ test: test-typecheck test-playback-selection
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
 		tests/HistoryTests.swift
 	/tmp/soundclaude-tests/history
+
+SRC_artist_tracks := \
+	tests/APITestSupport.swift \
+	SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+	SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
+	SoundClaude/SoundClaude/App/ArtistTrackPageState.swift \
+	tests/ArtistTracksTests.swift
+.PHONY: test-artist-tracks
+test-artist-tracks:
+	@mkdir -p /tmp/soundclaude-tests
+	swiftc -o /tmp/soundclaude-tests/artist-tracks $(SRC_artist_tracks)
+	/tmp/soundclaude-tests/artist-tracks
 
 # Render rope glow against scene depth on a Metal GPU.
 .PHONY: test-piston-rendering

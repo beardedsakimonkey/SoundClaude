@@ -42,6 +42,18 @@ enum ArtistUserList: String, Codable, Sendable, Hashable, CaseIterable {
     }
 }
 
+enum ArtistTrackSortOrder: String, CaseIterable, Sendable {
+    case recent
+    case top
+
+    var title: String {
+        switch self {
+        case .recent: "Newest tracks"
+        case .top: "Top tracks"
+        }
+    }
+}
+
 struct SoundCloudUserPage: Sendable {
     let users: [SoundCloudUser]
     let nextURL: URL?
