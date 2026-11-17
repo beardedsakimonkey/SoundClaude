@@ -965,7 +965,7 @@ struct ArtistDetailView: View {
     private struct ArtistTracksSection<Content: View>: View {
         @ViewBuilder let content: (TrackLayout, ArtistTrackSortOrder) -> Content
         @AppStorage("artistTrackLayout") private var trackLayout = TrackLayout.list
-        @State private var sortOrder = ArtistTrackSortOrder.recent
+        @AppStorage("artistTrackSortOrder") private var sortOrder = ArtistTrackSortOrder.recent
 
         var body: some View {
             VStack(alignment: .leading, spacing: trackLayout == .list ? 8 : 12) {

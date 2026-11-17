@@ -121,7 +121,10 @@ extension AppModel {
         guard let user = await artistWithURN(artist) else { return }
         switch tab {
         case .tracks:
-            _ = try? await artistTracks(for: user)
+            let sortOrder = ArtistTrackSortOrder(
+                rawValue: UserDefaults.standard.string(forKey: "artistTrackSortOrder") ?? ""
+            ) ?? .recent
+            _ = try? await artistTracks(for: user, sortOrder: sortOrder)
         case .reposts:
             async let tracks = try? artistReposts(for: user)
             async let playlists = try? artistPlaylistReposts(for: user)
