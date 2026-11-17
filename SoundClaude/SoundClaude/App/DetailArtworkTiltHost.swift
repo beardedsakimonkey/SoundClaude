@@ -3,8 +3,7 @@ import SwiftUI
 
 enum DetailArtworkTiltMotion {
     // Degrees the artwork leans away under the pointer at its edge.
-    // Matches the resting turn, so the slab shows as much of its side leaning as it does turned.
-    static let angle = 24.0
+    static let angle = 14.0
     // Viewing distance as a multiple of the artwork's size; smaller exaggerates the perspective.
     static let viewingDistance = 1.9
 

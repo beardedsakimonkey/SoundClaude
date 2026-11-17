@@ -211,21 +211,16 @@ private struct TrackCollectionArtwork: View {
     let isUpdatingPlaylist: Bool
 
     @State private var isShowingArtwork = false
-    @State private var isHoveringArtwork = false
 
     var body: some View {
-        DetailArtworkTiltHost(artworkSize: artworkSize, isTilting: isHoveringArtwork && !reduceMotion) {
-            artwork
-        }
-        // The lean moves the artwork under the pointer, so hover follows its resting shape instead.
-        .modifier(DetailArtworkTurnedHover(artworkSize: artworkSize) { isHoveringArtwork = $0 })
-        .sheet(isPresented: $isShowingArtwork) {
-            FullSizeArtworkView(
-                title: title,
-                artworkURL: track?.displayArtworkURL,
-                loader: model.artworkLoader
-            )
-        }
+        artwork
+            .sheet(isPresented: $isShowingArtwork) {
+                FullSizeArtworkView(
+                    title: title,
+                    artworkURL: track?.displayArtworkURL,
+                    loader: model.artworkLoader
+                )
+            }
     }
 
     private var artwork: some View {
@@ -250,8 +245,7 @@ private struct TrackCollectionArtwork: View {
         .modifier(DetailArtworkRotation(
             artworkSize: artworkSize,
             isShowingArtwork: isShowingArtwork,
-            flattensOnHover: true,
-            imageHover: isHoveringArtwork
+            flattensOnHover: true
         ))
         .modifier(DetailArtworkFootprint(size: artworkSize))
     }
