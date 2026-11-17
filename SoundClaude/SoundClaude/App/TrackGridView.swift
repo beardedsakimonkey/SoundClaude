@@ -82,7 +82,8 @@ private extension EnvironmentValues {
 private struct CompactTrackGrid<Content: View>: View {
     @ViewBuilder let content: Content
 
-    @State private var width: CGFloat = 0
+    // Zero-width tiles collapse the first layout and reset the enclosing scroll offset.
+    @State private var width: CGFloat = TrackGridMetrics.maximumTileWidth
 
     private var tileWidth: CGFloat {
         TrackGridMetrics.tileWidth(forWidth: width)
