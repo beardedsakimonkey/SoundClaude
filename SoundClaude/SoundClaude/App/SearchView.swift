@@ -629,7 +629,7 @@ private struct RecentSearchButton: View {
     var body: some View {
         ZStack(alignment: .trailing) {
             Button(action: onSearch) {
-                Label(query, systemImage: "clock.arrow.circlepath")
+                Label(query, systemImage: "magnifyingglass")
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .mask {
