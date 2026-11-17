@@ -3,7 +3,7 @@ import SwiftUI
 
 enum DetailArtworkTiltMotion {
     // Degrees the artwork leans away under the pointer at its edge.
-    static let angle = 14.0
+    static let angle = 20.0
     // Viewing distance as a multiple of the artwork's size; smaller exaggerates the perspective.
     static let viewingDistance = 1.9
 
@@ -27,6 +27,12 @@ struct DetailArtworkTiltHost<Content: View>: NSViewRepresentable {
     let isTilting: Bool
     @ViewBuilder let content: Content
 
+    #if DEBUG
+    @AppStorage(DetailArtworkSlabTuning.tiltKey) private var tiltAngle = DetailArtworkTiltMotion.angle
+    #else
+    private var tiltAngle: Double { DetailArtworkTiltMotion.angle }
+    #endif
+
     func makeNSView(context: Context) -> DetailArtworkTiltView {
         DetailArtworkTiltView(artworkSize: artworkSize)
     }
@@ -39,6 +45,7 @@ struct DetailArtworkTiltHost<Content: View>: NSViewRepresentable {
                 .environment(\.playerArtworkGlassTilt, view.glassTilt)
                 .environment(\.self, context.environment)
         ))
+        view.tiltAngle = tiltAngle
         view.isTilting = isTilting
     }
 
@@ -84,6 +91,14 @@ final class DetailArtworkTiltView: NSView {
     private let artworkSize: CGFloat
     private let hostedContent = DetailArtworkHostedContent()
     private let host: DetailArtworkHostingView
+
+    var tiltAngle = DetailArtworkTiltMotion.angle {
+        didSet {
+            guard tiltAngle != oldValue else { return }
+            // Refresh the transform and glass even when the pointer is holding still.
+            startAnimating()
+        }
+    }
 
     var isTilting = false {
         didSet {
@@ -234,7 +249,7 @@ final class DetailArtworkTiltView: NSView {
 
     // Radians the artwork is turned by at the current lean.
     private var leanAngle: Double {
-        DetailArtworkTiltMotion.angle * min(hypot(lean.x, lean.y), 1) * .pi / 180
+        tiltAngle * min(hypot(lean.x, lean.y), 1) * .pi / 180
     }
 
     // Re-rendering the glass is the costly part of a frame, and its highlight is too soft to

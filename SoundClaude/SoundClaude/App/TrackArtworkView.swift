@@ -732,6 +732,7 @@ struct DetailArtworkView: View {
         PlayerArtworkGlassParameters.detail.specularStrength
     @AppStorage("debug.specular.softness") private var debugSpecularSoftness =
         PlayerArtworkGlassParameters.detail.specularSoftness
+    @AppStorage(DetailArtworkSlabTuning.tiltKey) private var debugTilt = DetailArtworkTiltMotion.angle
     @State private var isShowingSlabControls = false
 
     private var displayedSlabThickness: CGFloat { debugSlabThickness }
@@ -926,6 +927,7 @@ struct DetailArtworkView: View {
                         debugLipWidth = defaults.lipWidth
                         debugLipStrength = defaults.reflectionStrength
                         debugTurn = DetailArtworkTransform().y
+                        debugTilt = DetailArtworkTiltMotion.angle
                         debugSpecularStrength = defaults.specularStrength
                         debugSpecularSoftness = defaults.specularSoftness
                     }
@@ -938,6 +940,7 @@ struct DetailArtworkView: View {
                 slabSlider("Thickness (pt)", value: $debugSlabThickness, range: 0...30, step: 0.5)
                 slabSlider("Shade", value: $debugSlabShade, range: 0...1, step: 0.01)
                 slabSlider("Turn (°)", value: $debugTurn, range: 0...35, step: 0.5)
+                slabSlider("Hover tilt (°)", value: $debugTilt, range: 0...35, step: 0.5)
                 Divider()
                 Text("Rim").font(.subheadline.bold())
                 slabSlider("Lip position (pt)", value: $debugLipPosition, range: 0...8, step: 0.1)
@@ -1009,11 +1012,12 @@ private struct SlabOutline: Shape {
 }
 
 #if DEBUG
-// Debug-only storage keys shared by the slab popover and DetailArtworkRotation.
+// Debug-only storage keys shared by the glass controls and artwork transforms.
 enum DetailArtworkSlabTuning {
     static let thicknessKey = "debug.slab.thickness"
     static let shadeKey = "debug.slab.shade"
     static let turnKey = "debug.slab.turn"
+    static let tiltKey = "debug.slab.tilt"
     static let lipPositionKey = "debug.slab.lipPosition"
     static let lipWidthKey = "debug.slab.lipWidth"
     static let lipStrengthKey = "debug.slab.lipStrength"
