@@ -67,6 +67,7 @@ struct ArtistDetailView: View {
     @State private var isFollowing: Bool?
     @State private var isUpdatingFollow = false
     @State private var isShufflingTracks = false
+    @State private var shuffleErrorMessage: String?
     @State private var followErrorMessage: String?
     @State private var followerCountAdjustment = 0
     @State private var headerImage: NSImage?
@@ -251,9 +252,8 @@ struct ArtistDetailView: View {
             }
         }
         .task(id: artist.permalinkURL) { await load() }
-        // A shuffle requested while tracks load starts once the first page settles.
-        .task(id: isShuffleReady) {
-            if isShuffleReady { await shuffleTracks() }
+        .task(id: isShufflingTracks) {
+            if isShufflingTracks { await shuffleTracks() }
         }
         .task(id: artist.permalinkURL) {
             guard headerImage == nil, !isHeaderImageMissing else { return }
@@ -745,7 +745,7 @@ struct ArtistDetailView: View {
 
     private func tabContent(for tab: ArtistContentTab) -> some View {
         VStack(alignment: .leading, spacing: 24) {
-            if let message = model.errorMessage {
+            if let message = shuffleErrorMessage ?? model.errorMessage {
                 Label(message, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(Color.accentColor)
             }
@@ -774,7 +774,7 @@ struct ArtistDetailView: View {
 
     private var artistActions: some View {
         HStack {
-            if contentState.recentTracks.mayHaveTracks {
+            if contentState.recentTracks.mayHaveTracks || contentState.recentTracks.errorMessage != nil {
                 Button {
                     isShufflingTracks = true
                 } label: {
@@ -815,14 +815,19 @@ struct ArtistDetailView: View {
         .prefetch(nonempty(details?.user.stationURN).map(PrefetchTarget.station))
     }
 
-    private var isShuffleReady: Bool {
-        isShufflingTracks
-            && (!contentState.recentTracks.tracks.isEmpty || !contentState.recentTracks.mayHaveTracks || errorMessage != nil)
-    }
-
     private func shuffleTracks() async {
         defer { isShufflingTracks = false }
-        guard !Task.isCancelled, let urn = details?.user.urn,
+        shuffleErrorMessage = nil
+        // Reuse tracks loaded for the list; otherwise fetch them only on Shuffle.
+        if contentState.recentTracks.tracks.isEmpty {
+            await loadTracks()
+        }
+        guard !Task.isCancelled else { return }
+        if let message = contentState.recentTracks.errorMessage, contentState.recentTracks.tracks.isEmpty {
+            shuffleErrorMessage = message
+            return
+        }
+        guard let urn = details?.user.urn,
               let track = contentState.recentTracks.tracks.randomElement() else { return }
         if !model.playback.isShuffleEnabled {
             model.toggleShuffle()
@@ -1351,10 +1356,6 @@ struct ArtistDetailView: View {
             let loaded = try await model.artistDetails(for: artist)
             try Task.checkCancellation()
             details = loaded
-            // Load recent tracks for Shuffle even when a different tab or sort is selected.
-            if !Task.isCancelled, contentState.recentTracks.needsFirstTracks {
-                await loadTracks()
-            }
         } catch {
             guard !Task.isCancelled else { return }
             errorMessage = error.localizedDescription
