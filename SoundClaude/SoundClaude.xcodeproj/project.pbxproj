@@ -17,7 +17,6 @@
 		C92810000000000000000001 /* PistonSimulation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92800000000000000000001; };
 		C92A10000000000000000001 /* VisualizerGrade.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92A00000000000000000001; };
 		C92A10000000000000000002 /* VisualizerGrade.metal in Sources */ = {isa = PBXBuildFile; fileRef = C92A00000000000000000002; };
-		C93B10000000000000000002 /* SignedOutBackground.metal in Sources */ = {isa = PBXBuildFile; fileRef = C93B00000000000000000002; };
 		D91700000000000000000002 /* RecentSearchStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91700000000000000000012 /* RecentSearchStore.swift */; };
 		D93000000000000000000002 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D93000000000000000000012 /* HistoryStore.swift */; };
 		D91700000000000000000001 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91700000000000000000011 /* SearchView.swift */; };
@@ -157,7 +156,6 @@
 		C92800000000000000000001 /* PistonSimulation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PistonSimulation.swift; sourceTree = "<group>"; };
 		C92A00000000000000000001 /* VisualizerGrade.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualizerGrade.swift; sourceTree = "<group>"; };
 		C92A00000000000000000002 /* VisualizerGrade.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = VisualizerGrade.metal; sourceTree = "<group>"; };
-		C93B00000000000000000002 /* SignedOutBackground.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = SignedOutBackground.metal; sourceTree = "<group>"; };
 		D91700000000000000000012 /* RecentSearchStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentSearchStore.swift; sourceTree = "<group>"; };
 		D93000000000000000000012 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
 		D91700000000000000000011 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
@@ -521,7 +519,6 @@
 			children = (
 				C92800000000000000000002 /* PistonVisualizer.metal */,
 				C92A00000000000000000002 /* VisualizerGrade.metal */,
-				C93B00000000000000000002 /* SignedOutBackground.metal */,
 				8D06FA75D610477E98EECAA2 /* PlayerArtworkGlass.metal */,
 			);
 			path = Shaders;
@@ -647,7 +644,6 @@
 				C92810000000000000000001 /* PistonSimulation.swift in Sources */,
 				C92A10000000000000000001 /* VisualizerGrade.swift in Sources */,
 				C92A10000000000000000002 /* VisualizerGrade.metal in Sources */,
-				C93B10000000000000000002 /* SignedOutBackground.metal in Sources */,
 				C92810000000000000000003 /* PistonSolver.c in Sources */,
 				E72000000000000000000002 /* WebsiteLogin.swift in Sources */,
 				A10000000000000000000001 /* SoundClaudeApp.swift in Sources */,

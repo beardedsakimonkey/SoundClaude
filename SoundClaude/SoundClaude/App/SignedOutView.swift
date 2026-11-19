@@ -41,7 +41,7 @@ struct SignedOutView: View {
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
-                HStack(spacing: 26) {
+                HStack(spacing: 36) {
                     header
                         .frame(minWidth: 220, maxWidth: .infinity)
                         .introReveal(delay: 0.10, isVisible: hasAppeared)
@@ -49,7 +49,6 @@ struct SignedOutView: View {
                         .frame(maxWidth: 480)
                         .introReveal(delay: 0.34, isVisible: hasAppeared)
                 }
-                .padding(.trailing, 10)
                 .frame(maxWidth: 860)
                 .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: message)
                 .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: isErrorDismissed)
@@ -58,16 +57,20 @@ struct SignedOutView: View {
                 .frame(minHeight: geometry.size.height)
             }
             .background {
-                let windowColor = Color(nsColor: .windowBackgroundColor)
-                let centerColor = Color(.sRGB, red: 61 / 255, green: 64 / 255, blue: 74 / 255)
-                windowColor
-                    .colorEffect(ShaderLibrary.signedOutBackground(
-                        .boundingRect,
-                        .color(centerColor)))
-                    .opacity(hasAppeared ? (colorScheme == .dark ? 0.45 : 0.06) : 0)
-                    .animation(.easeOut(duration: reduceMotion ? 0.2 : 0.65), value: hasAppeared)
-                    .background(windowColor)
-                    .ignoresSafeArea()
+                ZStack {
+                    Color(nsColor: .windowBackgroundColor)
+                    RadialGradient(
+                        stops: [
+                            .init(color: .gray.opacity(colorScheme == .dark ? 0.14 : 0.09), location: 0),
+                            .init(color: .gray.opacity(colorScheme == .dark ? 0.05 : 0.03), location: 0.45),
+                            .init(color: .clear, location: 1)
+                        ],
+                        center: UnitPoint(x: 0.5, y: 0.3),
+                        startRadius: 0,
+                        endRadius: max(geometry.size.width, geometry.size.height) * 0.75
+                    )
+                }
+                .ignoresSafeArea()
             }
         }
         .onAppear { hasAppeared = true }
