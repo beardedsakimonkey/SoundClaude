@@ -61,6 +61,7 @@ struct StationDetailView: View {
             VStack(alignment: .leading, spacing: 24) {
                 header
                 TrackCollectionSection(
+                    title: "Station tracks",
                     count: station?.trackCount ?? tracks.count,
                     errorMessage: model.errorMessage
                 ) { trackLayout in

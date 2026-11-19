@@ -62,6 +62,7 @@ struct DetailBackdrop: View {
 
 // Owns the track layout preference so toggling it re-renders only this section.
 struct TrackCollectionSection<Content: View>: View {
+    var title: LocalizedStringKey = "Tracks"
     let count: Int
     let errorMessage: String?
     @ViewBuilder let content: (TrackLayout) -> Content
@@ -71,7 +72,7 @@ struct TrackCollectionSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: trackLayout == .list ? 8 : 12) {
             HStack {
-                CountedSectionHeader(title: "Tracks", count: count)
+                CountedSectionHeader(title: title, count: count)
                 Spacer()
                 TrackLayoutPicker(trackLayout: $trackLayout)
             }
