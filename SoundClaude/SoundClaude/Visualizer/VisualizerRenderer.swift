@@ -185,7 +185,8 @@ final class VisualizerRenderer: NSObject, MTKViewDelegate {
         uniforms.append(SIMD4<Float>(pistonSettings.lightDirection, 0))
         uniforms.append(SIMD4<Float>(pistonCamera.target, 0))
         // Wrap the clock hourly to keep the sky's slow drift precise in a Float.
-        uniforms.append(SIMD4<Float>(pistonSettings.skyGlow, pistonSettings.skyStars, pistonSettings.skyNebula,
+        uniforms.append(SIMD4<Float>(pistonSettings.skyGlow, pistonSettings.skyStars,
+                                     pistonSettings.skyNebula * pistons.nebula.brightness(pistonSettings),
                                      Float(now.truncatingRemainder(dividingBy: 3600))))
         uniforms.append(SIMD4<Float>(pistonSettings.groundReflection, pistonSettings.groundRopeLight,
                                      pistonSettings.groundTileSeams, pistonSettings.ropeLength))

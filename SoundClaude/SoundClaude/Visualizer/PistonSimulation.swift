@@ -33,6 +33,13 @@ struct PistonSettings: Equatable {
     var skyGlow: Float = 1 // Afterglow along the horizon in the artwork's hue.
     var skyStars: Float = 1
     var skyNebula: Float = 1
+    var nebulaRestingBrightness: Float = 0.5 // Nebula brightness without recent bass jumps.
+    var nebulaBassBoost: Float = 1.5 // Brightness a full-strength bass jump adds; zero disables the response.
+    var nebulaJumpSensitivity: Float = 3 // A bass jump of 1 / sensitivity reaches the full boost.
+    var nebulaAttack: Float = 0.08 // Seconds to brighten toward a jump.
+    var nebulaDecay: Float = 0.9 // Seconds to fade after a jump.
+    var nebulaSteadyTime: Float = 0.35 // Seconds before a sustained bass level stops counting as a jump.
+    var nebulaBassCutoff: Float = 250 // Highest frequency in Hz that drives the nebula.
     var backgroundColor = SIMD3<Float>.zero // Plain black backdrop.
     var roughness: Float = 0.21
     var metallic: Float = 0.20
@@ -76,6 +83,32 @@ struct PistonSettings: Equatable {
     }
 }
 
+/// Brightens the nebula on jumps in bass level, then lets it fade while the level
+/// holds steady or falls, rather than tracking every change in amplitude.
+struct NebulaPulse {
+    private(set) var envelope: Float = 0
+    // A slow follower of the bass level; jumps are measured above it.
+    private var baseline: Float = 0
+
+    mutating func advance(delta: Float, bands: [Float], settings: PistonSettings) {
+        let count = min(bands.count, SpectrumAnalyzer.bandCount(below: Double(settings.nebulaBassCutoff)))
+        guard count > 0 else { return }
+        let level = bands[..<count].reduce(Float(0)) { sum, value in
+            sum + (value.isFinite ? min(1, max(0, value)) : 0)
+        } / Float(count)
+        func follow(_ value: inout Float, to target: Float, seconds: Float) {
+            value += (target - value) * (seconds > 0 ? 1 - exp(-delta / seconds) : 1)
+        }
+        let jump = min(1, max(0, level - baseline) * settings.nebulaJumpSensitivity)
+        follow(&envelope, to: jump, seconds: jump > envelope ? settings.nebulaAttack : settings.nebulaDecay)
+        follow(&baseline, to: level, seconds: settings.nebulaSteadyTime)
+    }
+
+    func brightness(_ settings: PistonSettings) -> Float {
+        settings.nebulaRestingBrightness + settings.nebulaBassBoost * envelope
+    }
+}
+
 /// Independent ropes with pinned roots and Verlet distance constraints.
 struct PistonSimulation {
     var settings = PistonSettings() {
@@ -90,6 +123,7 @@ struct PistonSimulation {
     static let segmentLength: Float = 0.115
     private(set) var heights = [Float](repeating: 0.8, count: count)
     private(set) var positions: [SIMD4<Float>] = []
+    private(set) var nebula = NebulaPulse()
     private var previous: [SIMD4<Float>] = []
     private var accumulator = 0.0
 
@@ -130,6 +164,7 @@ struct PistonSimulation {
     mutating func advance(delta: Double, bands: [Float]) {
         guard delta.isFinite, delta > 0 else { return }
         accumulator += min(delta, 1.0 / 15)
+        nebula.advance(delta: Float(min(delta, 1.0 / 15)), bands: bands, settings: settings)
         let targets: [Float] = (0..<Self.count).map { piston in
             let lower = piston * bands.count / Self.count
             let upper = (piston + 1) * bands.count / Self.count

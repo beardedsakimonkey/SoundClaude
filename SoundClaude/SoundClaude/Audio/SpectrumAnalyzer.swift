@@ -6,6 +6,17 @@ final class SpectrumAnalyzer: @unchecked Sendable {
     static let fftSize = 2_048
     static let hopSize = 512
     static let bandCount = Int(SCSpectrumBandCount)
+    // Bands are spaced logarithmically between these frequencies.
+    static let minimumFrequency = 30.0
+    static let maximumFrequency = 18_000.0
+
+    /// The number of lowest bands lying entirely at or below `frequency`, at least one.
+    /// Assumes a sample rate of 36 kHz or more, so the top band edge is `maximumFrequency`.
+    static func bandCount(below frequency: Double) -> Int {
+        let fraction = log(max(frequency, minimumFrequency) / minimumFrequency)
+            / log(maximumFrequency / minimumFrequency)
+        return min(bandCount, max(1, Int((fraction * Double(bandCount)).rounded(.down))))
+    }
 
     let ringBuffer: OpaquePointer
     let spectrumBuffer: OpaquePointer
@@ -192,8 +203,8 @@ final class SpectrumAnalyzer: @unchecked Sendable {
         vDSP_rmsqv(samples, 1, &rms, vDSP_Length(Self.fftSize))
         computePower(samples: samples, window: window, setup: fftSetup)
 
-        let minimumFrequency = 30.0
-        let maximumFrequency = min(18_000.0, sampleRate / 2.0)
+        let minimumFrequency = Self.minimumFrequency
+        let maximumFrequency = min(Self.maximumFrequency, sampleRate / 2.0)
         let frequencyRatio = maximumFrequency / minimumFrequency
         for band in 0..<Self.bandCount {
             let lowerFrequency = minimumFrequency * pow(
