@@ -48,8 +48,8 @@ enum ArtistTrackSortOrder: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .recent: "Newest tracks"
-        case .top: "Top tracks"
+        case .recent: "Newest"
+        case .top: "Popular"
         }
     }
 }
