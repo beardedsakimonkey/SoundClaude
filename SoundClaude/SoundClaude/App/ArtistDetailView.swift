@@ -780,8 +780,9 @@ struct ArtistDetailView: View {
         return switch tab {
         case .tracks: user.trackCount
         case .reposts: user.repostsCount
-        case .albums: nil
-        case .playlists: user.playlistCount
+        // `playlist_count` includes albums, and there is no album count to subtract, so
+        // it only says when both tabs are empty. A zero count hides the tab.
+        case .albums, .playlists: user.playlistCount == 0 ? 0 : nil
         case .likes: user.publicFavoritesCount
         }
     }
