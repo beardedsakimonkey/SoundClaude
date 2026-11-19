@@ -389,6 +389,17 @@ actor SoundCloudClient {
         return try await playlistPage(at: url, accessToken: accessToken)
     }
 
+    func artistAlbums(
+        urn: String,
+        accessToken: String,
+        pageURL: URL? = nil
+    ) async throws -> SoundCloudPlaylistPage {
+        let url = try pageURL ?? endpoint(
+            "users/\(try Self.id(urn))/albums", query: ["limit": "25"]
+        )
+        return try await playlistPage(at: url, accessToken: accessToken)
+    }
+
     func relatedTracks(
         urn: String,
         accessToken: String,

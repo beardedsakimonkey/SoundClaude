@@ -129,6 +129,8 @@ extension AppModel {
             async let tracks = try? artistReposts(for: user)
             async let playlists = try? artistPlaylistReposts(for: user)
             _ = await (tracks, playlists)
+        case .albums:
+            _ = try? await artistAlbums(for: user)
         case .playlists:
             _ = try? await artistPlaylists(for: user)
         case .likes:

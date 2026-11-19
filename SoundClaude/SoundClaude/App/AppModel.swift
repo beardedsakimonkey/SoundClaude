@@ -13,6 +13,7 @@ struct ArtistFirstPages {
     var topTracks: SoundCloudTrackPage?
     var reposts: SoundCloudTrackPage?
     var repostedPlaylists: SoundCloudPlaylistPage?
+    var albums: SoundCloudPlaylistPage?
     var playlists: SoundCloudPlaylistPage?
     var likes: SoundCloudTrackPage?
     var likedPlaylists: SoundCloudPlaylistPage?
@@ -91,6 +92,7 @@ final class AppModel {
     private let firstArtistTopTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Top Track Pages", countLimit: 20)
     private let firstArtistRepostPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Repost Pages", countLimit: 20)
     private let firstArtistPlaylistRepostPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Artist Playlist Repost Pages", countLimit: 20)
+    private let firstArtistAlbumPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Artist Album Pages", countLimit: 20)
     private let firstArtistPlaylistPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Artist Playlist Pages", countLimit: 20)
     private let firstArtistLikePageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Artist Like Pages", countLimit: 20)
     private let firstArtistPlaylistLikePageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Artist Playlist Like Pages", countLimit: 20)
@@ -342,6 +344,7 @@ final class AppModel {
         firstArtistTopTrackPageCache.reset()
         firstArtistRepostPageCache.reset()
         firstArtistPlaylistRepostPageCache.reset()
+        firstArtistAlbumPageCache.reset()
         firstArtistPlaylistPageCache.reset()
         firstArtistLikePageCache.reset()
         firstArtistPlaylistLikePageCache.reset()
@@ -900,6 +903,7 @@ final class AppModel {
             topTracks: firstArtistTopTrackPageCache.cached(urn),
             reposts: firstArtistRepostPageCache.cached(urn),
             repostedPlaylists: firstArtistPlaylistRepostPageCache.cached(urn),
+            albums: firstArtistAlbumPageCache.cached(urn),
             playlists: firstArtistPlaylistPageCache.cached(urn),
             likes: firstArtistLikePageCache.cached(urn),
             likedPlaylists: firstArtistPlaylistLikePageCache.cached(urn)
@@ -941,6 +945,13 @@ final class AppModel {
         -> SoundCloudTrackPage {
         try await artistPage(artist, pageURL: pageURL, firstPages: firstArtistLikePageCache) { [client] in
             try await client.artistLikes(urn: $0, accessToken: $1, pageURL: $2)
+        }
+    }
+
+    func artistAlbums(for artist: SoundCloudUser, pageURL: URL? = nil) async throws
+        -> SoundCloudPlaylistPage {
+        try await artistPage(artist, pageURL: pageURL, firstPages: firstArtistAlbumPageCache) { [client] in
+            try await client.artistAlbums(urn: $0, accessToken: $1, pageURL: $2)
         }
     }
 

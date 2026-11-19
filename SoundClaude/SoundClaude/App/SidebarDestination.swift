@@ -84,6 +84,7 @@ enum SearchCategory: String, Codable {
 enum ArtistContentTab: String, CaseIterable, Identifiable, Codable {
     case tracks = "Tracks"
     case reposts = "Reposts"
+    case albums = "Albums"
     case playlists = "Playlists"
     case likes = "Likes"
 
@@ -93,6 +94,7 @@ enum ArtistContentTab: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .tracks: "music.note"
         case .reposts: "arrow.2.squarepath"
+        case .albums: "square.stack"
         case .playlists: "music.note.list"
         case .likes: "heart"
         }
