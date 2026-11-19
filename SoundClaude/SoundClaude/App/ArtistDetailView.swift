@@ -963,41 +963,49 @@ struct ArtistDetailView: View {
     }
 
     private struct ArtistTracksSection<Content: View>: View {
-        @ViewBuilder let content: (TrackLayout, ArtistTrackSortOrder) -> Content
+        @ViewBuilder let content: (TrackLayout, ArtistTrackSortOrder, String) -> Content
         @AppStorage("artistTrackLayout") private var trackLayout = TrackLayout.list
         @AppStorage("artistTrackSortOrder") private var sortOrder = ArtistTrackSortOrder.recent
+        @State private var searchText = ""
 
         var body: some View {
             VStack(alignment: .leading, spacing: trackLayout == .list ? 8 : 12) {
                 HStack {
+                    TrackFilterField(text: $searchText, accessibilityLabel: "Search artist tracks")
+                        .frame(maxWidth: 200)
+                    Spacer()
                     SortMenu(
                         label: "Sort tracks",
                         selection: $sortOrder,
                         options: ArtistTrackSortOrder.allCases,
                         title: { $0.title }
                     )
-                    Spacer()
                     TrackLayoutPicker(trackLayout: $trackLayout)
                 }
                 .modifier(FadeInOnAppear())
-                content(trackLayout, sortOrder)
+                content(trackLayout, sortOrder, searchText)
                     .id(sortOrder)
             }
         }
     }
 
     private var trackList: some View {
-        ArtistTracksSection { trackLayout, sortOrder in
-            artistTracks(layout: trackLayout, sortOrder: sortOrder)
+        ArtistTracksSection { trackLayout, sortOrder, searchText in
+            artistTracks(layout: trackLayout, sortOrder: sortOrder, searchText: searchText)
         }
     }
 
-    private func artistTracks(layout: TrackLayout, sortOrder: ArtistTrackSortOrder) -> some View {
+    private func artistTracks(
+        layout: TrackLayout,
+        sortOrder: ArtistTrackSortOrder,
+        searchText: String
+    ) -> some View {
         let state = contentState.tracks(for: sortOrder)
+        let tracks = state.tracks.filtered(by: searchText)
         let playTrack: (SoundCloudTrack) async -> Void = { await playArtistTrack($0, state: state) }
         return LazyVStack(alignment: .leading, spacing: 0) {
             if layout == .grid {
-                TrackArtworkGrid(tracks: state.tracks, loader: model.artworkLoader) { track in
+                TrackArtworkGrid(tracks: tracks, loader: model.artworkLoader) { track in
                     TrackGridTile(
                         track: track,
                         playback: model.playback,
@@ -1013,7 +1021,7 @@ struct ArtistDetailView: View {
                 }
                 .padding(.bottom, 16)
             } else {
-                TrackArtworkList(tracks: state.tracks, loader: model.artworkLoader) { track in
+                TrackArtworkList(tracks: tracks, loader: model.artworkLoader) { track in
                     TrackListRow(
                         track: track,
                         playback: model.playback,
@@ -1042,8 +1050,8 @@ struct ArtistDetailView: View {
                         guard state.errorMessage == nil else { return }
                         await loadTracks(sortOrder: sortOrder)
                     }
-            } else if state.hasLoaded, state.tracks.isEmpty, state.errorMessage == nil {
-                EmptyStateView("No visible tracks")
+            } else if state.hasLoaded, tracks.isEmpty, state.errorMessage == nil {
+                EmptyStateView(state.tracks.isEmpty ? "No visible tracks" : "No matching tracks")
             }
         }
     }
