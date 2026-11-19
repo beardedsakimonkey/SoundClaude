@@ -44,9 +44,10 @@ struct SignedOutView: View {
                 HStack(spacing: 26) {
                     header
                         .frame(minWidth: 220, maxWidth: .infinity)
+                        .introReveal(delay: 0.10, isVisible: hasAppeared)
                     signInOptions
                         .frame(maxWidth: 480)
-                        .introReveal(step: 2, isVisible: hasAppeared)
+                        .introReveal(delay: 0.34, isVisible: hasAppeared)
                 }
                 .padding(.trailing, 10)
                 .frame(maxWidth: 860)
@@ -84,16 +85,13 @@ struct SignedOutView: View {
                 .scaledToFit()
                 .frame(width: 128, height: 128)
                 .accessibilityHidden(true)
-                .introReveal(step: 0, isVisible: hasAppeared, scale: 0.9)
             Text("SoundClaude")
                 .font(.system(size: 34, weight: .semibold))
-                .introReveal(step: 1, isVisible: hasAppeared)
             Text("Sign in to access your SoundCloud library")
                 .font(.system(size: 17))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-                .introReveal(step: 2, isVisible: hasAppeared)
         }
     }
 
@@ -305,28 +303,24 @@ struct SignedOutView: View {
 }
 
 private extension View {
-    /// Fades and lifts the view into place once `isVisible` turns true, staggered by `step`.
-    func introReveal(step: Int, isVisible: Bool, scale: CGFloat = 1) -> some View {
-        modifier(IntroReveal(step: step, isVisible: isVisible, scale: scale))
+    func introReveal(delay: TimeInterval, isVisible: Bool) -> some View {
+        modifier(IntroReveal(delay: delay, isVisible: isVisible))
     }
 }
 
 private struct IntroReveal: ViewModifier {
-    let step: Int
+    let delay: TimeInterval
     let isVisible: Bool
-    let scale: CGFloat
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
         let moves = !reduceMotion && !isVisible
         content
             .opacity(isVisible ? 1 : 0)
-            .blur(radius: moves ? 6 : 0)
-            .scaleEffect(moves ? scale : 1)
-            .offset(y: moves ? 12 : 0)
+            .offset(y: moves ? 8 : 0)
             .animation(
-                (reduceMotion ? Animation.easeOut(duration: 0.3) : .spring(duration: 0.7, bounce: 0.15))
-                    .delay(0.1 + Double(step) * 0.08),
+                Animation.easeOut(duration: reduceMotion ? 0.3 : 0.45)
+                    .delay(delay),
                 value: isVisible)
     }
 }
