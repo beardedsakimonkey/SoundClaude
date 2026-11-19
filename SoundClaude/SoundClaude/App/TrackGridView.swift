@@ -394,7 +394,10 @@ struct TrackGridTile: View {
                         animatesChange: animatesIconChange
                     )
                         .foregroundStyle(.white)
-                        .shadow(color: .black.opacity(0.8), radius: 3, x: 0, y: 1)
+                        // Tight contact shadow for edge definition on light artwork, plus a
+                        // soft diffuse one so the icon lifts without a dark halo.
+                        .shadow(color: .black.opacity(0.22), radius: 1, x: 0, y: 0.5)
+                        .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 1)
                         .scaleEffect(reduceMotion || isHoveringArtwork || isCurrentTrack ? 1 : 0.8)
                         .opacity((isHoveringArtwork || isCurrentTrack) && track.access != .protected ? 1 : 0)
                         .animation(
