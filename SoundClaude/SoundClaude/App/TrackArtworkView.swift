@@ -1,6 +1,13 @@
 import AppKit
 import SwiftUI
 
+struct ArtworkImageVisibleKey: PreferenceKey {
+    static let defaultValue = false
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = value || nextValue()
+    }
+}
+
 /// Keeps a row's image while its artwork remounts, as when the row adds its controls.
 /// The display cache is too small to promise the image again.
 final class ArtworkHandoff {
@@ -56,6 +63,7 @@ struct TrackArtworkView: View {
                     .id(ObjectIdentifier(image))
                     .transition(.opacity)
                     .zIndex(1)
+                    .preference(key: ArtworkImageVisibleKey.self, value: true)
             } else if showsPlaceholderIcon {
                 Image(systemName: "music.note")
                     .font(.system(size: size * 0.4, weight: .medium))

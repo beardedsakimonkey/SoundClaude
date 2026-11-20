@@ -16,6 +16,7 @@ struct PlaylistEditorView: View {
     @State private var isPrivate = true
     @State private var artwork: PlaylistArtwork?
     @State private var artworkPreview: NSImage?
+    @State private var showsArtworkImage = false
     @State private var removedArtwork = false
     @State private var isChoosingArtwork = false
     @State private var isHoveringArtwork = false
@@ -140,6 +141,7 @@ struct PlaylistEditorView: View {
                         Image(nsImage: artworkPreview)
                             .resizable()
                             .scaledToFill()
+                            .preference(key: ArtworkImageVisibleKey.self, value: true)
                     } else if let url = initialTrack?.displayArtworkURL, let artworkLoader {
                         TrackArtworkView(
                             artworkURL: url,
@@ -152,6 +154,7 @@ struct PlaylistEditorView: View {
                     } else if let url = playlist?.artworkURL, !removedArtwork {
                         AsyncImage(url: url) { image in
                             image.resizable().scaledToFill()
+                                .preference(key: ArtworkImageVisibleKey.self, value: true)
                         } placeholder: {
                             defaultArtwork
                         }
@@ -166,6 +169,8 @@ struct PlaylistEditorView: View {
                     cornerRadius: 10,
                     size: CGSize(width: 210, height: 210)
                 ))
+                .transformEnvironment(\.playerArtworkGlassParameters.isEnabled) { $0 = $0 && showsArtworkImage }
+                .onPreferenceChange(ArtworkImageVisibleKey.self) { showsArtworkImage = $0 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
