@@ -198,7 +198,6 @@ struct PlaylistCardView: View {
                 analyzer: model.analyzer,
                 artworkLoader: model.artworkLoader,
                 likes: model.likes,
-                showsArtist: false,
                 isCompact: true,
                 onAddToQueue: model.addToQueue,
                 onSelectTrack: onSelectTrack,

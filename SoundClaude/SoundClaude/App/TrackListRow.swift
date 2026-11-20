@@ -6,7 +6,6 @@ struct TrackListRow: View {
     let analyzer: SpectrumAnalyzer
     let artworkLoader: ArtworkLoader
     let likes: LikesController
-    var showsArtist = true
     var isCompact = false
     var showsMetadata = true
     var onAddToQueue: ((SoundCloudTrack) -> Void)? = nil
@@ -239,11 +238,9 @@ struct TrackListRow: View {
             )
             let likeCount = showsMetadata ? likes.likeCount(for: track) : nil
             let showsLikeIndicator = showsMetadata && (likeCount != nil || isLiked)
-            if showsArtist || showsLikeIndicator {
-                metadataLine(likeCount: likeCount, isLiked: isLiked, showsLikeIndicator: showsLikeIndicator)
-                    .font(isCompact ? .subheadline : .callout)
-                    .foregroundStyle(.secondary)
-            }
+            metadataLine(likeCount: likeCount, isLiked: isLiked, showsLikeIndicator: showsLikeIndicator)
+                .font(isCompact ? .subheadline : .callout)
+                .foregroundStyle(.secondary)
         }
         .lineLimit(1)
     }
@@ -254,24 +251,20 @@ struct TrackListRow: View {
 
     private func metadataLine(likeCount: Int?, isLiked: Bool, showsLikeIndicator: Bool) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
-            if showsArtist {
-                Group {
-                    if isInteractive {
-                        ArtistLink(artist: track.artist, onSelect: onSelectArtist)
-                            .onContentHover { isHoveringArtist = $0 }
-                    } else {
-                        Text(track.artist.username)
-                    }
+            Group {
+                if isInteractive {
+                    ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                        .onContentHover { isHoveringArtist = $0 }
+                } else {
+                    Text(track.artist.username)
                 }
-                // Truncate the like count before the artist name.
-                .layoutPriority(1)
             }
+            // Truncate the like count before the artist name.
+            .layoutPriority(1)
             if showsLikeIndicator {
-                if showsArtist {
-                    Text("·")
-                        .fixedSize()
-                        .accessibilityHidden(true)
-                }
+                Text("·")
+                    .fixedSize()
+                    .accessibilityHidden(true)
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Image(systemName: isLiked ? "heart.fill" : "heart")
                     if let likeCount {
