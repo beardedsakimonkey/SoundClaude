@@ -508,8 +508,8 @@ struct TrackCollectionLikeButton: View {
 
         var iconFont: Font {
             switch self {
-            case .header: .system(size: 11)
-            case .card: .system(size: 14)
+            case .header: .system(size: 11, weight: .medium)
+            case .card: .system(size: 14, weight: .medium)
             }
         }
 
@@ -556,8 +556,12 @@ private struct TrackCollectionLikeButtonStyle: ButtonStyle {
         let fill = isLiked
             ? Color.accentColor.opacity(isHighlighted ? 0.2 : 0.12)
             : Color.primary.opacity(isHighlighted ? 0.12 : 0)
+        let foreground = isLiked
+            ? AnyShapeStyle(Color.accentColor)
+            // Dim the outline heart until hovered, so it recedes beside the title.
+            : !isHighlighted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.primary)
         configuration.label
-            .foregroundStyle(isLiked ? Color.accentColor : Color.primary)
+            .foregroundStyle(foreground)
             .padding(4)
             .contentShape(Rectangle())
             .opacity(isEnabled ? 0.9 : 0.5)
