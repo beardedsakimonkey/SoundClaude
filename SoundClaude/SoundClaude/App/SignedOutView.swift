@@ -360,11 +360,9 @@ private struct SavedAccountRow: View {
                         artworkURL: user.avatarURL,
                         loader: artworkLoader,
                         size: 28,
-                        showsBorder: false,
+                        shape: RoundedRectangle(cornerRadius: 14, style: .circular),
                         showsPlaceholderIcon: false
                     )
-                    .clipShape(Circle())
-                    .overlay { Circle().strokeBorder(.primary.opacity(0.1), lineWidth: 1) }
                     // The avatar loads mid-reveal; group it so the late image rides the
                     // intro offset instead of appearing at its final position.
                     .geometryGroup()
