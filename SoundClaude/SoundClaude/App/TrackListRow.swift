@@ -7,7 +7,7 @@ struct TrackListRow: View {
     let artworkLoader: ArtworkLoader
     let likes: LikesController
     var isCompact = false
-    var showsMetadata = true
+    var showsDuration = true
     var onAddToQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
@@ -62,11 +62,11 @@ struct TrackListRow: View {
             trackDetails
                 .opacity(track.access == .protected ? protectedTrackOpacity : 1)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            if showsMetadata {
+            if showsDuration {
                 Spacer()
             }
             Group {
-                if showsMetadata {
+                if showsDuration {
                     Text(duration)
                         .font((isCompact ? Font.caption : .subheadline).monospacedDigit())
                         .foregroundStyle(.secondary)
@@ -74,7 +74,7 @@ struct TrackListRow: View {
                         // Keep the duration's width so hover does not change text truncation.
                         .opacity(isHovering ? 0 : track.access == .protected ? protectedTrackOpacity : 1)
                 } else {
-                    // Without metadata, reserve only the hover button's width.
+                    // Without a duration, reserve only the hover button's width.
                     Color.clear.frame(width: 28, height: 28)
                 }
             }
@@ -236,8 +236,8 @@ struct TrackListRow: View {
                 reduceMotion ? nil : .easeInOut(duration: 0.2),
                 value: showsPlaybackIndicator
             )
-            let likeCount = showsMetadata ? likes.likeCount(for: track) : nil
-            let showsLikeIndicator = showsMetadata && (likeCount != nil || isLiked)
+            let likeCount = likes.likeCount(for: track)
+            let showsLikeIndicator = likeCount != nil || isLiked
             metadataLine(likeCount: likeCount, isLiked: isLiked, showsLikeIndicator: showsLikeIndicator)
                 .font(isCompact ? .subheadline : .callout)
                 .foregroundStyle(.secondary)
