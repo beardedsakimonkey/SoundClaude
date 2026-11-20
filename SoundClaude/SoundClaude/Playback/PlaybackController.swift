@@ -685,7 +685,7 @@ final class PlaybackController {
         }
     }
 
-    private func play() {
+    @objc func play() {
         if sessionToRestore != nil, let track = currentTrack, let onNeedsSource {
             let fraction = seekFraction
             let request = beginLoading(track: track, position: currentTime)
@@ -716,7 +716,7 @@ final class PlaybackController {
         }
     }
 
-    func pause() {
+    @objc func pause() {
         shouldPlayWhenReady = false
         player.pause()
         saveSession()
@@ -769,7 +769,7 @@ final class PlaybackController {
         }
     }
 
-    func next() {
+    @objc func next() {
         onNext?()
     }
 
@@ -782,7 +782,7 @@ final class PlaybackController {
         return true
     }
 
-    func previous() {
+    @objc func previous() {
         if currentTime > 3 {
             restartFromBeginning()
         } else {

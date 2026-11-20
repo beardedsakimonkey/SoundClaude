@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct SoundClaudeApp: App {
+    @NSApplicationDelegateAdaptor(DockMenuDelegate.self) private var dockMenuDelegate
     @State private var model: AppModel
     @ObservedObject private var auth: AuthController
     @State private var isShowingKeyboardShortcuts = false
@@ -16,6 +17,7 @@ struct SoundClaudeApp: App {
         let model = AppModel()
         _model = State(initialValue: model)
         _auth = ObservedObject(wrappedValue: model.auth)
+        dockMenuDelegate.model = model
     }
 
     var body: some Scene {
@@ -117,6 +119,33 @@ struct SoundClaudeApp: App {
         LoadingSpinner()
             .accessibilityLabel(label)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+@MainActor
+private final class DockMenuDelegate: NSObject, NSApplicationDelegate {
+    weak var model: AppModel?
+
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        guard let model else { return nil }
+        let playback = model.playback
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+
+        func add(_ title: String, action: Selector, enabled: Bool) {
+            let item = menu.addItem(withTitle: title, action: action, keyEquivalent: "")
+            item.target = playback
+            item.isEnabled = enabled
+        }
+
+        let active = playback.isPlaybackActive
+        add(active ? "Pause" : "Play",
+            action: active ? #selector(PlaybackController.pause) : #selector(PlaybackController.play),
+            enabled: playback.currentTrack != nil)
+        let hasQueue = !model.queue.tracks.isEmpty
+        add("Next Track", action: #selector(PlaybackController.next), enabled: hasQueue)
+        add("Previous Track", action: #selector(PlaybackController.previous), enabled: hasQueue)
+        return menu
     }
 }
 
