@@ -21,7 +21,8 @@ struct SignedOutView: View {
 
     private static let sessionCommand = #"copy(document.cookie.match(/oauth_token=([^;]+)/)[1])"#
 
-    /// Minimal JS highlighting for `sessionCommand`: regexes, numbers, and calls.
+    /// Minimal JS highlighting for `sessionCommand`: regexes, numbers, and
+    /// calls. Dark mode only; light mode shows it plain.
     private static let highlightedSessionCommand: AttributedString = {
         let tokens = sessionCommand.matches(of: #/\/[^\/]+\/|[A-Za-z_]\w*|\d+|./#).map { String($0.output) }
         var result = AttributedString()
@@ -29,9 +30,7 @@ struct SignedOutView: View {
             var piece = AttributedString(token)
             let next = index + 1 < tokens.count ? tokens[index + 1] : ""
             if token.hasPrefix("/") {
-                piece.foregroundColor = Color(nsColor: NSColor(name: nil) { appearance in
-                    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .systemYellow : .systemGreen
-                })
+                piece.foregroundColor = Color(nsColor: .systemYellow)
             } else if token.first?.isNumber == true {
                 piece.foregroundColor = Color(nsColor: .systemPurple)
             } else if token.first?.isLetter == true, next == "(" {
@@ -92,7 +91,6 @@ struct SignedOutView: View {
             if !savedAccounts.isEmpty {
                 savedAccountList
                     .frame(maxWidth: 300)
-                    .padding(.top, 20)
                     .transition(.opacity)
             }
         }
@@ -192,7 +190,7 @@ struct SignedOutView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Saved accounts")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
             ForEach(savedAccounts, id: \.accountID) { user in
                 SavedAccountRow(
@@ -275,7 +273,7 @@ struct SignedOutView: View {
                     copySessionCommandCount += 1
                 } label: {
                     HStack(alignment: .top, spacing: 10) {
-                        Text(Self.highlightedSessionCommand)
+                        Text(colorScheme == .dark ? Self.highlightedSessionCommand : AttributedString(Self.sessionCommand))
                             .font(.system(size: 11, design: .monospaced))
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
