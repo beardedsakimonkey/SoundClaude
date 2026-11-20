@@ -6,20 +6,28 @@ struct SortMenu<Order: Hashable>: View {
     @Binding var selection: Order
     let options: [Order]
     let title: (Order) -> String
+    var systemImage: (Order) -> String = { _ in "line.3.horizontal.decrease" }
     @State private var isPointerInside = false
     @Environment(\.contentHoverEnabled) private var hoverEnabled
     @Environment(\.contentHoverSuppression) private var hoverSuppression
+    @Environment(\.isEnabled) private var isEnabled
 
     private var isHovered: Bool {
-        isPointerInside && hoverEnabled && hoverSuppression?.isSuppressed != true
+        isEnabled && isPointerInside && hoverEnabled && hoverSuppression?.isSuppressed != true
     }
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "line.3.horizontal.decrease")
-                .font(.callout)
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
+            // Size to every option's symbol so switching options doesn't change the row's height.
+            ZStack {
+                ForEach(Array(Set(options.map(systemImage))), id: \.self) { name in
+                    Image(systemName: name).hidden()
+                }
+                Image(systemName: systemImage(selection))
+            }
+            .font(.callout)
+            .foregroundStyle(.tertiary)
+            .accessibilityHidden(true)
 
             menu(showing: selection)
                 .background {
