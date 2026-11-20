@@ -40,7 +40,7 @@ final class AppModel {
     let likes = LikesController()
     let playback = Playback()
     let analyzer = 0
-    var queuePlaylist: (urn: String, title: String)? { nil }
+    var queuePlaylist: (urn: String, title: String, isAlbum: Bool)? { nil }
     let artworkLoader = 0
     var moves = 0
     func moveQueueTracks(fromOffsets: IndexSet, toOffset: Int) {

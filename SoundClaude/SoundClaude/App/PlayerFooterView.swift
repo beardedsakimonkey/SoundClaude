@@ -140,7 +140,7 @@ struct PlayerFooterView: View {
         }
     }
 
-    private var currentPlaylist: (urn: String, title: String)? { model.queuePlaylist }
+    private var currentPlaylist: (urn: String, title: String, isAlbum: Bool)? { model.queuePlaylist }
 
     private var stationURN: String? {
         guard case let .station(urn) = model.queue.source else { return nil }

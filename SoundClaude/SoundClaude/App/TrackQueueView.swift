@@ -36,7 +36,11 @@ struct TrackQueueView: View {
 
     private var sourceLabel: QueueSourceLabel? {
         guard !tracks.isEmpty else { return nil }
-        return QueueSourceLabel(queue: model.queue, playlistTitle: model.queuePlaylist?.title)
+        return QueueSourceLabel(
+            queue: model.queue,
+            playlistTitle: model.queuePlaylist?.title,
+            playlistIsAlbum: model.queuePlaylist?.isAlbum == true
+        )
     }
 
     var body: some View {
@@ -141,7 +145,7 @@ struct QueueSourceLabel {
     // Queues saved before source tracks and artists were recorded cannot open their source.
     let isNavigable: Bool
 
-    init?(queue: TrackQueue, playlistTitle: String?) {
+    init?(queue: TrackQueue, playlistTitle: String?, playlistIsAlbum: Bool = false) {
         switch queue.source {
         case .single:
             return nil
@@ -158,7 +162,10 @@ struct QueueSourceLabel {
         case let .tag(tag):
             self.init(title: "#\(tag)", systemImage: "number")
         case .playlist:
-            self.init(title: playlistTitle ?? "Playlist", systemImage: "music.note.list")
+            self.init(
+                title: playlistTitle ?? (playlistIsAlbum ? "Album" : "Playlist"),
+                systemImage: playlistIsAlbum ? "square.stack" : "music.note.list"
+            )
         case .station:
             self.init(title: queue.sourceTitle ?? "Station", systemImage: "dot.radiowaves.left.and.right")
         case .related:

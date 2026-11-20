@@ -152,11 +152,13 @@ struct PlaylistDetailView: View {
                         .trackCollectionTitleText()
                 } icon: {
                     PlaylistPlayingIcon(
-                        playback: model.playback, isCurrent: model.queue.source == .playlist(playlist.urn)
+                        playback: model.playback, isCurrent: model.queue.source == .playlist(playlist.urn),
+                        systemName: displayedPlaylist.isAlbum == true ? "square.stack" : "music.note.list"
                     )
+                    .contentHelp(displayedPlaylist.isAlbum == true ? "Album" : "Playlist")
                 }
                 .textSelection(.enabled)
-                .accessibilityLabel("Playlist, \(displayedPlaylist.title)")
+                .accessibilityLabel("\(displayedPlaylist.isAlbum == true ? "Album" : "Playlist"), \(displayedPlaylist.title)")
             } actions: {
                 if !displayedPlaylist.isPrivate {
                     likeButton

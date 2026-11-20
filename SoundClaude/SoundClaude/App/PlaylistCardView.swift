@@ -348,6 +348,7 @@ private struct PlaylistCardTitleRow: View {
         HStack(spacing: 8) {
             Image(systemName: playlist.isAlbum == true ? "square.stack" : "music.note.list")
                 .foregroundStyle(.secondary)
+                .contentHelp(playlist.isAlbum == true ? "Album" : "Playlist")
                 .accessibilityHidden(true)
 
             Button(action: onSelect) {

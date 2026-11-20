@@ -499,14 +499,14 @@ final class AppModel {
         queueStore.save(queue)
     }
 
-    var queuePlaylist: (urn: String, title: String)? {
+    var queuePlaylist: (urn: String, title: String, isAlbum: Bool)? {
         guard case let .playlist(urn) = queue.source else { return nil }
         // The playlistsObservation sink updates the queue when this playlist title changes.
         // Reading the cache here does not subscribe views to every playlist load.
-        guard let title = playlists.cache.contents[urn]?.playlist.title
-            ?? playlists.playlists.first(where: { $0.urn == urn })?.title
-            ?? queue.sourceTitle else { return nil }
-        return (urn, title)
+        let playlist = playlists.cache.contents[urn]?.playlist
+            ?? playlists.playlists.first(where: { $0.urn == urn })
+        guard let title = playlist?.title ?? queue.sourceTitle else { return nil }
+        return (urn, title, playlist?.isAlbum == true)
     }
 
     private func loadPlayback(

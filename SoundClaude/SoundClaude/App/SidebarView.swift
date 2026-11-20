@@ -930,6 +930,7 @@ struct StationPlayingIcon: View {
 struct PlaylistPlayingIcon: View {
     let playback: PlaybackController
     let isCurrent: Bool
+    var systemName = "music.note.list"
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
     @State private var startDate: Date?
@@ -937,7 +938,7 @@ struct PlaylistPlayingIcon: View {
 
     var body: some View {
         let isActive = isCurrent && playback.isPlaybackActive && !reduceMotion && !contentAnimationsPaused
-        let symbol = Image(systemName: "music.note.list")
+        let symbol = Image(systemName: systemName)
         TimelineView(.animation(paused: startDate == nil)) { context in
             if let startDate {
                 symbol.mask {
