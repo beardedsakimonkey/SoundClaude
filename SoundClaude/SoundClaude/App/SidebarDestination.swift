@@ -112,7 +112,7 @@ enum ArtistPlaylistFilter: String, CaseIterable, Codable {
 
     var systemImage: String {
         switch self {
-        case .all: "line.3.horizontal.decrease"
+        case .all: "eye"
         case .albums: "square.stack"
         case .playlists: "music.note.list"
         }
