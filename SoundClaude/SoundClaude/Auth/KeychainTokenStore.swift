@@ -15,16 +15,43 @@ enum KeychainError: LocalizedError {
     }
 }
 
+/// The active session and the accounts signed out of on this Mac, as separate items,
+/// so launch reads only the active one.
 struct KeychainTokenStore: Sendable {
     private let service: String
-    private let account = "website-token"
+    private static let activeAccount = "website-token"
+    private static let savedAccountsAccount = "saved-website-tokens"
 
     init(service: String = "com.tim.soundclaude.native") {
         self.service = service
     }
 
     func load() throws -> TokenRecord? {
-        var query = baseQuery
+        try read(TokenRecord.self, account: Self.activeAccount)
+    }
+
+    func save(_ token: TokenRecord) throws {
+        try write(token, account: Self.activeAccount)
+    }
+
+    func delete() throws {
+        try remove(account: Self.activeAccount)
+    }
+
+    func loadSavedAccounts() throws -> [TokenRecord] {
+        try read([TokenRecord].self, account: Self.savedAccountsAccount) ?? []
+    }
+
+    func saveSavedAccounts(_ records: [TokenRecord]) throws {
+        if records.isEmpty {
+            try remove(account: Self.savedAccountsAccount)
+        } else {
+            try write(records, account: Self.savedAccountsAccount)
+        }
+    }
+
+    private func read<Value: Decodable>(_ type: Value.Type, account: String) throws -> Value? {
+        var query = baseQuery(account: account)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: CFTypeRef?
@@ -37,17 +64,17 @@ struct KeychainTokenStore: Sendable {
             throw KeychainError.invalidData
         }
         do {
-            return try JSONDecoder().decode(TokenRecord.self, from: data)
+            return try JSONDecoder().decode(type, from: data)
         } catch {
             throw KeychainError.invalidData
         }
     }
 
-    func save(_ token: TokenRecord) throws {
-        let data = try JSONEncoder().encode(token)
+    private func write<Value: Encodable>(_ value: Value, account: String) throws {
+        let data = try JSONEncoder().encode(value)
         let update = [kSecValueData as String: data]
         let updateStatus = SecItemUpdate(
-            baseQuery as CFDictionary,
+            baseQuery(account: account) as CFDictionary,
             update as CFDictionary
         )
         if updateStatus == errSecSuccess { return }
@@ -55,7 +82,7 @@ struct KeychainTokenStore: Sendable {
             throw KeychainError.unexpectedStatus(updateStatus)
         }
 
-        var addition = baseQuery
+        var addition = baseQuery(account: account)
         addition[kSecValueData as String] = data
         addition[kSecAttrAccessible as String] =
             kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
@@ -65,14 +92,14 @@ struct KeychainTokenStore: Sendable {
         }
     }
 
-    func delete() throws {
-        let status = SecItemDelete(baseQuery as CFDictionary)
+    private func remove(account: String) throws {
+        let status = SecItemDelete(baseQuery(account: account) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw KeychainError.unexpectedStatus(status)
         }
     }
 
-    private var baseQuery: [String: Any] {
+    private func baseQuery(account: String) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

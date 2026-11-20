@@ -575,6 +575,11 @@ struct PlaybackSource: Sendable, Equatable {
     let isPreview: Bool
 }
 
+extension SoundCloudUser {
+    /// Stable per-account key; older records may lack a URN.
+    var accountID: String { urn ?? permalinkURL.absoluteString }
+}
+
 struct TokenRecord: Codable, Sendable, Equatable {
     let accessToken: String
     var user: SoundCloudUser?

@@ -87,6 +87,10 @@ struct SoundClaudeApp: App {
                 message: model.errorMessage ?? authFailureMessage,
                 importPhase: model.sessionImportPhase,
                 importFailureCount: model.importFailureCount,
+                savedAccounts: auth.savedAccounts,
+                artworkLoader: model.artworkLoader,
+                onSelectSavedAccount: { user in Task { await model.signIn(savedAccount: user) } },
+                onForgetSavedAccount: model.forgetSavedAccount,
                 onSignIn: model.beginSignIn,
                 onImportSession: { Task { await model.importCopiedSession() } }
             )

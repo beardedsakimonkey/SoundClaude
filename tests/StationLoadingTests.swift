@@ -58,6 +58,7 @@ struct ScrollbarReservedScrollView<Content: View>: View {
     var body: some View { content(0) }
 }
 struct TrackCollectionSection<Content: View>: View {
+    var title: LocalizedStringKey = "Tracks"
     let count: Int
     let errorMessage: String?
     @ViewBuilder let content: (Int) -> Content

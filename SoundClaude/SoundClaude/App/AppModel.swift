@@ -301,6 +301,18 @@ final class AppModel {
         await finishSignIn()
     }
 
+    func signIn(savedAccount user: SoundCloudUser) async {
+        guard sessionImportPhase == nil else { return }
+        cancelSignIn()
+        errorMessage = nil
+        await auth.signIn(savedAccount: user)
+        await finishSignIn()
+    }
+
+    func forgetSavedAccount(_ user: SoundCloudUser) {
+        auth.forgetSavedAccount(user)
+    }
+
     private func finishSignIn() async {
         guard case .signedIn = auth.state else { return }
         await likes.restoreCache()

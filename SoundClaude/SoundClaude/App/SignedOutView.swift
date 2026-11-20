@@ -4,6 +4,10 @@ struct SignedOutView: View {
     let message: String?
     let importPhase: AppModel.SessionImportPhase?
     let importFailureCount: Int
+    let savedAccounts: [SoundCloudUser]
+    let artworkLoader: ArtworkLoader
+    let onSelectSavedAccount: (SoundCloudUser) -> Void
+    let onForgetSavedAccount: (SoundCloudUser) -> Void
     let onSignIn: () -> Void
     let onImportSession: () -> Void
 
@@ -42,7 +46,7 @@ struct SignedOutView: View {
         GeometryReader { geometry in
             ScrollView {
                 HStack(spacing: 36) {
-                    header
+                    leadingColumn
                         .frame(minWidth: 220, maxWidth: .infinity)
                         .introReveal(delay: 0.10, isVisible: hasAppeared)
                     signInOptions
@@ -52,6 +56,7 @@ struct SignedOutView: View {
                 .frame(maxWidth: 860)
                 .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: message)
                 .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: isErrorDismissed)
+                .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: savedAccounts)
                 .padding(32)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: geometry.size.height)
@@ -79,6 +84,18 @@ struct SignedOutView: View {
         #if DEBUG
         .debugViewUpdates("SignedOutView")
         #endif
+    }
+
+    private var leadingColumn: some View {
+        VStack(spacing: 32) {
+            header
+            if !savedAccounts.isEmpty {
+                savedAccountList
+                    .frame(maxWidth: 300)
+                    .padding(.top, 20)
+                    .transition(.opacity)
+            }
+        }
     }
 
     private var header: some View {
@@ -167,6 +184,24 @@ struct SignedOutView: View {
                         .foregroundStyle(.green)
                 }
                 .transition(transition)
+            }
+        }
+    }
+
+    private var savedAccountList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Saved accounts")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 4)
+            ForEach(savedAccounts, id: \.accountID) { user in
+                SavedAccountRow(
+                    user: user,
+                    artworkLoader: artworkLoader,
+                    onSelect: { onSelectSavedAccount(user) },
+                    onForget: { onForgetSavedAccount(user) }
+                )
+                .transition(.opacity)
             }
         }
     }
@@ -302,6 +337,81 @@ struct SignedOutView: View {
             RoundedRectangle(cornerRadius: 18)
                 .strokeBorder(.primary.opacity(0.08), lineWidth: 1)
         }
+    }
+}
+
+private struct SavedAccountRow: View {
+    let user: SoundCloudUser
+    let artworkLoader: ArtworkLoader
+    let onSelect: () -> Void
+    let onForget: () -> Void
+
+    @State private var isHovering = false
+    @State private var isHoveringForget = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        // The remove button sits beside the row so a click aimed at the account
+        // cannot forget it.
+        HStack(spacing: 6) {
+            Button(action: onSelect) {
+                HStack(spacing: 12) {
+                    TrackArtworkView(
+                        artworkURL: user.avatarURL,
+                        loader: artworkLoader,
+                        size: 28,
+                        showsBorder: false,
+                        showsPlaceholderIcon: false
+                    )
+                    .clipShape(Circle())
+                    .overlay { Circle().strokeBorder(.primary.opacity(0.1), lineWidth: 1) }
+                    // The avatar loads mid-reveal; group it so the late image rides the
+                    // intro offset instead of appearing at its final position.
+                    .geometryGroup()
+                    .accessibilityHidden(true)
+                    Text(user.username)
+                        .font(.system(size: 15, weight: .medium))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(SignedOutActionStyle(isPrimary: false))
+            .accessibilityLabel("Sign in as \(user.username)")
+            .accessibilityAction(named: Text("Forget account"), onForget)
+            .contextMenu {
+                Button("Sign In as \(user.username)", action: onSelect)
+                Button("Forget Account", role: .destructive, action: onForget)
+            }
+
+            Button(action: onForget) {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(isHoveringForget ? Color.red : Color.secondary)
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(Color.red.opacity(isHoveringForget ? 0.15 : 0)))
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHoveringForget)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .contentHelp("Forget \(user.username) on this Mac")
+            .accessibilityLabel("Forget \(user.username)")
+            .onContentHover { isHoveringForget = $0 }
+            .opacity(isHovering ? 1 : 0)
+            .allowsHitTesting(isHovering)
+            .accessibilityHidden(!isHovering)
+        }
+        // Hovering covers the gap and the button, so the pointer can reach it.
+        .onContentHover { isHovering = $0 }
+        // The button hangs outside the layout so the row keeps the column's width and alignment.
+        .padding(.trailing, -(24 + 6))
     }
 }
 

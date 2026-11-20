@@ -12,6 +12,15 @@ final class KeychainTokenStore {
     }
     func save(_ record: TokenRecord) throws { self.record = record }
     func delete() throws { record = nil; deletes += 1 }
+    var saved: [TokenRecord] = []
+    var savedLoads = 0
+    var savedLoadError: Error?
+    func loadSavedAccounts() throws -> [TokenRecord] {
+        savedLoads += 1
+        if let savedLoadError { throw savedLoadError }
+        return saved
+    }
+    func saveSavedAccounts(_ records: [TokenRecord]) throws { saved = records }
 }
 
 enum SoundCloudError: Error { case unauthorized, invalidData, api(String), network }
@@ -141,6 +150,67 @@ struct AuthRestoreTests {
             _ = try await rejectedSignInAuth.validAccessToken()
             fatalError("Rejected token was returned")
         } catch SoundCloudError.unauthorized {}
+
+        // Launching signed in reads only the active session.
+        precondition(store.savedLoads == 0)
+
+        // Signing out keeps the token as a saved account, most recent first.
+        let other = SoundCloudUser(urn: "user:2", username: "Other", avatarURL: nil,
+                                   permalinkURL: URL(string: "https://soundcloud.com/other")!)
+        let otherRecord = TokenRecord(accessToken: "other", user: other)
+        let (savingAuth, savingClient, savingStore) = setup(record())
+        savingStore.saved = [otherRecord]
+        await savingAuth.signOut()
+        precondition(savingAuth.state == .signedOut && savingStore.record == nil)
+        precondition(savingStore.saved == [record(), otherRecord])
+        precondition(savingAuth.savedAccounts == [user, other])
+
+        // A saved account signs in at once with its cached identity, then validates.
+        await savingAuth.signIn(savedAccount: other)
+        precondition(savingAuth.state == .signedIn(other))
+        precondition(savingStore.record == otherRecord && savingStore.saved == [record()])
+        precondition(savingAuth.savedAccounts == [user])
+        await until { savingClient.pendingUser != nil }
+        precondition(savingClient.userToken == "other")
+        savingClient.pendingUser!.resume(returning: other)
+        for _ in 0..<100 { await Task.yield() }
+        let switchedToken = try await savingAuth.validAccessToken()
+        precondition(switchedToken == "other")
+
+        // An expired saved token is discarded, not saved again.
+        savingClient.pendingUser = nil
+        await savingAuth.signIn(savedAccount: user)
+        await until { savingClient.pendingUser != nil }
+        savingClient.pendingUser!.resume(throwing: SoundCloudError.unauthorized)
+        await until { if case .failed = savingAuth.state { return true }; return false }
+        precondition(savingStore.record == nil && savingStore.saved == [])
+        precondition(savingAuth.savedAccounts == [])
+
+        // A signed-out launch lists saved accounts; forgetting removes the token.
+        let listStore = KeychainTokenStore()
+        listStore.saved = [otherRecord]
+        let listedAuth = AuthController(client: SoundCloudClient(), tokenStore: listStore)
+        precondition(listedAuth.savedAccounts == [other])
+        listedAuth.forgetSavedAccount(other)
+        precondition(listStore.saved == [] && listedAuth.savedAccounts == [])
+
+        // A fresh token for a saved account replaces the saved one.
+        let freshStore = KeychainTokenStore()
+        freshStore.saved = [otherRecord]
+        let freshClient = SoundCloudClient()
+        let freshAuth = AuthController(client: freshClient, tokenStore: freshStore)
+        let freshSignIn = Task { await freshAuth.signIn(token: "fresh") }
+        await until { freshClient.pendingUser != nil }
+        freshClient.pendingUser!.resume(returning: other)
+        await freshSignIn.value
+        precondition(freshStore.saved == [] && freshAuth.savedAccounts == [])
+
+        // An unreadable saved list is never overwritten, and sign-out still completes.
+        let (lockedAuth, _, lockedStore) = setup(record())
+        lockedStore.savedLoadError = SoundCloudError.invalidData
+        lockedStore.saved = [otherRecord]
+        await lockedAuth.signOut()
+        precondition(lockedAuth.state == .signedOut && lockedStore.saved == [otherRecord])
         print("Auth restore checks passed")
     }
 }
