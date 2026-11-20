@@ -274,10 +274,10 @@ struct TrackWaveformView: View {
                     let background = backgroundColor.cgColor
                     let color = renderedProgressColor
                         .resolve(in: context.environment).cgColor
-                    // Darken unplayed bars with a neutral tint in light mode.
                     let hoverColor = colorScheme == .light
                         ? Color.primary.opacity(0.4).resolve(in: context.environment).cgColor
-                        : color
+                        : Color(white: layout == .compact ? 0.75 : 1)
+                            .resolve(in: context.environment).cgColor
                     // A white wash is only visible against dark-mode bars.
                     let highlight = colorScheme == .light ? nil
                         : Color(white: layout == .compact ? 0.75 : 1).opacity(0.9)
