@@ -120,12 +120,6 @@ struct ArtistDetailView: View {
         var hasLoadedLikes = false
         var isLoadingLikes = false
         var likesErrorMessage: String?
-        var albums: [SoundCloudPlaylist] = []
-        var albumsNextPageURL: URL?
-        var loadedAlbumsPageURLs: Set<URL> = []
-        var hasLoadedAlbums = false
-        var isLoadingAlbums = false
-        var albumsErrorMessage: String?
         var playlists: [SoundCloudPlaylist] = []
         var playlistsNextPageURL: URL?
         var loadedPlaylistsPageURLs: Set<URL> = []
@@ -155,11 +149,6 @@ struct ArtistDetailView: View {
                 repostedPlaylists = Self.unique(page.playlists, by: \.urn)
                 repostedPlaylistsNextPageURL = page.nextURL
                 hasLoadedRepostedPlaylists = true
-            }
-            if let page = pages.albums {
-                albums = Self.unique(page.playlists, by: \.urn)
-                albumsNextPageURL = page.nextURL
-                hasLoadedAlbums = true
             }
             if let page = pages.playlists {
                 playlists = Self.unique(page.playlists, by: \.urn)
@@ -765,8 +754,6 @@ struct ArtistDetailView: View {
                 trackList
             case .reposts:
                 repostList
-            case .albums:
-                albumList
             case .playlists:
                 playlistList
             case .likes:
@@ -780,9 +767,9 @@ struct ArtistDetailView: View {
         return switch tab {
         case .tracks: user.trackCount
         case .reposts: user.repostsCount
-        // `playlist_count` includes albums, and there is no album count to subtract, so
-        // it only says when both tabs are empty. A zero count hides the tab.
-        case .albums, .playlists: user.playlistCount == 0 ? 0 : nil
+        // `playlist_count` overstates the visible sets (it seems to count private ones),
+        // so it only says when the tab is empty. A zero count hides the tab.
+        case .playlists: user.playlistCount == 0 ? 0 : nil
         case .likes: user.publicFavoritesCount
         }
     }
@@ -1275,45 +1262,6 @@ struct ArtistDetailView: View {
         }
     }
 
-    private var albumList: some View {
-        LazyVStack(alignment: .leading, spacing: 16) {
-            ForEach(contentState.albums) { playlist in
-                PlaylistCardView(
-                    playlist: playlist,
-                    model: model,
-                    playlists: model.playlists,
-                    onSelectPlaylist: onSelectPlaylist,
-                    onSelectTrack: onSelectTrack,
-                    onSelectArtist: onSelectArtist
-                )
-                .modifier(FadeInOnAppear())
-            }
-            if let message = contentState.albumsErrorMessage {
-                Text(message).foregroundStyle(.secondary)
-                Button("Try Again") { Task { await loadAlbums() } }
-                    .disabled(contentState.isLoadingAlbums)
-            }
-            if contentState.isLoadingAlbums
-                || (contentState.albumsNextPageURL != nil && contentState.albumsErrorMessage == nil) {
-                LoadingSpinner()
-                    .accessibilityLabel("Loading albums")
-                    .frame(maxWidth: .infinity)
-                    .task(id: contentState.albumsNextPageURL) {
-                        guard contentState.albumsNextPageURL != nil,
-                              contentState.albumsErrorMessage == nil else { return }
-                        await loadAlbums()
-                    }
-            } else if contentState.hasLoadedAlbums, contentState.albums.isEmpty,
-                      contentState.albumsErrorMessage == nil {
-                EmptyStateView("No visible albums")
-            }
-        }
-        .task {
-            guard !contentState.hasLoadedAlbums else { return }
-            await loadAlbums()
-        }
-    }
-
     private func artistStatistics(_ details: SoundCloudArtistDetails, showsTrackCount: Bool) -> some View {
         HStack(alignment: .top, spacing: 12) {
             userStatistic(details.followersCount.map { max(0, $0 + followerCountAdjustment) }, list: .followers, user: details.user, allowsScaling: !showsTrackCount)
@@ -1455,33 +1403,6 @@ struct ArtistDetailView: View {
         } catch {
             guard !Task.isCancelled else { return }
             contentState.playlistsErrorMessage = error.localizedDescription
-        }
-    }
-
-    private func loadAlbums() async {
-        guard !contentState.isLoadingAlbums, let details,
-              !contentState.hasLoadedAlbums || contentState.albumsNextPageURL != nil else { return }
-        contentState.isLoadingAlbums = true
-        contentState.albumsErrorMessage = nil
-        defer { contentState.isLoadingAlbums = false }
-        do {
-            let pageURL = contentState.albumsNextPageURL
-            let page = try await model.artistAlbums(for: details.user, pageURL: pageURL)
-            try Task.checkCancellation()
-            if let nextURL = page.nextURL,
-               nextURL == pageURL || contentState.loadedAlbumsPageURLs.contains(nextURL) {
-                throw SoundCloudError.invalidData
-            }
-            var knownURNs = Set(contentState.albums.map(\.urn))
-            contentState.albums.append(contentsOf: page.playlists.filter {
-                knownURNs.insert($0.urn).inserted
-            })
-            if let pageURL { contentState.loadedAlbumsPageURLs.insert(pageURL) }
-            contentState.albumsNextPageURL = page.nextURL
-            contentState.hasLoadedAlbums = true
-        } catch {
-            guard !Task.isCancelled else { return }
-            contentState.albumsErrorMessage = error.localizedDescription
         }
     }
 

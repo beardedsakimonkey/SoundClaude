@@ -266,9 +266,9 @@ struct PlaylistTests {
         } catch SoundCloudError.unauthorized {}
 
         let artistURN = "soundcloud:users:7"
-        let artistNextURL = "https://api-v2.soundcloud.com/users/7/playlists_without_albums?cursor=next"
+        let artistNextURL = "https://api-v2.soundcloud.com/users/7/playlists?cursor=next"
         PlaylistURLProtocol.respond { request in
-            precondition(request.url?.path == "/users/7/playlists_without_albums")
+            precondition(request.url?.path == "/users/7/playlists")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "OAuth test-token")
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
             precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "1")))

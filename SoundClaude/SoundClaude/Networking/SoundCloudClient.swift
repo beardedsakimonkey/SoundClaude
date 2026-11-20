@@ -378,24 +378,14 @@ actor SoundCloudClient {
         return try await trackPage(at: url, accessToken: accessToken)
     }
 
+    /// Albums and playlists together, newest first.
     func artistPlaylists(
         urn: String,
         accessToken: String,
         pageURL: URL? = nil
     ) async throws -> SoundCloudPlaylistPage {
         let url = try pageURL ?? endpoint(
-            "users/\(try Self.id(urn))/playlists_without_albums", query: ["limit": "25"]
-        )
-        return try await playlistPage(at: url, accessToken: accessToken)
-    }
-
-    func artistAlbums(
-        urn: String,
-        accessToken: String,
-        pageURL: URL? = nil
-    ) async throws -> SoundCloudPlaylistPage {
-        let url = try pageURL ?? endpoint(
-            "users/\(try Self.id(urn))/albums", query: ["limit": "25"]
+            "users/\(try Self.id(urn))/playlists", query: ["limit": "25"]
         )
         return try await playlistPage(at: url, accessToken: accessToken)
     }

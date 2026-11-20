@@ -346,7 +346,7 @@ private struct PlaylistCardTitleRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "music.note.list")
+            Image(systemName: playlist.isAlbum == true ? "square.stack" : "music.note.list")
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
 
@@ -359,7 +359,7 @@ private struct PlaylistCardTitleRow: View {
             .buttonStyle(.plain)
             .prefetch(.playlist(playlist)) { isHoveringTitle = $0 }
             .contentHelp(playlist.title)
-            .accessibilityLabel("Playlist, \(playlist.title)")
+            .accessibilityLabel("\(playlist.isAlbum == true ? "Album" : "Playlist"), \(playlist.title)")
 
             // Reserve the button's height so title rows match on cards that can't be liked.
             if playlist.isPrivate || playlist.isSystemPlaylist {
