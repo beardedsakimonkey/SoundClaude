@@ -671,13 +671,16 @@ actor SoundCloudClient {
     func trackComments(
         urn: String,
         secretToken: String? = nil,
+        sort: CommentSortOrder = .newest,
         accessToken: String,
         pageURL: URL? = nil,
         limit: Int = 50
     ) async throws -> SoundCloudCommentPage {
+        // The next page URL keeps the sort.
         let url = try pageURL ?? endpoint("tracks/\(try Self.id(urn))/comments", query: [
             // Lists each reply after the comment it answers; unthreaded lists omit replies.
             "threaded": "1",
+            "sort": sort.rawValue,
             "limit": String(limit),
             "secret_token": secretToken,
         ])

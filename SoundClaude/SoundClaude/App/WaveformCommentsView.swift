@@ -67,7 +67,7 @@ struct WaveformCommentsView: View {
     private func loadComments() async {
         var knownIDs = Set<String>()
         do {
-            // Markers use only the first page, shared with the detail comment list.
+            // Markers use only the newest page, shared with the detail list when it sorts newest.
             let page = try await model.trackComments(for: track)
             try Task.checkCancellation()
             index = WaveformCommentIndex(page.comments.filter {

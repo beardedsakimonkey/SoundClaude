@@ -79,7 +79,7 @@ final class AppModel {
         cost: { $0.samples.count * MemoryLayout<Int>.stride }
     )
     // The detail list and waveform markers both read the first comment page.
-    private let firstCommentPageCache = RequestCache<TrackCacheKey, SoundCloudCommentPage>(name: "First Comment Pages", countLimit: 20)
+    private let firstCommentPageCache = RequestCache<TrackCommentsCacheKey, SoundCloudCommentPage>(name: "First Comment Pages", countLimit: 20)
     private let firstArtistUserPageCache = RequestCache<NSString, SoundCloudUserPage>(name: "First Artist User Pages", countLimit: 20)
     private let firstArtistCommentPageCache = RequestCache<NSURL, SoundCloudCommentPage>(name: "First Artist Comment Pages", countLimit: 20)
     private let firstRelatedTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Related Track Pages", countLimit: 20)
@@ -603,7 +603,7 @@ final class AppModel {
             timestampMilliseconds: timestampMilliseconds, accessToken: accessToken
         )
         let cacheKey = TrackCacheKey(track: track)
-        firstCommentPageCache.remove(cacheKey)
+        removeFirstCommentPages(for: track)
         firstArtistCommentPageCache.removeAll()
         if var details = trackDetailsCache.cached(cacheKey), let count = details.commentCount {
             details.commentCount = count + 1
@@ -616,7 +616,7 @@ final class AppModel {
         let accessToken = try await auth.validAccessToken()
         try await client.deleteTrackComment(urn: comment.urn, accessToken: accessToken)
         let cacheKey = TrackCacheKey(track: track)
-        firstCommentPageCache.remove(cacheKey)
+        removeFirstCommentPages(for: track)
         firstArtistCommentPageCache.removeAll()
         if var details = trackDetailsCache.cached(cacheKey), let count = details.commentCount {
             details.commentCount = max(0, count - 1)
@@ -640,8 +640,10 @@ final class AppModel {
         )
     }
 
-    func trackComments(for track: SoundCloudTrack, pageURL: URL? = nil) async throws
-        -> SoundCloudCommentPage {
+    /// `sort` applies to the first page; a next page URL keeps the sort it came with.
+    func trackComments(
+        for track: SoundCloudTrack, sort: CommentSortOrder = .newest, pageURL: URL? = nil
+    ) async throws -> SoundCloudCommentPage {
         if let pageURL {
             let accessToken = try await auth.validAccessToken()
             return try await client.trackComments(
@@ -650,12 +652,19 @@ final class AppModel {
             )
         }
 
-        // The detail list and the waveform markers share this request.
-        return try await firstCommentPageCache.value(for: TrackCacheKey(track: track)) { [auth, client] in
+        // The waveform markers share the newest page with the detail list.
+        let cacheKey = TrackCommentsCacheKey(track: track, sort: sort)
+        return try await firstCommentPageCache.value(for: cacheKey) { [auth, client] in
             let accessToken = try await auth.validAccessToken()
             return try await client.trackComments(
-                urn: track.urn, secretToken: track.secretToken, accessToken: accessToken
+                urn: track.urn, secretToken: track.secretToken, sort: sort, accessToken: accessToken
             )
+        }
+    }
+
+    private func removeFirstCommentPages(for track: SoundCloudTrack) {
+        for sort in CommentSortOrder.allCases {
+            firstCommentPageCache.remove(TrackCommentsCacheKey(track: track, sort: sort))
         }
     }
 
@@ -1385,6 +1394,32 @@ private final class TrackCacheKey: NSObject {
     override func isEqual(_ object: Any?) -> Bool {
         guard let other = object as? TrackCacheKey else { return false }
         return urn == other.urn && secretToken == other.secretToken
+    }
+}
+
+private final class TrackCommentsCacheKey: NSObject {
+    let track: TrackCacheKey
+    let sort: CommentSortOrder
+
+    init(track: SoundCloudTrack, sort: CommentSortOrder) {
+        self.track = TrackCacheKey(track: track)
+        self.sort = sort
+    }
+
+    #if DEBUG
+    override var description: String { "\(track.description) · \(sort.title)" }
+    #endif
+
+    override var hash: Int {
+        var hasher = Hasher()
+        hasher.combine(track)
+        hasher.combine(sort)
+        return hasher.finalize()
+    }
+
+    override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? TrackCommentsCacheKey else { return false }
+        return track == other.track && sort == other.sort
     }
 }
 

@@ -109,6 +109,7 @@ struct CommentsTests {
             precondition(query.contains(URLQueryItem(name: "limit", value: "50")))
             precondition(query.contains(URLQueryItem(name: "linked_partitioning", value: "1")))
             precondition(query.contains(URLQueryItem(name: "threaded", value: "1")))
+            precondition(query.contains(URLQueryItem(name: "sort", value: "newest")))
             precondition(query.contains(URLQueryItem(name: "secret_token", value: "s-private")))
             return (200, """
                 {"collection":[\(comment(timestamp: "4960"))],"next_href":"\(nextURL.absoluteString)"}
@@ -122,6 +123,15 @@ struct CommentsTests {
         }
         let lastPage = try await client.trackComments(urn: "soundcloud:tracks:1", accessToken: "test-token", pageURL: nextURL)
         precondition(lastPage.comments.isEmpty && lastPage.nextURL == nil)
+        // The server sorts; values match the website's CommentSort.
+        for (sort, value) in [(CommentSortOrder.oldest, "oldest"), (.trackTime, "track-timestamp")] {
+            CommentsURLProtocol.respond { request in
+                let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+                precondition(query.contains(URLQueryItem(name: "sort", value: value)))
+                return (200, "{\"collection\":[],\"next_href\":null}")
+            }
+            _ = try await client.trackComments(urn: "soundcloud:tracks:1", sort: sort, accessToken: "test-token")
+        }
 
         // A user's comments embed their track. Comments on tracks that can't be opened are dropped.
         let artistCommentsNextURL = URL(string: "https://api-v2.soundcloud.com/users/1/comments?offset=9&limit=20")!

@@ -521,6 +521,21 @@ struct SoundCloudCommentLikes: Equatable, Sendable {
     var isLiked: Bool
 }
 
+/// The comment endpoint's `sort` values. The server sorts so later pages continue the order.
+enum CommentSortOrder: String, CaseIterable, Sendable {
+    case newest
+    case oldest
+    case trackTime = "track-timestamp"
+
+    var title: String {
+        switch self {
+        case .newest: "Newest"
+        case .oldest: "Oldest"
+        case .trackTime: "Track Time"
+        }
+    }
+}
+
 /// Comments have no reply field. A reply takes its thread's track time, and the threaded
 /// endpoint lists it right after the comment that starts the thread, as the website reads it.
 struct SoundCloudCommentThreader {

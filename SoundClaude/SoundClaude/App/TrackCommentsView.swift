@@ -1,32 +1,6 @@
 import AppKit
 import SwiftUI
 
-enum CommentSortOrder: String, CaseIterable {
-    case newest
-    case oldest
-    case trackTime
-
-    var title: String {
-        switch self {
-        case .newest: "Newest"
-        case .oldest: "Oldest"
-        case .trackTime: "Track Time"
-        }
-    }
-
-    func precedes(_ lhs: SoundCloudComment, _ rhs: SoundCloudComment) -> Bool {
-        if self == .trackTime, lhs.timestampMilliseconds != rhs.timestampMilliseconds {
-            guard let left = lhs.timestampMilliseconds else { return false }
-            guard let right = rhs.timestampMilliseconds else { return true }
-            return left < right
-        }
-        // Missing dates go last; equal dates retain their loaded order.
-        guard let left = lhs.createdAt else { return false }
-        guard let right = rhs.createdAt else { return true }
-        return self == .oldest ? left < right : left > right
-    }
-}
-
 struct CommentSortMenu: View {
     @AppStorage("commentSortOrder") private var sortOrder = CommentSortOrder.newest
     var body: some View {
@@ -48,7 +22,11 @@ struct TrackCommentsView: View {
     let onCommentCountChange: (Int) -> Void
 
     @AppStorage("commentSortOrder") private var sortOrder = CommentSortOrder.newest
-    // Keep loaded order for stable sorting when dates or track times are equal.
+    // The order `comments` is loaded in; nil before the first load.
+    @State private var listSort: CommentSortOrder?
+    // Bumped when the list restarts, so a page requested for the old list is dropped.
+    @State private var listGeneration = 0
+    // In loaded order, which the server sorts.
     @State private var comments: [SoundCloudComment] = []
     // Reply URN to the URN of the comment that starts its thread.
     @State private var parentURNs: [String: String] = [:]
@@ -80,7 +58,7 @@ struct TrackCommentsView: View {
                 comments.removeAll { $0.urn == comment.urn }
                 comments.insert(comment, at: 0)
                 likes.merge([:], for: [comment])
-                updateSortedComments()
+                updateRows()
                 onCommentCountChange(1)
             }
             .modifier(FadeInOnAppear())
@@ -122,14 +100,13 @@ struct TrackCommentsView: View {
                     .id(nextPageURL)
             }
         }
-        .onChange(of: sortOrder) { _, _ in
-            updateSortedComments()
-        }
         .onDisappear {
             pageTask?.cancel()
             model.commentDrafts.prune(track)
         }
-        .task {
+        // A loaded page continues only its own order, so a new sort starts the list over.
+        .task(id: sortOrder) {
+            if listSort != sortOrder { restartList(sortedBy: sortOrder) }
             if !hasLoaded { await loadPage() }
         }
         .task(id: track.displayArtworkURL) {
@@ -163,15 +140,14 @@ struct TrackCommentsView: View {
         )
     }
 
-    // Sort threads by their first comment; replies stay in posted order beneath it.
-    private func updateSortedComments() {
+    // Threads keep loaded order; replies stay in posted order beneath their first comment.
+    private func updateRows() {
         let urns = Set(comments.map(\.urn))
         func parent(of comment: SoundCloudComment) -> String? {
             parentURNs[comment.urn].flatMap { urns.contains($0) ? $0 : nil }
         }
         let replies = Dictionary(grouping: comments.filter { parent(of: $0) != nil }) { parent(of: $0)! }
         rows = comments.filter { parent(of: $0) == nil }
-            .sorted(by: sortOrder.precedes)
             .flatMap { root in
                 [TrackCommentListRow(comment: root, isReply: false)]
                     + (replies[root.urn] ?? []).map { TrackCommentListRow(comment: $0, isReply: true) }
@@ -189,7 +165,7 @@ struct TrackCommentsView: View {
         likes.merge([:], for: [reply])
         // The posted reply takes the closing composer's place in one move.
         withAnimation(reduceMotion ? nil : TrackCommentReplies.animation) {
-            updateSortedComments()
+            updateRows()
             replies.close(parent)
         }
         onCommentCountChange(1)
@@ -201,15 +177,33 @@ struct TrackCommentsView: View {
         comments.removeAll { $0.urn == comment.urn }
         parentURNs[comment.urn] = nil
         replies.close(comment)
-        updateSortedComments()
+        updateRows()
         onCommentCountChange(-1)
+    }
+
+    // Likes and reply drafts are keyed by comment, so they carry over.
+    private func restartList(sortedBy sort: CommentSortOrder) {
+        listSort = sort
+        listGeneration += 1
+        pageTask?.cancel()
+        pageTask = nil
+        comments = []
+        parentURNs = [:]
+        threader = SoundCloudCommentThreader()
+        rows = []
+        nextPageURL = nil
+        loadedPageURLs = []
+        hasLoaded = false
+        isLoading = false
+        errorMessage = nil
     }
 
     private func startLoadingPage() {
         guard pageTask == nil else { return }
+        let generation = listGeneration
         pageTask = Task {
             await loadPage()
-            pageTask = nil
+            if generation == listGeneration { pageTask = nil }
         }
     }
 
@@ -225,14 +219,16 @@ struct TrackCommentsView: View {
     }
 
     private func loadPage() async {
-        guard !isLoading, !hasLoaded || nextPageURL != nil else { return }
+        guard let sort = listSort, !isLoading, !hasLoaded || nextPageURL != nil else { return }
+        let generation = listGeneration
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+        defer { if generation == listGeneration { isLoading = false } }
         do {
             let pageURL = nextPageURL
-            let page = try await model.trackComments(for: track, pageURL: pageURL)
+            let page = try await model.trackComments(for: track, sort: sort, pageURL: pageURL)
             try Task.checkCancellation()
+            guard generation == listGeneration else { return }
             if let nextURL = page.nextURL,
                nextURL == pageURL || loadedPageURLs.contains(nextURL) {
                 throw SoundCloudError.invalidData
@@ -246,14 +242,14 @@ struct TrackCommentsView: View {
                     parentURNs[comment.urn] = pageParentURNs[comment.urn]
                 }
                 comments.append(contentsOf: newComments)
-                updateSortedComments()
+                updateRows()
                 loadLikes(for: newComments)
             }
             if let pageURL { loadedPageURLs.insert(pageURL) }
             nextPageURL = page.nextURL
             hasLoaded = true
         } catch {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, generation == listGeneration else { return }
             errorMessage = error.localizedDescription
         }
     }
