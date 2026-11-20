@@ -24,7 +24,8 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
 
-mkdir -p "$work/staging" "$(dirname "$output")"
+mkdir -p "$work/staging/.background" "$(dirname "$output")"
+cp "$(dirname "$0")/dmg-background.tiff" "$work/staging/.background/layout.tiff"
 ditto "$app" "$work/staging/SoundClaude.app"
 ln -s /Applications "$work/staging/Applications"
 hdiutil create -quiet -srcfolder "$work/staging" -volname "SoundClaude" \
@@ -46,6 +47,7 @@ on run argv
         end tell
         set viewOptions to icon view options of container window of imageDisk
         set arrangement of viewOptions to not arranged
+        set background picture of viewOptions to file ".background:layout.tiff" of imageDisk
         set icon size of viewOptions to 96
         set text size of viewOptions to 14
         set position of item "SoundClaude.app" of imageDisk to {140, 130}
