@@ -17,6 +17,7 @@
   },
   "groups" : [
     {
+      "blur-material" : null,
       "layers" : [
         {
           "blend-mode" : "normal",
@@ -32,19 +33,40 @@
           "hidden" : false,
           "image-name" : "icon-1024.svg",
           "name" : "icon-1024",
+          "opacity" : 1,
           "position" : {
             "scale" : 1,
             "translation-in-points" : [
               10,
-              0
+              16
+            ]
+          }
+        },
+        {
+          "blend-mode" : "normal",
+          "fill" : {
+            "solid" : "display-p3:0.96863,0.72941,0.09804,1.00000"
+          },
+          "glass" : true,
+          "image-name" : "claude.svg",
+          "name" : "claude",
+          "opacity" : 1,
+          "position" : {
+            "scale" : 4,
+            "translation-in-points" : [
+              235,
+              -202
             ]
           }
         }
       ],
+      "lighting" : "individual",
+      "name" : "Group",
       "shadow" : {
-        "kind" : "neutral",
+        "kind" : "layer-color",
         "opacity" : 0.5
       },
+      "specular" : true,
       "translucency" : {
         "enabled" : true,
         "value" : 0.5
