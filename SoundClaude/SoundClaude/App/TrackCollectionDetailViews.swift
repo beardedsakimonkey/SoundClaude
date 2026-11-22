@@ -560,7 +560,7 @@ private struct TrackCollectionLikeButtonStyle: ButtonStyle {
             : Color.primary.opacity(isHighlighted ? 0.12 : 0)
         let foreground: AnyShapeStyle = isLiked
             ? AnyShapeStyle(Color.accentColor)
-            : dimsWhenIdle && !isHighlighted ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.primary)
+            : dimsWhenIdle && !isHighlighted ? AnyShapeStyle(.secondary) : AnyShapeStyle(Color.primary)
         configuration.label
             .foregroundStyle(foreground)
             .padding(4)
