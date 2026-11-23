@@ -45,7 +45,7 @@
         {
           "blend-mode" : "normal",
           "fill" : {
-            "solid" : "display-p3:0.96863,0.72941,0.09804,1.00000"
+            "solid" : "extended-srgb:1.00000,0.80000,0.00000,1.00000"
           },
           "glass" : true,
           "image-name" : "claude.svg",
@@ -55,7 +55,7 @@
             "scale" : 4,
             "translation-in-points" : [
               235,
-              -202
+              -217
             ]
           }
         }
