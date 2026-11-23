@@ -153,6 +153,11 @@ struct PlaylistCardView: View {
     /// Rows are reserved for tracks that haven't arrived yet.
     private var showsSkeleton: Bool { tracks.isEmpty && displayedRowCount > 0 }
     private var hasLoadedTracks: Bool { contents?.hasLoadedPage == true }
+    private var moreTracksLabel: String {
+        let remaining = trackCount - 5
+        guard remaining > 0 else { return "View more tracks" }
+        return "View \(remaining.formatted()) more \(remaining == 1 ? "track" : "tracks")"
+    }
 
     @ViewBuilder
     private var trackList: some View {
@@ -177,7 +182,7 @@ struct PlaylistCardView: View {
         .scrollEdgeFade(fadesBottom: !isExpanded && hasMoreTracks)
 
         if isExpanded || hasMoreTracks {
-            Button(isExpanded ? "View fewer tracks" : "View \(trackCount) tracks") {
+            Button(isExpanded ? "View fewer tracks" : moreTracksLabel) {
                 guard hasLoadedTracks else { return }
                 isExpanded.toggle()
                 if isExpanded { Task { await playlists.loadPlaylist(playlist) } }
