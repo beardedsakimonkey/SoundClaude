@@ -16,7 +16,7 @@ struct TrackWaveformView: View {
         func horizontalBarInset(for width: CGFloat) -> CGFloat {
             guard self == .compact else { return 0 }
             let barCount = max(Int(width / 4), 1)
-            let barsWidth = CGFloat(barCount - 1) * 4 + 2
+            let barsWidth = CGFloat(barCount - 1) * 4 + 2.25
             return max(0, (width - barsWidth) / 2)
         }
     }
@@ -694,7 +694,7 @@ struct TrackWaveformView: View {
         // Measure from the inset bar centers. Normalize the
         // distance so the nearest bar reveals fully and the farthest stays flat.
         let inset = layout.horizontalBarInset(for: width)
-        let pointerIndex = (hoverFraction * Double(width) - Double(inset) - 1) / 4
+        let pointerIndex = (hoverFraction * Double(width) - Double(inset) - 1.125) / 4
         let nearestIndex = min(max(pointerIndex.rounded(), 0), Double(barCount - 1))
         let nearestDistance = abs(pointerIndex - nearestIndex)
         let farthestDistance = max(abs(pointerIndex), abs(pointerIndex - Double(barCount - 1)))
@@ -722,7 +722,7 @@ struct TrackWaveformView: View {
         _ amplitudes: WaveformAmplitudes,
         size: CGSize
     ) -> [CGRect] {
-        let barWidth: CGFloat = layout == .detail ? 2.5 : 2
+        let barWidth: CGFloat = layout == .detail ? 2.5 : 2.25
         let step: CGFloat = 4
         let inset = layout.horizontalBarInset(for: size.width)
         let availableHeight = layout.availableBarHeight(for: size.height)
