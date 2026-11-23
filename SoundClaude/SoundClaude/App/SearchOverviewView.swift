@@ -555,7 +555,7 @@ struct SearchPlaylistCard: View {
         Button(action: onSelect) {
             VStack(alignment: .leading, spacing: 8) {
                 TrackArtworkView(
-                    artworkURL: playlist.artworkURL ?? playlist.owner.avatarURL,
+                    artworkURL: playlist.displayArtworkURL,
                     loader: artworkLoader,
                     size: Self.artworkSize,
                     rendition: .square500,

@@ -19,6 +19,7 @@ struct SidebarView: View {
     let onPlayPlaylist: (SoundCloudPlaylist, PlaylistContents, _ shuffle: Bool) async -> Void
     let onDeletePlaylist: (SoundCloudPlaylist) -> Void
     let onSelectProfile: (SoundCloudUser) -> Void
+    let onSelectNotifications: () -> Void
     let onReselect: () -> Void
     let onSignOut: () async -> Void
 
@@ -118,6 +119,7 @@ struct SidebarView: View {
                     user: user,
                     artworkLoader: artworkLoader,
                     onSelectProfile: onSelectProfile,
+                    onSelectNotifications: onSelectNotifications,
                     onSignOut: onSignOut
                 )
                 sidebarContent
@@ -750,8 +752,10 @@ private struct SidebarAccountHeader: View {
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
     let onSelectProfile: (SoundCloudUser) -> Void
+    let onSelectNotifications: () -> Void
     let onSignOut: () async -> Void
 
+    @Environment(\.prefetcher) private var prefetcher
     @State private var isHovered = false
 
     var body: some View {
@@ -761,6 +765,10 @@ private struct SidebarAccountHeader: View {
                 Menu {
                     Button("View profile", systemImage: "person") {
                         onSelectProfile(user)
+                    }
+                    .labelStyle(.titleAndIcon)
+                    Button("Notifications", systemImage: "bell") {
+                        onSelectNotifications()
                     }
                     .labelStyle(.titleAndIcon)
                     Divider()
@@ -797,7 +805,10 @@ private struct SidebarAccountHeader: View {
                 .menuStyle(.button)
                 .buttonStyle(.plain)
                 .menuIndicator(.hidden)
-                .onContentHover { isHovered = $0 }
+                // The menu opens on press, so only a resting hover gains time.
+                .prefetch(.hoverOnly, onHover: { isHovered = $0 }) {
+                    prefetcher?.prefetch(.notifications(.saved))
+                }
                 .contentHelp("Account: \(user.username)")
                 .accessibilityLabel("Account: \(user.username)")
                 if user.isVerified == true {

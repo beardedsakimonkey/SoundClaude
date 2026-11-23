@@ -7,6 +7,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
     @Binding var selection: Selection
     let optionCount: (Selection) -> Int?
     let optionSystemImage: (Selection) -> String?
+    let optionText: (Selection) -> String
     let allowsIconOnly: Bool
     let horizontalPadding: CGFloat
     /// What to warm while a tab other than the selected one is hovered or pressed.
@@ -18,6 +19,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
         selection: Binding<Selection>,
         optionCount: @escaping (Selection) -> Int? = { _ in nil },
         optionSystemImage: @escaping (Selection) -> String? = { _ in nil },
+        optionText: @escaping (Selection) -> String = { $0.rawValue },
         allowsIconOnly: Bool = false,
         horizontalPadding: CGFloat = 20,
         prefetch: @escaping (Selection) -> PrefetchTarget? = { _ in nil }
@@ -27,6 +29,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
         self._selection = selection
         self.optionCount = optionCount
         self.optionSystemImage = optionSystemImage
+        self.optionText = optionText
         self.allowsIconOnly = allowsIconOnly
         self.horizontalPadding = horizontalPadding
         self.prefetch = prefetch
@@ -121,13 +124,13 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
             if style == .full {
                 optionTitle(option, isEmphasized: isEmphasized)
             } else if style != .iconsOnly || systemImage == nil {
-                Text(option.rawValue)
+                Text(optionText(option))
             }
         }
     }
 
     private func optionTitle(_ option: Selection, isEmphasized: Bool) -> Text {
-        let title = Text(option.rawValue)
+        let title = Text(optionText(option))
         guard let count = optionCount(option) else { return title }
         return title + Text(" (\(count.formatted()))")
             .font(.body.weight(.regular))

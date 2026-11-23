@@ -705,6 +705,22 @@ actor SoundCloudClient {
         )
     }
 
+    /// The signed-in user's notifications, newest first.
+    func notifications(
+        filter: NotificationFilter,
+        accessToken: String,
+        pageURL: URL? = nil
+    ) async throws -> SoundCloudNotificationPage {
+        let url = pageURL ?? endpoint(filter.path, query: ["limit": "20"])
+        let page = try await get(RawNotificationPage.self, url, accessToken: accessToken)
+        try validateNextURL(page.nextURL, after: url)
+        var knownIDs: Set<String> = []
+        return SoundCloudNotificationPage(
+            notifications: page.collection.compactMap(\.notification).filter { knownIDs.insert($0.id).inserted },
+            nextURL: page.nextURL
+        )
+    }
+
     /// Comment likes are GraphQL "reaction" interactions; api-v2 comments omit them.
     /// Comments missing from the reply have no likes.
     func commentLikes(

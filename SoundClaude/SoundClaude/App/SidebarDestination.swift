@@ -58,6 +58,7 @@ enum Route: Codable, Hashable {
     case artist(SoundCloudUser)
     case artistUsers(SoundCloudUser, ArtistUserList)
     case artistComments(SoundCloudUser)
+    case notifications
 }
 
 /// One visit to a route. Going back returns to the visit's scroll position; visiting

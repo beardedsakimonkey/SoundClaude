@@ -27,6 +27,9 @@ struct ArtistLink: View {
     var body: some View { let _ = lifetime; HStack(spacing: 8) { Color.clear.frame(width: 24, height: 24); Button(artist.username) { onSelect(artist) }.lineLimit(1) } }
 }
 enum PrefetchTarget { case track(SoundCloudTrack) }
+enum SoundCloudDate {
+    static func parse(_ value: String) -> Date? { ISO8601DateFormatter().date(from: value) }
+}
 extension View {
     func trackDraggable(_ track: SoundCloudTrack, previewTitle: String) -> some View { self }
     func onContentHover(_ action: @escaping (Bool) -> Void) -> some View { onHover(perform: action) }

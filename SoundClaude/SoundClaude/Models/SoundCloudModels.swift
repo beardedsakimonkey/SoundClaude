@@ -191,25 +191,29 @@ enum SoundCloudFeedContent: Codable, Sendable {
         }
     }
 
+    var title: String {
+        switch self {
+        case let .track(track): track.title
+        case let .playlist(playlist): playlist.title
+        }
+    }
+
+    var displayArtworkURL: URL? {
+        switch self {
+        case let .track(track): track.displayArtworkURL
+        case let .playlist(playlist): playlist.displayArtworkURL
+        }
+    }
+
     /// Repost endpoints expose content creation time, not the time it was reposted.
     static func sortedByCreationDate(_ contents: [Self]) -> [Self] {
-        let iso = ISO8601DateFormatter()
-        let legacy = DateFormatter()
-        legacy.locale = Locale(identifier: "en_US_POSIX")
-        legacy.timeZone = TimeZone(secondsFromGMT: 0)
-        legacy.dateFormat = "yyyy/MM/dd HH:mm:ss Z"
-
         func date(for content: Self) -> Date {
             let timestamp: String?
             switch content {
             case let .track(track): timestamp = track.createdAt
             case let .playlist(playlist): timestamp = playlist.createdAt
             }
-            guard let timestamp else { return .distantPast }
-            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = iso.date(from: timestamp) { return date }
-            iso.formatOptions = [.withInternetDateTime]
-            return iso.date(from: timestamp) ?? legacy.date(from: timestamp) ?? .distantPast
+            return timestamp.flatMap(SoundCloudDate.parse) ?? .distantPast
         }
 
         return contents.map { (content: $0, date: date(for: $0)) }
@@ -280,7 +284,7 @@ extension SoundCloudSearchResult: Identifiable {
         switch self {
         case let .user(user): user.avatarURL
         case let .track(track): track.displayArtworkURL
-        case let .playlist(playlist): playlist.artworkURL ?? playlist.owner.avatarURL
+        case let .playlist(playlist): playlist.displayArtworkURL
         }
     }
 
@@ -370,21 +374,7 @@ struct RawFeedActivity: Decodable {
         }
         user = try container.decodeIfPresent(RawUser.self, forKey: .user)?.normalized()
         let timestamp = try container.decode(String.self, forKey: .createdAt)
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        var date = iso.date(from: timestamp)
-        if date == nil {
-            iso.formatOptions = [.withInternetDateTime]
-            date = iso.date(from: timestamp)
-        }
-        if date == nil {
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            formatter.dateFormat = "yyyy/MM/dd HH:mm:ss Z"
-            date = formatter.date(from: timestamp)
-        }
-        guard let date else {
+        guard let date = SoundCloudDate.parse(timestamp) else {
             throw DecodingError.dataCorruptedError(
                 forKey: .createdAt, in: container, debugDescription: "Invalid feed timestamp"
             )
@@ -434,6 +424,8 @@ struct SoundCloudPlaylist: Codable, Identifiable, Sendable, Hashable {
     }
 
     var id: String { urn }
+
+    var displayArtworkURL: URL? { artworkURL ?? owner.avatarURL }
 }
 
 struct SoundCloudPlaylistPage: Sendable {
@@ -494,25 +486,26 @@ struct SoundCloudComment: Decodable, Identifiable, Sendable {
             timestampMilliseconds = nil
         }
 
-        if let value = try container.decodeIfPresent(String.self, forKey: .createdAt) {
-            let iso = ISO8601DateFormatter()
-            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            var date = iso.date(from: value)
-            if date == nil {
-                iso.formatOptions = [.withInternetDateTime]
-                date = iso.date(from: value)
-            }
-            if date == nil {
-                let formatter = DateFormatter()
-                formatter.locale = Locale(identifier: "en_US_POSIX")
-                formatter.timeZone = TimeZone(secondsFromGMT: 0)
-                formatter.dateFormat = "yyyy/MM/dd HH:mm:ss Z"
-                date = formatter.date(from: value)
-            }
-            createdAt = date
-        } else {
-            createdAt = nil
-        }
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt).flatMap(SoundCloudDate.parse)
+    }
+}
+
+/// api-v2 timestamps are ISO 8601, with or without fractional seconds; older records
+/// use `2007/09/11 15:40:24 +0000`.
+enum SoundCloudDate {
+    // Formatters are costly to create, and decoding parses a date per item.
+    private static let iso = Date.ISO8601FormatStyle()
+    private static let fractionalISO = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
+    private static let legacy: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy/MM/dd HH:mm:ss Z"
+        return formatter
+    }()
+
+    static func parse(_ value: String) -> Date? {
+        (try? iso.parse(value)) ?? (try? fractionalISO.parse(value)) ?? legacy.date(from: value)
     }
 }
 
@@ -563,6 +556,116 @@ struct SoundCloudCommentPage: Decodable, Sendable {
     enum CodingKeys: String, CodingKey {
         case comments = "collection"
         case nextURL = "next_href"
+    }
+}
+
+/// Activity on the signed-in user's content and profile, as soundcloud.com/notifications lists it.
+struct SoundCloudNotification: Identifiable, Sendable {
+    enum Kind {
+        case like
+        case repost
+        case comment
+        case mention
+        case follow
+    }
+
+    let id: String
+    let kind: Kind
+    let user: SoundCloudUser
+    let createdAt: Date?
+    /// The track or playlist acted on. Nil for follows, and for comments on removed tracks.
+    let content: SoundCloudFeedContent?
+    /// Set for comments and mentions.
+    let comment: SoundCloudComment?
+}
+
+struct SoundCloudNotificationPage: Sendable {
+    let notifications: [SoundCloudNotification]
+    let nextURL: URL?
+}
+
+/// soundcloud.com/notifications's filters. Each is its own api-v2 collection, so
+/// filtered pages are full pages. Comments include mentions.
+enum NotificationFilter: String, CaseIterable, Sendable {
+    case all
+    case likes
+    case reposts
+    case comments
+    case follows
+
+    var path: String {
+        self == .all ? "activities" : "activities/\(rawValue)"
+    }
+}
+
+struct RawNotificationPage: Decodable {
+    let collection: [RawNotification]
+    let nextURL: URL?
+
+    enum CodingKeys: String, CodingKey {
+        case collection
+        case nextURL = "next_href"
+    }
+}
+
+/// An unknown type or a malformed entry decodes to nil rather than failing its page.
+struct RawNotification: Decodable {
+    let notification: SoundCloudNotification?
+
+    enum CodingKeys: String, CodingKey {
+        case type, uuid, user, track, playlist, comment
+        case createdAt = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        notification = Self.parse(try decoder.container(keyedBy: CodingKeys.self))
+    }
+
+    private static func parse(_ container: KeyedDecodingContainer<CodingKeys>) -> SoundCloudNotification? {
+        guard let type = try? container.decode(String.self, forKey: .type),
+              let user = (try? container.decodeIfPresent(RawUser.self, forKey: .user))?.normalized()
+        else { return nil }
+
+        let kind: SoundCloudNotification.Kind
+        let content: SoundCloudFeedContent?
+        var comment: SoundCloudComment?
+        switch type {
+        case "track-like", "favoriting", "track-repost":
+            kind = type == "track-repost" ? .repost : .like
+            // A like of a removed track has nothing to show.
+            guard let track = (try? container.decodeIfPresent(RawTrack.self, forKey: .track))?.normalized()
+            else { return nil }
+            content = .track(track)
+        case "playlist-like", "playlist-repost":
+            kind = type == "playlist-repost" ? .repost : .like
+            guard let playlist = (try? container.decodeIfPresent(RawPlaylist.self, forKey: .playlist))?.normalized()
+            else { return nil }
+            content = .playlist(playlist)
+        case "comment", "mention":
+            kind = type == "comment" ? .comment : .mention
+            guard let decoded = try? container.decodeIfPresent(SoundCloudComment.self, forKey: .comment)
+            else { return nil }
+            comment = decoded
+            content = decoded.track.map(SoundCloudFeedContent.track)
+        case "affiliation":
+            kind = .follow
+            content = nil
+        default:
+            return nil
+        }
+
+        let timestamp = try? container.decodeIfPresent(String.self, forKey: .createdAt)
+        let uuid = try? container.decodeIfPresent(String.self, forKey: .uuid)
+        return SoundCloudNotification(
+            id: uuid ?? [
+                type, user.accountID, content?.urn ?? "", comment?.urn ?? "", timestamp ?? "",
+            ].joined(separator: "|"),
+            kind: kind,
+            user: user,
+            createdAt: timestamp.flatMap(SoundCloudDate.parse) ?? comment?.createdAt,
+            content: content,
+            comment: comment
+        )
     }
 }
 

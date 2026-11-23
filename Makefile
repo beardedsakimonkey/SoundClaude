@@ -253,6 +253,12 @@ test: test-typecheck test-playback-selection test-artist-tracks
 		SoundClaude/SoundClaude/Playback/TrackQueue.swift \
 		tests/FeedTests.swift
 	/tmp/soundclaude-tests/feed
+	swiftc -o /tmp/soundclaude-tests/notifications \
+		tests/APITestSupport.swift \
+		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
+		SoundClaude/SoundClaude/Networking/SoundCloudClient.swift \
+		tests/NotificationsTests.swift
+	/tmp/soundclaude-tests/notifications
 	swiftc -o /tmp/soundclaude-tests/feed-cache \
 		SoundClaude/SoundClaude/App/LaunchMetrics.swift \
 		SoundClaude/SoundClaude/Models/SoundCloudModels.swift \

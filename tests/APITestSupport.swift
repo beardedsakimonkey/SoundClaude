@@ -26,3 +26,35 @@ enum APITestSupport {
         return (stripped, nil)
     }
 }
+
+/// Answers every request with the current handler's status and JSON body.
+final class APIStubURLProtocol: URLProtocol {
+    private static let lock = NSLock()
+    private static var handler: ((URLRequest) -> (Int, String))?
+
+    static func respond(_ handler: @escaping (URLRequest) -> (Int, String)) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.handler = handler
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        let (request, me) = APITestSupport.prepare(self.request)
+        Self.lock.lock()
+        let handler = Self.handler!
+        Self.lock.unlock()
+        let (status, body) = me ?? handler(request)
+        let response = HTTPURLResponse(
+            url: request.url!, statusCode: status, httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: Data(body.utf8))
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}

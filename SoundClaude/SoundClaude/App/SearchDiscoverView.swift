@@ -105,7 +105,7 @@ struct SearchDiscover: View {
             ids: selections.map(\.id),
             urlGroups: selections.map { selection in
                 selection.items.prefix(cardsPerShelf).compactMap {
-                    $0.playlist.artworkURL ?? $0.playlist.owner.avatarURL
+                    $0.playlist.displayArtworkURL
                 }
             },
             loader: model.artworkLoader, isEnabled: prefetchEnabled

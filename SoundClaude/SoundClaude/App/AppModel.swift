@@ -82,6 +82,7 @@ final class AppModel {
     private let firstCommentPageCache = RequestCache<TrackCommentsCacheKey, SoundCloudCommentPage>(name: "First Comment Pages", countLimit: 20)
     private let firstArtistUserPageCache = RequestCache<NSString, SoundCloudUserPage>(name: "First Artist User Pages", countLimit: 20)
     private let firstArtistCommentPageCache = RequestCache<NSURL, SoundCloudCommentPage>(name: "First Artist Comment Pages", countLimit: 20)
+    private let firstNotificationPageCache = RequestCache<NSString, SoundCloudNotificationPage>(name: "First Notification Pages", countLimit: NotificationFilter.allCases.count)
     private let firstRelatedTrackPageCache = RequestCache<NSString, SoundCloudTrackPage>(name: "First Related Track Pages", countLimit: 20)
     private let firstTrackPlaylistPageCache = RequestCache<NSString, SoundCloudPlaylistPage>(name: "First Track Playlist Pages", countLimit: 20)
     // The track page asks for only the few playlists it shows.
@@ -346,6 +347,7 @@ final class AppModel {
         waveformCache.reset()
         firstCommentPageCache.reset()
         firstArtistCommentPageCache.reset()
+        firstNotificationPageCache.reset()
         firstArtistUserPageCache.reset()
         firstRelatedTrackPageCache.reset()
         firstTrackPlaylistPageCache.reset()
@@ -818,6 +820,29 @@ final class AppModel {
             let accessToken = try await auth.validAccessToken()
             return try await client.artistComments(urn: urn, accessToken: accessToken)
         }
+    }
+
+    func cachedFirstNotificationPage(filter: NotificationFilter) -> SoundCloudNotificationPage? {
+        firstNotificationPageCache.cached(filter.rawValue as NSString)
+    }
+
+    func notifications(filter: NotificationFilter, pageURL: URL? = nil) async throws
+        -> SoundCloudNotificationPage {
+        if let pageURL {
+            let accessToken = try await auth.validAccessToken()
+            return try await client.notifications(filter: filter, accessToken: accessToken, pageURL: pageURL)
+        }
+        // Shared with the account menu's prefetch, and kept for Back navigation.
+        return try await firstNotificationPageCache.value(for: filter.rawValue as NSString) { [auth, client] in
+            let accessToken = try await auth.validAccessToken()
+            return try await client.notifications(filter: filter, accessToken: accessToken)
+        }
+    }
+
+    /// Fetches a filter's first page again and caches it, replacing the cached one.
+    func reloadNotifications(filter: NotificationFilter) async throws {
+        firstNotificationPageCache.remove(filter.rawValue as NSString)
+        _ = try await notifications(filter: filter)
     }
 
     /// Autocomplete for the search field. A part that fails to load is left out rather than raising an error.

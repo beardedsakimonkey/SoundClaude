@@ -17,6 +17,9 @@ struct ArtistLink: View {
     var body: some View { Button(artist.username) { onSelect(artist) }.lineLimit(1) }
 }
 enum PrefetchTarget { case track(SoundCloudTrack) }
+enum SoundCloudDate {
+    static func parse(_ value: String) -> Date? { ISO8601DateFormatter().date(from: value) }
+}
 extension View {
     func onContentHover(_ action: @escaping (Bool) -> Void) -> some View { onHover(perform: action) }
     func contentHelp(_ text: String) -> some View { help(text) }

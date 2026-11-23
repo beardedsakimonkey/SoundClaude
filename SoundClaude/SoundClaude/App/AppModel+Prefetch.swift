@@ -17,6 +17,7 @@ enum PrefetchTarget: Hashable {
     case artistTab(SoundCloudUser, ArtistContentTab)
     case artistUsers(SoundCloudUser, ArtistUserList)
     case artistComments(SoundCloudUser)
+    case notifications(NotificationFilter)
     case search(String, SearchScope)
     /// Every match of one kind for a query.
     case searchCategory(String, SearchCategory)
@@ -48,6 +49,8 @@ extension AppModel {
             _ = try? await artistUsers(for: artist, list: list)
         case let .artistComments(artist):
             _ = try? await artistComments(for: artist)
+        case let .notifications(filter):
+            _ = try? await notifications(filter: filter)
         case let .search(query, scope):
             switch scope {
             case .query: _ = try? await searchResults(query: query)

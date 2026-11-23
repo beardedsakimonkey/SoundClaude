@@ -375,6 +375,7 @@ struct SignedInView: View {
                 },
                 onDeletePlaylist: removeDeletedPlaylist,
                 onSelectProfile: showArtist,
+                onSelectNotifications: showNotifications,
                 onReselect: {
                     navigationHistories[destinationID] = NavigationHistory()
                     artistTabSelections.tabs[destinationID] = nil
@@ -611,6 +612,14 @@ struct SignedInView: View {
             ArtistCommentsView(
                 artist: artist, model: model,
                 onSelectTrack: showTrack,
+                onSelectArtist: showArtist
+            )
+            .id(route)
+        case .notifications:
+            NotificationsView(
+                model: model,
+                onSelectTrack: showTrack,
+                onSelectPlaylist: showPlaylist,
                 onSelectArtist: showArtist
             )
             .id(route)
@@ -919,6 +928,12 @@ struct SignedInView: View {
 
     private func showArtistComments(_ artist: SoundCloudUser) {
         push(.artistComments(artist))
+    }
+
+    private func showNotifications() {
+        isShowingVisualizer = false
+        guard currentRoute != .notifications else { return }
+        push(.notifications)
     }
 
     private func navigateBack() -> Bool {
