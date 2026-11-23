@@ -61,7 +61,7 @@ struct StationDetailView: View {
             VStack(alignment: .leading, spacing: 24) {
                 header
                 TrackCollectionSection(
-                    title: "Station tracks",
+                    title: "Tracks",
                     count: station?.trackCount ?? tracks.count,
                     errorMessage: model.errorMessage
                 ) { trackLayout in
@@ -143,17 +143,19 @@ struct StationDetailView: View {
         ) {
             TrackCollectionTitleRow {
                 Label {
-                    StationSourceButton(
-                        title: title,
-                        isArtistStation: stationType == "Artist station",
-                        isOpeningSource: isOpeningSource,
-                        // Without a seed track, the source is unknown until it is looked up.
-                        prefetch: seedTrack.map(PrefetchTarget.track)
-                    ) {
-                        if let seedTrack {
-                            onSelectTrack(seedTrack)
-                        } else {
-                            isOpeningSource = true
+                    TrackCollectionKindTitle(kind: "Station") {
+                        StationSourceButton(
+                            title: title,
+                            isArtistStation: stationType == "Artist station",
+                            isOpeningSource: isOpeningSource,
+                            // Without a seed track, the source is unknown until it is looked up.
+                            prefetch: seedTrack.map(PrefetchTarget.track)
+                        ) {
+                            if let seedTrack {
+                                onSelectTrack(seedTrack)
+                            } else {
+                                isOpeningSource = true
+                            }
                         }
                     }
                 } icon: {

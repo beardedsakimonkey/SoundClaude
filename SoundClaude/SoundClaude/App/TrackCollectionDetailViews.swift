@@ -463,6 +463,21 @@ extension View {
     }
 }
 
+/// "Playlist · Title" inside the title pill; the kind stays secondary and never truncates.
+struct TrackCollectionKindTitle<Title: View>: View {
+    let kind: String
+    @ViewBuilder let title: () -> Title
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text("\(kind) ·")
+                .fixedSize()
+                .accessibilityHidden(true)
+            title()
+        }
+    }
+}
+
 struct TrackCollectionTitleRow<Title: View, Actions: View>: View {
     @ViewBuilder let title: () -> Title
     @ViewBuilder let actions: () -> Actions

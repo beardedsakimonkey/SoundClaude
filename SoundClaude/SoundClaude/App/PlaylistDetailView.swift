@@ -148,17 +148,19 @@ struct PlaylistDetailView: View {
         ) {
             TrackCollectionTitleRow {
                 Label {
-                    Text(displayedPlaylist.title)
-                        .trackCollectionTitleText()
+                    TrackCollectionKindTitle(kind: playlistKind) {
+                        Text(displayedPlaylist.title)
+                            .trackCollectionTitleText()
+                            .textSelection(.enabled)
+                    }
                 } icon: {
                     PlaylistPlayingIcon(
                         playback: model.playback, isCurrent: model.queue.source == .playlist(playlist.urn),
                         systemName: displayedPlaylist.isAlbum == true ? "square.stack" : "music.note.list"
                     )
-                    .contentHelp(displayedPlaylist.isAlbum == true ? "Album" : "Playlist")
                 }
-                .textSelection(.enabled)
-                .accessibilityLabel("\(displayedPlaylist.isAlbum == true ? "Album" : "Playlist"), \(displayedPlaylist.title)")
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(playlistKind), \(displayedPlaylist.title)")
             } actions: {
                 if !displayedPlaylist.isPrivate {
                     likeButton
@@ -172,6 +174,8 @@ struct PlaylistDetailView: View {
             }
         }
     }
+
+    private var playlistKind: String { displayedPlaylist.isAlbum == true ? "Album" : "Playlist" }
 
     private var playlistTimestamp: RelativeTimestampView {
         RelativeTimestampView(
