@@ -97,6 +97,15 @@ struct PlaylistCardView: View {
 
                 Spacer(minLength: 0)
 
+                PlaylistCardNowPlaying(
+                    playlistURN: playlist.urn,
+                    model: model,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist
+                )
+
+                Spacer(minLength: 0)
+
                 if waveformTrack != nil || displayedRowCount > 0 {
                     HStack(spacing: 10) {
                         if let track = waveformTrack {
@@ -126,8 +135,6 @@ struct PlaylistCardView: View {
                         .allowsHitTesting(waveformTrack != nil)
                     }
                 }
-
-                Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: PlaylistCardArtwork.size)
@@ -405,6 +412,66 @@ private struct PlaylistCardTitleRow: View {
                 }
             }
         }
+    }
+}
+
+// Subscribes to the queue source and current track here so track changes
+// don't update the whole card.
+private struct PlaylistCardNowPlaying: View {
+    let playlistURN: String
+    let model: AppModel
+    let onSelectTrack: (SoundCloudTrack) -> Void
+    let onSelectArtist: (SoundCloudUser) -> Void
+
+    @State private var isHoveringTitle = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var track: SoundCloudTrack? {
+        guard model.queue.source == .playlist(playlistURN) else { return nil }
+        return model.playback.currentTrack
+    }
+
+    var body: some View {
+        // The placeholder sizes the line, so the waveform below doesn't shift
+        // when playback starts or stops.
+        Text(" ")
+            .hidden()
+            .accessibilityHidden(true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .leading) {
+                if let track {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("Now playing:")
+                            .foregroundStyle(.tertiary)
+                            .fixedSize()
+                            .accessibilityHidden(true)
+                        Button {
+                            onSelectTrack(track)
+                        } label: {
+                            Text(track.title)
+                                .underline(isHoveringTitle)
+                                .truncationMode(.tail)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .prefetch(.track(track)) { isHoveringTitle = $0 }
+                        .contentHelp("View track: \(track.title)")
+                        .accessibilityLabel("Now playing: \(track.title)")
+                        Text("by")
+                            .foregroundStyle(.tertiary)
+                            .fixedSize()
+                        ArtistLink(artist: track.artist, onSelect: onSelectArtist)
+                            .foregroundStyle(.secondary)
+                            .layoutPriority(1)
+                    }
+                    .lineLimit(1)
+                    .id(track.urn)
+                    .transition(.opacity)
+                }
+            }
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: track?.urn)
+            .font(.callout)
+            .onChange(of: track?.urn) { _, _ in isHoveringTitle = false }
     }
 }
 
