@@ -306,6 +306,8 @@ struct SignedOutView: View {
                     }
                 }
                 .buttonStyle(SignedOutActionStyle(isPrimary: false, cornerRadius: 8))
+                // Move the whole button together while the copy symbol changes.
+                .geometryGroup()
                 .help("Click to copy")
                 .accessibilityLabel(copiedSessionCommand ? "Command copied" : "Copy command")
                 .accessibilityValue(Self.sessionCommand)
