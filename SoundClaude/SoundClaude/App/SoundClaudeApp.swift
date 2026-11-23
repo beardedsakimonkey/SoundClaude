@@ -104,6 +104,7 @@ struct SoundClaudeApp: App {
                 progressView(label: "Signing in to SoundCloud")
             case let .signedIn(user):
                 SignedInView(user: user, model: model)
+                    .modifier(FadeInOnAppear())
                     .onAppear { LaunchMetrics.markOnce("Signed-in view appeared") }
             case .signedOut, .failed:
                 EmptyView()
