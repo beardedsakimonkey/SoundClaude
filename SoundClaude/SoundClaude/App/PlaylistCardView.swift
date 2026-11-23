@@ -366,6 +366,9 @@ private struct PlaylistCardTitleRow: View {
                 likeButton.hidden()
             } else {
                 likeButton
+                    // The sidebar only loads likes while its section is expanded.
+                    // Cards share one load; it's a no-op once loaded.
+                    .task { await playlists.loadLikes() }
             }
         }
         .font(.title2.weight(.semibold))
