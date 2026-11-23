@@ -33,6 +33,27 @@ struct PlaylistCardView: View {
     }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            header
+            trackList
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(.primary.opacity(0.06), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
+        .task(id: playlist.urn) {
+            await playlists.loadPreview(playlist)
+        }
+        #if DEBUG
+        .debugViewUpdates("PlaylistCardView")
+        #endif
+    }
+
+    private var header: some View {
         HStack(alignment: .top, spacing: 20) {
             PlaylistCardArtwork(
                 playlistURN: playlist.urn,
@@ -74,6 +95,8 @@ struct PlaylistCardView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
 
+                Spacer(minLength: 0)
+
                 if waveformTrack != nil || displayedRowCount > 0 {
                     HStack(spacing: 10) {
                         if let track = waveformTrack {
@@ -104,24 +127,11 @@ struct PlaylistCardView: View {
                     }
                 }
 
-                trackList
+                Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: PlaylistCardArtwork.size)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(.primary.opacity(0.06), lineWidth: 1)
-                .allowsHitTesting(false)
-        }
-        .task(id: playlist.urn) {
-            await playlists.loadPreview(playlist)
-        }
-        #if DEBUG
-        .debugViewUpdates("PlaylistCardView")
-        #endif
     }
 
     private var hasMoreTracks: Bool { trackCount > 5 || contents?.nextPageURL != nil }
@@ -345,7 +355,10 @@ private struct PlaylistCardTitleRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: playlist.isAlbum == true ? "square.stack" : "music.note.list")
+            PlaylistPlayingIcon(
+                playback: model.playback, isCurrent: model.queue.source == .playlist(playlist.urn),
+                systemName: playlist.isAlbum == true ? "square.stack" : "music.note.list"
+            )
                 .foregroundStyle(.secondary)
                 .contentHelp(playlist.isAlbum == true ? "Album" : "Playlist")
                 .accessibilityHidden(true)
