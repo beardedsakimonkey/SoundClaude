@@ -96,11 +96,10 @@ struct TrackCardView: View {
 
                 Spacer(minLength: 0)
 
-                HStack(spacing: 10) {
+                TrackStatisticsLayout(spacing: 10) {
                     likeButton
                     repostButton
                     commentCount
-                    Spacer(minLength: 0)
                     Text(duration)
                         .monospacedDigit()
                         .accessibilityLabel("Duration: \(duration)")
@@ -299,6 +298,57 @@ struct TrackCardView: View {
     private var duration: String {
         let seconds = max(track.durationMilliseconds, 0) / 1_000
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+}
+
+/// Lays out the statistics left to right with the last view at the trailing edge.
+/// Views after the first are dropped from the end when they don't fit, so narrow
+/// cards keep shrinking instead of overflowing.
+private struct TrackStatisticsLayout: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let visible = visibleCount(sizes: sizes, width: proposal.width)
+        let shown = sizes.prefix(visible) + (sizes.last.map { [$0] } ?? [])
+        let width = shown.map(\.width).reduce(0, +) + CGFloat(max(shown.count - 1, 0)) * spacing
+        let height = shown.map(\.height).max() ?? 0
+        return CGSize(width: proposal.width.map { max($0, width) } ?? width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let trailing = subviews.last else { return }
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let visible = visibleCount(sizes: sizes, width: bounds.width)
+        var x = bounds.minX
+        for index in subviews.indices.dropLast() {
+            if index < visible {
+                subviews[index].place(
+                    at: CGPoint(x: x, y: bounds.midY), anchor: .leading, proposal: .unspecified
+                )
+                x += sizes[index].width + spacing
+            } else {
+                // A layout must place every subview; park dropped ones out of sight.
+                subviews[index].place(
+                    at: CGPoint(x: -100_000, y: bounds.midY), anchor: .leading, proposal: .unspecified
+                )
+            }
+        }
+        trailing.place(at: CGPoint(x: bounds.maxX, y: bounds.midY), anchor: .trailing, proposal: .unspecified)
+    }
+
+    /// How many leading views (excluding the trailing one) fit, keeping at least the first.
+    private func visibleCount(sizes: [CGSize], width: CGFloat?) -> Int {
+        let leading = sizes.dropLast()
+        guard let width, let trailing = sizes.last else { return leading.count }
+        var count = leading.count
+        while count > 1 {
+            let used = leading.prefix(count).map(\.width).reduce(0, +)
+                + CGFloat(count) * spacing + trailing.width
+            if used <= width { break }
+            count -= 1
+        }
+        return count
     }
 }
 
