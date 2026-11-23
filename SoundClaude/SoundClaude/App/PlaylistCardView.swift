@@ -463,12 +463,12 @@ private struct PlaylistCardNowPlaying: View {
                         .prefetch(.track(track)) { isHoveringTitle = $0 }
                         .contentHelp("View track: \(track.title)")
                         .accessibilityLabel("Now playing: \(track.title)")
+                        .layoutPriority(1)
                         Text("by")
                             .foregroundStyle(.tertiary)
                             .fixedSize()
                         ArtistLink(artist: track.artist, onSelect: onSelectArtist)
                             .foregroundStyle(.secondary)
-                            .layoutPriority(1)
                     }
                     .lineLimit(1)
                     .id(track.urn)
@@ -476,7 +476,7 @@ private struct PlaylistCardNowPlaying: View {
                 }
             }
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: track?.urn)
-            .font(.callout)
+            .font(.body)
             .onChange(of: track?.urn) { _, _ in isHoveringTitle = false }
     }
 }
