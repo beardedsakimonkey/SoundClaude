@@ -81,7 +81,12 @@ struct PlaylistCardView: View {
                 )
 
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    ArtistLink(artist: displayedPlaylist.owner, onSelect: onSelectArtist)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("By")
+                            .foregroundStyle(.tertiary)
+                            .fixedSize()
+                        ArtistLink(artist: displayedPlaylist.owner, onSelect: onSelectArtist)
+                    }
                     if displayedPlaylist.trackCount != nil || !tracks.isEmpty {
                         Text("·")
                             .foregroundStyle(.tertiary)
