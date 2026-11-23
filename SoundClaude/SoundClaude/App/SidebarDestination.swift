@@ -100,34 +100,6 @@ enum ArtistContentTab: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-enum ArtistPlaylistFilter: String, CaseIterable, Codable {
-    case all, albums, playlists
-
-    var title: String {
-        switch self {
-        case .all: "All"
-        case .albums: "Albums"
-        case .playlists: "Playlists"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .all: "eye"
-        case .albums: "square.stack"
-        case .playlists: "music.note.list"
-        }
-    }
-
-    func includes(_ playlist: SoundCloudPlaylist) -> Bool {
-        switch self {
-        case .all: true
-        case .albums: playlist.isAlbum == true
-        case .playlists: playlist.isAlbum != true
-        }
-    }
-}
-
 // Persist every tab's Back and Forward history. Scroll positions stay transient, so
 // restored pages start at the top.
 struct NavigationSelection: Codable, Equatable {
@@ -145,8 +117,6 @@ struct NavigationSelection: Codable, Equatable {
     var histories: [SidebarDestination.ID: History] = [:]
     /// Content tabs of the artist pages in `histories`, by artist permalink.
     var artistTabs: [SidebarDestination.ID: [URL: ArtistContentTab]] = [:]
-    /// Playlist tab filters of the artist pages in `histories`, by artist permalink.
-    var artistPlaylistFilters: [SidebarDestination.ID: [URL: ArtistPlaylistFilter]] = [:]
 
     init(destination: SidebarDestination, histories: [SidebarDestination.ID: NavigationHistory] = [:]) {
         self.destination = destination

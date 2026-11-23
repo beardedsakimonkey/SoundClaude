@@ -35,11 +35,6 @@ struct SignedInView: View {
                 artistTabSelections.selection(for: artistURL, in: destinationID).tab = tab
             }
         }
-        for (destinationID, filters) in selection.artistPlaylistFilters {
-            for (artistURL, filter) in filters {
-                artistTabSelections.selection(for: artistURL, in: destinationID).playlistFilter = filter
-            }
-        }
         _artistTabSelections = State(initialValue: artistTabSelections)
         _prefetcher = State(initialValue: Prefetcher(model: model))
     }
@@ -53,12 +48,9 @@ struct SignedInView: View {
             for route in history.routes {
                 switch route {
                 case let .artist(artist):
-                    let artistSelection = artistTabSelections.tabs[destinationID]?[artist.permalinkURL]
-                    if let tab = artistSelection?.tab, tab != .tracks {
+                    if let tab = artistTabSelections.tabs[destinationID]?[artist.permalinkURL]?.tab,
+                       tab != .tracks {
                         selection.artistTabs[destinationID, default: [:]][artist.permalinkURL] = tab
-                    }
-                    if let filter = artistSelection?.playlistFilter, filter != .all {
-                        selection.artistPlaylistFilters[destinationID, default: [:]][artist.permalinkURL] = filter
                     }
                 default:
                     break

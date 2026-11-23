@@ -1222,68 +1222,17 @@ struct ArtistDetailView: View {
         }
     }
 
-    private struct ArtistPlaylistsSection<Content: View>: View {
-        @Bindable var selection: ArtistTabSelection
-        let showsFilter: Bool
-        let isFilterDisabled: Bool
-        @ViewBuilder let content: (ArtistPlaylistFilter) -> Content
-
-        // A disabled filter shows everything, whatever was picked before.
-        private var filter: ArtistPlaylistFilter {
-            isFilterDisabled ? .all : selection.playlistFilter
-        }
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: 12) {
-                if showsFilter {
-                    HStack {
-                        Spacer()
-                        SortMenu(
-                            label: "Filter playlists",
-                            selection: Binding(
-                                get: { filter },
-                                set: { selection.playlistFilter = $0 }
-                            ),
-                            options: ArtistPlaylistFilter.allCases,
-                            title: { $0.title },
-                            systemImage: { $0.systemImage }
-                        )
-                        .disabled(isFilterDisabled)
-                    }
-                    .modifier(FadeInOnAppear())
-                }
-                content(filter)
-            }
-        }
-    }
-
     private var playlistList: some View {
-        ArtistPlaylistsSection(
-            selection: tabSelection,
-            showsFilter: !contentState.playlists.isEmpty,
-            isFilterDisabled: isPlaylistFilterDisabled
-        ) { filter in
-            artistPlaylists(filter: filter)
-        }
-        .task {
-            guard !contentState.hasLoadedPlaylists else { return }
-            await loadPlaylists()
-        }
+        artistPlaylists
+            .task {
+                guard !contentState.hasLoadedPlaylists else { return }
+                await loadPlaylists()
+            }
     }
 
-    // Filtering only helps when the artist has both albums and playlists. Later pages may
-    // still hold the missing kind, so only rule that out once every page is loaded.
-    private var isPlaylistFilterDisabled: Bool {
-        guard contentState.hasLoadedPlaylists, contentState.playlistsNextPageURL == nil else { return false }
-        return ArtistPlaylistFilter.allCases.contains { filter in
-            filter != .all && !contentState.playlists.contains(where: filter.includes)
-        }
-    }
-
-    private func artistPlaylists(filter: ArtistPlaylistFilter) -> some View {
-        let playlists = contentState.playlists.filter(filter.includes)
-        return LazyVStack(alignment: .leading, spacing: 16) {
-            ForEach(playlists) { playlist in
+    private var artistPlaylists: some View {
+        LazyVStack(alignment: .leading, spacing: 16) {
+            ForEach(contentState.playlists) { playlist in
                 PlaylistCardView(
                     playlist: playlist,
                     model: model,
@@ -1299,7 +1248,6 @@ struct ArtistDetailView: View {
                 Button("Try Again") { Task { await loadPlaylists() } }
                     .disabled(contentState.isLoadingPlaylists)
             }
-            // A filter that matches nothing loaded yet keeps paging until a match or the end.
             if contentState.isLoadingPlaylists
                 || (contentState.playlistsNextPageURL != nil && contentState.playlistsErrorMessage == nil) {
                 LoadingSpinner()
@@ -1310,9 +1258,9 @@ struct ArtistDetailView: View {
                               contentState.playlistsErrorMessage == nil else { return }
                         await loadPlaylists()
                     }
-            } else if contentState.hasLoadedPlaylists, playlists.isEmpty,
+            } else if contentState.hasLoadedPlaylists, contentState.playlists.isEmpty,
                       contentState.playlistsErrorMessage == nil {
-                EmptyStateView(filter == .albums ? "No visible albums" : "No visible playlists")
+                EmptyStateView("No visible playlists")
             }
         }
     }
@@ -1573,9 +1521,6 @@ struct ArtistDetailView: View {
 final class ArtistTabSelection {
     var tab: ArtistContentTab = .tracks {
         didSet { if tab != oldValue { onChange?() } }
-    }
-    var playlistFilter: ArtistPlaylistFilter = .all {
-        didSet { if playlistFilter != oldValue { onChange?() } }
     }
     @ObservationIgnored var onChange: (() -> Void)?
 }
