@@ -1,19 +1,30 @@
 import AppKit
 import SwiftUI
 
-// Arrow keys carry the function-key flag, so AppKit matches them against menu key equivalents
-// before the first responder sees them. Route them to a focused text view instead, so the
-// seek, track, and volume shortcuts don't swallow caret movement and selection.
-enum TextArrowKeys {
+// Routes key presses that AppKit would otherwise send to the wrong place while a text view
+// is first responder.
+enum TextFocusKeys {
     private static var monitor: Any?
 
     static func install() {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            guard (123...126).contains(event.keyCode),
-                  event.modifierFlags.isDisjoint(with: [.command, .control]),
+            guard event.modifierFlags.isDisjoint(with: [.command, .control]),
                   let window = event.window, window.isKeyWindow,
-                  window.firstResponder is NSText else { return event }
+                  let text = window.firstResponder as? NSText else { return event }
+            if !text.isEditable {
+                // Clicking selectable text makes a read-only field editor first responder, and it
+                // swallows unmodified keys before the playback shortcuts see them. Copy and other
+                // Command shortcuts still reach it.
+                let handled = window.performKeyEquivalent(with: event)
+                    || NSApp.mainMenu?.performKeyEquivalent(with: event) == true
+                return handled ? nil : event
+            }
+            // Arrow keys carry the function-key flag, so AppKit matches them against menu key
+            // equivalents before the first responder sees them. Route them to a focused text view
+            // instead, so the seek, track, and volume shortcuts don't swallow caret movement and
+            // selection.
+            guard (123...126).contains(event.keyCode) else { return event }
             // Deliver through the window rather than calling the text view's keyDown,
             // which would skip SwiftUI key handlers such as the search suggestions' arrows.
             window.sendEvent(event)

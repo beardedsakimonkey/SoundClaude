@@ -13,7 +13,7 @@ struct SoundClaudeApp: App {
         #endif
         let launch = LaunchMetrics.begin("App initialization")
         defer { LaunchMetrics.end(launch) }
-        TextArrowKeys.install()
+        TextFocusKeys.install()
         let model = AppModel()
         _model = State(initialValue: model)
         _auth = ObservedObject(wrappedValue: model.auth)

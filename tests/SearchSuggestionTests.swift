@@ -72,7 +72,7 @@ private struct SearchSuggestionTests {
         window.contentView = host
         window.makeKeyAndOrderFront(nil)
         // The app routes arrow keys to text views itself; the suggestions must work with that.
-        TextArrowKeys.install()
+        TextFocusKeys.install()
 
         func descendant<T: NSView>(_ type: T.Type, in view: NSView) -> T? {
             if let match = view as? T { return match }
