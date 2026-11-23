@@ -965,13 +965,12 @@ struct ArtistDetailView: View {
     }
 
     private struct ArtistTracksSection<Content: View>: View {
-        @ViewBuilder let content: (TrackLayout, ArtistTrackSortOrder, String) -> Content
-        @AppStorage("artistTrackLayout") private var trackLayout = TrackLayout.list
+        @ViewBuilder let content: (ArtistTrackSortOrder, String) -> Content
         @AppStorage("artistTrackSortOrder") private var sortOrder = ArtistTrackSortOrder.recent
         @State private var searchText = ""
 
         var body: some View {
-            VStack(alignment: .leading, spacing: trackLayout == .list ? 8 : 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     TrackFilterField(text: $searchText, accessibilityLabel: "Search artist tracks")
                         .frame(maxWidth: 200)
@@ -982,23 +981,21 @@ struct ArtistDetailView: View {
                         options: ArtistTrackSortOrder.allCases,
                         title: { $0.title }
                     )
-                    TrackLayoutPicker(trackLayout: $trackLayout)
                 }
                 .modifier(FadeInOnAppear())
-                content(trackLayout, sortOrder, searchText)
+                content(sortOrder, searchText)
                     .id(sortOrder)
             }
         }
     }
 
     private var trackList: some View {
-        ArtistTracksSection { trackLayout, sortOrder, searchText in
-            artistTracks(layout: trackLayout, sortOrder: sortOrder, searchText: searchText)
+        ArtistTracksSection { sortOrder, searchText in
+            artistTracks(sortOrder: sortOrder, searchText: searchText)
         }
     }
 
     private func artistTracks(
-        layout: TrackLayout,
         sortOrder: ArtistTrackSortOrder,
         searchText: String
     ) -> some View {
@@ -1006,37 +1003,19 @@ struct ArtistDetailView: View {
         let tracks = state.tracks.filtered(by: searchText)
         let playTrack: (SoundCloudTrack) async -> Void = { await playArtistTrack($0, state: state) }
         return LazyVStack(alignment: .leading, spacing: 0) {
-            if layout == .grid {
-                TrackArtworkGrid(tracks: tracks, loader: model.artworkLoader) { track in
-                    TrackGridTile(
-                        track: track,
-                        playback: model.playback,
-                        analyzer: model.analyzer,
-                        artworkLoader: model.artworkLoader,
-                        likes: model.likes,
-                        onAddToQueue: model.addToQueue,
-                        onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist,
-                        onPlayTrack: playTrack
-                    )
-                    .modifier(FadeInOnAppear())
-                }
-                .padding(.bottom, 16)
-            } else {
-                TrackArtworkList(tracks: tracks, loader: model.artworkLoader) { track in
-                    TrackListRow(
-                        track: track,
-                        playback: model.playback,
-                        analyzer: model.analyzer,
-                        artworkLoader: model.artworkLoader,
-                        likes: model.likes,
-                        onAddToQueue: model.addToQueue,
-                        onSelectTrack: onSelectTrack,
-                        onSelectArtist: onSelectArtist,
-                        onPlayTrack: playTrack
-                    )
-                    .modifier(FadeInOnAppear())
-                }
+            TrackArtworkList(tracks: tracks, loader: model.artworkLoader) { track in
+                TrackListRow(
+                    track: track,
+                    playback: model.playback,
+                    analyzer: model.analyzer,
+                    artworkLoader: model.artworkLoader,
+                    likes: model.likes,
+                    onAddToQueue: model.addToQueue,
+                    onSelectTrack: onSelectTrack,
+                    onSelectArtist: onSelectArtist,
+                    onPlayTrack: playTrack
+                )
+                .modifier(FadeInOnAppear())
             }
             if let message = state.errorMessage {
                 Text(message).foregroundStyle(.secondary)
