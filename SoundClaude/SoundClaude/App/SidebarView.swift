@@ -752,14 +752,22 @@ private struct SidebarAccountHeader: View {
     let onSelectProfile: (SoundCloudUser) -> Void
     let onSignOut: () async -> Void
 
-    @State private var isProfileHovered = false
+    @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 8) {
-            // The badge sits outside the button so it shows its own tooltip.
+            // The badge sits outside the menu so it shows its own tooltip.
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Button {
-                    onSelectProfile(user)
+                Menu {
+                    Button("View profile", systemImage: "person") {
+                        onSelectProfile(user)
+                    }
+                    .labelStyle(.titleAndIcon)
+                    Divider()
+                    Button("Sign out", systemImage: "rectangle.portrait.and.arrow.right") {
+                        Task { await onSignOut() }
+                    }
+                    .labelStyle(.titleAndIcon)
                 } label: {
                     HStack(spacing: 8) {
                         TrackArtworkView(
@@ -775,16 +783,23 @@ private struct SidebarAccountHeader: View {
                                 .strokeBorder(.white.opacity(0.2), lineWidth: 1)
                         }
                         Text(user.username)
-                            .underline(isProfileHovered)
                             .lineLimit(1)
                             .truncationMode(.tail)
+                        // Always laid out so revealing it does not shift the badge.
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .opacity(isHovered ? 1 : 0)
+                            .padding(.leading, -4)
                     }
                     .contentShape(Rectangle())
                 }
+                .menuStyle(.button)
                 .buttonStyle(.plain)
-                .onContentHover { isProfileHovered = $0 }
-                .contentHelp("View profile: \(user.username)")
-                .accessibilityLabel("View profile: \(user.username)")
+                .menuIndicator(.hidden)
+                .onContentHover { isHovered = $0 }
+                .contentHelp("Account: \(user.username)")
+                .accessibilityLabel("Account: \(user.username)")
                 if user.isVerified == true {
                     VerifiedBadge()
                 }
@@ -792,18 +807,6 @@ private struct SidebarAccountHeader: View {
             .font(.callout.weight(.medium))
 
             Spacer(minLength: 0)
-
-            Button {
-                Task { await onSignOut() }
-            } label: {
-                Image(systemName: "rectangle.portrait.and.arrow.right")
-                    .frame(width: 28, height: 28)
-                    .contentShape(Circle())
-                    .modifier(SidebarForegroundHover(idleOpacity: 0.5))
-            }
-            .buttonStyle(.plain)
-            .contentHelp("Sign out")
-            .accessibilityLabel("Sign out")
         }
         .padding(.leading, 18)
         .padding(.trailing, 12)
