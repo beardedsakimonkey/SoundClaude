@@ -47,7 +47,7 @@ struct TrackQueueStore {
 }
 
 struct TrackQueue: Codable {
-    enum Source: Codable, Equatable {
+    enum Source: Codable, Hashable {
         case feed
         case history
         case search(String)

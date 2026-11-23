@@ -69,7 +69,32 @@ final class AppModel {
     @ObservationIgnored private var followingRequestID: UUID?
     @ObservationIgnored private var followingStatuses: [String: Bool] = [:]
     @ObservationIgnored private var hasStarted = false
-    private(set) var queue = TrackQueue(source: .single, tracks: [])
+    private(set) var queue = TrackQueue(source: .single, tracks: []) {
+        didSet { updateQueueSourceObservation(from: oldValue.source) }
+    }
+
+    // A separate key path per source lets a view check whether it's the queue
+    // source without being invalidated by every queue mutation.
+    @ObservationIgnored private let queueSourceObservation = ObservationRegistrar()
+    @ObservationIgnored private var observedQueueSource = TrackQueue.Source.single
+
+    subscript(isQueueSource source: TrackQueue.Source) -> Bool {
+        queueSourceObservation.access(self, keyPath: \.[isQueueSource: source])
+        return observedQueueSource == source
+    }
+
+    private func updateQueueSourceObservation(from oldSource: TrackQueue.Source) {
+        let newSource = queue.source
+        guard oldSource != newSource else { return }
+        for source in [oldSource, newSource] {
+            queueSourceObservation.willSet(self, keyPath: \.[isQueueSource: source])
+        }
+        observedQueueSource = newSource
+        for source in [oldSource, newSource] {
+            queueSourceObservation.didSet(self, keyPath: \.[isQueueSource: source])
+        }
+    }
+
     private let queueStore = TrackQueueStore()
     // These limits bound cache growth as liked-track pages load.
     private let trackDetailsCache = RequestCache<TrackCacheKey, SoundCloudTrackDetails>(
@@ -163,6 +188,8 @@ final class AppModel {
                 shuffleEnabled: playback.isShuffleEnabled
             )
         }
+        // didSet doesn't run in init.
+        observedQueueSource = queue.source
 
         playback.onNeedsSource = { [weak self] track, requestID in
             guard let self else { return }

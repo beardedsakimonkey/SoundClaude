@@ -21,7 +21,8 @@ struct PlaylistCardView: View {
     private var isLoading: Bool { cardState.isLoading }
     private var errorMessage: String? { cardState.errorMessage }
     private var waveformTrack: SoundCloudTrack? {
-        tracks.first(where: { model.playback[isCurrentTrack: $0.urn] })
+        (model[isQueueSource: .playlist(playlist.urn)]
+            ? tracks.first(where: { model.playback[isCurrentTrack: $0.urn] }) : nil)
             ?? tracks.first(where: { $0.urn == selectedTrackURN })
             ?? tracks.first
     }
@@ -363,7 +364,7 @@ private struct PlaylistCardTitleRow: View {
     var body: some View {
         HStack(spacing: 8) {
             PlaylistPlayingIcon(
-                playback: model.playback, isCurrent: model.queue.source == .playlist(playlist.urn),
+                playback: model.playback, isCurrent: model[isQueueSource: .playlist(playlist.urn)],
                 systemName: playlist.isAlbum == true ? "square.stack" : "music.note.list"
             )
                 .foregroundStyle(.secondary)
@@ -427,7 +428,7 @@ private struct PlaylistCardNowPlaying: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var track: SoundCloudTrack? {
-        guard model.queue.source == .playlist(playlistURN) else { return nil }
+        guard model[isQueueSource: .playlist(playlistURN)] else { return nil }
         return model.playback.currentTrack
     }
 
@@ -488,8 +489,7 @@ private struct PlaylistCardArtwork: View {
 
     private var artworkURL: URL? {
         if let track = model.playback.currentTrack,
-           model.queue.source == .playlist(playlistURN)
-            || tracks.contains(where: { $0.urn == track.urn }) {
+           model[isQueueSource: .playlist(playlistURN)] {
             return track.displayArtworkURL
         }
         return displayedPlaylist.artworkURL ?? tracks.first(where: { $0.displayArtworkURL != nil })?.displayArtworkURL
