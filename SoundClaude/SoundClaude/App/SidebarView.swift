@@ -617,28 +617,31 @@ struct SidebarView: View {
     }
 
     private func sectionHeader(_ title: String, isExpanded: Binding<Bool>, isLoading: Bool) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            if isLoading {
-                LoadingSpinner()
-                    .controlSize(.mini)
+        SidebarRowHoverReader { isHovered in
+            HStack {
+                Text(title)
+                Spacer()
+                if isLoading {
+                    LoadingSpinner()
+                        .controlSize(.mini)
+                        .accessibilityHidden(true)
+                }
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(isHovered ? .primary : .tertiary)
+                    .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
+                    .animation(
+                        reduceMotion ? nil : .easeInOut(duration: 0.25),
+                        value: isExpanded.wrappedValue
+                    )
                     .accessibilityHidden(true)
             }
-            Image(systemName: "chevron.right")
-                .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
-                .animation(
-                    reduceMotion ? nil : .easeInOut(duration: 0.25),
-                    value: isExpanded.wrappedValue
-                )
-                .accessibilityHidden(true)
+            .font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 10)
+            .padding(.top, 14)
+            .padding(.bottom, 6)
+            .contentShape(Rectangle())
+            .foregroundStyle(isHovered ? .primary : .secondary)
         }
-        .font(.subheadline.weight(.semibold))
-        .padding(.horizontal, 10)
-        .padding(.top, 14)
-        .padding(.bottom, 6)
-        .contentShape(Rectangle())
-        .modifier(SidebarForegroundHover())
         .modifier(SidebarMouseDownAction {
             withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
                 isExpanded.wrappedValue.toggle()
