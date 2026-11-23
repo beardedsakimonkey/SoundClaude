@@ -64,6 +64,7 @@ struct PlaylistCardView: View {
             ) {
                 onSelectPlaylist(displayedPlaylist)
             }
+            .opacity(waveformTrack?.access == .protected ? protectedTrackOpacity : 1)
             .accessibilityLabel("Open playlist: \(displayedPlaylist.title)")
             .trackContextMenu(
                 track: waveformTrack,
@@ -116,6 +117,7 @@ struct PlaylistCardView: View {
                     HStack(spacing: 10) {
                         if let track = waveformTrack {
                             playButton(for: track)
+                                .opacity(track.access == .protected ? protectedTrackOpacity : 1)
                         } else {
                             Button {} label: {
                                 Image(systemName: "play.fill")
