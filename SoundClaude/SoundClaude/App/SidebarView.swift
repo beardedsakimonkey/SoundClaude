@@ -19,6 +19,7 @@ struct SidebarView: View {
     let onPlayPlaylist: (SoundCloudPlaylist, PlaylistContents, _ shuffle: Bool) async -> Void
     let onDeletePlaylist: (SoundCloudPlaylist) -> Void
     let onSelectProfile: (SoundCloudUser) -> Void
+    let notificationBadge: NotificationBadge
     let onSelectNotifications: () -> Void
     let onReselect: () -> Void
     let onSignOut: () async -> Void
@@ -119,6 +120,7 @@ struct SidebarView: View {
                     user: user,
                     artworkLoader: artworkLoader,
                     onSelectProfile: onSelectProfile,
+                    notificationBadge: notificationBadge,
                     onSelectNotifications: onSelectNotifications,
                     onSignOut: onSignOut
                 )
@@ -752,6 +754,7 @@ private struct SidebarAccountHeader: View {
     let user: SoundCloudUser
     let artworkLoader: ArtworkLoader
     let onSelectProfile: (SoundCloudUser) -> Void
+    let notificationBadge: NotificationBadge
     let onSelectNotifications: () -> Void
     let onSignOut: () async -> Void
 
@@ -767,8 +770,14 @@ private struct SidebarAccountHeader: View {
                         onSelectProfile(user)
                     }
                     .labelStyle(.titleAndIcon)
-                    Button("Notifications", systemImage: "bell") {
+                    Button {
                         onSelectNotifications()
+                    } label: {
+                        if let unreadText {
+                            Label("Notifications (\(unreadText))", systemImage: "bell.badge")
+                        } else {
+                            Label("Notifications", systemImage: "bell")
+                        }
                     }
                     .labelStyle(.titleAndIcon)
                     Divider()
@@ -789,6 +798,13 @@ private struct SidebarAccountHeader: View {
                         .overlay {
                             Circle()
                                 .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                        }
+                        .overlay(alignment: .topTrailing) {
+                            if let unreadText {
+                                UnreadBadge(text: unreadText)
+                                    .alignmentGuide(.top) { $0.height / 2 - 2 }
+                                    .alignmentGuide(.trailing) { $0.width / 2 + 2 }
+                            }
                         }
                         Text(user.username)
                             .lineLimit(1)
@@ -811,6 +827,7 @@ private struct SidebarAccountHeader: View {
                 }
                 .contentHelp("Account: \(user.username)")
                 .accessibilityLabel("Account: \(user.username)")
+                .accessibilityValue(unreadText.map { "\($0) unread notifications" } ?? "")
                 if user.isVerified == true {
                     VerifiedBadge()
                 }
@@ -821,6 +838,29 @@ private struct SidebarAccountHeader: View {
         }
         .padding(.leading, 18)
         .padding(.trailing, 12)
+    }
+}
+
+private extension SidebarAccountHeader {
+    var unreadText: String? {
+        let count = notificationBadge.unreadCount
+        guard count > 0 else { return nil }
+        return notificationBadge.hasMoreUnread ? "\(count)+" : count.formatted()
+    }
+}
+
+private struct UnreadBadge: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 9, weight: .bold).monospacedDigit())
+            .foregroundStyle(.white)
+            .padding(.horizontal, 4)
+            .frame(minWidth: 14, minHeight: 14)
+            .background(Capsule().fill(.red))
+            .fixedSize()
+            .accessibilityHidden(true)
     }
 }
 

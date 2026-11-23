@@ -31,6 +31,7 @@ final class AppModel {
     let feed: FeedController
     let artworkLoader: ArtworkLoader
     let commentDrafts = TrackCommentDraftStore()
+    let notificationBadge = NotificationBadge()
 
     private(set) var errorMessage: String?
     var likeErrorMessage: String?
@@ -64,6 +65,7 @@ final class AppModel {
     @ObservationIgnored private var likesObservation: AnyCancellable?
     @ObservationIgnored private var playlistsObservation: AnyCancellable?
     @ObservationIgnored private var followingTask: Task<Set<String>, Error>?
+    @ObservationIgnored private var lastNotificationPoll: ContinuousClock.Instant?
     @ObservationIgnored private var followingRequestID: UUID?
     @ObservationIgnored private var followingStatuses: [String: Bool] = [:]
     @ObservationIgnored private var hasStarted = false
@@ -348,6 +350,8 @@ final class AppModel {
         firstCommentPageCache.reset()
         firstArtistCommentPageCache.reset()
         firstNotificationPageCache.reset()
+        notificationBadge.clear()
+        lastNotificationPoll = nil
         firstArtistUserPageCache.reset()
         firstRelatedTrackPageCache.reset()
         firstTrackPlaylistPageCache.reset()
@@ -833,10 +837,23 @@ final class AppModel {
             return try await client.notifications(filter: filter, accessToken: accessToken, pageURL: pageURL)
         }
         // Shared with the account menu's prefetch, and kept for Back navigation.
-        return try await firstNotificationPageCache.value(for: filter.rawValue as NSString) { [auth, client] in
+        let page = try await firstNotificationPageCache.value(for: filter.rawValue as NSString) { [auth, client] in
             let accessToken = try await auth.validAccessToken()
             return try await client.notifications(filter: filter, accessToken: accessToken)
         }
+        if filter == .all, case let .signedIn(user) = auth.state {
+            notificationBadge.update(with: page, accountID: user.accountID)
+        }
+        return page
+    }
+
+    /// Checks for new notifications, at most once a minute.
+    func pollNotifications() async {
+        // The open page loads what it shows, and a poll would count it as seen unshown.
+        guard !notificationBadge.isViewing else { return }
+        if let lastNotificationPoll, ContinuousClock.now - lastNotificationPoll < .seconds(60) { return }
+        lastNotificationPoll = .now
+        try? await reloadNotifications(filter: .all)
     }
 
     /// Fetches a filter's first page again and caches it, replacing the cached one.

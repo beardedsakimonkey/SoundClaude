@@ -99,6 +99,8 @@ struct NotificationsView: View {
         }
         .navigationTitle("Notifications")
         .onChange(of: filter) { refreshErrorMessage = nil }
+        .onAppear { model.notificationBadge.beginViewing() }
+        .onDisappear { model.notificationBadge.endViewing() }
     }
 
     /// Keeps the current list until the reloaded first page arrives.

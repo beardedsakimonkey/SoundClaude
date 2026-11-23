@@ -247,6 +247,16 @@ struct SignedInView: View {
             defer { isOpeningCurrentTrackStation = false }
             await showCurrentTrackStation()
         }
+        // soundcloud.com polls every 2 to 32 minutes.
+        .task {
+            while !Task.isCancelled {
+                await model.pollNotifications()
+                try? await Task.sleep(for: .seconds(5 * 60))
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await model.pollNotifications() }
+        }
         .alert("Could not open station", isPresented: Binding(
             get: { stationErrorMessage != nil },
             set: { if !$0 { stationErrorMessage = nil } }
@@ -375,6 +385,7 @@ struct SignedInView: View {
                 },
                 onDeletePlaylist: removeDeletedPlaylist,
                 onSelectProfile: showArtist,
+                notificationBadge: model.notificationBadge,
                 onSelectNotifications: showNotifications,
                 onReselect: {
                     navigationHistories[destinationID] = NavigationHistory()
