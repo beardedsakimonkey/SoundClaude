@@ -280,19 +280,22 @@ struct TrackWaveformView: View {
 
                     // Clip once outside the color layer so progress and hover
                     // cannot change antialiasing along the bar outline.
-                    let drawBars: (inout GraphicsContext) -> Void = { drawing in
+                    // Reflections use flat fills: flipped shading puts each bar's
+                    // bright crest at the reflection's tip, fighting the fade.
+                    let drawBars: (inout GraphicsContext, Bool) -> Void = { drawing, flat in
+                        let shades = colorScheme != .light && !flat
                         drawing.clip(to: Path(path))
                         drawing.drawLayer { layer in
                             fillBars(
                                 background, in: layer, bars: bars,
                                 rect: CGRect(origin: .zero, size: size),
-                                shaded: colorScheme != .light
+                                shaded: shades
                             )
                             fillBars(color, in: layer, bars: bars, rect: CGRect(
                                 x: 0, y: 0,
                                 width: size.width * progress,
                                 height: size.height
-                            ))
+                            ), shaded: !flat)
 
                             if hoverOpacity > 0 {
                                 let hoverRegion = CGRect(
@@ -312,10 +315,13 @@ struct TrackWaveformView: View {
                                     } else {
                                         fillBars(
                                             hoverColor, in: preview, bars: bars, rect: hoverRegion,
-                                            shaded: colorScheme != .light
+                                            shaded: shades
                                         )
                                         if let highlight {
-                                            fillBars(highlight, in: preview, bars: bars, rect: hoverRegion)
+                                            fillBars(
+                                                highlight, in: preview, bars: bars, rect: hoverRegion,
+                                                shaded: !flat
+                                            )
                                         }
                                     }
                                 }
@@ -327,7 +333,7 @@ struct TrackWaveformView: View {
                     context.translateBy(x: 0, y: size.height)
                     context.scaleBy(x: 1, y: -1)
                     var main = context
-                    drawBars(&main)
+                    drawBars(&main, false)
                     if layout == .detail {
                         addGroundReflection(in: &context, size: size, drawBars: drawBars)
                     }
@@ -493,7 +499,7 @@ struct TrackWaveformView: View {
     private func addGroundReflection(
         in context: inout GraphicsContext,
         size: CGSize,
-        drawBars: (inout GraphicsContext) -> Void
+        drawBars: (inout GraphicsContext, Bool) -> Void
     ) {
         let ground = layout.reflectionHeight
         let reflectionTop = ground - 1
@@ -505,18 +511,19 @@ struct TrackWaveformView: View {
             var bars = reflection
             bars.translateBy(x: 0, y: reflectionTop + ground * reflectionScale)
             bars.scaleBy(x: 1, y: -reflectionScale)
-            drawBars(&bars)
+            drawBars(&bars, true)
 
             // Fade the complete reflection, including progress and hover.
             reflection.blendMode = .destinationIn
             reflection.fill(
                 Path(CGRect(x: 0, y: 0, width: size.width, height: reflectionTop)),
                 with: .linearGradient(
-                    Gradient(stops: [
-                        .init(color: .white.opacity(0.65), location: 0),
-                        .init(color: .white.opacity(0.22), location: 0.5),
-                        .init(color: .white.opacity(0), location: 1)
-                    ]),
+                    // Quadratic ease-out sampled densely: no slope kink mid-fade,
+                    // and a zero-slope tail so the reflection has no visible end.
+                    Gradient(stops: (0...16).map { step in
+                        let t = Double(step) / 16
+                        return .init(color: .white.opacity(0.6 * (1 - t) * (1 - t)), location: t)
+                    }),
                     startPoint: CGPoint(x: 0, y: reflectionTop),
                     endPoint: CGPoint(x: 0, y: reflectionTop - reflectionHeight)
                 )
