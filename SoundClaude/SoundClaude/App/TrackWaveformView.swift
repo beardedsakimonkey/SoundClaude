@@ -261,17 +261,10 @@ struct TrackWaveformView: View {
                     }
                     let bars = geometry.bars
                     let path = geometry.path
-                    let backgroundOpacity = layout == .compact && colorScheme == .dark ? 0.9 : 0.5
                     let backgroundStrength = colorScheme == .light
                         && colorSchemeContrast != .increased ? (layout == .detail ? 0.45 : 0.6) : 1.0
-                    var backgroundColor = Color.secondary.opacity(backgroundOpacity * backgroundStrength)
-                        .resolve(in: context.environment)
-                    if layout == .compact {
-                        backgroundColor.red *= 0.4
-                        backgroundColor.green *= 0.4
-                        backgroundColor.blue *= 0.4
-                    }
-                    let background = backgroundColor.cgColor
+                    let background = Color.secondary.opacity(0.5 * backgroundStrength)
+                        .resolve(in: context.environment).cgColor
                     let color = renderedProgressColor
                         .resolve(in: context.environment).cgColor
                     let hoverColor = colorScheme == .light
