@@ -65,7 +65,7 @@ struct TrackQueueView: View {
 
                 if let sourceLabel {
                     HStack(spacing: 6) {
-                        Text("Playing from")
+                        Text("Playing from:")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .accessibilityHidden(true)
