@@ -272,20 +272,28 @@ struct SignedOutView: View {
                     copiedSessionCommand = NSPasteboard.general.setString(Self.sessionCommand, forType: .string)
                     copySessionCommandCount += 1
                 } label: {
-                    HStack(alignment: .top, spacing: 10) {
+                    HStack(alignment: .center, spacing: 10) {
                         Text(colorScheme == .dark ? Self.highlightedSessionCommand : AttributedString(Self.sessionCommand))
                             .font(.system(size: 11, design: .monospaced))
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        // A hidden doc.on.doc reserves the icon's size so the
-                        // block never resizes when the state flips.
-                        Image(systemName: "doc.on.doc")
-                            .hidden()
-                            .overlay {
-                                Image(systemName: copiedSessionCommand ? "checkmark" : "doc.on.doc")
-                                    .contentTransition(.symbolEffect(.replace))
-                            }
+                        // Hidden doc.on.doc and "Copied" reserve the widest icon and
+                        // label so the block never resizes when the state flips.
+                        HStack(spacing: 4) {
+                            Image(systemName: "doc.on.doc")
+                                .hidden()
+                                .overlay {
+                                    Image(systemName: copiedSessionCommand ? "checkmark" : "doc.on.doc")
+                                        .contentTransition(.symbolEffect(.replace))
+                                }
+                            Text("Copied")
+                                .hidden()
+                                .overlay(alignment: .leading) {
+                                    Text(copiedSessionCommand ? "Copied" : "Copy")
+                                        .contentTransition(.opacity)
+                                }
+                        }
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                             .animation(.easeInOut(duration: 0.2), value: copiedSessionCommand)
