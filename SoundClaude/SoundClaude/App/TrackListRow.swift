@@ -339,6 +339,9 @@ struct TrackListRow: View {
     }
 
     private var rowBackground: Color {
+        if track.access == .protected {
+            return Color.clear
+        }
         if isPressed {
             return Color.white.opacity(0.12)
         }

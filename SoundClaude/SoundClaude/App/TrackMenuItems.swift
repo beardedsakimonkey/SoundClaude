@@ -54,7 +54,7 @@ struct TrackMenuItems: View {
         let isLiked = likes.isLiked(track)
 
         Group {
-            if let onAddToQueue {
+            if let onAddToQueue, track.access != .protected {
                 Button("Play next", systemImage: "text.line.first.and.arrowtriangle.forward") {
                     onAddToQueue(track)
                 }
