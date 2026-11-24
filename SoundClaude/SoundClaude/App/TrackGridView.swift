@@ -173,9 +173,11 @@ struct TrackArtworkGrid<Content: View>: View {
 struct TrackArtworkList<Content: View>: View {
     let tracks: [SoundCloudTrack]
     let loader: ArtworkLoader
+    var fadesIn = false
     @ViewBuilder let content: (SoundCloudTrack) -> Content
 
-    // Speculatively load eight rows below the visible ones, and eight above.
+    @State private var hasRevealedRows = false
+
     @State private var coordinator = TrackScrollArtworkPrefetcher(
         rendition: .source, lookahead: 8, lookbehind: 8
     )
@@ -190,6 +192,7 @@ struct TrackArtworkList<Content: View>: View {
         LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(tracks) { track in
                 content(track)
+                    .modifier(FadeInUntilRevealed(hasRevealed: $hasRevealedRows, isEnabled: fadesIn))
                     .onAppear { coordinator.setVisible(track.id, isVisible: true, loader: loader) }
                     .onDisappear { coordinator.setVisible(track.id, isVisible: false, loader: loader) }
             }

@@ -51,7 +51,7 @@ struct RelatedTracksView: View {
                     )
                 }
             } else {
-                TrackArtworkList(tracks: tracks, loader: model.artworkLoader) { relatedTrack in
+                TrackArtworkList(tracks: tracks, loader: model.artworkLoader, fadesIn: true) { relatedTrack in
                     TrackListRow(
                         track: relatedTrack,
                         playback: model.playback,
