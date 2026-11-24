@@ -110,6 +110,7 @@ struct DetailLikeButtonOverlay: ViewModifier {
                         .modifier(FadeInOnAppear())
                         .geometryGroup()
                         .frame(width: bounds.width, height: bounds.height)
+                        .hitTestingBelowToolbar(bounds)
                         .position(x: bounds.midX, y: bounds.midY)
                         .modifier(DetailNavigationAnimation(
                             trackURN: source.trackURN, isCollection: source.isCollection,

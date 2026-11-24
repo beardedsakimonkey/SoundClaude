@@ -76,3 +76,37 @@ final class DetailScrollForwardingView: NSView {
         }
     }
 }
+
+// Host-drawn controls pass behind the toolbar, where a click must drag the window instead.
+// The host's mask clips drawing but not hit testing, so trim each control's hit area to the
+// part below the toolbar. A container's content shape limits its descendants' hits too.
+struct BelowToolbarHitShape: Shape {
+    // How far the control's top sits under the toolbar.
+    var occludedHeight: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let inset = min(max(occludedHeight, 0), rect.height)
+        return Path(CGRect(x: rect.minX, y: rect.minY + inset, width: rect.width, height: rect.height - inset))
+    }
+}
+
+private struct DetailToolbarOcclusionKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    // How far the top of the host-drawn waveform sits under the toolbar.
+    var detailToolbarOcclusion: CGFloat {
+        get { self[DetailToolbarOcclusionKey.self] }
+        set { self[DetailToolbarOcclusionKey.self] = newValue }
+    }
+}
+
+extension View {
+    // `bounds` is in the host's safe area, whose top is the toolbar's bottom edge.
+    // The shape also makes the control's empty space take clicks, so apply it only
+    // to the control's own frame.
+    func hitTestingBelowToolbar(_ bounds: CGRect) -> some View {
+        contentShape(BelowToolbarHitShape(occludedHeight: -bounds.minY))
+    }
+}

@@ -145,6 +145,8 @@ private struct WaveformCommentMarkersContent: View {
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
     @Environment(\.contentHoverSuppression) private var hoverSuppression
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // How far this row's top sits under the toolbar, when drawn by the detail host.
+    @Environment(\.detailToolbarOcclusion) private var toolbarOcclusion
 
     var body: some View {
         GeometryReader { proxy in
@@ -166,10 +168,16 @@ private struct WaveformCommentMarkersContent: View {
                            height: max(0, frame.minY - markerHeight))
                 }
             }
+            // The parts under the toolbar must leave clicks to the window.
+            let visibleTop = max(toolbarOcclusion, 0)
             let hoverRegion = Path { path in
-                path.addRect(CGRect(x: 0, y: 0, width: width, height: markerHeight))
-                if let bridge { path.addRect(bridge) }
-                if let bubbleFrame { path.addRect(bubbleFrame) }
+                for rect in [CGRect(x: 0, y: 0, width: width, height: markerHeight), bridge, bubbleFrame] {
+                    guard let rect else { continue }
+                    let visible = rect.intersection(CGRect(
+                        x: rect.minX, y: visibleTop, width: rect.width, height: .greatestFiniteMagnitude
+                    ))
+                    if !visible.isEmpty { path.addRect(visible) }
+                }
             }
             ZStack(alignment: .topLeading) {
                 ForEach(comments.reversed()) { comment in
@@ -208,6 +216,10 @@ private struct WaveformCommentMarkersContent: View {
                 switch phase {
                 case .active(let location):
                     guard isHoverAllowed else { return }
+                    guard location.y >= visibleTop else {
+                        hoveredID = nil
+                        return
+                    }
                     if let commentID,
                        bubbleFrame?.contains(location) == true || bridge?.contains(location) == true {
                         hoveredID = commentID

@@ -108,6 +108,7 @@ struct DetailSwapButtonOverlay: ViewModifier {
                                 .modifier(FadeInOnAppear())
                                 .geometryGroup()
                                 .frame(width: bounds.width, height: bounds.height)
+                                .hitTestingBelowToolbar(bounds)
                                 .position(x: bounds.midX, y: bounds.midY)
                                 // Positioning fills the host, so name the button's center as the anchor.
                                 // AppKit asserts when a hosted NSView's transform is singular, so the

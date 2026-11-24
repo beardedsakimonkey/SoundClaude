@@ -378,8 +378,7 @@ struct TrackWaveformView: View {
                     reduceMotion ? nil : .easeInOut(duration: 0.3),
                     value: barsIdleOpacity
                 )
-                .contentShape(Rectangle())
-                .onContinuousHover { phase in
+                .modifier(WaveformToolbarHitShape { phase in
                     switch phase {
                     case .active(let location):
                         hoverFraction = fraction(
@@ -390,7 +389,7 @@ struct TrackWaveformView: View {
                     case .ended:
                         isHovering = false
                     }
-                }
+                })
                 .onDisappear { isHovering = false }
                 .gesture(
                     DragGesture(minimumDistance: 0)
@@ -427,6 +426,10 @@ struct TrackWaveformView: View {
                         )
                         .id(track.urn)
                         .frame(height: layout.reflectionHeight)
+                        // Comments trim their own hit area, measured from their top.
+                        .transformEnvironment(\.detailToolbarOcclusion) {
+                            $0 -= height - layout.reflectionHeight
+                        }
                     }
                 }
                 .overlay(alignment: .topLeading) {
@@ -830,6 +833,26 @@ struct TrackWaveformView: View {
             waveformTrackURN = track.urn
             waveform = loadedWaveform
         }
+    }
+}
+
+// Read the toolbar occlusion here only, so scrolling the detail waveform behind
+// the toolbar doesn't re-render the waveform. Hover still reaches the part under
+// the toolbar, so treat it as leaving the waveform.
+private struct WaveformToolbarHitShape: ViewModifier {
+    let onHover: (HoverPhase) -> Void
+    @Environment(\.detailToolbarOcclusion) private var occlusion
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(BelowToolbarHitShape(occludedHeight: occlusion))
+            .onContinuousHover { phase in
+                if case .active(let location) = phase, location.y < occlusion {
+                    onHover(.ended)
+                } else {
+                    onHover(phase)
+                }
+            }
     }
 }
 

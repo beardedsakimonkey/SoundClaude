@@ -94,6 +94,10 @@ private struct DetailWaveformPlacement: ViewModifier {
         GeometryReader { geometry in
             let rect = geometry[bounds]
             content
+                // Comment bubbles hang below the waveform, so its own hit areas are trimmed
+                // instead of the whole frame. Clamped so scrolling only updates it while the
+                // waveform or a bubble below it is under the toolbar.
+                .environment(\.detailToolbarOcclusion, min(max(-rect.minY, 0), rect.height * 2))
                 // Resolve slot geometry before inner bar animations can apply it.
                 .geometryGroup()
                 .frame(width: rect.width, height: rect.height)
