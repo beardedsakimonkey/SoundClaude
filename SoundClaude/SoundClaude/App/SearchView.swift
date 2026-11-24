@@ -373,10 +373,9 @@ struct SearchSuggestionDropdown: View {
 
     @State private var pageAnchor = WindowAnchor()
 
-    /// Space between the top of the page and the list.
-    static let gap: CGFloat = 4
-    private static let width: CGFloat = 400
     private static let margin: CGFloat = 12
+    /// Space below the field, clear of its glass and focus ring.
+    private static let offset: CGFloat = 4
 
     var body: some View {
         let visible = model.visibleItems
@@ -385,11 +384,14 @@ struct SearchSuggestionDropdown: View {
                 .allowsHitTesting(false)
             if !visible.isEmpty {
                 // Measured when the list opens. The field does not move while it has focus.
+                // Window coordinates run bottom-up, so the page's top is its maxY.
                 let page = pageAnchor.frame ?? .zero
-                let width = min(Self.width, max(0, page.width - 2 * Self.margin))
-                let fieldMidX = model.fieldAnchor.frame?.midX ?? page.midX
-                let x = min(max(fieldMidX - width / 2 - page.minX, Self.margin), page.width - Self.margin - width)
-                let limit = max(120, page.height - bottomInset - Self.gap - Self.margin)
+                let field = model.fieldAnchor.frame ?? CGRect(x: page.midX - 160, y: page.maxY, width: 320, height: 0)
+                // Exactly as wide as the field, hanging from its bottom edge.
+                let width = min(field.width, max(0, page.width - 2 * Self.margin))
+                let x = min(max(field.minX - page.minX, Self.margin), page.width - Self.margin - width)
+                let y = page.maxY - field.minY + Self.offset
+                let limit = max(120, page.height - bottomInset - y - Self.margin)
                 SearchSuggestionList(
                     items: visible,
                     typed: model.isSuggesting ? model.text.trimmingCharacters(in: .whitespacesAndNewlines) : "",
@@ -399,8 +401,7 @@ struct SearchSuggestionDropdown: View {
                 )
                 .frame(width: width, height: SearchSuggestionList.height(for: visible, limit: limit))
                 .background { SearchDropdownRegion().allowsHitTesting(false) }
-                .padding(.top, Self.gap)
-                .offset(x: x)
+                .offset(x: x, y: y)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -503,19 +504,9 @@ private struct SearchSuggestionList: View {
 
 private struct SearchSuggestionPanel: ViewModifier {
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-        let rows = content.clipShape(shape)
-        if #available(macOS 26.0, *) {
-            // Glass applied to the content itself would take the rows' clicks.
-            rows.background { Color.clear.glassEffect(.regular, in: shape) }
-        } else {
-            rows.background(.regularMaterial, in: shape)
-                .overlay {
-                    shape.strokeBorder(.primary.opacity(0.12), lineWidth: 1)
-                        .allowsHitTesting(false)
-                }
-                .shadow(color: .black.opacity(0.3), radius: 8, y: 2)
-        }
+        content
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .modifier(QueuePanelGlass(cornerRadius: 12))
     }
 }
 

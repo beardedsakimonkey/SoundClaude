@@ -18,7 +18,7 @@ struct QueuePanel<Content: View>: View {
             if isVisible {
                 content
                     .frame(width: width, height: height)
-                    .modifier(QueuePanelGlass())
+                    .modifier(QueuePanelGlass(cornerRadius: 16))
                     .contentShape(RoundedRectangle(cornerRadius: 16))
                     .onHover { hoverSuppression.isSuppressed = $0 }
                     .onDisappear { hoverSuppression.isSuppressed = false }
@@ -30,15 +30,19 @@ struct QueuePanel<Content: View>: View {
     }
 }
 
-private struct QueuePanelGlass: ViewModifier {
+/// Glass over a fill that tones down what shows through. The queue and the search
+/// suggestions share it.
+struct QueuePanelGlass: ViewModifier {
+    let cornerRadius: CGFloat
+
     @Environment(\.colorScheme) private var colorScheme
 
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
 
         Group {
             if #available(macOS 26.0, *) {
-                // Glass applied to the content itself swallows the rows' drop targets.
+                // Glass applied to the content itself swallows the rows' clicks and drop targets.
                 content.background { Color.clear.glassEffect(.regular, in: shape) }
             } else {
                 content.background(.regularMaterial, in: shape)
