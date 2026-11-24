@@ -86,6 +86,11 @@ struct DetailBackdropPreferenceKey: PreferenceKey {
     static let defaultValue = 0
     static func reduce(value: inout Int, nextValue: () -> Int) { value = nextValue() }
 }
+struct TrackCollectionKindTitle<Title: View>: View {
+    let kind: String
+    @ViewBuilder let title: () -> Title
+    var body: some View { title() }
+}
 struct TrackCollectionTitleRow<Title: View, Actions: View>: View {
     @ViewBuilder let title: () -> Title
     @ViewBuilder let actions: () -> Actions
