@@ -184,8 +184,11 @@ struct ArtistCommentRow: View {
                             if track.access == .protected {
                                 ProtectedTrackIcon(font: .callout.weight(.medium))
                                     .foregroundStyle(.secondary)
+                                    .opacity(trackOpacity)
                             }
-                            Text(track.title).underline(isHoveringTitle)
+                            Text(track.title)
+                                .underline(isHoveringTitle)
+                                .opacity(trackOpacity)
                         }
                         .font(.callout.weight(.medium))
                         .lineLimit(1)
@@ -194,7 +197,6 @@ struct ArtistCommentRow: View {
                     .buttonStyle(.plain)
                     .prefetch(.track(track)) { isHoveringTitle = $0 }
                     .contentHelp(track.title)
-                    .opacity(trackOpacity)
 
                     if !showsTimestampBelow {
                         timestamp(showsSeparator: true)
