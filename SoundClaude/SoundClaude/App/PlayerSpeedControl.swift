@@ -172,6 +172,7 @@ private struct PlayerSpeedSlider: View {
                     .font(.system(size: 11, weight: .semibold))
                     .monospacedDigit()
                     .foregroundStyle(Color.accentColor)
+                    .contentTransition(.identity)
                     .fixedSize()
                     .position(x: inset + length * fraction(value), y: -9)
                     .allowsHitTesting(false)
@@ -272,6 +273,8 @@ private struct PlayerSpeedSlider: View {
             .font(.system(size: 14, weight: speed == 1 ? .semibold : .regular))
             .monospacedDigit()
             .foregroundStyle(Color.primary)
+            // Swap the digits outright as the traveling label moves instead of crossfading them.
+            .contentTransition(.identity)
             .opacity(isHighlighted ? 1 : 0.45)
             .frame(width: 44, height: 44)
             .allowsHitTesting(false)
