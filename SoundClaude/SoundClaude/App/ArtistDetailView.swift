@@ -373,22 +373,16 @@ struct ArtistDetailView: View {
                 .padding(.top, -24)
                 .padding(.bottom, -12)
 
-                HStack {
-                    ArtistTabs(selection: tabSelection, artist: details.user, optionCount: tabCount)
-                    .font(.body.weight(.semibold))
-                    .layoutPriority(1)
-                    .modifier(FadeInOnAppear())
-                    Spacer(minLength: 16)
-                    ViewThatFits(in: .horizontal) {
-                        artistActions
-                            .labelStyle(.titleAndIcon)
-                            .fixedSize(horizontal: true, vertical: false)
-                        artistActions
-                            .labelStyle(.iconOnly)
-                    }
-                    // Fade the row once, so resizing between label styles does not replay it.
-                    .modifier(FadeInOnAppear())
+                // Drop the tab counts first, then the action titles, then the tab titles.
+                // One flat ViewThatFits: the tabs take a fixed style rather than nesting their own.
+                ViewThatFits(in: .horizontal) {
+                    tabsAndActions(details.user, tabStyle: .full, showsActionTitles: true)
+                    tabsAndActions(details.user, tabStyle: .withoutCounts, showsActionTitles: true)
+                    tabsAndActions(details.user, tabStyle: .withoutCounts, showsActionTitles: false)
+                    tabsAndActions(details.user, tabStyle: .iconsOnly, showsActionTitles: false)
                 }
+                // Fade the row once, so resizing between styles does not replay it.
+                .modifier(FadeInOnAppear())
                 if canFollowArtist, let followErrorMessage {
                     VStack(alignment: .trailing, spacing: 8) {
                         Text(followErrorMessage)
@@ -715,6 +709,7 @@ struct ArtistDetailView: View {
         @Bindable var selection: ArtistTabSelection
         let artist: SoundCloudUser
         let optionCount: (ArtistContentTab) -> Int?
+        let style: TabPickerStyle
 
         var body: some View {
             TabPicker(
@@ -723,7 +718,7 @@ struct ArtistDetailView: View {
                 selection: $selection.tab,
                 optionCount: optionCount,
                 optionSystemImage: { $0.systemImage },
-                allowsIconOnly: true,
+                fixedStyle: style,
                 horizontalPadding: 16,
                 prefetch: { [artist] in .artistTab(artist, $0) }
             )
@@ -771,6 +766,33 @@ struct ArtistDetailView: View {
         // so it only says when the tab is empty. A zero count hides the tab.
         case .playlists: user.playlistCount == 0 ? 0 : nil
         case .likes: user.publicFavoritesCount
+        }
+    }
+
+    private func tabsAndActions(
+        _ user: SoundCloudUser,
+        tabStyle: TabPickerStyle,
+        showsActionTitles: Bool
+    ) -> some View {
+        HStack {
+            ArtistTabs(
+                selection: tabSelection,
+                artist: user,
+                optionCount: tabCount,
+                style: tabStyle
+            )
+            .font(.body.weight(.semibold))
+            .fixedSize(horizontal: tabStyle != .iconsOnly, vertical: false)
+            .layoutPriority(1)
+            Spacer(minLength: 16)
+            if showsActionTitles {
+                artistActions
+                    .labelStyle(.titleAndIcon)
+                    .fixedSize(horizontal: true, vertical: false)
+            } else {
+                artistActions
+                    .labelStyle(.iconOnly)
+            }
         }
     }
 
