@@ -13,84 +13,35 @@ extension EnvironmentValues {
     }
 }
 
-/// The Search page. Its field is in the toolbar, where the results pages share it.
-/// `suggestions` fills the page below the recent searches.
-struct SearchView<Suggestions: View>: View {
-    let user: SoundCloudUser
-    let onSearch: (String) -> Void
-    @ViewBuilder let suggestions: Suggestions
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var recentSearches: [String] = []
-    @State private var isHoveringClearHistory = false
-    private let store = RecentSearchStore()
+/// The Search page. Its field is in the toolbar, where the results pages share it,
+/// and offers recent searches when it takes focus. `content` fills the page.
+struct SearchView<Content: View>: View {
+    @ViewBuilder let content: Content
 
     var body: some View {
         ScrollbarReservedScrollView { _ in
-            searchContent
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(20)
                 .remembersScrollPosition()
         }
         .background(alignment: .top) {
             RouteGradientBackdrop()
         }
         .navigationTitle("Search")
-        .onAppear {
-            recentSearches = store.restore(for: user)
-        }
         #if DEBUG
         .debugViewUpdates("SearchView")
         #endif
     }
-
-    private var searchContent: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            if !recentSearches.isEmpty {
-                HStack {
-                    Text("Recent")
-                        .font(.sectionHeading)
-                    Spacer()
-                    Button {
-                        store.clear(for: user)
-                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
-                            recentSearches = []
-                        }
-                    } label: {
-                        Text("Clear")
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(isHoveringClearHistory ? Color.primary : Color.secondary)
-                    .onContentHover { isHoveringClearHistory = $0 }
-                }
-                .transition(.identity)
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), alignment: .leading)], alignment: .leading, spacing: 12) {
-                    ForEach(recentSearches, id: \.self) { query in
-                        RecentSearchButton(query: query) {
-                            onSearch(query)
-                        } onRemove: {
-                            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) {
-                                recentSearches = store.remove(query, for: user)
-                            }
-                        }
-                        .transition(.identity)
-                    }
-                }
-                .transition(.identity)
-            }
-            suggestions
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
-    }
 }
 
 private enum SearchSuggestionItem {
+    case recent(String)
     case query(String)
     case result(SoundCloudSearchResult)
-}
 
-private extension SoundCloudSearchSuggestions {
-    var items: [SearchSuggestionItem] {
-        queries.map(SearchSuggestionItem.query) + results.map(SearchSuggestionItem.result)
+    var isResult: Bool {
+        if case .result = self { true } else { false }
     }
 }
 
@@ -101,8 +52,13 @@ final class SearchFieldModel {
     var text = ""
     /// Set to focus the field. The field clears it, so a request focuses only once.
     var focusRequest: UUID?
+    /// The user's recent searches, newest first. Offered when the field takes focus,
+    /// and alongside the completions of what is typed.
+    var recentSearches: [String] = []
 
     fileprivate var isFocused = false
+    // Focusing or typing opens the list; Escape closes it until the next of either.
+    fileprivate var isOpen = false
     // Suggest only for text typed during this focus, not for a query restored with the page.
     fileprivate var isSuggesting = false
     fileprivate var suggestions = SoundCloudSearchSuggestions()
@@ -117,8 +73,22 @@ final class SearchFieldModel {
         self.focusRequest = focusRequest
     }
 
-    fileprivate var visibleSuggestions: SoundCloudSearchSuggestions {
-        isFocused && isSuggesting ? suggestions : SoundCloudSearchSuggestions()
+    /// Recent searches beside completions of typed text.
+    private static let matchingRecentLimit = 3
+
+    fileprivate var visibleItems: [SearchSuggestionItem] {
+        guard isFocused, isOpen else { return [] }
+        let typed = isSuggesting ? text.trimmingCharacters(in: .whitespacesAndNewlines) : ""
+        guard !typed.isEmpty else { return recentSearches.map(SearchSuggestionItem.recent) }
+        let recents = recentSearches
+            .filter { $0.range(of: typed, options: .caseInsensitive) != nil }
+            .prefix(Self.matchingRecentLimit)
+        let queries = suggestions.queries.filter { query in
+            !recents.contains { $0.caseInsensitiveCompare(query) == .orderedSame }
+        }
+        return recents.map(SearchSuggestionItem.recent)
+            + queries.map(SearchSuggestionItem.query)
+            + suggestions.results.map(SearchSuggestionItem.result)
     }
 
     /// Whether the field took focus. It cannot before it is in a window.
@@ -136,7 +106,7 @@ final class SearchFieldModel {
 
     fileprivate func select(_ item: SearchSuggestionItem, actions: SearchFieldActions) {
         switch item {
-        case let .query(text):
+        case let .recent(text), let .query(text):
             let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !query.isEmpty else { return }
             self.text = query
@@ -148,14 +118,20 @@ final class SearchFieldModel {
         }
     }
 
+    fileprivate func remove(recent query: String, actions: SearchFieldActions) {
+        // The rows below move up, so an arrow-key selection would land on another.
+        selection = nil
+        actions.onRemoveRecent(query)
+    }
+
     fileprivate func submit(actions: SearchFieldActions) {
-        let items = visibleSuggestions.items
+        let items = visibleItems
         let selected = selection.flatMap { items.indices.contains($0) ? items[$0] : nil }
         select(selected ?? .query(text), actions: actions)
     }
 
     fileprivate func moveSelection(by delta: Int) -> Bool {
-        let count = visibleSuggestions.items.count
+        let count = visibleItems.count
         guard count > 0 else { return false }
         // Stepping past either end returns to the typed text.
         let next = (selection ?? (delta > 0 ? -1 : count)) + delta
@@ -165,8 +141,9 @@ final class SearchFieldModel {
 
     /// Escape closes the suggestions first, then gives up focus.
     fileprivate func exit() {
-        if !visibleSuggestions.isEmpty {
-            isSuggesting = false
+        if !visibleItems.isEmpty {
+            isOpen = false
+            selection = nil
             return
         }
         if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { text = "" }
@@ -178,6 +155,8 @@ struct SearchFieldActions {
     let onSearch: (String) -> Void
     /// Opens a top result picked from the suggestions.
     var onSelectResult: (SoundCloudSearchResult) -> Void = { _ in }
+    /// Forgets a recent search picked from the suggestions.
+    var onRemoveRecent: (String) -> Void = { _ in }
 }
 
 /// The search field for the toolbar. `SearchSuggestionDropdown` shows its suggestions.
@@ -253,6 +232,7 @@ struct SearchField: View {
         }
         .onDisappear {
             model.isFocused = false
+            model.isOpen = false
             model.isSuggesting = false
         }
     }
@@ -274,6 +254,8 @@ private struct SearchFieldInput: NSViewRepresentable {
         field.delegate = context.coordinator
         field.onFocusChange = { [model] isFocused in
             model.isFocused = isFocused
+            model.isOpen = isFocused
+            model.selection = nil
             if !isFocused { model.isSuggesting = false }
         }
         field.placeholderString = "Search tracks, users, and playlists"
@@ -314,6 +296,7 @@ private struct SearchFieldInput: NSViewRepresentable {
             guard let field = notification.object as? NSTextField else { return }
             model.text = field.stringValue
             model.isSuggesting = true
+            model.isOpen = true
         }
 
         func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
@@ -396,7 +379,7 @@ struct SearchSuggestionDropdown: View {
     private static let margin: CGFloat = 12
 
     var body: some View {
-        let visible = model.visibleSuggestions
+        let visible = model.visibleItems
         ZStack(alignment: .topLeading) {
             WindowAnchorView(anchor: pageAnchor)
                 .allowsHitTesting(false)
@@ -408,9 +391,11 @@ struct SearchSuggestionDropdown: View {
                 let x = min(max(fieldMidX - width / 2 - page.minX, Self.margin), page.width - Self.margin - width)
                 let limit = max(120, page.height - bottomInset - Self.gap - Self.margin)
                 SearchSuggestionList(
-                    suggestions: visible, typed: model.text.trimmingCharacters(in: .whitespacesAndNewlines),
+                    items: visible,
+                    typed: model.isSuggesting ? model.text.trimmingCharacters(in: .whitespacesAndNewlines) : "",
                     selection: model.selection, artworkLoader: artworkLoader,
-                    onSelect: { model.select($0, actions: actions) }
+                    onSelect: { model.select($0, actions: actions) },
+                    onRemove: { model.remove(recent: $0, actions: actions) }
                 )
                 .frame(width: width, height: SearchSuggestionList.height(for: visible, limit: limit))
                 .background { SearchDropdownRegion().allowsHitTesting(false) }
@@ -456,34 +441,37 @@ private struct WindowAnchorView: NSViewRepresentable {
     }
 }
 
-/// Completions of the query, then its top results, in one keyboard-navigable list.
+/// Recent searches, completions of the query, then its top results, in one
+/// keyboard-navigable list.
 private struct SearchSuggestionList: View {
     static let queryRowHeight: CGFloat = 30
     static let resultRowHeight: CGFloat = 54
     static let padding: CGFloat = 6
 
     /// Tall enough for every row, up to `limit`; past that the list scrolls.
-    static func height(for suggestions: SoundCloudSearchSuggestions, limit: CGFloat) -> CGFloat {
-        let rows = CGFloat(suggestions.queries.count) * queryRowHeight
-            + CGFloat(suggestions.results.count) * resultRowHeight
+    static func height(for items: [SearchSuggestionItem], limit: CGFloat) -> CGFloat {
+        let rows = items.reduce(0) { $0 + ($1.isResult ? resultRowHeight : queryRowHeight) }
         return min(2 * padding + rows, limit)
     }
 
-    let suggestions: SoundCloudSearchSuggestions
+    let items: [SearchSuggestionItem]
     let typed: String
     let selection: Int?
     let artworkLoader: ArtworkLoader
     let onSelect: (SearchSuggestionItem) -> Void
+    let onRemove: (String) -> Void
 
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: 0) {
-                    ForEach(Array(suggestions.items.enumerated()), id: \.offset) { index, item in
-                        SearchSuggestionRow(isSelected: index == selection) {
+                    ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                        SearchSuggestionRow(isSelected: index == selection, onRemove: removal(for: item)) {
                             onSelect(item)
                         } label: {
                             switch item {
+                            case let .recent(query):
+                                SearchQueryLabel(query: query, typed: typed, systemImage: "clock.arrow.circlepath")
                             case let .query(query):
                                 SearchQueryLabel(query: query, typed: typed)
                             case let .result(result):
@@ -505,6 +493,11 @@ private struct SearchSuggestionList: View {
             }
         }
         .modifier(SearchSuggestionPanel())
+    }
+
+    private func removal(for item: SearchSuggestionItem) -> (() -> Void)? {
+        guard case let .recent(query) = item else { return nil }
+        return { onRemove(query) }
     }
 }
 
@@ -528,35 +521,74 @@ private struct SearchSuggestionPanel: ViewModifier {
 
 private struct SearchSuggestionRow<Label: View>: View {
     let isSelected: Bool
+    /// Offered on hover or selection, for a row that can be forgotten.
+    var onRemove: (() -> Void)?
     let action: () -> Void
     @ViewBuilder let label: Label
 
     @State private var isHovering = false
+    @State private var isHoveringRemove = false
+
+    private static var removeSize: CGFloat { 24 }
 
     var body: some View {
-        Button(action: action) {
-            label
-                .padding(.horizontal, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.primary.opacity(isSelected || isHovering ? 0.1 : 0))
+        let showsRemove = onRemove != nil && (isHovering || isSelected)
+        ZStack(alignment: .trailing) {
+            Button(action: action) {
+                label
+                    .padding(.leading, 8)
+                    // Keep the text clear of the remove button.
+                    .padding(.trailing, onRemove == nil ? 8 : 8 + Self.removeSize)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.primary.opacity(isSelected || isHovering ? 0.1 : 0))
+                    }
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+            .modifier(SearchSuggestionRemoveAction(removal: onRemove))
+
+            if let onRemove, showsRemove {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(isHoveringRemove ? Color.primary : Color.secondary)
+                        .frame(width: Self.removeSize, height: Self.removeSize)
+                        .contentShape(Rectangle())
                 }
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                .onContentHover { isHoveringRemove = $0 }
+                .contentHelp("Remove recent search")
+                .accessibilityHidden(true)
+                .padding(.trailing, 4)
+            }
         }
-        .buttonStyle(.plain)
         .onContentHover { isHovering = $0 }
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+private struct SearchSuggestionRemoveAction: ViewModifier {
+    let removal: (() -> Void)?
+
+    func body(content: Content) -> some View {
+        if let removal {
+            content.accessibilityAction(named: Text("Remove recent search"), removal)
+        } else {
+            content
+        }
     }
 }
 
 private struct SearchQueryLabel: View {
     let query: String
     let typed: String
+    var systemImage = "magnifyingglass"
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
+            Image(systemName: systemImage)
                 .foregroundStyle(.secondary)
             text
                 .lineLimit(1)
@@ -566,6 +598,8 @@ private struct SearchQueryLabel: View {
 
     // Pick out what was typed, wherever the completion has it.
     private var text: Text {
+        // Nothing typed: a recent search, shown in full.
+        guard !typed.isEmpty else { return Text(query) }
         guard let match = query.range(of: typed, options: .caseInsensitive) else {
             return Text(query).foregroundStyle(.secondary)
         }
@@ -614,81 +648,5 @@ private struct SearchResultLabel: View {
         case let .track(track): "Track · \(track.uploader)"
         case let .playlist(playlist): "Playlist · \(playlist.owner.username)"
         }
-    }
-}
-
-private struct RecentSearchButton: View {
-    let query: String
-    let onSearch: () -> Void
-    let onRemove: () -> Void
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isHovering = false
-    @State private var isHoveringRemove = false
-
-    var body: some View {
-        ZStack(alignment: .trailing) {
-            Button(action: onSearch) {
-                Label(query, systemImage: "magnifyingglass")
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .mask {
-                        HStack(spacing: 0) {
-                            Rectangle()
-                            if isHovering {
-                                LinearGradient(
-                                    colors: [.black, .clear],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                                .frame(width: 24)
-                                Color.clear.frame(width: 24)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .contentShape(RoundedRectangle(cornerRadius: 6))
-            }
-            .buttonStyle(RecentSearchButtonStyle())
-            .overlay {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.primary.opacity(isHovering ? 0.08 : 0))
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering)
-                    .allowsHitTesting(false)
-            }
-            .contentHelp("Search again: \(query)")
-            .accessibilityLabel("Search again: \(query)")
-            .accessibilityAction(named: Text("Remove recent search"), onRemove)
-
-            Button(action: onRemove) {
-                Image(systemName: "xmark")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(isHoveringRemove ? Color.red : Color.secondary)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHoveringRemove)
-                    .frame(width: 24, height: 24)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .contentHelp("Remove recent search: \(query)")
-            .accessibilityLabel("Remove recent search: \(query)")
-            .onContentHover { isHoveringRemove = $0 }
-            .opacity(isHovering ? 1 : 0)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isHovering)
-            .allowsHitTesting(isHovering)
-            .accessibilityHidden(!isHovering)
-            .padding(.trailing, 8)
-        }
-        .onContentHover { isHovering = $0 }
-    }
-}
-
-private struct RecentSearchButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.primary.opacity(configuration.isPressed ? 0.12 : 0.06))
-            }
     }
 }

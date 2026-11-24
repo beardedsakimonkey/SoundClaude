@@ -101,13 +101,19 @@ struct SignedInView: View {
     }
 
     private var searchFieldActions: SearchFieldActions {
-        SearchFieldActions(onSearch: search) { result in
-            switch result {
-            case let .user(user): showArtist(user)
-            case let .track(track): showTrack(track)
-            case let .playlist(playlist): showPlaylist(playlist)
+        SearchFieldActions(
+            onSearch: search,
+            onSelectResult: { result in
+                switch result {
+                case let .user(user): showArtist(user)
+                case let .track(track): showTrack(track)
+                case let .playlist(playlist): showPlaylist(playlist)
+                }
+            },
+            onRemoveRecent: { [searchField, user] query in
+                searchField.recentSearches = RecentSearchStore().remove(query, for: user)
             }
-        }
+        )
     }
 
     private var currentPlaylistURN: String? {
@@ -135,6 +141,9 @@ struct SignedInView: View {
         // The field shows the search its page is for, dropping edits left behind on another.
         .onChange(of: searchFieldQuery, initial: true) { _, query in
             searchField.text = query ?? ""
+        }
+        .onAppear {
+            searchField.recentSearches = RecentSearchStore().restore(for: user)
         }
         // Preserve page and scroll state, but suppress page drawing and frame timelines.
         .opacity(isShowingVisualizer ? 0 : 1)
@@ -662,7 +671,7 @@ struct SignedInView: View {
                 feed: model.feed
             )
         case .search:
-            SearchView(user: user, onSearch: search) {
+            SearchView {
                 SearchDiscover(model: model) { playlist in
                     if playlist.isStation {
                         showStation(playlist.urn, seedArtistName: playlist.title)
@@ -737,7 +746,7 @@ struct SignedInView: View {
     }
 
     private func search(_ query: String) {
-        RecentSearchStore().record(query, for: user)
+        searchField.recentSearches = RecentSearchStore().record(query, for: user)
         guard currentRoute != .search(query) else { return }
         push(.search(query))
     }

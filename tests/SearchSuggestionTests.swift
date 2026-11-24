@@ -250,6 +250,38 @@ private struct SearchSuggestionTests {
             precondition(field.currentEditor() == nil, "Outside click must still release focus")
             precondition(harness.searches.last == "cl two", "A closed list must not search")
 
+            harness.model.recentSearches = ["fo one", "lofi"]
+            harness.model.text = ""
+            harness.model.focusRequest = UUID()
+            await focused()
+            await pause()
+            await down()
+            await down()
+            await enter()
+            await pause()
+            precondition(harness.searches.last == "lofi", "Focusing an empty field must offer recent searches")
+
+            harness.model.focusRequest = UUID()
+            await focused()
+            await pause()
+            await down()
+            await enter()
+            await pause()
+            precondition(harness.searches.last == "fo one", "Focusing restored text must offer recent searches")
+
+            await type("lo")
+            await down()
+            await enter()
+            await pause()
+            precondition(harness.searches.last == "lofi", "Matching recent searches must lead the suggestions")
+
+            await type("fo")
+            await down()
+            await down()
+            await enter()
+            await pause()
+            precondition(harness.searches.last == "fo two", "A completion that is a recent search must not repeat")
+
             print("Search suggestion tests passed")
             app.terminate(nil)
         }
