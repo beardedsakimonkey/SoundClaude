@@ -172,7 +172,7 @@ struct ArtistCommentRow: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Button {
                         onSelectTrack(track)
                     } label: {
@@ -194,10 +194,8 @@ struct ArtistCommentRow: View {
                     .contentHelp(track.title)
                     .opacity(trackOpacity)
 
-                    Spacer(minLength: 0)
-
                     if !showsTimestampBelow {
-                        timestamp
+                        timestamp(showsSeparator: true)
                     }
                 }
 
@@ -208,7 +206,7 @@ struct ArtistCommentRow: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 if showsTimestampBelow {
-                    timestamp
+                    timestamp(showsSeparator: false)
                 }
             }
         }
@@ -218,11 +216,11 @@ struct ArtistCommentRow: View {
         track.access == .protected ? protectedTrackOpacity : 1
     }
 
-    private var timestamp: some View {
+    private func timestamp(showsSeparator: Bool) -> some View {
         RelativeTimestampView(
             date: comment.createdAt,
             accessibilityPrefix: "Posted",
-            showsSeparator: false
+            showsSeparator: showsSeparator
         )
         .font(.callout)
         .foregroundStyle(.secondary)
