@@ -64,7 +64,7 @@ struct PlaylistCardView: View {
             ) {
                 onSelectPlaylist(displayedPlaylist)
             }
-            .opacity(waveformTrack?.access == .protected ? protectedTrackOpacity : 1)
+            .protectedTrackArtwork(waveformTrack?.access == .protected)
             .accessibilityLabel("Open playlist: \(displayedPlaylist.title)")
             .trackContextMenu(
                 track: waveformTrack,

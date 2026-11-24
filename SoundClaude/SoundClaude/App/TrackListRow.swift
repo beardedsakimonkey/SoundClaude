@@ -58,7 +58,7 @@ struct TrackListRow: View {
     private var rowContent: some View {
         HStack(spacing: isCompact ? 12 : 14) {
             artwork
-                .opacity(track.access == .protected ? protectedTrackOpacity : 1)
+                .protectedTrackArtwork(track.access == .protected)
             trackDetails
                 .opacity(track.access == .protected ? protectedTrackOpacity : 1)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -353,6 +353,26 @@ struct TrackListRow: View {
 
 /// Opacity for tracks whose streams only play in SoundCloud's own player.
 let protectedTrackOpacity = 0.55
+
+extension View {
+    /// Dims protected track artwork. Fading alone barely reads against a dark background,
+    /// so dark mode also darkens it as a black overlay would, keeping the artwork's shape.
+    func protectedTrackArtwork(_ isProtected: Bool) -> some View {
+        modifier(ProtectedTrackArtwork(isProtected: isProtected))
+    }
+}
+
+private struct ProtectedTrackArtwork: ViewModifier {
+    let isProtected: Bool
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            // Multiplying by gray matches a 35% black overlay without needing the artwork's shape.
+            .colorMultiply(isProtected && colorScheme == .dark ? Color(white: 0.65) : .white)
+            .opacity(isProtected ? protectedTrackOpacity : 1)
+    }
+}
 
 struct ProtectedTrackIcon: View {
     var font: Font = .body

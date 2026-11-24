@@ -37,7 +37,7 @@ struct TrackCardView: View {
             TrackCardArtwork(track: track, loader: model.artworkLoader) {
                 onSelectTrack(track)
             }
-            .opacity(track.access == .protected ? protectedTrackOpacity : 1)
+            .protectedTrackArtwork(track.access == .protected)
             .trackDraggable(track)
             .contentHelp("View track or drag to a playlist")
             .accessibilityLabel("Open track: \(track.title)")

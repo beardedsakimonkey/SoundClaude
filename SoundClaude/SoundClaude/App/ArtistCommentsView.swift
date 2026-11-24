@@ -168,7 +168,7 @@ struct ArtistCommentRow: View {
                 .contentHelp(track.title)
                 // The title links to the same page.
                 .accessibilityHidden(true)
-                .opacity(trackOpacity)
+                .protectedTrackArtwork(track.access == .protected)
             }
 
             VStack(alignment: .leading, spacing: 6) {

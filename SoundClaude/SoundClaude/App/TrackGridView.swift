@@ -268,7 +268,7 @@ struct TrackGridTile: View {
 
         return VStack(alignment: .leading, spacing: 8) {
             artwork
-                .opacity(track.access == .protected ? protectedTrackOpacity : 1)
+                .protectedTrackArtwork(track.access == .protected)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
