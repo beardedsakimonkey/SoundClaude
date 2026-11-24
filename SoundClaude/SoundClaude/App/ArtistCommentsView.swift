@@ -168,6 +168,7 @@ struct ArtistCommentRow: View {
                 .contentHelp(track.title)
                 // The title links to the same page.
                 .accessibilityHidden(true)
+                .opacity(trackOpacity)
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -175,14 +176,23 @@ struct ArtistCommentRow: View {
                     Button {
                         onSelectTrack(track)
                     } label: {
-                        Text("\(Text("on").foregroundStyle(.secondary)) \(Text(track.title).underline(isHoveringTitle))")
-                            .font(.callout.weight(.medium))
-                            .lineLimit(1)
-                            .contentShape(Rectangle())
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text("on").foregroundStyle(.secondary)
+                            if track.access == .protected {
+                                ProtectedTrackIcon(font: .callout.weight(.medium))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(track.title).underline(isHoveringTitle)
+                                .layoutPriority(1)
+                        }
+                        .font(.callout.weight(.medium))
+                        .lineLimit(1)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .prefetch(.track(track)) { isHoveringTitle = $0 }
                     .contentHelp(track.title)
+                    .opacity(trackOpacity)
 
                     Spacer(minLength: 0)
 
@@ -202,6 +212,10 @@ struct ArtistCommentRow: View {
                 }
             }
         }
+    }
+
+    private var trackOpacity: Double {
+        track.access == .protected ? protectedTrackOpacity : 1
     }
 
     private var timestamp: some View {
