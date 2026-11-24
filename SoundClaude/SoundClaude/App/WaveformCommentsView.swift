@@ -327,7 +327,7 @@ private struct WaveformCommentMarker: View, Equatable {
                 if showsComment, textWidth > 0 {
                     HStack(spacing: 4) {
                         if let user = comment.user {
-                            ArtistLink(artist: user, onSelect: onSelectArtist)
+                            ArtistLink(artist: user, prefetchTriggers: .pressOnly, onSelect: onSelectArtist)
                                 .fontWeight(.bold)
                                 .opacity(0.65)
                         }

@@ -46,8 +46,10 @@ private enum Observations {
     static var isLayoutHovered = false
 }
 // Observe bubble lifetime and its navigation action without networking or artwork.
+enum PrefetchTriggers { case standard, pressOnly }
 struct ArtistLink: View {
     let artist: SoundCloudUser
+    var prefetchTriggers = PrefetchTriggers.standard
     let onSelect: (SoundCloudUser) -> Void
     var body: some View {
         Button(artist.username) { onSelect(artist) }

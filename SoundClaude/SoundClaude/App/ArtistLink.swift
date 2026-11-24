@@ -7,6 +7,7 @@ struct ArtistLink: View {
     var showsAvatarBorder = false
     var showsVerifiedBadge = false
     var helpTitle = "View artist"
+    var prefetchTriggers = PrefetchTriggers.standard
     let onSelect: (SoundCloudUser) -> Void
 
     @State private var isHovering = false
@@ -42,7 +43,7 @@ struct ArtistLink: View {
             }
             .buttonStyle(.plain)
             .artistContextMenu(artist: artist)
-            .prefetch(.artist(artist)) { isHovering = $0 }
+            .prefetch(.artist(artist), prefetchTriggers) { isHovering = $0 }
             .contentHelp(helpTitle)
             .accessibilityLabel("\(helpTitle): \(artist.username)")
             if showsVerifiedBadge, artist.isVerified == true {
