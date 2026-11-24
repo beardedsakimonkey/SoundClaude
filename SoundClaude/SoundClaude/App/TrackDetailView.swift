@@ -621,6 +621,7 @@ private struct TrackDetailPlaylistRow: View {
                         .font(.system(size: 14))
                         .opacity(0.95)
                     Text(subtitle)
+                        .font(.callout)
                         .foregroundStyle(.secondary)
                 }
                 .lineLimit(1)
