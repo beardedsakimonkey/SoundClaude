@@ -69,7 +69,6 @@ struct NotificationsView: View {
                         optionSystemImage: \.systemImage,
                         optionText: \.title,
                         allowsIconOnly: true,
-                        horizontalPadding: 12,
                         prefetch: { .notifications($0) }
                     )
                     .font(.body.weight(.semibold))

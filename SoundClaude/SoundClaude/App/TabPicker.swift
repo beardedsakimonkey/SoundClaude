@@ -31,7 +31,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
         optionText: @escaping (Selection) -> String = { $0.rawValue },
         allowsIconOnly: Bool = false,
         fixedStyle: TabPickerStyle? = nil,
-        horizontalPadding: CGFloat = 20,
+        horizontalPadding: CGFloat = 12,
         prefetch: @escaping (Selection) -> PrefetchTarget? = { _ in nil }
     ) {
         self.title = title

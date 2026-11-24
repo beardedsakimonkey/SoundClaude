@@ -719,7 +719,6 @@ struct ArtistDetailView: View {
                 optionCount: optionCount,
                 optionSystemImage: { $0.systemImage },
                 fixedStyle: style,
-                horizontalPadding: 16,
                 prefetch: { [artist] in .artistTab(artist, $0) }
             )
         }
