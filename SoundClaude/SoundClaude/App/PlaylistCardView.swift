@@ -375,10 +375,7 @@ private struct PlaylistCardTitleRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            PlaylistPlayingIcon(
-                playback: model.playback, isCurrent: model[isQueueSource: .playlist(playlist.urn)],
-                systemName: playlist.isAlbum == true ? "square.stack" : "music.note.list"
-            )
+            Image(systemName: playlist.isAlbum == true ? "square.stack" : "music.note.list")
                 .foregroundStyle(.secondary)
                 .contentHelp(playlist.isAlbum == true ? "Album" : "Playlist")
                 .accessibilityHidden(true)
@@ -453,11 +450,14 @@ private struct PlaylistCardNowPlaying: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(alignment: .leading) {
                 if let track {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text("Now playing:")
-                            .foregroundStyle(.tertiary)
-                            .fixedSize()
-                            .accessibilityHidden(true)
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        TrackPlaybackIndicator(
+                            isPlaying: model.playback.isPlaybackActive,
+                            isLoading: model.playback.isLoading,
+                            speed: model.playback.playbackRate,
+                            color: .secondary
+                        )
+                        .accessibilityHidden(true)
                         Button {
                             onSelectTrack(track)
                         } label: {
