@@ -27,16 +27,9 @@ struct PlayerSpeedControl: View {
         .accessibilityValue(rateLabel)
         .popover(isPresented: $isShowingSpeed, arrowEdge: .top) {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Speed")
-                        .font(.headline)
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    HStack(spacing: 8) {
-                        presetButton("Slower", semitones: -4)
-                        presetButton("Faster", semitones: 4)
-                    }
-                }
+                Text("Speed")
+                    .font(.headline)
+                    .accessibilityAddTraits(.isHeader)
                 PlayerSpeedSlider(value: Binding(
                     get: { playback.playbackRate },
                     set: { playback.setPlaybackRate($0) }
@@ -58,28 +51,6 @@ struct PlayerSpeedControl: View {
                     .ignoresSafeArea()
             }
         }
-    }
-
-    private func presetButton(_ title: String, semitones: Int) -> some View {
-        let presetRate = Float(pow(2.0, Double(semitones) / 12))
-        let isActive = playback.playbackRate == presetRate
-        let rate = presetRate.formatted(.number.precision(.fractionLength(0...2))) + "×"
-        return Button {
-            // Clicking the active preset returns to normal speed.
-            playback.setPlaybackRate(isActive ? 1 : presetRate)
-        } label: {
-            Text(title)
-                .font(.body)
-                .foregroundStyle(isActive ? Color.orange : Color.secondary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .contentShape(RoundedRectangle(cornerRadius: PlayerSpeedHoverFeedback.defaultCornerRadius))
-        }
-        .buttonStyle(.plain)
-        .modifier(PlayerSpeedHoverFeedback(color: .orange, isActive: isActive))
-        .contentHelp(rate)
-        .accessibilityValue(rate)
-        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }
 
@@ -122,8 +93,8 @@ private struct PlayerSpeedSlider: View {
 
     // Steps are semitones, so they sit evenly on the log track: 0.5× and 2× are an octave from 1×.
     private let semitoneRange = -12...12
-    // 0.75× and 1.5× are a fourth below and a fifth above, within 0.002×.
-    private let markSemitones = [-12, -5, 0, 7, 12]
+    // A major third either side of 1×: the usual slowed and sped-up edits (0.79× and 1.26×).
+    private let markSemitones = [-12, -4, 0, 4, 12]
     private var marks: [Float] { markSemitones.map(speed(semitones:)) }
     private var steps: [Float] {
         semitoneRange.filter { !markSemitones.contains($0) }.map(speed(semitones:))
