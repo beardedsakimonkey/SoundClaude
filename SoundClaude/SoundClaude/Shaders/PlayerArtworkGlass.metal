@@ -78,7 +78,6 @@ static half4 slabEdge(float2 position, float2 local, SwiftUI::Layer layer, float
     float lipPosition,
     float lipWidth,
     float reflectionStrength,
-    float causticStrength,
     float specularStrength,
     float specularSoftness,
     float rotation,
@@ -141,12 +140,10 @@ static half4 slabEdge(float2 position, float2 local, SwiftUI::Layer layer, float
     float highlight = pow(max(facing, 0.0), 3.0);
     float counterlight = pow(max(-facing, 0.0), 5.0);
     float lip = exp(-pow((depth - lipPosition) / max(lipWidth, 0.001), 2.0));
-    float caustic = exp(-pow((depth - 4.0) / 1.5, 2.0));
     color *= half(1.0 - edgeDarkening * rim * (1.0 - highlight));
     // The lip glints hottest where it squarely faces the light.
     float reflection = reflectionStrength * lip
-        * (0.12 + 0.48 * highlight + 0.3 * pow(highlight, 4.0) + 0.24 * counterlight)
-        + caustic * counterlight * causticStrength;
+        * (0.12 + 0.48 * highlight + 0.3 * pow(highlight, 4.0) + 0.24 * counterlight);
 
     // A fixed light above and to the left reflects off the rotating glass plane.
     // A finite eye position gives the reflection a soft local highlight.

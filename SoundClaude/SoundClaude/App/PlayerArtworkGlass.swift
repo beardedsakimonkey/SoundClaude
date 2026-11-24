@@ -9,7 +9,6 @@ struct PlayerArtworkGlassParameters {
     var lipPosition = 1.1
     var lipWidth = 0.85
     var reflectionStrength = 0.75
-    var causticStrength = 0.15
     var specularStrength = 0.08
     var specularSoftness = 0.25
     // How dark the slab's side is shaded (0...1).
@@ -170,7 +169,6 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
             .float(parameters.lipPosition),
             .float(parameters.lipWidth),
             .float(parameters.reflectionStrength),
-            .float(parameters.causticStrength),
             .float(parameters.specularStrength),
             .float(parameters.specularSoftness),
             .float(rotation),
