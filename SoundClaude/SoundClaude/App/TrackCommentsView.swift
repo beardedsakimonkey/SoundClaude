@@ -36,6 +36,9 @@ struct TrackCommentsView: View {
     @State private var loadedPageURLs: Set<URL> = []
     @State private var hasLoaded = false
     @State private var isLoading = false
+    // Rows mounted before the first one appears fade in together; rows that mount later
+    // (scrolling, later pages) show at once.
+    @State private var hasRevealedRows = false
     // Owned by the list, not the spinner, so scrolling the spinner away does not cancel it.
     @State private var pageTask: Task<Void, Never>?
     @State private var errorMessage: String?
@@ -76,7 +79,13 @@ struct TrackCommentsView: View {
                     onReplyAdded: addReply,
                     onDeleted: deleteComment
                 )
-                .modifier(FadeInOnAppear())
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.3)) { view in
+                    view.opacity(reduceMotion || hasRevealedRows ? 1 : 0)
+                }
+                .onAppear {
+                    // Lazy rows appear after the insertion transaction has finished.
+                    hasRevealedRows = true
+                }
             }
 
             if let errorMessage {
@@ -191,6 +200,7 @@ struct TrackCommentsView: View {
         parentURNs = [:]
         threader = SoundCloudCommentThreader()
         rows = []
+        hasRevealedRows = false
         nextPageURL = nil
         loadedPageURLs = []
         hasLoaded = false
