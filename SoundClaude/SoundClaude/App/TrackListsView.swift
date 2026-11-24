@@ -64,7 +64,6 @@ struct RelatedTracksView: View {
                         onSelectArtist: onSelectArtist,
                         onPlayTrack: play
                     )
-                    .modifier(FadeInOnAppear())
                 }
             }
         }

@@ -202,7 +202,6 @@ struct SearchOverview: View {
                     onSelectArtist: onSelectArtist,
                     onPlayTrack: { selected in await play(selected, in: sections) }
                 )
-                .modifier(FadeInOnAppear())
             }
         }
         // Line the artwork up with the section's heading.

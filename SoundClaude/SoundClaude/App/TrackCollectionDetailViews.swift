@@ -142,7 +142,6 @@ struct TrackCollectionTracks: View {
                     .easeInOut(duration: 0.2),
                     value: removingTrackURN == track.urn
                 )
-                .modifier(FadeInOnAppear(isEnabled: fadesInTracks))
             }
         }
     }

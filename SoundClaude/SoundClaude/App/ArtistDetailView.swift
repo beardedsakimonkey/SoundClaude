@@ -982,7 +982,6 @@ struct ArtistDetailView: View {
                         title: { $0.title }
                     )
                 }
-                .modifier(FadeInOnAppear())
                 content(sortOrder, searchText)
                     .id(sortOrder)
             }
@@ -1015,7 +1014,6 @@ struct ArtistDetailView: View {
                     onSelectArtist: onSelectArtist,
                     onPlayTrack: playTrack
                 )
-                .modifier(FadeInOnAppear())
             }
             if let message = state.errorMessage {
                 Text(message).foregroundStyle(.secondary)
