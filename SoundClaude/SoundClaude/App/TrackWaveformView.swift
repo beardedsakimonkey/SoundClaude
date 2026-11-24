@@ -1,3 +1,4 @@
+import Accelerate
 import AppKit
 import SwiftUI
 
@@ -1005,31 +1006,60 @@ private struct WaveformAmplitudes: VectorArithmetic {
 
     static let zero = WaveformAmplitudes(values: [])
 
+    // Springs call these several times per frame, so they work in place through vDSP
+    // rather than allocating a new array per operation.
     static func + (lhs: Self, rhs: Self) -> Self {
-        combine(lhs, rhs, +)
+        var result = lhs
+        result += rhs
+        return result
     }
 
     static func - (lhs: Self, rhs: Self) -> Self {
-        combine(lhs, rhs, -)
+        var result = lhs
+        result -= rhs
+        return result
+    }
+
+    static func += (lhs: inout Self, rhs: Self) {
+        lhs.add(rhs, scaledBy: 1)
+    }
+
+    static func -= (lhs: inout Self, rhs: Self) {
+        lhs.add(rhs, scaledBy: -1)
     }
 
     mutating func scale(by rhs: Double) {
-        values = values.map { $0 * rhs }
+        var factor = rhs
+        let count = vDSP_Length(values.count)
+        values.withUnsafeMutableBufferPointer { buffer in
+            guard let base = buffer.baseAddress else { return }
+            vDSP_vsmulD(base, 1, &factor, base, 1, count)
+        }
     }
 
     var magnitudeSquared: Double {
-        values.reduce(0) { $0 + $1 * $1 }
+        var result = 0.0
+        values.withUnsafeBufferPointer { buffer in
+            guard let base = buffer.baseAddress else { return }
+            vDSP_svesqD(base, 1, &result, vDSP_Length(buffer.count))
+        }
+        return result
     }
 
-    private static func combine(
-        _ lhs: Self, _ rhs: Self, _ operation: (Double, Double) -> Double
-    ) -> Self {
+    private mutating func add(_ rhs: Self, scaledBy factor: Double) {
         // Zero padding also handles changes in bar count when the window resizes.
-        Self(values: (0..<max(lhs.values.count, rhs.values.count)).map { index in
-            operation(
-                index < lhs.values.count ? lhs.values[index] : 0,
-                index < rhs.values.count ? rhs.values[index] : 0
-            )
-        })
+        if values.count < rhs.values.count {
+            values.append(contentsOf: repeatElement(0, count: rhs.values.count - values.count))
+        }
+        var factor = factor
+        let count = vDSP_Length(rhs.values.count)
+        values.withUnsafeMutableBufferPointer { lhsBuffer in
+            rhs.values.withUnsafeBufferPointer { rhsBuffer in
+                guard let lhsBase = lhsBuffer.baseAddress,
+                      let rhsBase = rhsBuffer.baseAddress else { return }
+                // lhs += factor * rhs
+                vDSP_vsmaD(rhsBase, 1, &factor, lhsBase, 1, lhsBase, 1, count)
+            }
+        }
     }
 }
