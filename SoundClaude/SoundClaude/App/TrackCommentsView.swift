@@ -44,6 +44,15 @@ struct TrackCommentsView: View {
     @State private var likes = TrackCommentLikes()
     @State private var artworkAccent: ArtworkAccent?
     @State private var accentArtworkURL: URL?
+    @State private var avatarPrefetcher = TrackScrollArtworkPrefetcher(
+        rendition: .source, lookahead: 8, lookbehind: 8
+    )
+    #if DEBUG
+    private let prefetchSettings = ArtworkPrefetchDebugSettings.shared
+    private var prefetchEnabled: Bool { prefetchSettings.isEnabled }
+    #else
+    private let prefetchEnabled = true
+    #endif
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -79,6 +88,12 @@ struct TrackCommentsView: View {
                     onDeleted: deleteComment
                 )
                 .modifier(FadeInUntilRevealed(hasRevealed: $hasRevealedRows))
+                .onAppear {
+                    avatarPrefetcher.setVisible(row.id, isVisible: true, loader: model.artworkLoader)
+                }
+                .onDisappear {
+                    avatarPrefetcher.setVisible(row.id, isVisible: false, loader: model.artworkLoader)
+                }
             }
 
             if let errorMessage {
@@ -102,8 +117,14 @@ struct TrackCommentsView: View {
                     .id(nextPageURL)
             }
         }
+        #if DEBUG
+        .preference(key: TrackArtworkQueueDebugKey.self, value: [avatarPrefetcher.prefetcher])
+        #endif
+        .onChange(of: rows.map(\.id), initial: true) { configureAvatarPrefetch() }
+        .onChange(of: prefetchEnabled) { configureAvatarPrefetch() }
         .onDisappear {
             pageTask?.cancel()
+            avatarPrefetcher.stop(loader: model.artworkLoader)
             model.commentDrafts.prune(track)
         }
         // A loaded page continues only its own order, so a new sort starts the list over.
@@ -140,6 +161,11 @@ struct TrackCommentsView: View {
             .sRGB, red: contrastedAccent.red,
             green: contrastedAccent.green, blue: contrastedAccent.blue
         )
+    }
+
+    private func configureAvatarPrefetch() {
+        avatarPrefetcher.configure(ids: rows.map(\.id), urls: rows.map(\.comment.user?.avatarURL),
+                                   loader: model.artworkLoader, isEnabled: prefetchEnabled)
     }
 
     // Threads keep loaded order; replies stay in posted order beneath their first comment.
