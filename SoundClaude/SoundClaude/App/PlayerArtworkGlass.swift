@@ -13,6 +13,8 @@ struct PlayerArtworkGlassParameters {
     var specularSoftness = 0.25
     // How dark the slab's side is shaded (0...1).
     var slabShade = 0.5
+    // How brightly the slab's rounded corners catch the light as they turn through it.
+    var slabGlint = 0.35
     // The rounded bevel that bends the print near the edge: its width and how far, in points,
     // it pulls the outermost pixels inward. Off except on detail artwork.
     var refractionWidth = 12.0
@@ -195,6 +197,7 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
             .float2(slabPadding, slabPadding),
             .float2(slabShift.width, slabShift.height),
             .float(slabShade),
+            .float(parameters.slabGlint),
             .float(displayScale),
             .float(parameters.refractionWidth),
             .float(parameters.refractionStrength),

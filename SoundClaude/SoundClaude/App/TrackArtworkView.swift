@@ -685,7 +685,7 @@ struct DetailArtworkView: View {
     var cornerRadius: CGFloat = 6
     var reflectionBlurRadius: CGFloat = 3
     // Depth of the glass slab, visible along the near edge while rotated.
-    var slabThickness: CGFloat = 8
+    var slabThickness: CGFloat = 4
     var artworkLift: CGFloat = 0
     var hoverStyle: HoverStyle = .rotation
     var isShowingArtwork = false
@@ -726,7 +726,7 @@ struct DetailArtworkView: View {
     @State private var likeErrorMessage: String?
 
     #if DEBUG
-    @AppStorage(DetailArtworkSlabTuning.thicknessKey) private var debugSlabThickness = 8.0
+    @AppStorage(DetailArtworkSlabTuning.thicknessKey) private var debugSlabThickness = 4.0
     @AppStorage(DetailArtworkSlabTuning.shadeKey) private var debugSlabShade =
         PlayerArtworkGlassParameters.detail.slabShade
     @AppStorage(DetailArtworkSlabTuning.lipPositionKey) private var debugLipPosition =
@@ -741,6 +741,8 @@ struct DetailArtworkView: View {
     @AppStorage("debug.specular.softness") private var debugSpecularSoftness =
         PlayerArtworkGlassParameters.detail.specularSoftness
     @AppStorage(DetailArtworkSlabTuning.tiltKey) private var debugTilt = DetailArtworkTiltMotion.angle
+    @AppStorage("debug.slab.glint") private var debugSlabGlint =
+        PlayerArtworkGlassParameters.detail.slabGlint
     @AppStorage("debug.refraction.width") private var debugRefractionWidth =
         PlayerArtworkGlassParameters.detail.refractionWidth
     @AppStorage("debug.refraction.strength") private var debugRefractionStrength =
@@ -759,6 +761,7 @@ struct DetailArtworkView: View {
     private var glassParameters: PlayerArtworkGlassParameters {
         var parameters = PlayerArtworkGlassParameters.detail
         parameters.slabShade = debugSlabShade
+        parameters.slabGlint = debugSlabGlint
         parameters.lipPosition = debugLipPosition
         parameters.lipWidth = debugLipWidth
         parameters.reflectionStrength = debugLipStrength
@@ -947,8 +950,9 @@ struct DetailArtworkView: View {
                     Spacer()
                     Button("Reset") {
                         let defaults = PlayerArtworkGlassParameters.detail
-                        debugSlabThickness = 8
+                        debugSlabThickness = 4
                         debugSlabShade = defaults.slabShade
+                        debugSlabGlint = defaults.slabGlint
                         debugLipPosition = defaults.lipPosition
                         debugLipWidth = defaults.lipWidth
                         debugLipStrength = defaults.reflectionStrength
@@ -981,6 +985,7 @@ struct DetailArtworkView: View {
                 Text("Slab edge").font(.subheadline.bold())
                 slabSlider("Thickness (pt)", value: $debugSlabThickness, range: 0...30, step: 0.5)
                 slabSlider("Shade", value: $debugSlabShade, range: 0...1, step: 0.01)
+                slabSlider("Corner glint", value: $debugSlabGlint, range: 0...1, step: 0.01)
                 slabSlider("Turn (°)", value: $debugTurn, range: 0...35, step: 0.5)
                 slabSlider("Hover tilt (°)", value: $debugTilt, range: 0...35, step: 0.5)
                 Divider()
