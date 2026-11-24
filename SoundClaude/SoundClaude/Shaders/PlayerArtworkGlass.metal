@@ -82,22 +82,28 @@ static half4 slabEdge(float2 position, float2 local, SwiftUI::Layer layer, float
     roundedRectDistance(wallPoint, size, cornerRadius, wallNormal);
 
     // The print's color where the wall meets the face, softened along the edge so single
-    // pixels of the print don't streak across the side.
+    // pixels of the print don't streak across the side. Binomial weights keep a color
+    // boundary a smooth ramp rather than a few hard steps.
     float2 layerOrigin = position - local;
-    float2 along = float2(-wallNormal.y, wallNormal.x) * 1.5;
-    half4 sample = 0.5h * layer.sample(layerOrigin + insideRoundedRect(wallPoint, size, cornerRadius, 1.5));
+    float2 along = float2(-wallNormal.y, wallNormal.x) * 0.75;
+    half4 sample = 0.375h * layer.sample(layerOrigin + insideRoundedRect(wallPoint, size, cornerRadius, 1.5));
     sample += 0.25h * layer.sample(layerOrigin + insideRoundedRect(wallPoint - along, size, cornerRadius, 1.5));
     sample += 0.25h * layer.sample(layerOrigin + insideRoundedRect(wallPoint + along, size, cornerRadius, 1.5));
+    sample += 0.0625h * layer.sample(layerOrigin + insideRoundedRect(wallPoint - along * 2.0, size, cornerRadius, 1.5));
+    sample += 0.0625h * layer.sample(layerOrigin + insideRoundedRect(wallPoint + along * 2.0, size, cornerRadius, 1.5));
     half3 color = sample.rgb / max(sample.a, 0.001h);
 
     // A wall facing the light keeps more of its color than one turned away.
     float lit = saturate(dot(wallNormal, rimLight));
     color *= half(1.0 - saturate(shade) * 0.725 * (1.0 - 0.45 * lit));
     // The glint sits where a wall's normal splits the light and the view, which looks along
-    // the sweep: on a straight wall it holds steady, around a corner it travels as the cover moves.
+    // the sweep, so it travels around a corner as the cover moves. Only the corners carry it:
+    // the visible straight walls face along the sweep, so they'd glint evenly along their whole
+    // length, washing them out and greying dark prints. It fades in from each corner's ends.
     float2 split = rimLight + slabShift / shiftLength;
     float2 halfway = split / max(length(split), 0.001);
-    float sparkle = glint * pow(saturate(dot(wallNormal, halfway)), 12.0);
+    float curve = saturate(4.0 * abs(wallNormal.x * wallNormal.y));
+    float sparkle = glint * curve * pow(saturate(dot(wallNormal, halfway)), 12.0);
     color += (1.0h - color) * half(saturate(sparkle));
     return half4(color, 1.0h) * (sample.a * half(coverage));
 }
