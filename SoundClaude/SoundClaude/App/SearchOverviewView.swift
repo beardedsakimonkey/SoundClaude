@@ -178,7 +178,10 @@ struct SearchOverview: View {
                 itemWidth: SearchPlaylistCard.width, artworkCenterY: SearchPlaylistCard.artworkCenterY
             ) {
                 ForEach(playlists) { playlist in
-                    SearchPlaylistCard(playlist: playlist, artworkLoader: model.artworkLoader) {
+                    SearchPlaylistCard(
+                        playlist: playlist, artworkLoader: model.artworkLoader,
+                        onSelectArtist: onSelectArtist
+                    ) {
                         onSelectPlaylist(playlist)
                     }
                 }
@@ -522,6 +525,7 @@ struct SearchTopResultCard: View {
 }
 
 /// A playlist, album, or station as a cover with its title and owner below.
+/// The cover, the title, and the owner are separate targets.
 struct SearchPlaylistCard: View {
     let playlist: SoundCloudPlaylist
     /// Shown in place of the playlist's own title.
@@ -529,6 +533,8 @@ struct SearchPlaylistCard: View {
     /// Shown in place of the owner and track count.
     var summary: String? = nil
     let artworkLoader: ArtworkLoader
+    /// Makes the owner a link. Without it, the owner is plain text.
+    var onSelectArtist: ((SoundCloudUser) -> Void)? = nil
     let onSelect: () -> Void
 
     static let artworkSize: CGFloat = 148
@@ -538,21 +544,30 @@ struct SearchPlaylistCard: View {
     /// How far below the card's top its cover is centered.
     static let artworkCenterY = inset + artworkSize / 2
 
-    @State private var isHovering = false
+    @State private var isHoveringArtwork = false
+    @State private var isHoveringTitle = false
 
     private var title: String { shortTitle ?? playlist.title }
 
+    private var trackCountText: String? {
+        guard let count = playlist.trackCount else { return nil }
+        return "\(count.formatted()) \(count == 1 ? "track" : "tracks")"
+    }
+
     private var subtitle: String {
         if let summary { return summary }
-        guard let count = playlist.trackCount else { return playlist.owner.username }
-        return "\(playlist.owner.username) · \(count.formatted()) \(count == 1 ? "track" : "tracks")"
+        return [playlist.owner.username, trackCountText].compactMap { $0 }.joined(separator: " · ")
     }
 
     private var help: String { playlist.isStation ? "Open station" : "Open playlist" }
 
+    private var prefetchTarget: PrefetchTarget {
+        playlist.isStation ? .station(playlist.urn) : .playlist(playlist)
+    }
+
     var body: some View {
-        Button(action: onSelect) {
-            VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
+            Button(action: onSelect) {
                 TrackArtworkView(
                     artworkURL: playlist.displayArtworkURL,
                     loader: artworkLoader,
@@ -562,30 +577,55 @@ struct SearchPlaylistCard: View {
                     showsBorder: false
                 )
                 .modifier(ArtworkHoverZoom(
-                    isHovering: isHovering,
+                    isHovering: isHoveringArtwork,
                     cornerRadius: 6,
                     size: Self.artworkSize
                 ))
-                VStack(alignment: .leading, spacing: 3) {
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            // The pointer sweeps across cards in the shelf, so only a press prefetches.
+            .prefetch(prefetchTarget, .pressOnly) { isHoveringArtwork = $0 }
+            .contentHelp("\(help): \(title)")
+            .accessibilityLabel("\(help): \(title), \(subtitle)")
+
+            VStack(alignment: .leading, spacing: 3) {
+                Button(action: onSelect) {
                     Text(title)
                         .font(.headline)
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .underline(isHoveringTitle)
+                        .contentShape(Rectangle())
                 }
-                .lineLimit(1)
+                .buttonStyle(.plain)
+                .prefetch(prefetchTarget) { isHoveringTitle = $0 }
+                .contentHelp(title)
+                .accessibilityLabel("\(help): \(title)")
+
+                subtitleView
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .frame(width: Self.artworkSize, alignment: .leading)
-            .padding(Self.inset)
-            .contentShape(Rectangle())
+            .lineLimit(1)
         }
-        .buttonStyle(.plain)
-        // The pointer sweeps across cards in the shelf, so only a press prefetches.
-        .prefetch(playlist.isStation ? .station(playlist.urn) : .playlist(playlist), .pressOnly) {
-            isHovering = $0
-        }
-        .contentHelp("\(help): \(title)")
-        .accessibilityLabel("\(help): \(title), \(subtitle)")
+        .frame(width: Self.artworkSize, alignment: .leading)
+        .padding(Self.inset)
         .modifier(FadeInOnAppear())
+    }
+
+    @ViewBuilder
+    private var subtitleView: some View {
+        if summary == nil, let onSelectArtist {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                ArtistLink(artist: playlist.owner, onSelect: onSelectArtist)
+                if let trackCountText {
+                    Text("·")
+                        .accessibilityHidden(true)
+                    Text(trackCountText)
+                        .fixedSize()
+                }
+            }
+        } else {
+            Text(subtitle)
+        }
     }
 }
