@@ -145,8 +145,6 @@ struct ArtistCommentRow: View {
     /// Shows the track's artwork beside the comment.
     var artworkLoader: ArtworkLoader? = nil
     var bodyLineLimit: Int? = nil
-    /// Puts the timestamp under the comment instead of beside the title, for narrow columns.
-    var showsTimestampBelow = false
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
 
@@ -173,43 +171,42 @@ struct ArtistCommentRow: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Button {
-                        onSelectTrack(track)
-                    } label: {
-                        HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text("on")
+                Button {
+                    onSelectTrack(track)
+                } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("on")
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: true, vertical: false)
+                        if track.access == .protected {
+                            ProtectedTrackIcon(font: .callout.weight(.medium))
                                 .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: true, vertical: false)
-                            if track.access == .protected {
-                                ProtectedTrackIcon(font: .callout.weight(.medium))
-                                    .foregroundStyle(.secondary)
-                                    .opacity(trackOpacity)
-                            }
-                            Text(track.title)
-                                .underline(isHoveringTitle)
                                 .opacity(trackOpacity)
                         }
-                        .font(.callout.weight(.medium))
-                        .lineLimit(1)
-                        .contentShape(Rectangle())
+                        Text(track.title)
+                            .underline(isHoveringTitle)
+                            .opacity(trackOpacity)
                     }
-                    .buttonStyle(.plain)
-                    .prefetch(.track(track)) { isHoveringTitle = $0 }
-                    .contentHelp(track.title)
-
-                    if !showsTimestampBelow {
-                        timestamp(showsSeparator: true)
-                    }
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .prefetch(.track(track)) { isHoveringTitle = $0 }
+                .contentHelp(track.title)
 
                 commentBody
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
 
-                if showsTimestampBelow {
-                    timestamp(showsSeparator: false)
-                }
+                RelativeTimestampView(
+                    date: comment.createdAt,
+                    accessibilityPrefix: "Posted",
+                    showsSeparator: false
+                )
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize()
             }
         }
     }
@@ -227,16 +224,5 @@ struct ArtistCommentRow: View {
 
     private var trackOpacity: Double {
         track.access == .protected ? protectedTrackOpacity : 1
-    }
-
-    private func timestamp(showsSeparator: Bool) -> some View {
-        RelativeTimestampView(
-            date: comment.createdAt,
-            accessibilityPrefix: "Posted",
-            showsSeparator: showsSeparator
-        )
-        .font(.callout)
-        .foregroundStyle(.secondary)
-        .fixedSize()
     }
 }

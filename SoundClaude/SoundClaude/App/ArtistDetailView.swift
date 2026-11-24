@@ -604,7 +604,6 @@ struct ArtistDetailView: View {
                         comment: comment,
                         track: track,
                         bodyLineLimit: 3,
-                        showsTimestampBelow: true,
                         onSelectTrack: onSelectTrack,
                         onSelectArtist: onSelectArtist
                     )
