@@ -685,7 +685,7 @@ struct DetailArtworkView: View {
     var cornerRadius: CGFloat = 6
     var reflectionBlurRadius: CGFloat = 3
     // Depth of the glass slab, visible along the near edge while rotated.
-    var slabThickness: CGFloat = 4
+    var slabThickness: CGFloat = 3
     var artworkLift: CGFloat = 0
     var hoverStyle: HoverStyle = .rotation
     var isShowingArtwork = false
@@ -726,7 +726,7 @@ struct DetailArtworkView: View {
     @State private var likeErrorMessage: String?
 
     #if DEBUG
-    @AppStorage(DetailArtworkSlabTuning.thicknessKey) private var debugSlabThickness = 4.0
+    @AppStorage(DetailArtworkSlabTuning.thicknessKey) private var debugSlabThickness = 3.0
     @AppStorage(DetailArtworkSlabTuning.shadeKey) private var debugSlabShade =
         PlayerArtworkGlassParameters.detail.slabShade
     @AppStorage(DetailArtworkSlabTuning.lipPositionKey) private var debugLipPosition =
