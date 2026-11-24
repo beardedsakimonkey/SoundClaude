@@ -985,6 +985,7 @@ struct ArtistDetailView: View {
                 content(sortOrder, searchText)
                     .id(sortOrder)
             }
+            .modifier(FadeInOnAppear())
         }
     }
 
