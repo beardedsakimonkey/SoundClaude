@@ -117,7 +117,11 @@ private struct CompactTrackGrid<Content: View>: View {
 struct TrackArtworkGrid<Content: View>: View {
     let tracks: [SoundCloudTrack]
     let loader: ArtworkLoader
+    // Fades in the tiles visible on mount, not each tile as it scrolls in.
+    var fadesIn = false
     @ViewBuilder let content: (SoundCloudTrack) -> Content
+
+    @State private var hasRevealedTiles = false
 
     // Speculatively load two rows below the visible tiles, and two above.
     private static var prefetchRowCount: Int { 2 }
@@ -137,6 +141,7 @@ struct TrackArtworkGrid<Content: View>: View {
         CompactTrackGrid {
             ForEach(tracks) { track in
                 content(track)
+                    .modifier(FadeInUntilRevealed(hasRevealed: $hasRevealedTiles, isEnabled: fadesIn))
                     .onAppear { coordinator.setVisible(track.id, isVisible: true, loader: loader) }
                     .onDisappear { coordinator.setVisible(track.id, isVisible: false, loader: loader) }
             }

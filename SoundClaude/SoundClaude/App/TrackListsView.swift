@@ -37,7 +37,7 @@ struct RelatedTracksView: View {
             trackLayout: $trackLayout, loadPage: loadPage
         ) {
             if trackLayout == .grid {
-                TrackArtworkGrid(tracks: tracks, loader: model.artworkLoader) { relatedTrack in
+                TrackArtworkGrid(tracks: tracks, loader: model.artworkLoader, fadesIn: true) { relatedTrack in
                     TrackGridTile(
                         track: relatedTrack,
                         playback: model.playback,
@@ -49,7 +49,6 @@ struct RelatedTracksView: View {
                         onSelectArtist: onSelectArtist,
                         onPlayTrack: play
                     )
-                    .modifier(FadeInOnAppear())
                 }
             } else {
                 TrackArtworkList(tracks: tracks, loader: model.artworkLoader) { relatedTrack in

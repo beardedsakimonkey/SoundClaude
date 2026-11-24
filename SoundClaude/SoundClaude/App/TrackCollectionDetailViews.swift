@@ -100,7 +100,7 @@ struct TrackCollectionTracks: View {
 
     var body: some View {
         if trackLayout == .grid {
-            TrackArtworkGrid(tracks: tracks, loader: model.artworkLoader) { track in
+            TrackArtworkGrid(tracks: tracks, loader: model.artworkLoader, fadesIn: fadesInTracks) { track in
                 TrackGridTile(
                     track: track,
                     playback: model.playback,
@@ -119,7 +119,6 @@ struct TrackCollectionTracks: View {
                     .easeInOut(duration: 0.2),
                     value: removingTrackURN == track.urn
                 )
-                .modifier(FadeInOnAppear(isEnabled: fadesInTracks))
             }
             .padding(.bottom, 16)
         } else {
