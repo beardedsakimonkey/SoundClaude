@@ -14,6 +14,7 @@ struct ArtistCommentsView: View {
     @State private var hasLoaded: Bool
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var hasRevealedRows = false
 
     init(
         artist: SoundCloudUser,
@@ -62,7 +63,7 @@ struct ArtistCommentsView: View {
                                 onSelectTrack: onSelectTrack,
                                 onSelectArtist: onSelectArtist
                             )
-                            .modifier(FadeInOnAppear())
+                            .modifier(FadeInUntilRevealed(hasRevealed: $hasRevealedRows))
                         }
                     }
 
