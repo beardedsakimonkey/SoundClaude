@@ -119,7 +119,7 @@ struct TrackArtworkGrid<Content: View>: View {
     let loader: ArtworkLoader
     @ViewBuilder let content: (SoundCloudTrack) -> Content
 
-    // Speculatively load two rows below the visible tiles, and one above.
+    // Speculatively load two rows below the visible tiles, and two above.
     private static var prefetchRowCount: Int { 2 }
 
     @State private var coordinator = TrackScrollArtworkPrefetcher(
@@ -147,8 +147,8 @@ struct TrackArtworkGrid<Content: View>: View {
         .onGeometryChange(for: Int.self) { geometry in
             TrackGridMetrics.columnCount(forWidth: geometry.size.width)
         } action: { columnCount in
-            coordinator.setLookahead(columnCount * Self.prefetchRowCount, lookbehind: columnCount,
-                                     loader: loader)
+            let tiles = columnCount * Self.prefetchRowCount
+            coordinator.setLookahead(tiles, lookbehind: tiles, loader: loader)
         }
         .onChange(of: tracks, initial: true) { _, tracks in
             configure(tracks)
@@ -170,9 +170,9 @@ struct TrackArtworkList<Content: View>: View {
     let loader: ArtworkLoader
     @ViewBuilder let content: (SoundCloudTrack) -> Content
 
-    // Speculatively load eight rows below the visible ones, and four above.
+    // Speculatively load eight rows below the visible ones, and eight above.
     @State private var coordinator = TrackScrollArtworkPrefetcher(
-        rendition: .source, lookahead: 8, lookbehind: 4
+        rendition: .source, lookahead: 8, lookbehind: 8
     )
     #if DEBUG
     private let prefetchSettings = ArtworkPrefetchDebugSettings.shared
