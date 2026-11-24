@@ -212,9 +212,18 @@ private struct TrackListPage<Content: View>: View {
 
     @State private var isHoveringTitle = false
 
+    /// Matches `TrackCollectionSection`'s header gap for tracks; playlist cards keep more room.
+    private var headerSpacing: CGFloat {
+        switch trackLayout?.wrappedValue {
+        case .list: 8
+        case .grid: 12
+        case nil: 24
+        }
+    }
+
     var body: some View {
         ScrollbarReservedScrollView { _ in
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: headerSpacing) {
                 HStack(spacing: 8) {
                     // A long track title truncates before this does.
                     Text(title)
