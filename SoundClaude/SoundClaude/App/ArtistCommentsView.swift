@@ -178,13 +178,14 @@ struct ArtistCommentRow: View {
                         onSelectTrack(track)
                     } label: {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text("on").foregroundStyle(.secondary)
+                            Text("on")
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: true, vertical: false)
                             if track.access == .protected {
                                 ProtectedTrackIcon(font: .callout.weight(.medium))
                                     .foregroundStyle(.secondary)
                             }
                             Text(track.title).underline(isHoveringTitle)
-                                .layoutPriority(1)
                         }
                         .font(.callout.weight(.medium))
                         .lineLimit(1)
@@ -200,9 +201,7 @@ struct ArtistCommentRow: View {
                     }
                 }
 
-                ArtistMentionText(comment.body, isQuoted: true, onSelectArtist: onSelectArtist)
-                    .textSelection(.enabled)
-                    .lineLimit(bodyLineLimit)
+                commentBody
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -210,6 +209,17 @@ struct ArtistCommentRow: View {
                     timestamp(showsSeparator: false)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var commentBody: some View {
+        let text = ArtistMentionText(comment.body, isQuoted: true, onSelectArtist: onSelectArtist)
+        if let bodyLineLimit {
+            text.lineLimit(bodyLineLimit)
+                .textSelection(.disabled)
+        } else {
+            text.textSelection(.enabled)
         }
     }
 
