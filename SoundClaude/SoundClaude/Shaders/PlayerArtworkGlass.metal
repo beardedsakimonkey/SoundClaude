@@ -66,6 +66,17 @@ static half4 slabEdge(float2 position, float2 local, SwiftUI::Layer layer, float
     return half4(color, 1.0h) * (sample.a * half(coverage));
 }
 
+// The artwork in straight RGB at `local`, kept just inside the face.
+static half3 faceColor(SwiftUI::Layer layer, float2 layerOrigin, float2 local, float2 size, float cornerRadius) {
+    half4 sample = layer.sample(layerOrigin + insideRoundedRect(local, size, cornerRadius, 0.75));
+    return sample.rgb / max(sample.a, 0.001h);
+}
+
+// Thin-film interference: a soap-bubble hue that cycles as the optical path `t` changes.
+static float3 thinFilm(float t) {
+    return 0.5 + 0.5 * cos(6.2831853 * (t + float3(0.0, 0.33, 0.67)));
+}
+
 // A shallow glass lens over the cover itself. No time input or idle render loop.
 [[ stitchable ]] half4 playerArtworkGlass(
     float2 position,
@@ -85,7 +96,13 @@ static half4 slabEdge(float2 position, float2 local, SwiftUI::Layer layer, float
     float2 origin,
     float2 slabShift,
     float slabShade,
-    float pixelScale
+    float pixelScale,
+    float refractionWidth,
+    float refractionStrength,
+    float dispersion,
+    float iridescence,
+    float sheenStrength,
+    float sheenPosition
 ) {
     // `origin` places the face inside a layer padded to make room for the slab edge.
     float2 local = position - origin;
@@ -118,6 +135,24 @@ static half4 slabEdge(float2 position, float2 local, SwiftUI::Layer layer, float
     // Work in straight RGB, then restore the original antialiased silhouette.
     half3 color = original.rgb / max(original.a, 0.001h);
 
+    // The rounded bevel bends the print beneath it: each point near the edge shows the artwork
+    // from a little further in, squeezing the outer band as if it wrapped over the edge. Each
+    // channel bends by a different amount, which fringes the edge like a prism.
+    float bevelWidth = max(refractionWidth, 0.001);
+    float bevel = 1.0 - saturate(depth / bevelWidth);
+    // Stay short of folding the image back on itself, whose slope would reach zero.
+    float bend = min(refractionStrength, bevelWidth * 0.3) * bevel * bevel;
+    if (bend > 0.02) {
+        float2 layerOrigin = position - local;
+        float2 inward = -normal * bend;
+        float spread = saturate(dispersion);
+        color = half3(
+            faceColor(layer, layerOrigin, local + inward * (1.0 - 0.5 * spread), size, cornerRadius).r,
+            faceColor(layer, layerOrigin, local + inward, size, cornerRadius).g,
+            faceColor(layer, layerOrigin, local + inward * (1.0 + 0.5 * spread), size, cornerRadius).b
+        );
+    }
+
     // The glass plane: `rotation` turns it about the vertical, and `tilt` leans it further,
     // toward any side. Together they are the sideways part of its normal.
     float2 light = float2(cos(lightAngle), sin(lightAngle));
@@ -142,7 +177,7 @@ static half4 slabEdge(float2 position, float2 local, SwiftUI::Layer layer, float
     float lip = exp(-pow((depth - lipPosition) / max(lipWidth, 0.001), 2.0));
     color *= half(1.0 - edgeDarkening * rim * (1.0 - highlight));
     // The lip glints hottest where it squarely faces the light.
-    float reflection = reflectionStrength * lip
+    float lipReflection = reflectionStrength * lip
         * (0.12 + 0.48 * highlight + 0.3 * pow(highlight, 4.0) + 0.24 * counterlight);
 
     // A fixed light above and to the left reflects off the rotating glass plane.
@@ -156,9 +191,26 @@ static half4 slabEdge(float2 position, float2 local, SwiftUI::Layer layer, float
     float3 viewDirection = normalize(float3(0.0, 0.0, 2.5) - surfacePosition);
     float3 halfway = normalize(lightDirection + viewDirection);
     float exponent = 2.0 / pow(max(specularSoftness, 0.02), 2.0);
-    float specular = pow(max(dot(surfaceNormal, halfway), 0.0), exponent);
-    reflection += specularStrength * specular;
-    color = mix(color, half3(1.0), half(saturate(reflection)));
+    float specular = specularStrength * pow(max(dot(surfaceNormal, halfway), 0.0), exponent);
+
+    // A long softbox beside the light, seen in the glass: a band in the reflected view
+    // direction, so it slides across the face as the cover turns or leans.
+    float3 reflected = reflect(-viewDirection, surfaceNormal);
+    float band = dot(reflected.xy, light) - sheenPosition;
+    float sheen = sheenStrength
+        * smoothstep(0.11, 0.05, abs(band))
+        * (0.55 + 0.45 * smoothstep(-0.11, 0.11, band));
+
+    // A thin coating tints the reflections. Its hue follows the viewing angle, so the
+    // colors travel around the rim and through the band as the cover moves.
+    float grazing = 1.0 - saturate(dot(surfaceNormal, viewDirection));
+    float leanTowardLight = dot(lean, light);
+    float film = saturate(iridescence);
+    float3 lipTint = mix(float3(1.0), thinFilm(0.55 * facing + 1.2 * leanTowardLight + 0.1), film);
+    float3 bandTint = mix(float3(1.0), thinFilm(2.0 * band + 3.0 * grazing + 0.45), film * 0.7);
+    float3 reflection = saturate(lipReflection * lipTint + specular * bandTint + sheen * bandTint);
+    // Screen the reflections over the print, as light added by the glass's surface.
+    color += (1.0h - color) * half3(reflection);
     half4 face = half4(color * faceAlpha, faceAlpha);
     return face + edge * (1.0h - face.a);
 }

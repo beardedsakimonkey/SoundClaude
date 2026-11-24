@@ -741,6 +741,18 @@ struct DetailArtworkView: View {
     @AppStorage("debug.specular.softness") private var debugSpecularSoftness =
         PlayerArtworkGlassParameters.detail.specularSoftness
     @AppStorage(DetailArtworkSlabTuning.tiltKey) private var debugTilt = DetailArtworkTiltMotion.angle
+    @AppStorage("debug.refraction.width") private var debugRefractionWidth =
+        PlayerArtworkGlassParameters.detail.refractionWidth
+    @AppStorage("debug.refraction.strength") private var debugRefractionStrength =
+        PlayerArtworkGlassParameters.detail.refractionStrength
+    @AppStorage("debug.refraction.dispersion") private var debugDispersion =
+        PlayerArtworkGlassParameters.detail.dispersion
+    @AppStorage("debug.iridescence") private var debugIridescence =
+        PlayerArtworkGlassParameters.detail.iridescence
+    @AppStorage("debug.sheen.strength") private var debugSheenStrength =
+        PlayerArtworkGlassParameters.detail.sheenStrength
+    @AppStorage("debug.sheen.position") private var debugSheenPosition =
+        PlayerArtworkGlassParameters.detail.sheenPosition
     @State private var isShowingSlabControls = false
 
     private var displayedSlabThickness: CGFloat { debugSlabThickness }
@@ -752,6 +764,12 @@ struct DetailArtworkView: View {
         parameters.reflectionStrength = debugLipStrength
         parameters.specularStrength = debugSpecularStrength
         parameters.specularSoftness = debugSpecularSoftness
+        parameters.refractionWidth = debugRefractionWidth
+        parameters.refractionStrength = debugRefractionStrength
+        parameters.dispersion = debugDispersion
+        parameters.iridescence = debugIridescence
+        parameters.sheenStrength = debugSheenStrength
+        parameters.sheenPosition = debugSheenPosition
         return parameters
     }
     #else
@@ -938,11 +956,27 @@ struct DetailArtworkView: View {
                         debugTilt = DetailArtworkTiltMotion.angle
                         debugSpecularStrength = defaults.specularStrength
                         debugSpecularSoftness = defaults.specularSoftness
+                        debugRefractionWidth = defaults.refractionWidth
+                        debugRefractionStrength = defaults.refractionStrength
+                        debugDispersion = defaults.dispersion
+                        debugIridescence = defaults.iridescence
+                        debugSheenStrength = defaults.sheenStrength
+                        debugSheenPosition = defaults.sheenPosition
                     }
                 }
                 Text("Specular highlight").font(.subheadline.bold())
                 slabSlider("Strength", value: $debugSpecularStrength, range: 0...0.5, step: 0.01)
                 slabSlider("Softness", value: $debugSpecularSoftness, range: 0.05...0.6, step: 0.01)
+                Divider()
+                Text("Refraction").font(.subheadline.bold())
+                slabSlider("Bevel width (pt)", value: $debugRefractionWidth, range: 0...30, step: 0.5)
+                slabSlider("Bend (pt)", value: $debugRefractionStrength, range: 0...8, step: 0.1)
+                slabSlider("Dispersion", value: $debugDispersion, range: 0...1, step: 0.01)
+                Divider()
+                Text("Coating").font(.subheadline.bold())
+                slabSlider("Iridescence", value: $debugIridescence, range: 0...1, step: 0.01)
+                slabSlider("Sheen strength", value: $debugSheenStrength, range: 0...0.6, step: 0.01)
+                slabSlider("Sheen position", value: $debugSheenPosition, range: -0.8...0.8, step: 0.01)
                 Divider()
                 Text("Slab edge").font(.subheadline.bold())
                 slabSlider("Thickness (pt)", value: $debugSlabThickness, range: 0...30, step: 0.5)

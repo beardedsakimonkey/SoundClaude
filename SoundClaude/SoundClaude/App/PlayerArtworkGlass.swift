@@ -13,6 +13,18 @@ struct PlayerArtworkGlassParameters {
     var specularSoftness = 0.25
     // How dark the slab's side is shaded (0...1).
     var slabShade = 0.5
+    // The rounded bevel that bends the print near the edge: its width and how far, in points,
+    // it pulls the outermost pixels inward. Off except on detail artwork.
+    var refractionWidth = 12.0
+    var refractionStrength = 0.0
+    // How far apart the color channels bend (0...1), fringing the edge like a prism.
+    var dispersion = 0.6
+    // How strongly a thin coating tints the reflections with a shifting hue (0...1).
+    var iridescence = 0.0
+    // A softbox reflected in the glass that slides across as the cover turns. Its position is
+    // along the light direction in reflected-view space; negative values sit opposite the light.
+    var sheenStrength = 0.0
+    var sheenPosition = -0.34
 }
 
 extension PlayerArtworkGlassParameters {
@@ -22,6 +34,9 @@ extension PlayerArtworkGlassParameters {
         parameters.lipPosition = 1.0
         parameters.lipWidth = 1.0
         parameters.reflectionStrength = 0.5
+        parameters.refractionStrength = 3.5
+        parameters.iridescence = 0.35
+        parameters.sheenStrength = 0.14
         return parameters
     }
 }
@@ -117,7 +132,11 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
         // A dark side reads heavy against a light background.
         let slabShade = parameters.slabShade * (colorScheme == .light ? 0.6 : 1.0)
         // The slab edge reads the face's nearest edge, pulled in from the corners.
-        let sampleReach = slabPadding > 0 ? slabPadding + cornerRadius + 4 : 0
+        let slabReach = slabPadding > 0 ? slabPadding + cornerRadius + 4 : 0
+        // The bevel reads the print up to half again its bend further in.
+        let refractionBend = min(parameters.refractionStrength, parameters.refractionWidth * 0.3)
+        let refractionReach = refractionBend > 0 ? ceil(refractionBend * 1.5) + 1 : 0
+        let sampleReach = max(slabReach, refractionReach)
         let maxSampleOffset = CGSize(width: sampleReach, height: sampleReach)
         let cornerRadius = cornerRadius
         let displayScale = displayScale
@@ -176,7 +195,13 @@ struct PlayerArtworkGlass: ViewModifier, Animatable {
             .float2(slabPadding, slabPadding),
             .float2(slabShift.width, slabShift.height),
             .float(slabShade),
-            .float(displayScale)
+            .float(displayScale),
+            .float(parameters.refractionWidth),
+            .float(parameters.refractionStrength),
+            .float(parameters.dispersion),
+            .float(parameters.iridescence),
+            .float(parameters.sheenStrength),
+            .float(parameters.sheenPosition)
         )
     }
 }
