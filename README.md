@@ -1,28 +1,20 @@
+<img width="100" height="100" alt="soundclaude-icon" src="https://github.com/user-attachments/assets/9d006658-a230-45e7-889a-ec46fb5d457a" />
+
 # SoundClaude
 
-https://github.com/user-attachments/assets/c4c8524f-6f96-49e1-a15f-4f4fc52a87a8
-
-> [!NOTE]
-> SoundClaude uses SoundCloud's website API with your own soundcloud.com sign-in,
-> so it needs no API key. That API is undocumented, and SoundCloud can change it
-> without notice.
-
 SoundClaude is a native macOS SoundCloud client built with SwiftUI and Metal. It
-features:
+hits SoundCloud's undocumented website API so it doesn't need an API key or a
+third-party server.
 
-- Support for shuffling likes and artist tracks (beyond just the
-  loaded tracks)
-- Support for starting a station from the currently playing track without
-  interrupting playback
-- Support for dragging and dropping tracks into playlists and reordering queue items
-- Each track gets an accent color derived from the track artwork
-- Responsive design that looks good at all window sizes
-- Light and dark modes (depending on OS setting)
-- Built for desktop with hover feedback on interactive elements, right-click menus,
-  and keyboard shortcuts
-- A physics-based music visualizer
-- Expandable track artwork and artist photos
+## Features
 
+- 📻 Start a station without interrupting the currently playing track
+- 🫳 Drag-and-drop tracks to quickly add them to a playlist
+- 🎨 UI that adapts to the track artwork's derived accent color
+- 🌓 Light and dark mode support
+- 🔀 Shuffle your liked tracks completely, instead of just the loaded tracks
+- 🖥️ Built for desktop: right-click menus, keyboard shortcuts, and hover feedback
+- 🔊 A 3D physics-based music visualizer
 
 ## Requirements
 
@@ -41,28 +33,11 @@ run:
 xattr -dr com.apple.quarantine /Applications/SoundClaude.app
 ```
 
-## Package for distribution
-
-Run `make dmg` to build a universal (Apple Silicon and Intel), ad-hoc-signed app
-and package it as `build/SoundClaude.dmg` with a drag-to-Applications layout.
-This uses the built-in macOS tools and requires a logged-in desktop session.
-If macOS asks, allow your terminal to control Finder so it can save the layout.
-The app is not notarized; the first-launch instructions above still apply.
-
-`make dist` is an alias for `make dmg`.
-
 ## Sign in
 
 Choose **Sign in with SoundCloud** and sign in on the embedded soundcloud.com page.
 SoundClaude keeps only the resulting website session token in macOS Keychain.
 
-If embedded sign-in does not work, use **Use an existing browser session** to
-import a copied `oauth_token` cookie value from a signed-in soundcloud.com tab. The
-import clears the clipboard.
-
-SoundClaude finds the website's public client ID on soundcloud.com and finds it
-again when SoundCloud rotates it.
-
-> [!NOTE]
-> macOS asks for System Audio Recording access when the process tap starts. This
-> is needed for the audio visualizer.
+Alternatively, use **Use an existing browser session** to import a copied
+`oauth_token` cookie value from a signed-in soundcloud.com tab. The import
+clears the clipboard.
