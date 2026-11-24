@@ -33,6 +33,8 @@ extension PlayerArtworkGlassParameters {
     // Detail artwork defaults captured from the Tune Glass controls.
     static var detail: Self {
         var parameters = Self()
+        parameters.edgeDarkening = 0.12
+        parameters.rimWidth = 6.0
         parameters.lipPosition = 1.0
         parameters.lipWidth = 1.0
         parameters.reflectionStrength = 0.5

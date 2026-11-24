@@ -755,6 +755,10 @@ struct DetailArtworkView: View {
         PlayerArtworkGlassParameters.detail.sheenStrength
     @AppStorage("debug.sheen.position") private var debugSheenPosition =
         PlayerArtworkGlassParameters.detail.sheenPosition
+    @AppStorage("debug.rim.shadow") private var debugRimShadow =
+        PlayerArtworkGlassParameters.detail.edgeDarkening
+    @AppStorage("debug.rim.shadowWidth") private var debugRimShadowWidth =
+        PlayerArtworkGlassParameters.detail.rimWidth
     @State private var isShowingSlabControls = false
 
     private var displayedSlabThickness: CGFloat { debugSlabThickness }
@@ -773,6 +777,8 @@ struct DetailArtworkView: View {
         parameters.iridescence = debugIridescence
         parameters.sheenStrength = debugSheenStrength
         parameters.sheenPosition = debugSheenPosition
+        parameters.edgeDarkening = debugRimShadow
+        parameters.rimWidth = debugRimShadowWidth
         return parameters
     }
     #else
@@ -966,6 +972,8 @@ struct DetailArtworkView: View {
                         debugIridescence = defaults.iridescence
                         debugSheenStrength = defaults.sheenStrength
                         debugSheenPosition = defaults.sheenPosition
+                        debugRimShadow = defaults.edgeDarkening
+                        debugRimShadowWidth = defaults.rimWidth
                     }
                 }
                 Text("Specular highlight").font(.subheadline.bold())
@@ -990,6 +998,8 @@ struct DetailArtworkView: View {
                 slabSlider("Hover tilt (°)", value: $debugTilt, range: 0...35, step: 0.5)
                 Divider()
                 Text("Rim").font(.subheadline.bold())
+                slabSlider("Inner shadow", value: $debugRimShadow, range: 0...1, step: 0.01)
+                slabSlider("Inner shadow width (pt)", value: $debugRimShadowWidth, range: 0...30, step: 0.5)
                 slabSlider("Lip position (pt)", value: $debugLipPosition, range: 0...8, step: 0.1)
                 slabSlider("Lip width (pt)", value: $debugLipWidth, range: 0.1...6, step: 0.05)
                 slabSlider("Lip strength", value: $debugLipStrength, range: 0...2, step: 0.05)
