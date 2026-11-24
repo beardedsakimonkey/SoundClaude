@@ -37,6 +37,7 @@ extension PlayerArtworkGlassParameters {
         parameters.lipWidth = 1.0
         parameters.reflectionStrength = 0.5
         parameters.refractionStrength = 3.5
+        parameters.dispersion = 0.3
         parameters.iridescence = 0.35
         parameters.sheenStrength = 0.14
         return parameters
