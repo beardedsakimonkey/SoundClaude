@@ -23,7 +23,7 @@ struct SoundClaudeApp: App {
     var body: some Scene {
         WindowGroup {
             mainView
-                .frame(minWidth: 760, minHeight: 620)
+                .frame(minWidth: 760, minHeight: 600)
                 .onAppear { LaunchMetrics.markOnce("Root view appeared") }
                 .task {
                     await model.start()
