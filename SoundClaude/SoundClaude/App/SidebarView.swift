@@ -812,11 +812,9 @@ private struct SidebarAccountHeader: View {
                         Text(user.username)
                             .lineLimit(1)
                             .truncationMode(.tail)
-                        // Always laid out so revealing it does not shift the badge.
                         Image(systemName: "chevron.down")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.secondary)
-                            .opacity(isHovered ? 1 : 0)
+                            .foregroundStyle(isHovered ? HierarchicalShapeStyle.secondary : .tertiary)
                             .padding(.leading, -4)
                     }
                     .contentShape(Rectangle())
