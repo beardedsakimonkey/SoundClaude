@@ -51,8 +51,15 @@ quit-running:
 	echo "$(BUNDLE_ID) did not quit after 10 seconds" >&2; \
 	exit 1
 
+# Xcode updates the bundle in place, so its mtime doesn't change and
+# LaunchServices/the Dock keep serving the old cached icon. Touch the bundle and
+# re-register it so icon changes show up.
+LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+
 run: build
 	$(MAKE) quit-running
+	touch "$(APP)"
+	$(LSREGISTER) -f "$(APP)"
 	open "$(APP)"
 
 # Universal, ad-hoc-signed build for sharing. Ad-hoc keeps the developer
