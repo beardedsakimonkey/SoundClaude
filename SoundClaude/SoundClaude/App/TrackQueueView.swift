@@ -92,8 +92,7 @@ struct TrackQueueView: View {
                             track: track,
                             model: model,
                             onSelectTrack: onSelectTrack,
-                            onSelectArtist: onSelectArtist,
-                            onDismiss: onDismiss
+                            onSelectArtist: onSelectArtist
                         )
                     }
                 }
@@ -115,7 +114,6 @@ private struct QueueTrackRow: View {
     let model: AppModel
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
-    let onDismiss: () -> Void
 
     var body: some View {
         TrackListRow(
@@ -126,14 +124,8 @@ private struct QueueTrackRow: View {
             likes: model.likes,
             showsDuration: false,
             onRemoveFromQueue: model.removeFromQueue,
-            onSelectTrack: { selected in
-                onDismiss()
-                onSelectTrack(selected)
-            },
-            onSelectArtist: { artist in
-                onDismiss()
-                onSelectArtist(artist)
-            },
+            onSelectTrack: onSelectTrack,
+            onSelectArtist: onSelectArtist,
             onPlayTrack: { await model.play($0) }
         )
     }

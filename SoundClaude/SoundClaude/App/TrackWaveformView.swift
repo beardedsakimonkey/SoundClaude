@@ -66,7 +66,6 @@ struct TrackWaveformView: View {
     @Environment(\.contentAnimationsPaused) private var contentAnimationsPaused
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
     @Environment(\.isEnabled) private var isEnabled
-    @Environment(\.contentHoverSuppression) private var hoverSuppression
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
@@ -674,7 +673,7 @@ struct TrackWaveformView: View {
     }
 
     private var showsHoverPreview: Bool {
-        isEnabled && track != nil && isHovering && contentHoverEnabled && hoverSuppression?.isSuppressed != true
+        isEnabled && track != nil && isHovering && contentHoverEnabled
     }
 
     private func barAmplitudes(

@@ -20,7 +20,6 @@ struct SignedInView: View {
     @State private var queuePresentation = QueuePresentation()
     @State private var isOpeningCurrentTrackStation = false
     @State private var stationErrorMessage: String?
-    @State private var queueHoverSuppression = ContentHoverSuppression()
     @State private var footerHeight: CGFloat = 0
 
     init(user: SoundCloudUser, model: AppModel) {
@@ -132,8 +131,19 @@ struct SignedInView: View {
         #endif
         // Keep overlays anchored to the window when a pushed page changes the split view's layout.
         GeometryReader { geometry in
-            navigationView
-                .frame(width: geometry.size.width, height: geometry.size.height)
+            QueueInspector(
+                presentation: queuePresentation,
+                footerHeight: footerHeight,
+                content: navigationView,
+                queue: TrackQueueView(
+                    model: model,
+                    onSelectTrack: showTrack,
+                    onSelectArtist: showArtist,
+                    onSelectSource: showQueueSource,
+                    onDismiss: { queuePresentation.isVisible = false }
+                )
+            )
+            .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .onChange(of: navigationSelection) { _, selection in
             selectionStore.save(selection, for: user)
@@ -152,7 +162,6 @@ struct SignedInView: View {
         .toolbar(isShowingVisualizer ? .hidden : .automatic, for: .windowToolbar)
         .allowsHitTesting(!isShowingVisualizer)
         .accessibilityHidden(isShowingVisualizer)
-        .environment(\.contentHoverSuppression, queueHoverSuppression)
         .overlay {
             if isShowingVisualizer {
                 VisualizerView(
@@ -195,21 +204,6 @@ struct SignedInView: View {
                     footerHeight = height
                 }
             }
-        }
-        .overlay {
-            TrackQueueOverlay(
-                presentation: queuePresentation,
-                isShowingVisualizer: isShowingVisualizer,
-                footerHeight: footerHeight,
-                hoverSuppression: queueHoverSuppression,
-                content: TrackQueueView(
-                    model: model,
-                    onSelectTrack: showTrack,
-                    onSelectArtist: showArtist,
-                    onSelectSource: showQueueSource,
-                    onDismiss: { queuePresentation.isVisible = false }
-                )
-            )
         }
         .environment(\.openTrackStation) { track in
             Task { await showTrackStation(track) }
@@ -1112,31 +1106,22 @@ private final class RootScrollPositions {
     }
 }
 
-private struct TrackQueueOverlay<Content: View>: View {
-    let presentation: QueuePresentation
-    let isShowingVisualizer: Bool
+/// Docks the queue beside the content, which narrows to make room, so it can stay open.
+/// Only this view observes visibility, so toggling the queue leaves the navigation body alone.
+private struct QueueInspector<Content: View, Queue: View>: View {
+    @Bindable var presentation: QueuePresentation
     let footerHeight: CGFloat
-    let hoverSuppression: ContentHoverSuppression
     let content: Content
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // Constructed by the parent, so visibility changes reuse the same content.
+    let queue: Queue
 
     var body: some View {
-        GeometryReader { geometry in
-            let bounds = CGSize(
-                width: geometry.size.width,
-                height: max(0, geometry.size.height - footerHeight)
-            )
-            QueuePanel(
-                bounds: bounds,
-                isVisible: presentation.isVisible && !isShowingVisualizer,
-                hoverSuppression: hoverSuppression,
-                content: content
-            )
-            .animation(
-                reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.85),
-                value: presentation.isVisible
-            )
-        }
-        .clipped()
+        content
+            .inspector(isPresented: $presentation.isVisible) {
+                queue
+                    // End the list at the footer's glass, as the sidebar does.
+                    .safeAreaPadding(.bottom, max(0, footerHeight - 8))
+                    .inspectorColumnWidth(min: 300, ideal: 360, max: 520)
+            }
     }
 }

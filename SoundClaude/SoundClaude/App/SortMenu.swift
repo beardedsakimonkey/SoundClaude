@@ -9,11 +9,10 @@ struct SortMenu<Order: Hashable>: View {
     var systemImage: (Order) -> String = { _ in "line.3.horizontal.decrease" }
     @State private var isPointerInside = false
     @Environment(\.contentHoverEnabled) private var hoverEnabled
-    @Environment(\.contentHoverSuppression) private var hoverSuppression
     @Environment(\.isEnabled) private var isEnabled
 
     private var isHovered: Bool {
-        isEnabled && isPointerInside && hoverEnabled && hoverSuppression?.isSuppressed != true
+        isEnabled && isPointerInside && hoverEnabled
     }
 
     var body: some View {

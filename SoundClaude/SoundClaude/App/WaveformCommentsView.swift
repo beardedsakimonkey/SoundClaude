@@ -143,7 +143,6 @@ private struct WaveformCommentMarkersContent: View {
     @Namespace private var hoverSpace
     @FocusState private var focusedID: String?
     @Environment(\.contentHoverEnabled) private var contentHoverEnabled
-    @Environment(\.contentHoverSuppression) private var hoverSuppression
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     // How far this row's top sits under the toolbar, when drawn by the detail host.
     @Environment(\.detailToolbarOcclusion) private var toolbarOcclusion
@@ -263,7 +262,7 @@ private struct WaveformCommentMarkersContent: View {
     }
 
     private var isHoverAllowed: Bool {
-        contentHoverEnabled && hoverSuppression?.isSuppressed != true
+        contentHoverEnabled
     }
 
     private func position(for comment: SoundCloudComment, width: CGFloat) -> CGFloat {

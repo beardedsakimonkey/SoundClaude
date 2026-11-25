@@ -1,35 +1,6 @@
 import Observation
 import SwiftUI
 
-struct QueuePanel<Content: View>: View {
-    let bounds: CGSize
-    let isVisible: Bool
-    let hoverSuppression: ContentHoverSuppression
-    // Constructed by the parent, so geometry changes reuse the same content.
-    let content: Content
-
-    var body: some View {
-        let margin: CGFloat = 8
-        let width = min(440, max(0, bounds.width - margin * 2))
-        let height = min(520, max(0, bounds.height - margin * 2))
-        let x = max(0, bounds.width - margin - width - 16)
-        let y = max(0, bounds.height - margin - height + 8)
-        ZStack(alignment: .topLeading) {
-            if isVisible {
-                content
-                    .frame(width: width, height: height)
-                    .modifier(QueuePanelGlass(cornerRadius: 16))
-                    .contentShape(RoundedRectangle(cornerRadius: 16))
-                    .onHover { hoverSuppression.isSuppressed = $0 }
-                    .onDisappear { hoverSuppression.isSuppressed = false }
-                    .offset(x: x, y: y)
-                    .transition(.offset(y: 24).combined(with: .opacity))
-            }
-        }
-        .frame(width: bounds.width, height: bounds.height, alignment: .topLeading)
-    }
-}
-
 /// Glass over a fill that tones down what shows through. The queue and the search
 /// suggestions share it.
 struct QueuePanelGlass: ViewModifier {
