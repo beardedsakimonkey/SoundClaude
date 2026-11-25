@@ -61,6 +61,7 @@ final class AppModel {
     @ObservationIgnored private var trackSelectionTask: Task<Void, Never>?
     @ObservationIgnored private var queuePrefetchTask: Task<Void, Never>?
     @ObservationIgnored private var shuffleQueueTask: Task<Void, Never>?
+    @ObservationIgnored private var relatedQueueTask: Task<Void, Never>?
     @ObservationIgnored private var prefetchedTrack: SoundCloudTrack?
     @ObservationIgnored private var likesObservation: AnyCancellable?
     @ObservationIgnored private var playlistsObservation: AnyCancellable?
@@ -349,6 +350,7 @@ final class AppModel {
 
     func signOut() async {
         shuffleQueueTask?.cancel()
+        relatedQueueTask?.cancel()
         trackSelectionTask?.cancel()
         playbackTask?.cancel()
         queuePrefetchTask?.cancel()
@@ -412,12 +414,37 @@ final class AppModel {
         if !queue.tracks.contains(where: { $0.urn == track.urn }),
            !(queue.source == .likes && likes.isLiked(track)) {
             shuffleQueueTask?.cancel()
-            queue = TrackQueue(source: .single, tracks: [track])
+            relatedQueueTask?.cancel()
+            // A lone track continues into its related tracks, which arrive after playback starts.
+            let cached = cachedRelatedTracks(for: track)
+            queue = TrackQueue(
+                source: .related(track.urn),
+                tracks: [track] + (cached?.tracks ?? []),
+                nextPageURL: cached?.nextURL,
+                sourceTrack: track
+            )
             queue.setShuffle(playback.isShuffleEnabled, currentURN: track.urn)
+            if cached == nil { loadRelatedQueueTracks(for: track) }
         }
         trackSelectionTask?.cancel()
         saveQueue()
         await loadPlayback(track, position: position)
+    }
+
+    private func loadRelatedQueueTracks(for track: SoundCloudTrack) {
+        relatedQueueTask = Task { @MainActor [weak self] in
+            guard let self,
+                  let page = try? await relatedTracks(for: track),
+                  !Task.isCancelled, queue.source == .related(track.urn) else { return }
+            guard (try? queue.append(page)) != nil else { return }
+            if queue.isShuffled {
+                // Shuffle the arrivals in, keeping the playing track first.
+                queue.setShuffle(false, currentURN: nil)
+                queue.setShuffle(true, currentURN: playback.currentTrack?.urn)
+            }
+            saveQueue()
+            prefetchNextTrack()
+        }
     }
 
     func playLikedTrack(_ track: SoundCloudTrack) async {
@@ -433,6 +460,7 @@ final class AppModel {
         guard let track = track.access == .protected
             ? queue.relativeTrack(to: track.urn, offset: 1, wraps: false) : track else { return }
         shuffleQueueTask?.cancel()
+        relatedQueueTask?.cancel()
         trackSelectionTask?.cancel()
         self.queue = queue
         saveQueue()
@@ -447,6 +475,7 @@ final class AppModel {
               currentTrack.urn == continuingTrackURN,
               queue.source != .station(urn), !tracks.isEmpty else { return }
         shuffleQueueTask?.cancel()
+        relatedQueueTask?.cancel()
         trackSelectionTask?.cancel()
         // Keep the current player item and position. Deduplication leaves the seed first,
         // even when the station omits it or returns it later in the list.
@@ -502,6 +531,7 @@ final class AppModel {
         if queue.tracks.isEmpty {
             // Replace the queue too, so remaining pages or new likes cannot refill it.
             playback.resetSession(preservingPlayback: false)
+            relatedQueueTask?.cancel()
             queue = TrackQueue(source: .single, tracks: [])
             queue.setShuffle(playback.isShuffleEnabled, currentURN: nil)
         }
@@ -511,6 +541,7 @@ final class AppModel {
 
     func clearQueue() {
         shuffleQueueTask?.cancel()
+        relatedQueueTask?.cancel()
         trackSelectionTask?.cancel()
         let current = playback.currentTrack
         queue = TrackQueue(source: .single, tracks: current.map { [$0] } ?? [])
