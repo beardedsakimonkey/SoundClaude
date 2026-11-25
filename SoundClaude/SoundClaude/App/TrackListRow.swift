@@ -8,6 +8,8 @@ struct TrackListRow: View {
     let likes: LikesController
     var isCompact = false
     var showsDuration = true
+    /// Off where dragging the row does something else, such as reordering the queue.
+    var isPlaylistDraggable = true
     var onAddToQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromQueue: ((SoundCloudTrack) -> Void)? = nil
     var onRemoveFromPlaylist: ((SoundCloudTrack) -> Void)? = nil
@@ -104,7 +106,7 @@ struct TrackListRow: View {
     private var interactiveRow: some View {
         rowContent
             .contentShape(Rectangle())
-            .trackDraggable(track)
+            .trackDraggable(track, isEnabled: isPlaylistDraggable)
             .contextMenu {
                 trackMenuItems
             }

@@ -123,6 +123,7 @@ private struct QueueTrackRow: View {
             artworkLoader: model.artworkLoader,
             likes: model.likes,
             showsDuration: false,
+            isPlaylistDraggable: false,
             onRemoveFromQueue: model.removeFromQueue,
             onSelectTrack: onSelectTrack,
             onSelectArtist: onSelectArtist,

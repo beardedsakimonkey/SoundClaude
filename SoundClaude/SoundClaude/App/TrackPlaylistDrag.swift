@@ -58,6 +58,15 @@ extension View {
             .background(TrackDragThreshold())
     }
 
+    @ViewBuilder
+    func trackDraggable(_ track: SoundCloudTrack, isEnabled: Bool) -> some View {
+        if isEnabled {
+            trackDraggable(track)
+        } else {
+            self
+        }
+    }
+
     /// Text inside the glass footer renders blank in the default drag image,
     /// so the title preview uses colors that do not depend on its surroundings.
     func trackDraggable(_ track: SoundCloudTrack, previewTitle: String) -> some View {
