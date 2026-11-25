@@ -94,6 +94,7 @@ struct TrackQueueView: View {
                 if tracks.isEmpty {
                     EmptyStateView("The queue is empty")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.bottom, 4)
                 } else {
                     TrackQueueList(
                         tracks: tracks,
@@ -107,10 +108,12 @@ struct TrackQueueView: View {
                             onSelectArtist: onSelectArtist
                         )
                     }
+                    // A margin rather than padding, so the list reaches the window's bottom
+                    // and its rows scroll under the footer's glass.
+                    .contentMargins(.bottom, 4, for: .scrollContent)
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 4)
         }
         #if DEBUG
         .debugViewUpdates("TrackQueueView")

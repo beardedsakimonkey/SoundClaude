@@ -473,7 +473,7 @@ struct SignedInView: View {
             .modifier(DetailSwapButtonOverlay(routeID: AnyHashable(currentRoute)))
             .modifier(NavigationPageActivity())
             .safeAreaPadding(.bottom, footerHeight)
-            .mask { bottomFade }
+            .mask { BottomFadeMask() }
             .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
             .background(Color(nsColor: .windowBackgroundColor))
             .modifier(NavigationPageViewport())
@@ -647,20 +647,6 @@ struct SignedInView: View {
         // Tab changes do not update the navigation tree, so save them here.
         selection.onChange = { selectionStore.save(navigationSelection, for: user) }
         return selection
-    }
-
-    private var bottomFade: some View {
-        VStack(spacing: 0) {
-            Color.black
-            LinearGradient(
-                colors: [.black, .clear],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 100)
-        }
-        // Preserve artwork that extends behind the toolbar and sidebar.
-        .ignoresSafeArea(edges: [.top, .leading, .trailing])
     }
 
     @ViewBuilder
@@ -991,6 +977,25 @@ struct SignedInView: View {
 
 }
 
+/// Fades scrolling content out as it passes behind the footer's glass.
+private struct BottomFadeMask: View {
+    var ignoredEdges: Edge.Set = [.top, .leading, .trailing]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Color.black
+            LinearGradient(
+                colors: [.black, .clear],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 100)
+        }
+        // Preserve artwork that extends behind the toolbar and sidebar.
+        .ignoresSafeArea(edges: ignoredEdges)
+    }
+}
+
 /// Ends the sidebar's scrollbar and last row at the footer's glass.
 private struct SidebarFooterInset: ViewModifier {
     let footerHeight: CGFloat
@@ -1131,8 +1136,10 @@ private struct QueueInspector<Content: View, Queue: View>: View {
                 queue
                     // Run the queue to the window's top, beside the toolbar.
                     .ignoresSafeArea(.container, edges: .top)
-                    // End the list at the footer's glass, as the sidebar does.
+                    // Inset the list's content to the footer's glass; rows still scroll beneath it.
                     .safeAreaPadding(.bottom, max(0, footerHeight - 8))
+                    // Reaching past the column's sides would cancel the content's own fade.
+                    .mask { BottomFadeMask(ignoredEdges: .top) }
                     .onGeometryChange(for: CGFloat.self, of: \.size.width) { presentation.saveWidth($0) }
                     .inspectorColumnWidth(
                         min: QueuePresentation.widthRange.lowerBound,
