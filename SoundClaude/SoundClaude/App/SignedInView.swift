@@ -131,19 +131,8 @@ struct SignedInView: View {
         #endif
         // Keep overlays anchored to the window when a pushed page changes the split view's layout.
         GeometryReader { geometry in
-            QueueInspector(
-                presentation: queuePresentation,
-                footerHeight: footerHeight,
-                content: navigationView,
-                queue: TrackQueueView(
-                    model: model,
-                    onSelectTrack: showTrack,
-                    onSelectArtist: showArtist,
-                    onSelectSource: showQueueSource,
-                    onDismiss: { queuePresentation.isVisible = false }
-                )
-            )
-            .frame(width: geometry.size.width, height: geometry.size.height)
+            navigationView
+                .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .onChange(of: navigationSelection) { _, selection in
             selectionStore.save(selection, for: user)
@@ -398,15 +387,20 @@ struct SignedInView: View {
                     max: 480
                 )
         } detail: {
-            selectedView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                #if DEBUG
-                .overlayPreferenceValue(TrackArtworkQueueDebugKey.self, alignment: .topTrailing) { queues in
-                    if let prefetcher = queues.last {
-                        TrackArtworkQueueDebugOverlay(prefetcher: prefetcher)
-                    }
-                }
-                #endif
+            // Inside the detail column, the queue runs the window's full height,
+            // takes its width from the detail alone, and moves the detail's toolbar beside it.
+            QueueInspector(
+                presentation: queuePresentation,
+                footerHeight: footerHeight,
+                content: detailPage,
+                queue: TrackQueueView(
+                    model: model,
+                    onSelectTrack: showTrack,
+                    onSelectArtist: showArtist,
+                    onSelectSource: showQueueSource,
+                    onDismiss: { queuePresentation.isVisible = false }
+                )
+            )
         }
         .background {
             Button("Open search", action: openSearch)
@@ -414,6 +408,20 @@ struct SignedInView: View {
                 .hidden()
                 .accessibilityHidden(true)
         }
+    }
+
+    private var detailPage: some View {
+        selectedView
+            // A page's minimum width must not push the sidebar off screen when the queue opens.
+            .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
+            .background(QueueToolbarSeparator())
+            #if DEBUG
+            .overlayPreferenceValue(TrackArtworkQueueDebugKey.self, alignment: .topTrailing) { queues in
+                if let prefetcher = queues.last {
+                    TrackArtworkQueueDebugOverlay(prefetcher: prefetcher)
+                }
+            }
+            #endif
     }
 
     private func openDestination(_ destination: SidebarDestination) {
@@ -1119,6 +1127,8 @@ private struct QueueInspector<Content: View, Queue: View>: View {
         content
             .inspector(isPresented: $presentation.isVisible) {
                 queue
+                    // Run the queue to the window's top, beside the toolbar.
+                    .ignoresSafeArea(.container, edges: .top)
                     // End the list at the footer's glass, as the sidebar does.
                     .safeAreaPadding(.bottom, max(0, footerHeight - 8))
                     .inspectorColumnWidth(min: 300, ideal: 360, max: 520)
