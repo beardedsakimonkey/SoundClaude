@@ -33,9 +33,34 @@ struct QueuePanelGlass: ViewModifier {
 }
 
 // Keep visibility reads, including binding creation, outside the navigation body.
+// Visibility persists so the queue reopens on the next launch if it was open at quit.
 @Observable
 final class QueuePresentation {
-    var isVisible = false
+    private static let visibleKey = "queueVisible"
+    private static let widthKey = "queueWidth"
+    static let widthRange: ClosedRange<CGFloat> = 300...400
+
+    @ObservationIgnored private let defaults: UserDefaults
+
+    var isVisible: Bool {
+        didSet { defaults.set(isVisible, forKey: Self.visibleKey) }
+    }
+
+    /// The width the queue opens at, from the last time it was resized.
+    /// Read once at launch and not observed, so resizing does not reevaluate views.
+    @ObservationIgnored let initialWidth: CGFloat
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        isVisible = defaults.bool(forKey: Self.visibleKey)
+        let saved = defaults.double(forKey: Self.widthKey)
+        initialWidth = saved > 0 ? min(max(saved, Self.widthRange.lowerBound), Self.widthRange.upperBound) : 320
+    }
+
+    func saveWidth(_ width: CGFloat) {
+        guard width > 0 else { return }
+        defaults.set(Double(width), forKey: Self.widthKey)
+    }
 }
 
 private struct QueuePresentationKey: FocusedValueKey {

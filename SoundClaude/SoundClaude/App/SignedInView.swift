@@ -1133,7 +1133,12 @@ private struct QueueInspector<Content: View, Queue: View>: View {
                     .ignoresSafeArea(.container, edges: .top)
                     // End the list at the footer's glass, as the sidebar does.
                     .safeAreaPadding(.bottom, max(0, footerHeight - 8))
-                    .inspectorColumnWidth(min: 300, ideal: 320, max: 400)
+                    .onGeometryChange(for: CGFloat.self, of: \.size.width) { presentation.saveWidth($0) }
+                    .inspectorColumnWidth(
+                        min: QueuePresentation.widthRange.lowerBound,
+                        ideal: presentation.initialWidth,
+                        max: QueuePresentation.widthRange.upperBound
+                    )
             }
     }
 }
