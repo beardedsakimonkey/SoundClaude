@@ -41,6 +41,7 @@ struct SoundClaudeApp: App {
         .defaultSize(width: 1030, height: 620)
         .commands {
             PlaybackCommands(model: model)
+            QueueCommands()
             CommandGroup(replacing: .help) {
                 Button("Keyboard Shortcuts") {
                     isShowingKeyboardShortcuts.toggle()

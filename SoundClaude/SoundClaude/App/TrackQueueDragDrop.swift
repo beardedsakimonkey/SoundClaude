@@ -6,7 +6,6 @@ struct TrackQueueList<Row: View>: View {
     let tracks: [SoundCloudTrack]
     let currentTrackURN: String?
     let onMove: (IndexSet, Int) -> Void
-    let onDismiss: () -> Void
     @ViewBuilder let row: (SoundCloudTrack) -> Row
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -144,11 +143,7 @@ struct TrackQueueList<Row: View>: View {
         .onChange(of: tracks.map(\.urn)) { _, _ in cancelDrag() }
         .onDisappear(perform: cancelDrag)
         .onExitCommand {
-            if draggedURN != nil {
-                cancelDrag()
-            } else {
-                onDismiss()
-            }
+            if draggedURN != nil { cancelDrag() }
         }
     }
 }

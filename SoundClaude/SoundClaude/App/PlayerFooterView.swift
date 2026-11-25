@@ -226,7 +226,6 @@ struct PlayerFooterView: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(PlayerFooterButtonStyle())
-                .keyboardShortcut("q", modifiers: [])
                 .contentHelp(isShowingQueue ? "Hide track queue (Q)" : "Show track queue (Q)")
                 .accessibilityLabel(isShowingQueue ? "Hide track queue" : "Show track queue")
                 .accessibilityValue(isShowingQueue ? "Open" : "Closed")

@@ -5,7 +5,6 @@ struct TrackQueueView: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onSelectSource: () -> Void
-    let onDismiss: () -> Void
 
     private let likes: LikesController
 
@@ -13,14 +12,12 @@ struct TrackQueueView: View {
         model: AppModel,
         onSelectTrack: @escaping (SoundCloudTrack) -> Void,
         onSelectArtist: @escaping (SoundCloudUser) -> Void,
-        onSelectSource: @escaping () -> Void,
-        onDismiss: @escaping () -> Void
+        onSelectSource: @escaping () -> Void
     ) {
         self.model = model
         self.onSelectTrack = onSelectTrack
         self.onSelectArtist = onSelectArtist
         self.onSelectSource = onSelectSource
-        self.onDismiss = onDismiss
         self.likes = model.likes
     }
 
@@ -59,8 +56,6 @@ struct TrackQueueView: View {
                     if canClear {
                         QueueClearButton(action: model.clearQueue)
                     }
-
-                    QueueCloseButton(action: onDismiss)
                 }
 
                 if let sourceLabel {
@@ -85,8 +80,7 @@ struct TrackQueueView: View {
                     TrackQueueList(
                         tracks: tracks,
                         currentTrackURN: model.playback.currentTrack?.urn,
-                        onMove: model.moveQueueTracks,
-                        onDismiss: onDismiss
+                        onMove: model.moveQueueTracks
                     ) { track in
                         QueueTrackRow(
                             track: track,
@@ -100,7 +94,6 @@ struct TrackQueueView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
         }
-        .onExitCommand(perform: onDismiss)
         #if DEBUG
         .debugViewUpdates("TrackQueueView")
         #endif
@@ -242,30 +235,5 @@ private struct QueueClearButton: View {
         .onDisappear { isHovered = false }
         .contentHelp("Clear track queue")
         .accessibilityLabel("Clear track queue")
-    }
-}
-
-private struct QueueCloseButton: View {
-    let action: () -> Void
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: "xmark")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(isHovered ? .primary : .secondary)
-                .frame(width: 28, height: 28)
-                .background {
-                    Circle()
-                        .fill(Color.primary.opacity(isHovered ? 0.08 : 0))
-                }
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onContentHover { isHovered = $0 }
-        .onDisappear { isHovered = false }
-        .keyboardShortcut(.cancelAction)
-        .contentHelp("Close track queue (Esc)")
-        .accessibilityLabel("Close track queue")
     }
 }

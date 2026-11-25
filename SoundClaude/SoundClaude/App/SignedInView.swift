@@ -137,6 +137,8 @@ struct SignedInView: View {
         .onChange(of: navigationSelection) { _, selection in
             selectionStore.save(selection, for: user)
         }
+        // The reference never changes, so publishing it leaves the menu bar's other state alone.
+        .focusedSceneValue(\.queuePresentation, queuePresentation)
         // The field shows the search its page is for, dropping edits left behind on another.
         .onChange(of: searchFieldQuery, initial: true) { _, query in
             searchField.text = query ?? ""
@@ -305,11 +307,12 @@ struct SignedInView: View {
                 if let track = model.playback.currentTrack { showArtist(track.artist) }
             }
             .keyboardShortcut("a", modifiers: [])
-            Button("Show track queue") {
-                isShowingVisualizer = false
-                queuePresentation.isVisible = true
+            // The View menu can open the queue while the visualizer covers the window.
+            QueuePresentationReader(presentation: queuePresentation) { isShowingQueue in
+                Color.clear.onChange(of: isShowingQueue.wrappedValue) { _, isShowing in
+                    if isShowing { isShowingVisualizer = false }
+                }
             }
-            .keyboardShortcut("q", modifiers: [])
         }
         .hidden()
         .accessibilityHidden(true)
@@ -397,8 +400,7 @@ struct SignedInView: View {
                     model: model,
                     onSelectTrack: showTrack,
                     onSelectArtist: showArtist,
-                    onSelectSource: showQueueSource,
-                    onDismiss: { queuePresentation.isVisible = false }
+                    onSelectSource: showQueueSource
                 )
             )
         }

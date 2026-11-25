@@ -38,6 +38,34 @@ final class QueuePresentation {
     var isVisible = false
 }
 
+private struct QueuePresentationKey: FocusedValueKey {
+    typealias Value = QueuePresentation
+}
+
+extension FocusedValues {
+    var queuePresentation: QueuePresentation? {
+        get { self[QueuePresentationKey.self] }
+        set { self[QueuePresentationKey.self] = newValue }
+    }
+}
+
+/// Shows and hides the key window's queue from the View menu, like other Mac inspectors.
+struct QueueCommands: Commands {
+    @FocusedValue(\.queuePresentation) private var presentation
+
+    var body: some Commands {
+        CommandGroup(before: .toolbar) {
+            Button(presentation?.isVisible == true ? "Hide Queue" : "Show Queue") {
+                presentation?.isVisible.toggle()
+            }
+            .keyboardShortcut("q", modifiers: [])
+            .disabled(presentation == nil)
+
+            Divider()
+        }
+    }
+}
+
 struct QueuePresentationReader<Content: View>: View {
     @Bindable var presentation: QueuePresentation
     @ViewBuilder let content: (Binding<Bool>) -> Content
