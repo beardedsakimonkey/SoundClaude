@@ -226,17 +226,17 @@ private struct SearchSuggestionTests {
                          "Closed suggestions must not be selectable")
 
             await type("cl")
-            // Rows start below the field's 7pt padding, the fixture's padding, the gap above
-            // the list, and the list's 6pt padding: three 30pt completions, then 54pt results.
-            let fieldFrame = field.convert(field.bounds, to: nil)
-            let rowsTop = fieldFrame.minY - 7 - SuggestionFixture.fieldPadding - SearchSuggestionDropdown.gap - 6
-            click(NSPoint(x: fieldFrame.midX, y: rowsTop - 45))
+            // Measure the list in the window. Rows start below its 6pt padding.
+            let region = descendant(SearchDropdownRegion.RegionView.self, in: host)!
+            let listFrame = region.convert(region.bounds, to: nil)
+            let rowsTop = listFrame.maxY - 6
+            click(NSPoint(x: listFrame.midX, y: rowsTop - 45))
             await pause()
             precondition(harness.searches.last == "cl two", "Clicking a completion must search it")
 
             await type("re")
             let openedCount = harness.opened.count
-            click(NSPoint(x: fieldFrame.midX, y: rowsTop - 90 - 54 - 27))
+            click(NSPoint(x: listFrame.midX, y: rowsTop - 90 - 54 - 27))
             await pause()
             precondition(harness.opened.count == openedCount + 1 && harness.opened.last == .track(track),
                          "Clicking a top result must open it")
@@ -245,7 +245,7 @@ private struct SearchSuggestionTests {
             await type("ou")
             // Where the third row was: the closed list must not keep taking clicks.
             await escape()
-            click(NSPoint(x: fieldFrame.midX, y: rowsTop - 75))
+            click(NSPoint(x: listFrame.midX, y: rowsTop - 75))
             await pause()
             precondition(field.currentEditor() == nil, "Outside click must still release focus")
             precondition(harness.searches.last == "cl two", "A closed list must not search")

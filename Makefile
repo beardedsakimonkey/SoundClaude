@@ -108,6 +108,7 @@ SRC_focus := \
 	SoundClaude/SoundClaude/Models/SoundCloudModels.swift \
 	SoundClaude/SoundClaude/App/RecentSearchStore.swift \
 	SoundClaude/SoundClaude/App/SearchView.swift \
+	SoundClaude/SoundClaude/App/QueuePanel.swift \
 	SoundClaude/SoundClaude/App/CountedSectionHeader.swift \
 	SoundClaude/SoundClaude/App/NavigationPageViewport.swift \
 	SoundClaude/SoundClaude/App/SearchTextField.swift \
