@@ -54,8 +54,8 @@ struct TrackCollectionHeader<Title: View, Footer: View>: View {
     }
 }
 struct ScrollbarReservedScrollView<Content: View>: View {
-    @ViewBuilder let content: (Int) -> Content
-    var body: some View { content(0) }
+    @ViewBuilder let content: Content
+    var body: some View { content }
 }
 struct TrackCollectionSection<Content: View>: View {
     var title: LocalizedStringKey = "Tracks"

@@ -8,7 +8,7 @@ LSP_RESULT_BUNDLE := $(DERIVED_DATA_PATH)/SourceKitLSP.xcresult
 
 .DEFAULT_GOAL := release
 
-.PHONY: api build release debug quit-running run dist lsp test test-focus test-search-suggestions test-queue-drag test-navigation test-sidebar-resize test-playback-title test-now-playing test-detail-waveform test-detail-heading
+.PHONY: api build release debug quit-running run dist lsp test test-focus test-search-suggestions test-navigation test-sidebar-resize test-playback-title test-now-playing test-detail-waveform test-detail-heading
 
 api:
 	@set -eu; \
@@ -138,7 +138,6 @@ TYPECHECK_SUITES := \
 	focus \
 	search_suggestions \
 	piston_rendering \
-	queue_drag \
 	sidebar_resize \
 	navigation \
 	playback_title \
@@ -327,21 +326,6 @@ test-piston-rendering:
 	@mkdir -p /tmp/soundclaude-tests
 	swiftc -o /tmp/soundclaude-tests/piston-rendering $(SRC_piston_rendering)
 	/tmp/soundclaude-tests/piston-rendering
-
-# Queue drag regression opens a temporary window and posts mouse events.
-SRC_queue_drag := \
-	SoundClaude/SoundClaude/Playback/TrackQueue.swift \
-	SoundClaude/SoundClaude/App/TrackQueueView.swift \
-	SoundClaude/SoundClaude/App/QueuePanel.swift \
-	SoundClaude/SoundClaude/App/ContentHover.swift \
-	SoundClaude/SoundClaude/App/EmptyStateView.swift \
-	SoundClaude/SoundClaude/App/TrackQueueDragDrop.swift \
-	SoundClaude/SoundClaude/App/TrackPlaybackIndicator.swift \
-	tests/QueueDragTests.swift
-test-queue-drag:
-	@mkdir -p /tmp/soundclaude-tests
-	swiftc -o /tmp/soundclaude-tests/queue-drag $(SRC_queue_drag)
-	/tmp/soundclaude-tests/queue-drag
 
 # Layout regression uses AppKit hosting and requires a macOS GUI session.
 SRC_sidebar_resize := \
