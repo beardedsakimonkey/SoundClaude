@@ -245,10 +245,6 @@ private struct QueueClearButton: View {
                 .foregroundStyle(isHovered ? .primary : .secondary)
                 .padding(.horizontal, 8)
                 .frame(height: 28)
-                .background {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.primary.opacity(isHovered ? 0.08 : 0))
-                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
