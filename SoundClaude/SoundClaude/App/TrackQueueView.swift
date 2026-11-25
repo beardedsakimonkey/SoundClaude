@@ -21,10 +21,28 @@ struct TrackQueueView: View {
         self.likes = model.likes
     }
 
-    private var tracks: [SoundCloudTrack] {
+    private var allTracks: [SoundCloudTrack] {
         model.queue.source == .likes
             ? model.queue.resolvedTracks(likes: likes.tracks)
             : model.queue.playbackTracks
+    }
+
+    // Playback skips protected tracks, so the queue does not list them.
+    private var tracks: [SoundCloudTrack] {
+        let currentURN = model.playback.currentTrack?.urn
+        return allTracks.filter { $0.access != .protected || $0.urn == currentURN }
+    }
+
+    /// Maps a move in the visible list to offsets in the full queue, which still holds protected tracks.
+    private func moveTracks(fromOffsets offsets: IndexSet, toOffset destination: Int) {
+        let all = allTracks
+        let visible = tracks
+        let fullIndex = Dictionary(all.enumerated().map { ($1.urn, $0) }, uniquingKeysWith: { first, _ in first })
+        let fullOffsets = IndexSet(offsets.compactMap { visible.indices.contains($0) ? fullIndex[visible[$0].urn] : nil })
+        let fullDestination = visible.indices.contains(destination)
+            ? fullIndex[visible[destination].urn] ?? all.count
+            : all.count
+        model.moveQueueTracks(fromOffsets: fullOffsets, toOffset: fullDestination)
     }
 
     private var canClear: Bool {
@@ -80,7 +98,7 @@ struct TrackQueueView: View {
                     TrackQueueList(
                         tracks: tracks,
                         currentTrackURN: model.playback.currentTrack?.urn,
-                        onMove: model.moveQueueTracks
+                        onMove: moveTracks
                     ) { track in
                         QueueTrackRow(
                             track: track,
