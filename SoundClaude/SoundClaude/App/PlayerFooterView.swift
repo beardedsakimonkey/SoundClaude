@@ -449,7 +449,7 @@ private struct PlayerFooterWaveform: View {
     let playback: PlaybackController
 
     private let waveformHeight: CGFloat = 50
-    @State private var waveformHorizontalInset: CGFloat = 0
+    @State private var waveformTrailingSlack: CGFloat = 0
 
     var body: some View {
         let canInteract = playback.currentTrack != nil && playback.errorMessage == nil
@@ -471,7 +471,7 @@ private struct PlayerFooterWaveform: View {
             PlayerFooterTimestamps(playback: playback)
             .opacity(playback.currentTrack == nil ? 0 : 1)
             .accessibilityHidden(playback.currentTrack == nil)
-            .padding(.horizontal, playback.currentTrack == nil ? 0 : waveformHorizontalInset)
+            .padding(.trailing, playback.currentTrack == nil ? 0 : waveformTrailingSlack)
             .font(.caption.monospacedDigit())
             .foregroundStyle(.secondary)
             .overlay(alignment: .top) {
@@ -493,9 +493,9 @@ private struct PlayerFooterWaveform: View {
         }
         .frame(maxWidth: .infinity)
         .onGeometryChange(for: CGFloat.self) { geometry in
-            TrackWaveformView.Layout.compact.horizontalBarInset(for: geometry.size.width)
-        } action: { inset in
-            waveformHorizontalInset = inset
+            TrackWaveformView.Layout.compact.trailingBarSlack(for: geometry.size.width)
+        } action: { slack in
+            waveformTrailingSlack = slack
         }
         // Compensate for the timestamps below the waveform.
         .offset(y: 8)

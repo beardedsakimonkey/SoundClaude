@@ -14,11 +14,12 @@ struct TrackWaveformView: View {
             self == .compact ? height - 4 : height - reflectionHeight - 2
         }
 
-        func horizontalBarInset(for width: CGFloat) -> CGFloat {
+        // Bars start at x = 0 so they land on whole points; this is the unused width after the last bar.
+        func trailingBarSlack(for width: CGFloat) -> CGFloat {
             guard self == .compact else { return 0 }
             let barCount = max(Int(width / 4), 1)
             let barsWidth = CGFloat(barCount - 1) * 4 + 2.25
-            return max(0, (width - barsWidth) / 2)
+            return max(0, width - barsWidth)
         }
     }
 
@@ -694,10 +695,9 @@ struct TrackWaveformView: View {
                 count: barCount
             ))
         }
-        // Measure from the inset bar centers. Normalize the
+        // Measure from the bar centers. Normalize the
         // distance so the nearest bar reveals fully and the farthest stays flat.
-        let inset = layout.horizontalBarInset(for: width)
-        let pointerIndex = (hoverFraction * Double(width) - Double(inset) - 1.125) / 4
+        let pointerIndex = (hoverFraction * Double(width) - 1.125) / 4
         let nearestIndex = min(max(pointerIndex.rounded(), 0), Double(barCount - 1))
         let nearestDistance = abs(pointerIndex - nearestIndex)
         let farthestDistance = max(abs(pointerIndex), abs(pointerIndex - Double(barCount - 1)))
@@ -727,14 +727,13 @@ struct TrackWaveformView: View {
     ) -> [CGRect] {
         let barWidth: CGFloat = layout == .detail ? 2.5 : 2.25
         let step: CGFloat = 4
-        let inset = layout.horizontalBarInset(for: size.width)
         let availableHeight = layout.availableBarHeight(for: size.height)
         return amplitudes.values.enumerated().map { index, amplitude in
             // Signed amplitudes collapse during track changes. Take the
             // absolute value after spring interpolation.
             let height = max(CGFloat(abs(amplitude)) * availableHeight, 2)
             return CGRect(
-                x: inset + CGFloat(index) * step,
+                x: CGFloat(index) * step,
                 y: layout == .compact ? (size.height - height) / 2 : layout.reflectionHeight,
                 width: barWidth,
                 height: height
