@@ -474,9 +474,12 @@ struct TrackCollectionKindTitle<Title: View>: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
-            Text("\(kind) ·")
-                .fixedSize()
-                .accessibilityHidden(true)
+            Group {
+                Text(kind)
+                Text("·")
+            }
+            .fixedSize()
+            .accessibilityHidden(true)
             title()
         }
     }
