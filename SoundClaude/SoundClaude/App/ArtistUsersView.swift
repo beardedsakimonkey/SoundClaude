@@ -43,7 +43,7 @@ struct ArtistUsersView: View {
     }
 
     var body: some View {
-        ScrollbarReservedScrollView { _ in
+        ScrollbarReservedScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 HStack(spacing: 6) {
                     if list == .followers {

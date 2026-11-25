@@ -50,7 +50,7 @@ struct NotificationsView: View {
     }
 
     var body: some View {
-        ScrollbarReservedScrollView { _ in
+        ScrollbarReservedScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack {

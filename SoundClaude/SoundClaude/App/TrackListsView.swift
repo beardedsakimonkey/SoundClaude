@@ -222,7 +222,7 @@ private struct TrackListPage<Content: View>: View {
     }
 
     var body: some View {
-        ScrollbarReservedScrollView { _ in
+        ScrollbarReservedScrollView {
             VStack(alignment: .leading, spacing: headerSpacing) {
                 HStack(spacing: 8) {
                     // A long track title truncates before this does.

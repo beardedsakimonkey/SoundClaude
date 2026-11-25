@@ -5,7 +5,10 @@ import SwiftUI
 struct ScrollbarReservedScrollView<Content: View>: View {
     var enablesKeyboardNavigation = true
     var reservesSpaceWhenContentFits = true
-    @ViewBuilder let content: (CGSize) -> Content
+    /// Built once, in the caller's body, so resizing re-delivers the same value and rows
+    /// holding closures don't re-run their bodies every frame. Views that need the
+    /// size read it with `scrollContentSize`, so only they update as it changes.
+    @ViewBuilder let content: Content
 
     @State private var scrollerStyle = NSScroller.preferredScrollerStyle
     @State private var contentHeight: CGFloat = 0
@@ -22,7 +25,8 @@ struct ScrollbarReservedScrollView<Content: View>: View {
             )
 
             ScrollView {
-                content(contentSize)
+                content
+                    .environment(\.scrollContentSize, contentSize)
                     // AppKit can defer its narrower width proposal until the first scroll.
                     .frame(width: contentSize.width, alignment: .topLeading)
                     .modifier(ContentHeightTracker(isEnabled: !reservesSpaceWhenContentFits, height: $contentHeight))
@@ -39,6 +43,29 @@ struct ScrollbarReservedScrollView<Content: View>: View {
         .onReceive(NotificationCenter.default.publisher(for: NSScroller.preferredScrollerStyleDidChangeNotification)) { _ in
             scrollerStyle = NSScroller.preferredScrollerStyle
         }
+    }
+}
+
+private struct ScrollContentSizeKey: EnvironmentKey {
+    static let defaultValue = CGSize.zero
+}
+
+extension EnvironmentValues {
+    /// The visible size of the enclosing `ScrollbarReservedScrollView`, less its scrollbar.
+    /// It changes every frame of a resize, so read it only in small leaf views or modifiers.
+    var scrollContentSize: CGSize {
+        get { self[ScrollContentSizeKey.self] }
+        set { self[ScrollContentSizeKey.self] = newValue }
+    }
+}
+
+/// Fills at least the visible height of the enclosing scroll view.
+struct ScrollContentMinHeight: ViewModifier {
+    var alignment: Alignment = .topLeading
+    @Environment(\.scrollContentSize) private var size
+
+    func body(content: Content) -> some View {
+        content.frame(minHeight: size.height, alignment: alignment)
     }
 }
 

@@ -25,7 +25,7 @@ struct HistoryView: View {
 
     private var historyContent: some View {
         let filteredTracks = tracks.filtered(by: searchText)
-        return ScrollbarReservedScrollView { _ in
+        return ScrollbarReservedScrollView {
             LazyVStack(alignment: .leading, spacing: 24) {
                 HStack {
                     Text("History")

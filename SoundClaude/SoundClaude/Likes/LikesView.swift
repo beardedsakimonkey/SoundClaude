@@ -64,7 +64,7 @@ struct LikesView: View {
         ZStack(alignment: .top) {
             RouteGradientBackdrop()
 
-            ScrollbarReservedScrollView { _ in
+            ScrollbarReservedScrollView {
                 VStack(spacing: 0) {
                     header
                     errorBanner

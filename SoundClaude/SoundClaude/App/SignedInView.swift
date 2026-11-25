@@ -492,7 +492,7 @@ struct SignedInView: View {
     }
 
     private func searchPage(query: String, category: SearchCategory?) -> some View {
-        ScrollbarReservedScrollView { contentSize in
+        ScrollbarReservedScrollView {
             SearchResultsView(
                 query: query,
                 category: category,
@@ -502,7 +502,6 @@ struct SignedInView: View {
                 onSelectArtist: showArtist,
                 onSelectCategory: { push(.searchCategory(query, $0)) }
             )
-            .environment(\.searchViewportHeight, contentSize.height)
             .remembersScrollPosition()
         }
         .background(alignment: .top) {

@@ -37,7 +37,7 @@ struct PlaylistDetailView: View {
     }
 
     var body: some View {
-        ScrollbarReservedScrollView { _ in
+        ScrollbarReservedScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 header
                 TrackCollectionSection(

@@ -2,24 +2,13 @@ import AppKit
 import Observation
 import SwiftUI
 
-private struct SearchViewportHeightKey: EnvironmentKey {
-    static let defaultValue: CGFloat = 0
-}
-
-extension EnvironmentValues {
-    var searchViewportHeight: CGFloat {
-        get { self[SearchViewportHeightKey.self] }
-        set { self[SearchViewportHeightKey.self] = newValue }
-    }
-}
-
 /// The Search page. Its field is in the toolbar, where the results pages share it,
 /// and offers recent searches when it takes focus. `content` fills the page.
 struct SearchView<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        ScrollbarReservedScrollView { _ in
+        ScrollbarReservedScrollView {
             content
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(20)

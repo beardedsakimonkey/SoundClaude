@@ -214,6 +214,31 @@ struct TrackArtworkList<Content: View>: View {
     }
 }
 
+// The tile width changes every frame of a resize, so only the artwork reads it,
+// not the tile's body with its closures and controls.
+private struct TrackGridTileArtwork: View {
+    let artworkURL: URL?
+    let loader: ArtworkLoader
+    let cornerRadius: CGFloat
+    let isHovering: Bool
+    let handoff: ArtworkHandoff
+
+    @Environment(\.trackGridTileWidth) private var tileWidth
+
+    var body: some View {
+        TrackArtworkView(
+            artworkURL: artworkURL,
+            loader: loader,
+            size: tileWidth,
+            rendition: .square300,
+            shape: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous),
+            showsBorder: false,
+            handoff: handoff
+        )
+        .modifier(ArtworkHoverZoom(isHovering: isHovering, cornerRadius: cornerRadius, size: tileWidth))
+    }
+}
+
 struct TrackGridTile: View {
     private static let artworkCornerRadius: CGFloat = 10
 
@@ -228,8 +253,6 @@ struct TrackGridTile: View {
     let onSelectTrack: (SoundCloudTrack) -> Void
     let onSelectArtist: (SoundCloudUser) -> Void
     let onPlayTrack: (SoundCloudTrack) async -> Void
-
-    @Environment(\.trackGridTileWidth) private var tileWidth
 
     @State private var isHoveringArtwork = false
     @State private var hasHoveredArtwork = false
@@ -371,20 +394,13 @@ struct TrackGridTile: View {
 
     @ViewBuilder
     private var artwork: some View {
-        let artwork = TrackArtworkView(
+        let artwork = TrackGridTileArtwork(
             artworkURL: track.displayArtworkURL,
             loader: artworkLoader,
-            size: tileWidth,
-            rendition: .square300,
-            shape: RoundedRectangle(cornerRadius: Self.artworkCornerRadius, style: .continuous),
-            showsBorder: false,
+            cornerRadius: Self.artworkCornerRadius,
+            isHovering: isHoveringArtwork && track.access != .protected,
             handoff: artworkHandoff
         )
-        .modifier(ArtworkHoverZoom(
-            isHovering: isHoveringArtwork && track.access != .protected,
-            cornerRadius: Self.artworkCornerRadius,
-            size: tileWidth
-        ))
         if showsControls {
             let isPlaybackActive = isCurrentTrack && playback.isPlaybackActive
             Button {

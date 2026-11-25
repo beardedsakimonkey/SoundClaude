@@ -15,7 +15,6 @@ struct SearchResultsView: View {
     /// Opens every match of one kind, from a section of the overview.
     var onSelectCategory: (SearchCategory) -> Void = { _ in }
 
-    @Environment(\.searchViewportHeight) private var searchViewportHeight
 
     private var listedCategory: SearchCategory? {
         isGenreSearch || isTagSearch ? .tracks : category
@@ -63,7 +62,7 @@ struct SearchResultsView: View {
                 }
             }
             // Keep enough scroll space while results load or are short.
-            .frame(minHeight: searchViewportHeight, alignment: .topLeading)
+            .modifier(ScrollContentMinHeight())
         }
         .padding(contentPadding)
         .navigationTitle(isGenreSearch || isTagSearch ? "Search" : query)

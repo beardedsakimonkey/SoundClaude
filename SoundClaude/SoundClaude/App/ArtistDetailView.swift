@@ -300,7 +300,7 @@ struct ArtistDetailView: View {
     }
 
     private func detailsView(_ details: SoundCloudArtistDetails) -> some View {
-        ScrollbarReservedScrollView { contentSize in
+        ScrollbarReservedScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 24) {
                     HStack(alignment: .center, spacing: 24) {
@@ -395,17 +395,14 @@ struct ArtistDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
 
-                HStack(alignment: .top, spacing: 24) {
+                ArtistColumnsLayout {
                     ArtistTabContent(selection: tabSelection) { tab in
                         tabContent(for: tab)
                     }
                         // Keep enough scroll space below the tabs when their content
                         // is loading or short, so switching tabs does not pull them down.
-                        .frame(
-                            maxWidth: .infinity,
-                            minHeight: contentSize.height,
-                            alignment: .topLeading
-                        )
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        .modifier(ScrollContentMinHeight())
 
                     VStack(alignment: .leading, spacing: 24) {
                         ViewThatFits(in: .horizontal) {
@@ -455,7 +452,7 @@ struct ArtistDetailView: View {
                                 .modifier(FadeInOnAppear())
                         }
                     }
-                    .frame(width: min(320, max(0, contentSize.width - 72) * 0.3), alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .modifier(FadeInOnAppear())
                 }
             }
@@ -1521,4 +1518,42 @@ final class ArtistTabSelection {
         didSet { if tab != oldValue { onChange?() } }
     }
     @ObservationIgnored var onChange: (() -> Void)?
+}
+
+// The tabs take what's left beside a side column of 30% of the width, up to 320 points.
+// Sizing happens in layout, so resizing doesn't re-run either column's body.
+private struct ArtistColumnsLayout: Layout {
+    var spacing: CGFloat = 24
+    var sideFraction: CGFloat = 0.3
+    var maxSideWidth: CGFloat = 320
+
+    private func widths(for width: CGFloat) -> (main: CGFloat, side: CGFloat) {
+        let side = min(maxSideWidth, max(0, width - spacing) * sideFraction)
+        return (max(0, width - spacing - side), side)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard subviews.count == 2 else { return .zero }
+        let width = proposal.width
+            ?? subviews.reduce(spacing) { $0 + $1.sizeThatFits(.unspecified).width }
+        let (main, side) = widths(for: width)
+        let height = max(
+            subviews[0].sizeThatFits(ProposedViewSize(width: main, height: nil)).height,
+            subviews[1].sizeThatFits(ProposedViewSize(width: side, height: nil)).height
+        )
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 2 else { return }
+        let (main, side) = widths(for: bounds.width)
+        subviews[0].place(
+            at: bounds.origin, anchor: .topLeading,
+            proposal: ProposedViewSize(width: main, height: nil)
+        )
+        subviews[1].place(
+            at: CGPoint(x: bounds.maxX - side, y: bounds.minY), anchor: .topLeading,
+            proposal: ProposedViewSize(width: side, height: nil)
+        )
+    }
 }

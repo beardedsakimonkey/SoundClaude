@@ -123,7 +123,7 @@ struct TrackDetailView: View {
     }
 
     private var detailsView: some View {
-        ScrollbarReservedScrollView { _ in
+        ScrollbarReservedScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 header
 

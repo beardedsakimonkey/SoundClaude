@@ -114,7 +114,7 @@ struct SidebarView: View {
         ScrollbarReservedScrollView(
             enablesKeyboardNavigation: false,
             reservesSpaceWhenContentFits: false
-        ) { _ in
+        ) {
             VStack(spacing: 0) {
                 SidebarAccountHeader(
                     user: user,
