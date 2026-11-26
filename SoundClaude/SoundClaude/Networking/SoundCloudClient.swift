@@ -247,6 +247,12 @@ actor SoundCloudClient {
         accessToken: String, pageURL: URL? = nil
     ) async throws -> SoundCloudTrackPage {
         // The genre/tag filter only matches lowercase values; "House" returns nothing.
+        if pageURL == nil, let query, let link = Self.soundCloudLink(query) {
+            let tracks = try await resolve(link, accessToken: accessToken).flatMap { result -> SoundCloudTrack? in
+                if case let .track(track) = result { track } else { nil }
+            }
+            return SoundCloudTrackPage(tracks: tracks.map { [$0] } ?? [], nextURL: nil)
+        }
         let url = pageURL ?? searchURL(path: "tracks", query: query ?? "*", extra: [
             "filter.genre_or_tag": (genres ?? tags)?.lowercased(),
         ])
@@ -256,6 +262,9 @@ actor SoundCloudClient {
     func searchPlaylists(
         query: String, accessToken: String, pageURL: URL? = nil
     ) async throws -> SoundCloudPlaylistPage {
+        if pageURL == nil, let link = Self.soundCloudLink(query) {
+            return try await resolvedPlaylistPage(link, albums: false, accessToken: accessToken)
+        }
         let url = pageURL ?? searchURL(path: "playlists_without_albums", query: query)
         return try await playlistPage(at: url, accessToken: accessToken)
     }
@@ -263,6 +272,9 @@ actor SoundCloudClient {
     func searchAlbums(
         query: String, accessToken: String, pageURL: URL? = nil
     ) async throws -> SoundCloudPlaylistPage {
+        if pageURL == nil, let link = Self.soundCloudLink(query) {
+            return try await resolvedPlaylistPage(link, albums: true, accessToken: accessToken)
+        }
         let url = pageURL ?? searchURL(path: "albums", query: query)
         return try await playlistPage(at: url, accessToken: accessToken)
     }
@@ -270,6 +282,12 @@ actor SoundCloudClient {
     func searchUsers(
         query: String, accessToken: String, pageURL: URL? = nil
     ) async throws -> SoundCloudUserPage {
+        if pageURL == nil, let link = Self.soundCloudLink(query) {
+            let users = try await resolve(link, accessToken: accessToken).flatMap { result -> SoundCloudUser? in
+                if case let .user(user) = result { user } else { nil }
+            }
+            return SoundCloudUserPage(users: users.map { [$0] } ?? [], nextURL: nil)
+        }
         let url = pageURL ?? searchURL(path: "users", query: query)
         return try await userPage(at: url, accessToken: accessToken)
     }
@@ -280,6 +298,8 @@ actor SoundCloudClient {
             struct Suggestion: Decodable { let query: String }
             let collection: [Suggestion]
         }
+        // A pasted link has no autocomplete; its result shows instead.
+        if Self.soundCloudLink(query) != nil { return [] }
         let url = endpoint("search/queries", query: ["q": query, "limit": "\(Self.suggestedQueryLimit)"])
         let page = try await get(Page.self, url, accessToken: accessToken)
         // The endpoint can return more than the limit.
@@ -288,6 +308,9 @@ actor SoundCloudClient {
 
     /// The best matches of every kind, as the website's "Everything" tab ranks them.
     func searchTopResults(query: String, accessToken: String) async throws -> [SoundCloudSearchResult] {
+        if let link = Self.soundCloudLink(query) {
+            return try await resolve(link, accessToken: accessToken).map { [$0] } ?? []
+        }
         let url = endpoint("search", query: ["q": query, "limit": "\(Self.topResultLimit)"])
         return try await get(RawSearchResultPage.self, url, accessToken: accessToken).collection.compactMap(\.result)
     }
@@ -296,10 +319,51 @@ actor SoundCloudClient {
     func searchResults(
         query: String, accessToken: String, pageURL: URL? = nil
     ) async throws -> SoundCloudSearchResultPage {
+        if pageURL == nil, let link = Self.soundCloudLink(query) {
+            let result = try await resolve(link, accessToken: accessToken)
+            return SoundCloudSearchResultPage(results: result.map { [$0] } ?? [], nextURL: nil)
+        }
         let url = pageURL ?? endpoint("search", query: ["q": query, "limit": "25"])
         let page = try await get(RawSearchResultPage.self, url, accessToken: accessToken)
         try validateNextURL(page.nextURL, after: url)
         return SoundCloudSearchResultPage(results: page.collection.compactMap(\.result), nextURL: page.nextURL)
+    }
+
+    /// A soundcloud.com link typed or pasted into search, which resolves to the one thing it points at.
+    static func soundCloudLink(_ query: String) -> URL? {
+        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.contains(where: \.isWhitespace),
+              var components = URLComponents(string: text.contains("://") ? text : "https://" + text),
+              ["http", "https"].contains(components.scheme?.lowercased()),
+              let host = components.host?.lowercased(),
+              ["soundcloud.com", "www.soundcloud.com", "m.soundcloud.com", "on.soundcloud.com"].contains(host),
+              components.path.count > 1 else { return nil }
+        components.scheme = "https"
+        // Mobile and www links resolve as the canonical site's; short links resolve as they are.
+        if host != "on.soundcloud.com" { components.host = "soundcloud.com" }
+        // Share links carry tracking parameters (si, utm_*) that resolve does not need.
+        components.query = nil
+        components.fragment = nil
+        return components.url
+    }
+
+    /// What a soundcloud.com link points at, or nil when it points at nothing the app can show.
+    func resolve(_ link: URL, accessToken: String) async throws -> SoundCloudSearchResult? {
+        let url = endpoint("resolve", query: ["url": link.absoluteString])
+        do {
+            return try await get(RawSearchResult.self, url, accessToken: accessToken).result
+        } catch SoundCloudError.api {
+            // A link to a missing or private page is a search with no results, not a failure.
+            return nil
+        }
+    }
+
+    private func resolvedPlaylistPage(_ link: URL, albums: Bool, accessToken: String) async throws -> SoundCloudPlaylistPage {
+        let playlist = try await resolve(link, accessToken: accessToken).flatMap { result -> SoundCloudPlaylist? in
+            guard case let .playlist(playlist) = result, (playlist.isAlbum == true) == albums else { return nil }
+            return playlist
+        }
+        return SoundCloudPlaylistPage(playlists: playlist.map { [$0] } ?? [], nextURL: nil)
     }
 
     private func searchURL(path: String, query: String, extra: [String: String?] = [:]) -> URL {

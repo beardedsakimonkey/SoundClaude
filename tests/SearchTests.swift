@@ -243,6 +243,38 @@ struct SearchTests {
         precondition(resultPage.results.map(\.id) == ["https://soundcloud.com/artist"])
         precondition(resultPage.nextURL?.query()?.contains("cursor=next") == true)
 
+        // A pasted link resolves to the one thing it points at, in every kind of search.
+        precondition(SoundCloudClient.soundCloudLink("ambient") == nil)
+        precondition(SoundCloudClient.soundCloudLink("https://soundcloud.com/") == nil)
+        precondition(SoundCloudClient.soundCloudLink("https://example.com/artist") == nil)
+        precondition(SoundCloudClient.soundCloudLink("soundcloud.com/artist two") == nil)
+        precondition(SoundCloudClient.soundCloudLink(" https://m.soundcloud.com/artist/track-1?si=abc&utm_source=x#t=1:00 ")?
+            .absoluteString == "https://soundcloud.com/artist/track-1")
+        precondition(SoundCloudClient.soundCloudLink("www.soundcloud.com/artist")?.absoluteString == "https://soundcloud.com/artist")
+        precondition(SoundCloudClient.soundCloudLink("https://on.soundcloud.com/AbC123")?.absoluteString == "https://on.soundcloud.com/AbC123")
+        let link = "https://soundcloud.com/artist/track-1?si=share"
+        SearchURLProtocol.respond { request in
+            precondition(request.url?.path == "/resolve")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            let parameters = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value!) })
+            precondition(parameters["url"] == "https://soundcloud.com/artist/track-1")
+            return (200, "{\"kind\":\"track\"," + track(1).trimmingCharacters(in: .whitespacesAndNewlines).dropFirst())
+        }
+        let linkTop = try await client.searchTopResults(query: link, accessToken: "test-token")
+        precondition(linkTop.map(\.id) == ["soundcloud:tracks:1"])
+        let linkPage = try await client.searchResults(query: link, accessToken: "test-token")
+        precondition(linkPage.results.map(\.id) == ["soundcloud:tracks:1"] && linkPage.nextURL == nil)
+        let linkTracks = try await client.searchTracks(query: link, accessToken: "test-token")
+        precondition(linkTracks.tracks.map(\.urn) == ["soundcloud:tracks:1"])
+        let linkUsers = try await client.searchUsers(query: link, accessToken: "test-token")
+        let linkPlaylists = try await client.searchPlaylists(query: link, accessToken: "test-token")
+        precondition(linkUsers.users.isEmpty && linkPlaylists.playlists.isEmpty, "Other kinds show no results")
+        let linkQueries = try await client.searchQueries(query: link, accessToken: "test-token")
+        precondition(linkQueries.isEmpty)
+        SearchURLProtocol.respond { _ in (404, "{}") }
+        let missing = try await client.searchResults(query: link, accessToken: "test-token")
+        precondition(missing.results.isEmpty, "A link to nothing is a search with no results")
+
         // The Search page's recommendations: rows of playlists and generated playlists.
         let station = """
         {"kind":"system-playlist","urn":"soundcloud:system-playlists:artist-stations:1:2",
