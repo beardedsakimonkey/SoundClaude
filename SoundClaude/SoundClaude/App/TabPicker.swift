@@ -75,7 +75,7 @@ struct TabPicker<Selection: Hashable & RawRepresentable>: View where Selection.R
                 selection = first
             }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selection)
+        .animation(reduceMotion ? nil : .timingCurve(0.4, 0, 0.2, 1, duration: 0.3), value: selection)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
     }
