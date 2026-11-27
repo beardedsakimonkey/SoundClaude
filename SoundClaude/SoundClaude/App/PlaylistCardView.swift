@@ -40,9 +40,9 @@ struct PlaylistCardView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
+        .background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(.primary.opacity(0.06), lineWidth: 1)
                 .allowsHitTesting(false)
         }
@@ -200,7 +200,6 @@ struct PlaylistCardView: View {
             .opacity(hasLoadedTracks ? 1 : 0.4)
             .allowsHitTesting(hasLoadedTracks)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: hasLoadedTracks)
-            .padding(.vertical, 8)
         }
 
         if let errorMessage {

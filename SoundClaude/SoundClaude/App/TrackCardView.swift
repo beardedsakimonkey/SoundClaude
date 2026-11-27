@@ -131,9 +131,9 @@ struct TrackCardView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
+        .background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(.primary.opacity(0.06), lineWidth: 1)
                 .allowsHitTesting(false)
         }
