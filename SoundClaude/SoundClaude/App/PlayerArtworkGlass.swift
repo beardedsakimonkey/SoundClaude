@@ -34,14 +34,14 @@ extension PlayerArtworkGlassParameters {
     static var detail: Self {
         var parameters = Self()
         parameters.edgeDarkening = 0.12
-        parameters.rimWidth = 7.0
-        parameters.lipPosition = 1.5
-        parameters.lipWidth = 1.5
+        parameters.rimWidth = 6.0
+        parameters.lipPosition = 1.0
+        parameters.lipWidth = 1.0
         parameters.reflectionStrength = 0.5
         parameters.refractionStrength = 3.5
         parameters.dispersion = 0.3
         parameters.iridescence = 0.35
-        parameters.sheenStrength = 0.08
+        parameters.sheenStrength = 0.14
         return parameters
     }
 }
