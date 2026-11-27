@@ -107,8 +107,8 @@ private struct ShowMoreButtonStyle: ButtonStyle {
             .fontWeight(.semibold)
             .foregroundStyle(.link)
             .contentShape(Rectangle())
-            .opacity(configuration.isPressed || isHovering ? 0.9 : 0.75)
-            .brightness(configuration.isPressed ? 0.2 : 0)
+            .opacity(configuration.isPressed || isHovering ? 1.0 : 0.75)
+            .brightness(configuration.isPressed ? 0.15 : 0)
             .onContentHover { isHovering = $0 }
     }
 }
