@@ -4,6 +4,7 @@ struct ArtistLink: View {
     let artist: SoundCloudUser
     var artworkLoader: ArtworkLoader? = nil
     var avatarSize: CGFloat = 24
+    var avatarSpacing: CGFloat = 8
     var showsAvatarBorder = false
     var showsVerifiedBadge = false
     var helpTitle = "View artist"
@@ -18,7 +19,7 @@ struct ArtistLink: View {
             Button {
                 onSelect(artist)
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: avatarSpacing) {
                     if let artworkLoader {
                         TrackArtworkView(
                             artworkURL: artist.avatarURL,

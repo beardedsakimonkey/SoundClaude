@@ -64,13 +64,15 @@ struct TrackCardView: View {
                 .opacity(track.access == .protected ? protectedTrackOpacity : 1)
 
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text("By")
-                            .foregroundStyle(.tertiary)
-                            .fixedSize()
-                        ArtistLink(artist: track.artist, onSelect: onSelectArtist)
-                            .foregroundStyle(Color.secondary)
-                    }
+                    ArtistLink(
+                        artist: track.artist,
+                        artworkLoader: model.artworkLoader,
+                        avatarSize: 18,
+                        avatarSpacing: 5,
+                        showsAvatarBorder: true,
+                        onSelect: onSelectArtist
+                    )
+                    .foregroundStyle(Color.secondary)
 
                     RelativeTimestampView(
                         timestamp: track.createdAt,
