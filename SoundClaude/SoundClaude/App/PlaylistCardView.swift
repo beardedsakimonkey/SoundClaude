@@ -81,7 +81,7 @@ struct PlaylistCardView: View {
                     onSelect: { onSelectPlaylist(displayedPlaylist) }
                 )
 
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("By")
                             .foregroundStyle(.tertiary)

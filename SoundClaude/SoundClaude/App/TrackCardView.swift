@@ -63,7 +63,7 @@ struct TrackCardView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .opacity(track.access == .protected ? protectedTrackOpacity : 1)
 
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text("By")
                             .foregroundStyle(.tertiary)
