@@ -605,12 +605,13 @@ struct TrackWaveformView: View {
     }
 
     private var shouldDimBars: Bool {
+        // Waveforms that collapse when paused already show pause through their shape.
         showsLoadingIndicator || !isCurrentTrack
+            || (!playback.isPlaybackActive && !collapsesBarsWhenPaused)
     }
 
     private var barsIdleOpacity: Double {
-        if shouldDimBars { return 0.5 }
-        return layout == .detail && !playback.isPlaybackActive ? 0.75 : 1
+        shouldDimBars ? 0.5 : 1
     }
 
     private var shouldPulseBars: Bool {
