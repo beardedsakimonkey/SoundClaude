@@ -108,23 +108,23 @@ struct TrackArtworkView: View {
     }
 }
 
-/// Artwork drawn as the top of a stack, with the edges of two more covers showing above it,
-/// so a playlist reads differently from a track. The stack fills a square of `size`.
+/// Artwork drawn as the top of a stack, with the edges of two more covers showing below and
+/// to the left of it, so a playlist reads differently from a track. The stack fills a square
+/// of `size`.
 struct PlaylistStackArtwork: View {
-    private static let edgeHeight: CGFloat = 3
-    private static let edgeInset: CGFloat = 3
+    private static let edgeOffset: CGFloat = 3
 
     let artworkURL: URL?
     let loader: ArtworkLoader
     let size: CGFloat
     let cornerRadius: CGFloat
 
-    private var frontSize: CGFloat { size - Self.edgeHeight * 2 }
+    private var frontSize: CGFloat { size - Self.edgeOffset * 2 }
 
     var body: some View {
-        VStack(spacing: 0) {
-            edge(width: frontSize - Self.edgeInset * 4, opacity: 0.16)
-            edge(width: frontSize - Self.edgeInset * 2, opacity: 0.3)
+        ZStack(alignment: .topTrailing) {
+            edge(offset: Self.edgeOffset * 2, opacity: 0.16)
+            edge(offset: Self.edgeOffset, opacity: 0.22)
             TrackArtworkView(
                 artworkURL: artworkURL,
                 loader: loader,
@@ -132,20 +132,49 @@ struct PlaylistStackArtwork: View {
                 shape: RoundedRectangle(cornerRadius: cornerRadius)
             )
         }
-        .frame(width: size, height: size)
+        .frame(width: size, height: size, alignment: .topTrailing)
         .accessibilityHidden(true)
     }
 
-    // Only the strip above the cover in front is drawn, so a translucent placeholder
+    // Only the part outside the cover in front is drawn, so a translucent placeholder
     // has nothing showing through it.
-    private func edge(width: CGFloat, opacity: Double) -> some View {
+    private func edge(offset: CGFloat, opacity: Double) -> some View {
         RoundedRectangle(cornerRadius: cornerRadius)
             .fill(Color.primary.opacity(opacity))
             // The same border the cover in front has.
             .strokeBorder(.white.opacity(0.15), lineWidth: 1)
-            .frame(width: width, height: frontSize)
-            .frame(height: Self.edgeHeight, alignment: .top)
-            .clipped()
+            .frame(width: frontSize, height: frontSize)
+            .offset(x: -offset, y: offset)
+            .frame(width: size, height: size, alignment: .topTrailing)
+            .mask {
+                StackEdgeShape(
+                    offset: offset,
+                    step: Self.edgeOffset,
+                    cardSize: frontSize,
+                    cornerRadius: cornerRadius
+                )
+            }
+    }
+}
+
+/// A card at `offset` minus the card `step` in front of it.
+private struct StackEdgeShape: Shape {
+    let offset: CGFloat
+    let step: CGFloat
+    let cardSize: CGFloat
+    let cornerRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let card = RoundedRectangle(cornerRadius: cornerRadius)
+        // Cards are pinned to the top trailing corner and step down and to the left.
+        let frontX = rect.maxX - cardSize
+        let back = card.path(
+            in: CGRect(x: frontX - offset, y: offset, width: cardSize, height: cardSize)
+        )
+        let front = card.path(
+            in: CGRect(x: frontX - offset + step, y: offset - step, width: cardSize, height: cardSize)
+        )
+        return back.subtracting(front)
     }
 }
 
