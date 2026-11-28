@@ -101,6 +101,8 @@ private struct PlayerSpeedSlider: View {
     }
     private let inset: CGFloat = 8
     private let trackHeight: CGFloat = 32
+    // About half a marker label's text width.
+    private let labelHitRadius: CGFloat = 18
 
     private func fraction(_ speed: Float) -> CGFloat {
         // Equal speed ratios occupy equal distances: 0.5×, 1×, 2×.
@@ -115,12 +117,13 @@ private struct PlayerSpeedSlider: View {
         Int((12 * log2(speed)).rounded())
     }
 
-    private func speed(at location: CGPoint, length: CGFloat) -> Float {
-        let position = min(max((location.x - inset) / length, 0), 1)
-        // Below the track, snap to the labeled markers.
+    /// Nil below the track when the pointer is between marker labels.
+    private func speed(at location: CGPoint, length: CGFloat) -> Float? {
+        // Below the track, only the labels themselves are targets; the gaps between them are dead.
         if location.y >= trackHeight {
-            return marks.min { abs(fraction($0) - position) < abs(fraction($1) - position) }!
+            return marks.first { abs(inset + length * fraction($0) - location.x) <= labelHitRadius }
         }
+        let position = min(max((location.x - inset) / length, 0), 1)
         return speed(semitones: Int((position * 24).rounded()) - 12)
     }
 
@@ -137,15 +140,16 @@ private struct PlayerSpeedSlider: View {
     var body: some View {
         GeometryReader { geometry in
             let length = max(geometry.size.width - inset * 2, 1)
-            let previewSpeed = isHovering && !isDragging
-                ? hoverLocation.map { speed(at: $0, length: length) } : nil
+            // While dragging, the label keeps tracking the value under the pointer.
+            let previewSpeed = isDragging ? value
+                : isHovering ? hoverLocation.flatMap { speed(at: $0, length: length) } : nil
             let previewPosition = previewSpeed.map { inset + length * fraction($0) }
             let isPreviewingLabels = (hoverLocation?.y ?? 0) >= trackHeight
             VStack(spacing: 0) {
                 track(
                     width: geometry.size.width,
                     length: length,
-                    previewPosition: previewSpeed.map { hoverIndicatorPosition(for: $0, length: length) }
+                    previewPosition: isDragging ? nil : previewSpeed.map { hoverIndicatorPosition(for: $0, length: length) }
                 )
                 ZStack(alignment: .topLeading) {
                     ForEach(marks, id: \.self) { mark in
@@ -161,7 +165,7 @@ private struct PlayerSpeedSlider: View {
                     if !isPreviewingLabels, let previewSpeed, let previewPosition {
                         markerLabel(previewSpeed, isHighlighted: true)
                             .position(x: previewPosition, y: 22)
-                            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: previewSpeed)
+                            .animation(reduceMotion || isDragging ? nil : .easeOut(duration: 0.12), value: previewSpeed)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
                     }
@@ -185,7 +189,8 @@ private struct PlayerSpeedSlider: View {
                     .updating($isDragging) { _, dragging, _ in dragging = true }
                     .onChanged { gesture in
                         isFocused = true
-                        value = speed(at: gesture.location, length: length)
+                        hoverLocation = gesture.location
+                        if let speed = speed(at: gesture.location, length: length) { value = speed }
                     }
                     .onEnded { gesture in
                         hoverLocation = CGRect(origin: .zero, size: geometry.size).contains(gesture.location)
@@ -251,7 +256,7 @@ private struct PlayerSpeedSlider: View {
                     .fill(Color.accentColor)
                     .frame(width: 2, height: trackHeight)
                     .position(x: inset + length * fraction(value), y: trackHeight / 2)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: value)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: value)
             }
             .overlay(alignment: .topLeading) {
                 if let previewPosition {
