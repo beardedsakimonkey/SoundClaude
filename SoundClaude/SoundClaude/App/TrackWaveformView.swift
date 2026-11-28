@@ -2,6 +2,14 @@ import Accelerate
 import AppKit
 import SwiftUI
 
+// Lets a view outside the waveform show the hovered time without
+// re-rendering its parent on every mouse move.
+@MainActor
+@Observable
+final class WaveformHoverTime {
+    var seconds: Double?
+}
+
 struct TrackWaveformView: View {
     enum Layout {
         case detail
@@ -38,6 +46,7 @@ struct TrackWaveformView: View {
     static let collapsedBarHeight: CGFloat = 5
     let keepsBarsVisible: Bool
     let onPlayTrack: ((SoundCloudTrack) async -> Void)?
+    let hoverTime: WaveformHoverTime?
 
     private let playback: PlaybackController
     @State private var shadingCache = WaveformShadingCache()
@@ -81,7 +90,8 @@ struct TrackWaveformView: View {
         invertsBarsOnTrackChange: Bool = false,
         collapsesBarsWhenPaused: Bool = false,
         keepsBarsVisible: Bool = false,
-        onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil
+        onPlayTrack: ((SoundCloudTrack) async -> Void)? = nil,
+        hoverTime: WaveformHoverTime? = nil
     ) {
         self.track = track
         self.model = model
@@ -93,6 +103,7 @@ struct TrackWaveformView: View {
         self.collapsesBarsWhenPaused = collapsesBarsWhenPaused
         self.keepsBarsVisible = keepsBarsVisible
         self.onPlayTrack = onPlayTrack
+        self.hoverTime = hoverTime
         playback = model.playback
         let cachedWaveform = track.flatMap { model.cachedWaveform(for: $0) }
         _waveform = State(initialValue: cachedWaveform)
@@ -138,6 +149,9 @@ struct TrackWaveformView: View {
         }
         .onChange(of: loadingTrackURN) { _, _ in
             loadingIndicatorTrackURN = nil
+        }
+        .onChange(of: hoveredTime) { _, seconds in
+            hoverTime?.seconds = seconds
         }
         .task(id: loadingTrackURN) {
             loadingIndicatorTrackURN = nil
@@ -497,7 +511,11 @@ struct TrackWaveformView: View {
     }
 
     private var timestampCurrentTime: Double {
-        showsHoverPreview ? hoverFraction * displayedDuration : displayedCurrentTime
+        hoveredTime ?? displayedCurrentTime
+    }
+
+    private var hoveredTime: Double? {
+        showsHoverPreview ? hoverFraction * displayedDuration : nil
     }
 
     private func addGroundReflection(

@@ -450,6 +450,7 @@ private struct PlayerFooterWaveform: View {
 
     private let waveformHeight: CGFloat = 50
     @State private var waveformTrailingSlack: CGFloat = 0
+    @State private var hoverTime = WaveformHoverTime()
 
     var body: some View {
         let canInteract = playback.currentTrack != nil && playback.errorMessage == nil
@@ -461,14 +462,15 @@ private struct PlayerFooterWaveform: View {
                 layout: .compact,
                 height: waveformHeight,
                 invertsBarsOnTrackChange: true,
-                collapsesBarsWhenPaused: true
+                collapsesBarsWhenPaused: true,
+                hoverTime: hoverTime
             )
             .environment(\.contentHoverEnabled, canInteract)
             .disabled(!canInteract)
             .allowsHitTesting(canInteract)
             .accessibilityHidden(playback.currentTrack == nil)
 
-            PlayerFooterTimestamps(playback: playback)
+            PlayerFooterTimestamps(playback: playback, hoverTime: hoverTime)
             .opacity(playback.currentTrack == nil ? 0 : 1)
             .accessibilityHidden(playback.currentTrack == nil)
             .padding(.trailing, playback.currentTrack == nil ? 0 : waveformTrailingSlack)
@@ -505,10 +507,11 @@ private struct PlayerFooterWaveform: View {
 // Read the playback clock in its own body to keep time updates out of the footer.
 private struct PlayerFooterTimestamps: View {
     let playback: PlaybackController
+    let hoverTime: WaveformHoverTime
 
     var body: some View {
         HStack {
-            Text(format(seconds: playback.currentTime))
+            Text(format(seconds: hoverTime.seconds ?? playback.currentTime))
             Spacer()
             Text(format(seconds: playback.duration))
         }
